@@ -869,3 +869,16 @@ if __name__=="__main__":
     print("[*] VulnScan Pro v2.0 starting")
     print("[*] Open browser: http://localhost:5000")
     app.run(host="0.0.0.0",port=5000,debug=False)
+
+    if "--discover" in sys.argv:
+        idx=sys.argv.index("--discover")
+        print(json.dumps(network_discovery(sys.argv[idx+1]),indent=2))
+    else:
+        mods=["ports","ssl","dns","headers"]
+        if "--modules" in sys.argv:
+            idx=sys.argv.index("--modules")
+            mods=sys.argv[idx+1].split(",")
+            target=sys.argv[-1]
+        else:
+            target=sys.argv[1]
+        print(json.dumps(full_scan(target,mods),indent=2))
