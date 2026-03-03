@@ -56,6 +56,27 @@ HTML=r"""<!DOCTYPE html>
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>VulnScan Pro</title>
 <style>
+
+/* ── FONT SIZE BOOST ── */
+body{font-size:15px}
+.nb{font-size:12px !important}
+.btn{font-size:13px !important}
+.inp,.sel{font-size:15px !important}
+.ctitle,.st,.dtype{font-size:11px !important}
+.pname{font-size:15px !important}
+.psub{font-size:12px !important}
+.bdg{font-size:11px !important}
+.cdesc,.mi,.cid,.hk,.hv{font-size:13px !important}
+.sv{font-size:30px !important}
+.sl{font-size:10px !important}
+.tl{font-size:13px !important}
+.res-tbl td,.res-tbl th{font-size:12px !important}
+.hist-tbl td,.hist-tbl th{font-size:12px !important}
+.sub-item,.hi,.bar-row{font-size:13px !important}
+.hero h2{font-size:32px !important}
+.hero p{font-size:14px !important}
+.brand-name{font-size:20px !important}
+
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Syne:wght@400;600;700;800&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#04040a;--s1:#080810;--s2:#0d0d18;--b:#16162a;--b2:#1e1e35;--t:#e8e8f0;--m:#5a5a8a;
