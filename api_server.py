@@ -795,7 +795,14 @@ def scan():
         if not r.stdout:
             r=subprocess.run([sys.executable,BACKEND,target],capture_output=True,text=True,timeout=200)
         if r.stdout:
-            data=json.loads(r.stdout)
+            # Find the first { and last } to extract clean JSON
+            raw = r.stdout.strip()
+            start = raw.find('{')
+            end = raw.rfind('}')
+            if start == -1 or end == -1:
+                return jsonify({"error": "No JSON in output: " + raw[:200]}), 500
+            clean = raw[start:end+1]
+            data = json.loads(clean)
             if "error" not in data:
                 scan_id=save_scan(target,data)
                 data["scan_id"]=scan_id
