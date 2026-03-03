@@ -1,4 +1,4 @@
-cat > ~/vulnscan/backend.py << 'ENDOFFILE'
+#cat > ~/vulnscan/backend.py << 'ENDOFFILE'
 #!/usr/bin/env python3
 import json, sys, subprocess, urllib.request, urllib.parse, time, re, socket, ssl
 import xml.etree.ElementTree as ET
