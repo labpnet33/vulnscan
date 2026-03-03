@@ -385,14 +385,14 @@ if __name__ == "__main__":
     print(json.dumps(results, indent=2))
 
     if "--discover" in sys.argv:
-    idx=sys.argv.index("--discover")
-    print(json.dumps(network_discovery(sys.argv[idx+1]),indent=2))
-else:
-    mods=["ports","ssl","dns","headers"]
-    if "--modules" in sys.argv:
-        idx=sys.argv.index("--modules")
-        mods=sys.argv[idx+1].split(",")
-        target=sys.argv[-1]
+        idx=sys.argv.index("--discover")
+        print(json.dumps(network_discovery(sys.argv[idx+1]),indent=2))
     else:
-        target=sys.argv[1]
-    print(json.dumps(full_scan(target,mods),indent=2))
+        mods=["ports","ssl","dns","headers"]
+        if "--modules" in sys.argv:
+            idx=sys.argv.index("--modules")
+            mods=sys.argv[idx+1].split(",")
+            target=sys.argv[-1]
+        else:
+            target=sys.argv[1]
+        print(json.dumps(full_scan(target,mods),indent=2))
