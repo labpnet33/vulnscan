@@ -308,18 +308,27 @@ def full_scan(target, modules=None):
     return result
 
 if __name__=="__main__":
-    if len(sys.argv)<2:
-        print(json.dumps({"error":"Usage: python3 backend.py <target>"})); sys.exit(1)
-    print(json.dumps(full_scan(sys.argv[1]),indent=2))
+    import os
+    # Redirect all stderr to /dev/null so no extra text pollutes JSON output
+    sys.stderr = open(os.devnull, 'w')
+
+    if len(sys.argv) < 2:
+        print(json.dumps({"error": "No target specified"}))
+        sys.exit(1)
+
+    # Handle --discover mode
     if "--discover" in sys.argv:
-        idx=sys.argv.index("--discover")
-        print(json.dumps(network_discovery(sys.argv[idx+1]),indent=2))
-    else:
-        mods=["ports","ssl","dns","headers"]
-        if "--modules" in sys.argv:
-            idx=sys.argv.index("--modules")
-            mods=sys.argv[idx+1].split(",")
-            target=sys.argv[-1]
-        else:
-            target=sys.argv[1]
-        print(json.dumps(full_scan(target,mods),indent=2))
+        idx = sys.argv.index("--discover")
+        result = network_discovery(sys.argv[idx+1])
+        print(json.dumps(result))
+        sys.exit(0)
+
+    # Handle --modules flag
+    mods = ["ports","ssl","dns","headers"]
+    target = sys.argv[-1]
+    if "--modules" in sys.argv:
+        idx = sys.argv.index("--modules")
+        mods = sys.argv[idx+1].split(",")
+
+    result = full_scan(target, mods)
+    print(json.dumps(result))
