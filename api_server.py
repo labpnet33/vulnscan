@@ -490,4 +490,382 @@ function renderResults(data){
               ${s.details?.protocol||"unknown"} &middot; ${s.details?.cipher||"unknown"}
               ${s.details?.cipher_bits?" ("+s.details.cipher_bits+" bit)":""}
             </div>
-            ${s.details?.days_until_expiry!=null?`<div style="color:${s.details.days_until_expiry<30?"#ff3366":"#00ff9d"};font-size:11px;font-family:'JetBrains Mono',monospace;margin-top:3p
+            ${s.details?.days_until_expiry!=null?`<div style="color:${s.details.days_until_expiry<30?"#ff3366":"#00ff9d"};font-size:11px;font-family:'JetBrains Mono',monospace;margin-top:3px">
+              Expires: ${s.details.expires||""} (${s.details.days_until_expiry} days)</div>`:""}
+          </div>
+        </div>
+        <div class="ssl-details">
+          ${s.details?.subject?`<div class="ssl-detail">Subject<span>${s.details.subject}</span></div>`:""}
+          ${s.details?.issuer?`<div class="ssl-detail">Issuer<span>${s.details.issuer}</span></div>`:""}
+        </div>
+        ${s.issues?.length?`<div style="margin-top:12px">${s.issues.map(iss=>{const sv=SEV[iss.severity]||SEV.UNKNOWN;return`
+          <div class="issue-item">
+            <span style="color:${sv.c};flex-shrink:0;font-size:10px">${bdg(iss.severity,true)}</span>
+            <span style="font-size:12px;color:#c0c0d0">${iss.msg}</span>
+          </div>`;}).join("")}</div>`:"<p style='color:var(--green);font-size:12px;margin-top:10px'>&#10003; No SSL issues found</p>"}
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+
+  // ── DNS tab ──
+  if(data.modules?.dns){
+    const dns=data.modules.dns;
+    html+=`<div class="tab-content" id="tab-dns">
+      <div class="card-title" style="margin-bottom:12px">DNS RECORDS</div>
+      <div class="dns-grid">`;
+    Object.entries(dns.records||{}).forEach(([type,vals])=>{
+      html+=`<div class="dns-rec"><div class="dns-type">${type}</div>
+        <div class="dns-val">${vals.join("<br/>")}</div></div>`;
+    });
+    html+=`</div>
+      <div class="card-title" style="margin-bottom:10px">EMAIL SECURITY</div>
+      <div class="card" style="padding:14px">
+        <div class="check-row"><span class="check-icon">${dns.has_spf?"✅":"❌"}</span><span style="font-size:13px">SPF Record ${dns.has_spf?"configured":"missing — email spoofing risk"}</span></div>
+        <div class="check-row"><span class="check-icon">${dns.has_dmarc?"✅":"❌"}</span><span style="font-size:13px">DMARC Record ${dns.has_dmarc?"configured":"missing — email not protected"}</span></div>
+      </div>`;
+    if(dns.subdomains?.length){
+      html+=`<div class="card-title" style="margin-bottom:10px">SUBDOMAINS FOUND (${dns.subdomains.length})</div>`;
+      dns.subdomains.forEach(s=>{
+        html+=`<div class="sub-item"><span>${s.subdomain}</span><span style="color:var(--m)">${s.ip}</span></div>`;
+      });
+    }
+    if(dns.issues?.length){
+      html+=`<div class="card-title" style="margin-top:14px;margin-bottom:10px">DNS ISSUES</div>`;
+      dns.issues.forEach(iss=>{
+        const sv=SEV[iss.severity]||SEV.UNKNOWN;
+        html+=`<div class="issue-item">${bdg(iss.severity,true)}<span style="font-size:12px;color:#c0c0d0;margin-left:8px">${iss.msg}</span></div>`;
+      });
+    }
+    html+=`</div>`;
+  }
+
+  // ── Headers tab ──
+  if(data.modules?.headers){
+    const hd=data.modules.headers;
+    const gc=GRADE_COL[hd.grade]||"#ff3366";
+    html+=`<div class="tab-content" id="tab-headers">
+      <div style="display:flex;align-items:center;gap:24px;margin-bottom:20px;flex-wrap:wrap">
+        <div class="header-grade" style="color:${gc}">${hd.grade}</div>
+        <div>
+          <div style="font-size:14px;font-weight:600">${hd.url||hd.server||"Web Server"}</div>
+          <div style="color:var(--m);font-size:12px;font-family:'JetBrains Mono',monospace;margin-top:4px">
+            HTTP ${hd.status_code||""} &middot; Score: ${hd.score||0}/100
+            ${hd.server?" &middot; "+hd.server:""}
+          </div>
+          ${hd.technologies?.length?`<div style="margin-top:6px">${hd.technologies.map(t=>`<span style="background:var(--b2);color:var(--m);border-radius:4px;padding:2px 8px;font-size:10px;font-family:'JetBrains Mono',monospace;margin-right:5px">${t}</span>`).join("")}</div>`:""}
+        </div>
+      </div>
+      ${hd.issues?.length?`<div class="card-title" style="margin-bottom:10px">HEADER ISSUES</div>
+        <div class="mit-list" style="margin-bottom:16px">${hd.issues.map(iss=>{const sv=SEV[iss.severity]||SEV.UNKNOWN;return`
+          <div class="issue-item">${bdg(iss.severity,true)}<span style="font-size:12px;color:#c0c0d0;margin-left:8px">${iss.msg}</span></div>`;}).join("")}
+        </div>`:""}
+      <div class="card-title" style="margin-bottom:10px">RESPONSE HEADERS</div>
+      <div class="hdr-list">${Object.entries(hd.headers||{}).slice(0,30).map(([k,v])=>`
+        <div class="hdr-item"><span class="hdr-key">${k}</span><span class="hdr-val">${String(v).substring(0,120)}</span></div>`).join("")}
+      </div>
+    </div>`;
+  }
+
+  document.getElementById("results").innerHTML=html;
+  document.getElementById("results").style.display="block";
+
+  // Store for PDF
+  window._lastScanData=data;
+}
+
+// ── Tab switching ──────────────────────────────
+function switchTab(e,id){
+  const parent=e.currentTarget.closest(".container,.results-wrap")||document.getElementById("results");
+  parent.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  parent.querySelectorAll(".tab-content").forEach(t=>t.classList.remove("active"));
+  e.currentTarget.classList.add("active");
+  const tc=document.getElementById(id);
+  if(tc)tc.classList.add("active");
+}
+
+// ── Port toggle ────────────────────────────────
+function tp(hdr){
+  const body=hdr.nextElementSibling;
+  const chev=hdr.querySelector(".chev");
+  body.classList.toggle("open");
+  chev.style.transform=body.classList.contains("open")?"rotate(180deg)":"none";
+}
+
+// ── Network Discovery ──────────────────────────
+async function discoverNetwork(){
+  const subnet=document.getElementById("subnet").value.trim();
+  if(!subnet)return;
+  const btn=document.getElementById("dbtn");
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span>SCANNING...';
+  document.getElementById("discover-results").innerHTML=`<p style="color:var(--m);font-size:13px;padding:10px 0">Scanning subnet — please wait...</p>`;
+  try{
+    const r=await fetch("/discover?subnet="+encodeURIComponent(subnet));
+    const data=await r.json();
+    if(data.error){
+      document.getElementById("discover-results").innerHTML=`<div style="color:var(--red);font-size:13px;padding:10px 0">Error: ${data.error}</div>`;
+    } else {
+      let html=`<div class="card"><div class="card-title">${data.total||0} HOSTS FOUND</div><div class="host-grid">`;
+      (data.hosts||[]).forEach(h=>{
+        html+=`<div class="host-tile" onclick="scanHost('${h.ip}')">
+          <div class="host-ip">${h.ip}</div>
+          ${h.hostnames?.[0]?`<div class="host-name">${h.hostnames[0]}</div>`:""}
+          ${h.vendor?`<div class="host-vendor">${h.vendor}</div>`:""}
+          <div style="color:var(--m);font-size:10px;font-family:'JetBrains Mono',monospace;margin-top:8px">Click to scan &rsaquo;</div>
+        </div>`;
+      });
+      html+=`</div></div>`;
+      document.getElementById("discover-results").innerHTML=html;
+    }
+  }catch(e){
+    document.getElementById("discover-results").innerHTML=`<div style="color:var(--red);font-size:13px">Error: ${e.message}</div>`;
+  }finally{btn.disabled=false;btn.innerHTML="DISCOVER";}
+}
+
+function scanHost(ip){
+  document.getElementById("target").value=ip;
+  showPageDirect("scan");
+  startScan();
+}
+
+function showPageDirect(p){
+  document.querySelectorAll(".page").forEach(el=>el.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(el=>el.classList.remove("active"));
+  document.getElementById("page-"+p).classList.add("active");
+  document.querySelector(`.nav-btn[onclick*="${p}"]`)?.classList.add("active");
+}
+
+// ── History ────────────────────────────────────
+async function loadHistory(){
+  try{
+    const r=await fetch("/history");
+    const data=await r.json();
+    if(!data.length){
+      document.getElementById("history-content").innerHTML=`<p style="color:var(--m);font-size:13px">No scan history yet. Run your first scan!</p>`;
+      return;
+    }
+    let html=`<div style="overflow-x:auto"><table class="hist-table">
+      <thead><tr><th>ID</th><th>TARGET</th><th>TIME</th><th>PORTS</th><th>CVEs</th><th>CRITICAL</th><th>ACTION</th></tr></thead><tbody>`;
+    data.forEach(s=>{
+      const hasRisk=s.critical_cves>0;
+      html+=`<tr>
+        <td style="color:var(--m)">#${s.id}</td>
+        <td style="color:var(--cyan)">${s.target}</td>
+        <td style="color:var(--m)">${s.scan_time?.replace("T"," ").substring(0,19)||""}</td>
+        <td>${s.open_ports}</td>
+        <td>${s.total_cves}</td>
+        <td style="color:${hasRisk?"#ff3366":"#00ff9d"}">${s.critical_cves}</td>
+        <td><button class="link-btn" onclick="loadScanById(${s.id})">VIEW</button></td>
+      </tr>`;
+    });
+    html+=`</tbody></table></div>`;
+    document.getElementById("history-content").innerHTML=html;
+  }catch(e){
+    document.getElementById("history-content").innerHTML=`<p style="color:var(--red);font-size:13px">Error loading history: ${e.message}</p>`;
+  }
+}
+
+async function loadScanById(id){
+  showPageDirect("scan");
+  clearUI();
+  try{
+    const r=await fetch("/scan/"+id);
+    const data=await r.json();
+    document.getElementById("target").value=data.target||"";
+    renderResults(data);
+    initLog();
+    lg("Loaded scan #"+id+" for "+data.target,"s");
+  }catch(e){
+    document.getElementById("error-box").textContent="Failed to load scan: "+e.message;
+    document.getElementById("error-box").style.display="block";
+  }
+}
+
+// ── Dashboard ──────────────────────────────────
+async function loadDashboard(){
+  try{
+    const r=await fetch("/history?limit=100");
+    const data=await r.json();
+    if(!data.length){
+      document.getElementById("dash-content").innerHTML=`<p style="color:var(--m);font-size:13px">Run some scans to see statistics here.</p>`;
+      return;
+    }
+    const totalScans=data.length;
+    const totalCVEs=data.reduce((a,s)=>a+s.total_cves,0);
+    const totalCrit=data.reduce((a,s)=>a+s.critical_cves,0);
+    const totalPorts=data.reduce((a,s)=>a+s.open_ports,0);
+    const maxCVE=Math.max(...data.map(s=>s.total_cves),1);
+    const top5=data.slice(0,5);
+
+    let html=`<div class="stats-grid" style="margin-bottom:20px">
+      <div class="stat-card"><div class="stat-val" style="color:var(--cyan)">${totalScans}</div><div class="stat-lbl">TOTAL SCANS</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--yellow)">${totalCVEs}</div><div class="stat-lbl">TOTAL CVEs</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--red)">${totalCrit}</div><div class="stat-lbl">CRITICAL CVEs</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--green)">${totalPorts}</div><div class="stat-lbl">OPEN PORTS</div></div>
+    </div>
+    <div class="dash-grid">
+      <div class="card"><div class="card-title">TOP TARGETS BY CVE COUNT</div>
+        <div class="bar-chart">
+          ${top5.map(s=>`<div class="bar-row">
+            <span class="bar-label" style="font-size:10px;color:var(--m)">${s.target.substring(0,12)}</span>
+            <div class="bar-track"><div class="bar-fill" style="width:${(s.total_cves/maxCVE*100)}%;background:linear-gradient(90deg,var(--red),var(--orange))"></div></div>
+            <span class="bar-val">${s.total_cves}</span>
+          </div>`).join("")}
+        </div>
+      </div>
+      <div class="card"><div class="card-title">RECENT ACTIVITY</div>
+        ${data.slice(0,8).map(s=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--b);font-size:11px;font-family:'JetBrains Mono',monospace">
+          <span style="color:var(--cyan)">${s.target}</span>
+          <span style="color:${s.critical_cves>0?"var(--red)":"var(--m)"}">
+            ${s.critical_cves>0?"&#9762; "+s.critical_cves+" crit":s.total_cves+" CVEs"}
+          </span>
+        </div>`).join("")}
+      </div>
+    </div>`;
+    document.getElementById("dash-content").innerHTML=html;
+  }catch(e){
+    document.getElementById("dash-content").innerHTML=`<p style="color:var(--red);font-size:13px">Error: ${e.message}</p>`;
+  }
+}
+
+// ── PDF Export ─────────────────────────────────
+async function exportPDF(){
+  const data=window._lastScanData;
+  if(!data){alert("Run a scan first to generate a report");return;}
+  try{
+    const r=await fetch("/report",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
+    const blob=await r.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;a.download=`vulnscan-${data.target}-${new Date().toISOString().slice(0,10)}.txt`;
+    a.click();URL.revokeObjectURL(url);
+  }catch(e){alert("Report export failed: "+e.message);}
+}
+
+// ── Demo ────────────────────────────────────────
+function loadDemo(){
+  clearUI();initLog();lg("Loading demo scan results...","i");
+  setTimeout(()=>{
+    lg("Demo loaded — sample data for 192.168.1.1","s");
+    renderResults(DEMO_DATA);
+  },600);
+}
+
+// ── Demo data ──────────────────────────────────
+const DEMO_DATA={
+  target:"192.168.1.1",scan_time:new Date().toISOString(),
+  summary:{open_ports:3,total_cves:4,critical_cves:2,high_cves:1,exploitable:1},
+  modules:{
+    ports:{hosts:[{ip:"192.168.1.1",status:"up",hostnames:["router.local"],os:"Linux 3.x",ports:[
+      {port:22,protocol:"tcp",service:"ssh",product:"OpenSSH",version:"7.4",extrainfo:"protocol 2.0",risk_level:"HIGH",risk_score:9.8,
+       cves:[{id:"CVE-2023-38408",description:"PKCS#11 feature in ssh-agent in OpenSSH before 9.3p2 has an insufficiently trustworthy search path, leading to remote code execution.",score:9.8,severity:"CRITICAL",has_exploit:true,published:"2023-07-20",references:["https://nvd.nist.gov/vuln/detail/CVE-2023-38408"]}],
+       mitigations:["URGENT: Patch immediately — public exploit available","Upgrade OpenSSH to 9.3p2+","Set PermitRootLogin no","Use SSH key auth","Deploy fail2ban"]},
+      {port:80,protocol:"tcp",service:"http",product:"Apache httpd",version:"2.4.51",extrainfo:"",risk_level:"CRITICAL",risk_score:9.8,
+       cves:[{id:"CVE-2021-41773",description:"Path traversal and RCE in Apache 2.4.49 allows attackers to access files outside document root and execute code.",score:9.8,severity:"CRITICAL",has_exploit:false,published:"2021-10-05",references:["https://nvd.nist.gov/vuln/detail/CVE-2021-41773"]}],
+       mitigations:["Upgrade Apache to 2.4.52 immediately","Enable HTTPS, redirect HTTP","Implement CSP headers","Disable directory listing"]},
+      {port:3306,protocol:"tcp",service:"mysql",product:"MySQL",version:"5.7.38",extrainfo:"Community Server",risk_level:"MEDIUM",risk_score:4.9,
+       cves:[{id:"CVE-2022-21417",description:"MySQL Server vulnerability allows high privileged attacker to cause crash via multiple network protocols.",score:4.9,severity:"MEDIUM",has_exploit:false,published:"2022-04-19",references:["https://nvd.nist.gov/vuln/detail/CVE-2022-21417"]}],
+       mitigations:["Bind MySQL to localhost only","Never expose to internet","Use strong passwords","Upgrade to MySQL 8.0 LTS"]}
+    ]}]},
+    ssl:[{host:"192.168.1.1",port:443,grade:"B",details:{protocol:"TLSv1.2",cipher:"ECDHE-RSA-AES256-GCM-SHA384",cipher_bits:256,subject:"*.example.com",issuer:"Let's Encrypt",expires:"Oct 15 00:00:00 2025 GMT",days_until_expiry:45},issues:[{severity:"LOW",msg:"TLS 1.3 not enabled — consider upgrading"}]}],
+    dns:{target:"192.168.1.1",has_spf:false,has_dmarc:false,records:{A:["192.168.1.1"],NS:["ns1.example.com"],MX:["10 mail.example.com"]},subdomains:[{subdomain:"www.example.com",ip:"192.168.1.1"},{subdomain:"mail.example.com",ip:"192.168.1.2"}],issues:[{severity:"HIGH",msg:"No SPF record — email spoofing risk"},{severity:"MEDIUM",msg:"No DMARC record — email not protected"}]},
+    headers:{url:"http://192.168.1.1",status_code:200,grade:"D",score:35,server:"Apache/2.4.51",technologies:["Apache/2.4.51"],headers:{"Server":"Apache/2.4.51","Content-Type":"text/html","Connection":"keep-alive"},issues:[{severity:"HIGH",msg:"HSTS not set"},{severity:"HIGH",msg:"No CSP header — XSS risk"},{severity:"MEDIUM",msg:"No X-Frame-Options — Clickjacking risk"},{severity:"MEDIUM",msg:"No X-Content-Type-Options"}]}
+  }
+};
+</script>
+</body>
+</html>"""
+
+# ── Flask Routes ───────────────────────────────
+@app.route("/")
+def index():
+    return HTML
+
+@app.route("/scan", methods=["GET","POST"])
+def scan():
+    target=(request.args.get("target","") if request.method=="GET" else (request.get_json() or {}).get("target","")).strip()
+    modules=request.args.get("modules","ports,ssl,dns,headers")
+    if not target: return jsonify({"error":"No target specified"}),400
+    if not re.match(r'^[a-zA-Z0-9.\-_:/]+$',target): return jsonify({"error":"Invalid target"}),400
+    try:
+        mod_list=modules.split(",")
+        r=subprocess.run([sys.executable,BACKEND,"--modules",",".join(mod_list),target],
+                         capture_output=True,text=True,timeout=200)
+        # fallback: call without --modules if backend doesn't support it
+        if not r.stdout:
+            r=subprocess.run([sys.executable,BACKEND,target],capture_output=True,text=True,timeout=200)
+        if r.stdout:
+            data=json.loads(r.stdout)
+            if "error" not in data:
+                scan_id=save_scan(target,data)
+                data["scan_id"]=scan_id
+            return jsonify(data)
+        return jsonify({"error":r.stderr or "No output"}),500
+    except subprocess.TimeoutExpired: return jsonify({"error":"Scan timed out"}),504
+    except Exception as e: return jsonify({"error":str(e)}),500
+
+@app.route("/discover")
+def discover():
+    subnet=request.args.get("subnet","").strip()
+    if not subnet: return jsonify({"error":"No subnet specified"}),400
+    if not re.match(r'^[0-9./]+$',subnet): return jsonify({"error":"Invalid subnet format"}),400
+    try:
+        r=subprocess.run([sys.executable,BACKEND,"--discover",subnet],capture_output=True,text=True,timeout=120)
+        if r.stdout: return jsonify(json.loads(r.stdout))
+        return jsonify({"error":r.stderr or "No output"}),500
+    except Exception as e: return jsonify({"error":str(e)}),500
+
+@app.route("/history")
+def history():
+    limit=int(request.args.get("limit",20))
+    return jsonify(get_history(limit))
+
+@app.route("/scan/<int:scan_id>")
+def get_scan(scan_id):
+    data=get_scan_by_id(scan_id)
+    if not data: return jsonify({"error":"Scan not found"}),404
+    return jsonify(data)
+
+@app.route("/report",methods=["POST"])
+def report():
+    data=request.get_json()
+    target=data.get("target","unknown")
+    scan_time=data.get("scan_time","")
+    summary=data.get("summary",{})
+    ports=(data.get("modules",{}).get("ports",{}).get("hosts",[]) or [])
+    all_ports=[p for h in ports for p in h.get("ports",[])]
+    lines=[]
+    lines.append("="*60)
+    lines.append("VULNSCAN PRO — SECURITY ASSESSMENT REPORT")
+    lines.append("="*60)
+    lines.append(f"Target:      {target}")
+    lines.append(f"Scan Time:   {scan_time}")
+    lines.append(f"Open Ports:  {summary.get('open_ports',0)}")
+    lines.append(f"Total CVEs:  {summary.get('total_cves',0)}")
+    lines.append(f"Critical:    {summary.get('critical_cves',0)}")
+    lines.append(f"Exploitable: {summary.get('exploitable',0)}")
+    lines.append("")
+    lines.append("OPEN PORTS & VULNERABILITIES")
+    lines.append("-"*60)
+    for p in all_ports:
+        lines.append(f"\nPort {p['port']}/{p['protocol']} — {p.get('product','')} {p.get('version','')} [{p.get('risk_level','?')}]")
+        for c in p.get("cves",[]):
+            lines.append(f"  CVE: {c['id']} | CVSS: {c.get('score','?')} | {c.get('severity','?')}")
+            lines.append(f"  {c.get('description','')[:120]}...")
+        if p.get("mitigations"):
+            lines.append("  Mitigations:")
+            for m in p["mitigations"]: lines.append(f"    - {m}")
+    lines.append("\n"+"="*60)
+    lines.append("Generated by VulnScan Pro")
+    lines.append("="*60)
+    from flask import Response
+    return Response("\n".join(lines),mimetype="text/plain",
+        headers={"Content-Disposition":f'attachment;filename=vulnscan-{target}.txt'})
+
+@app.route("/health")
+def health(): return jsonify({"status":"ok","version":"2.0"})
+
+if __name__=="__main__":
+    print("[*] VulnScan Pro v2.0 starting")
+    print("[*] Open browser: http://localhost:5000")
+    app.run(host="0.0.0.0",port=5000,debug=False)
