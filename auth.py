@@ -90,19 +90,119 @@ def send_verification_email(email, username, token):
         subject = "Verify your VulnScan Pro account"
         link = f"{APP_URL}/verify/{token}"
         body = f"""
-Hello {username},
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {{
+            font-family: 'Syne', 'Helvetica', sans-serif;
+            background-color: #04040a;
+            color: #e8e8f0;
+            margin: 0;
+            padding: 0;
+        }}
+        .container {{
+            background: linear-gradient(135deg, #0d0d18 0%, #08081010 100%);
+            border: 1px solid #16162a;
+            border-radius: 12px;
+            max-width: 600px;
+            margin: 20px auto;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 229, 255, 0.15);
+        }}
+        .header {{
+            background: linear-gradient(90deg, #00e5ff 0%, #b06fff 100%);
+            padding: 30px;
+            text-align: center;
+        }}
+        .header h1 {{
+            margin: 0;
+            color: white;
+            font-size: 28px;
+            font-weight: 800;
+        }}
+        .content {{
+            padding: 40px 30px;
+        }}
+        .content h2 {{
+            color: #00e5ff;
+            font-size: 20px;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }}
+        .content p {{
+            color: #c0c0d0;
+            line-height: 1.8;
+            margin: 15px 0;
+            font-size: 14px;
+        }}
+        .button {{
+            display: inline-block;
+            background: linear-gradient(135deg, #ff3366 0%, #ff6b35 100%);
+            color: white;
+            padding: 14px 32px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 14px;
+            margin: 25px 0;
+            text-align: center;
+            box-shadow: 0 4px 18px rgba(255, 51, 102, 0.3);
+            display: block;
+            width: fit-content;
+        }}
+        .button:hover {{
+            opacity: 0.9;
+        }}
+        .footer {{
+            background-color: #0d0d18;
+            padding: 20px 30px;
+            text-align: center;
+            border-top: 1px solid #16162a;
+            font-size: 11px;
+            color: #5a5a8a;
+        }}
+        .warning {{
+            background-color: #16162a;
+            border-left: 4px solid #ffd60a;
+            padding: 12px 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #c0c0d0;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 VulnScan Pro</h1>
+        </div>
+        <div class="content">
+            <h2>Welcome, {username}!</h2>
+            <p>Thank you for registering with VulnScan Pro. To activate your account, please verify your email address by clicking the button below:</p>
 
-Welcome to VulnScan Pro! Please verify your email address to activate your account.
+            <a href="{link}" class="button">VERIFY EMAIL ADDRESS</a>
 
-Verification Link: {link}
+            <p style="text-align: center; color: #5a5a8a; font-size: 12px; margin-top: 30px;">
+                Or copy this link:<br>
+                <code style="background-color: #16162a; padding: 8px 12px; border-radius: 4px; word-break: break-all; display: block; margin-top: 8px;">{link}</code>
+            </p>
 
-This link expires in 24 hours.
-
-If you did not register, ignore this email.
-
-— VulnScan Pro Team
+            <div class="warning">
+                ⏰ <strong>Link expires in 24 hours.</strong> If you did not register for this account, you can safely ignore this email.
+            </div>
+        </div>
+        <div class="footer">
+            <p>© 2024 VulnScan Pro. Security Intelligence Platform.</p>
+            <p style="color: #5a5a8a; margin: 5px 0;">This is an automated email. Please do not reply.</p>
+        </div>
+    </div>
+</body>
+</html>
 """
-        return send_mail(email, subject, body)
+        return send_mail(email, subject, body, is_html=True)
     except ImportError:
         # Email not configured - return token for manual verification
         print(f"[!] Email not configured. Verify token for {username}: {token}")
@@ -117,17 +217,120 @@ def send_reset_email(email, username, token):
         subject = "VulnScan Pro — Password Reset"
         link = f"{APP_URL}/reset-password/{token}"
         body = f"""
-Hello {username},
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {{
+            font-family: 'Syne', 'Helvetica', sans-serif;
+            background-color: #04040a;
+            color: #e8e8f0;
+            margin: 0;
+            padding: 0;
+        }}
+        .container {{
+            background: linear-gradient(135deg, #0d0d18 0%, #08081010 100%);
+            border: 1px solid #16162a;
+            border-radius: 12px;
+            max-width: 600px;
+            margin: 20px auto;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(255, 107, 53, 0.15);
+        }}
+        .header {{
+            background: linear-gradient(90deg, #ff6b35 0%, #ff3366 100%);
+            padding: 30px;
+            text-align: center;
+        }}
+        .header h1 {{
+            margin: 0;
+            color: white;
+            font-size: 28px;
+            font-weight: 800;
+        }}
+        .content {{
+            padding: 40px 30px;
+        }}
+        .content h2 {{
+            color: #ff6b35;
+            font-size: 20px;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }}
+        .content p {{
+            color: #c0c0d0;
+            line-height: 1.8;
+            margin: 15px 0;
+            font-size: 14px;
+        }}
+        .button {{
+            display: inline-block;
+            background: linear-gradient(135deg, #00e5ff 0%, #00ff9d 100%);
+            color: #04040a;
+            padding: 14px 32px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 14px;
+            margin: 25px 0;
+            text-align: center;
+            box-shadow: 0 4px 18px rgba(0, 229, 255, 0.3);
+            display: block;
+            width: fit-content;
+        }}
+        .button:hover {{
+            opacity: 0.9;
+        }}
+        .footer {{
+            background-color: #0d0d18;
+            padding: 20px 30px;
+            text-align: center;
+            border-top: 1px solid #16162a;
+            font-size: 11px;
+            color: #5a5a8a;
+        }}
+        .alert {{
+            background-color: #1a1a2e;
+            border-left: 4px solid #ff3366;
+            padding: 12px 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #c0c0d0;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔑 Password Reset</h1>
+        </div>
+        <div class="content">
+            <h2>Reset Your Password</h2>
+            <p>Hi {username},</p>
+            <p>A password reset was requested for your VulnScan Pro account. Click the button below to set a new password:</p>
 
-A password reset was requested for your VulnScan Pro account.
+            <a href="{link}" class="button">RESET PASSWORD</a>
 
-Reset Link: {link}
+            <p style="text-align: center; color: #5a5a8a; font-size: 12px; margin-top: 30px;">
+                Or copy this link:<br>
+                <code style="background-color: #16162a; padding: 8px 12px; border-radius: 4px; word-break: break-all; display: block; margin-top: 8px;">{link}</code>
+            </p>
 
-This link expires in 1 hour. If you did not request this, ignore this email.
-
-— VulnScan Pro Team
+            <div class="alert">
+                ⏱️ <strong>Link expires in 1 hour.</strong> If you did not request a password reset, you can safely ignore this email. Your account is still secure.
+            </div>
+        </div>
+        <div class="footer">
+            <p>© 2024 VulnScan Pro. Security Intelligence Platform.</p>
+            <p style="color: #5a5a8a; margin: 5px 0;">This is an automated email. Please do not reply.</p>
+        </div>
+    </div>
+</body>
+</html>
 """
-        return send_mail(email, subject, body)
+        return send_mail(email, subject, body, is_html=True)
     except Exception as e:
         print(f"[!] Reset email failed: {e}")
         return False
