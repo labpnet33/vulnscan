@@ -1064,7 +1064,15 @@ def index(): return HTML
 
 @app.route("/verify/<token>")
 def verify_page(token):
-    return HTML  # JS handles it via ?verify= param
+    from auth import verify_user
+    if verify_user(token):
+        # Verification successful - return HTML with success message
+        success_html = HTML.replace('authTab("login")', 'authTab("login"); authMsg("Email verified successfully! You can now login.","ok")')
+        return success_html
+    else:
+        # Verification failed - return HTML with error message
+        error_html = HTML.replace('authTab("login")', 'authTab("login"); authMsg("Invalid or expired verification link","err")')
+        return error_html
 
 @app.route("/scan",methods=["GET","POST"])
 def scan():
