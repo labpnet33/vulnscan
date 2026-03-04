@@ -8,12 +8,12 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 # ── Configure these ────────────────────────────
-APP_URL      = "http://YOUR-SERVER-IP:5000"   # Change to your server URL
+APP_URL      = "http://localhost:5000"       # Change to your server URL
 SMTP_HOST    = "smtp.gmail.com"               # or smtp.outlook.com etc
 SMTP_PORT    = 587
-SMTP_USER    = "your-email@gmail.com"         # Your email
-SMTP_PASS    = "your-app-password"            # Gmail: use App Password
-FROM_EMAIL   = "VulnScan Pro <your-email@gmail.com>"
+SMTP_USER    = "labpnet33@gmail.com"          # Your email
+SMTP_PASS    = "hkls wpey nvxi bgwh"          # Gmail: use App Password
+FROM_EMAIL   = "VulnScan Pro <labpnet33@gmail.com>"
 # ──────────────────────────────────────────────
 
 def send_mail(to_email, subject, body):

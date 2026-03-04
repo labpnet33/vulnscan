@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import json,re,sys,os,subprocess,io
-from flask import Flask,request,jsonify,Response,session
+from flask import Flask,request,jsonify,Response
 from flask_cors import CORS
-from datetime import datetime,timedelta
+from datetime import datetime,timedelta,timezone
 
 app=Flask(__name__)
 app.secret_key=os.environ.get("VULNSCAN_SECRET","change-this-secret-key-in-production-2024")
@@ -12,7 +12,7 @@ BACKEND=os.path.join(os.path.dirname(os.path.abspath(__file__)),"backend.py")
 
 # Import database and auth
 from database import save_scan,get_history,get_scan_by_id
-from auth import register_auth_routes,get_current_user,login_required,admin_required,audit
+from auth import register_auth_routes,get_current_user,audit
 
 # Register all auth routes
 register_auth_routes(app)
@@ -1064,9 +1064,7 @@ def index(): return HTML
 
 @app.route("/verify/<token>")
 def verify_page(token):
-    return HTML  # JS handles it via ?verify= param... redirect to proper URL
-    from flask import redirect
-    return redirect(f"/?verify={token}")
+    return HTML  # JS handles it via ?verify= param
 
 @app.route("/scan",methods=["GET","POST"])
 def scan():
@@ -1180,7 +1178,6 @@ def report():
     C_YELLOW=colors.HexColor("#ffd60a");C_GREEN=colors.HexColor("#00ff9d")
     C_PURPLE=colors.HexColor("#b06fff")
     SEV_C={"CRITICAL":C_RED,"HIGH":C_ORANGE,"MEDIUM":C_YELLOW,"LOW":C_GREEN,"UNKNOWN":C_MUTED}
-    GCP={"A+":C_GREEN,"A":C_CYAN,"B":C_YELLOW,"C":C_ORANGE,"D":C_ORANGE,"F":C_RED}
 
     def sty(name,**kw):
         d=dict(fontName="Helvetica",fontSize=9,textColor=C_WHITE,leading=14,spaceAfter=4,spaceBefore=2,leftIndent=0,alignment=TA_LEFT)
@@ -1226,7 +1223,7 @@ def report():
     story+=[sp(36),p("VulnScan Pro",S_T)]
     story.append(p("SECURITY ASSESSMENT REPORT",sty("st2",fontName="Helvetica-Bold",fontSize=12,textColor=C_PURPLE,leading=18)))
     story+=[sp(8),hr(),sp(8)]
-    story.append(tbl([[k,v] for k,v in [("Target",target),("Scan Time",scan_time),("Report Date",datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")),("Risk Level",risk[2])]],
+    story.append(tbl([[k,v] for k,v in [("Target",target),("Scan Time",scan_time),("Report Date",datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")),("Risk Level",risk[2])]],
         [38*mm,115*mm],[("FONTNAME",(0,0),(0,-1),"Helvetica-Bold"),("TEXTCOLOR",(0,0),(0,-1),C_MUTED),("TEXTCOLOR",(1,3),(1,3),risk[1]),("FONTNAME",(1,3),(1,3),"Helvetica-Bold")]))
     story+=[sp(18)]
     st=Table([[f"{summary.get('open_ports',0)}\nOPEN PORTS",f"{summary.get('total_cves',0)}\nTOTAL CVEs",f"{crit_c}\nCRITICAL",f"{high_c}\nHIGH",f"{summary.get('exploitable',0)}\nEXPLOITABLE"]],colWidths=[30*mm]*5)
@@ -1329,7 +1326,7 @@ def report():
 
     doc.build(story,onFirstPage=draw_bg,onLaterPages=draw_bg)
     buf.seek(0)
-    fname=f"vulnscan-{re.sub(r'[^a-zA-Z0-9._-]','_',target)}-{datetime.utcnow().strftime('%Y%m%d')}.pdf"
+    fname=f"vulnscan-{re.sub(r'[^a-zA-Z0-9._-]','_',target)}-{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf"
     return Response(buf.read(),mimetype="application/pdf",headers={"Content-Disposition":f"attachment; filename={fname}"})
 
 @app.route("/health")
