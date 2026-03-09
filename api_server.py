@@ -255,6 +255,89 @@ textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
   </div>
 </div>
 
+<!-- ══ ABOUT MODAL ══ -->
+<div id="about-modal" style="display:none;position:fixed;inset:0;background:rgba(4,4,10,0.92);z-index:300;align-items:center;justify-content:center;backdrop-filter:blur(12px)" onclick="if(event.target===this)closeAbout()">
+  <div style="background:var(--s1);border:1px solid var(--b2);border-radius:18px;padding:40px;width:100%;max-width:560px;position:relative;margin:16px">
+    <!-- Close button -->
+    <button onclick="closeAbout()" style="position:absolute;top:16px;right:18px;background:transparent;border:none;color:var(--m);cursor:pointer;font-size:20px;line-height:1">&#10005;</button>
+
+    <!-- Logo + Title -->
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:24px">
+      <div style="width:48px;height:48px;background:linear-gradient(135deg,var(--red),var(--orange));border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;box-shadow:0 0 24px rgba(255,51,102,0.35)">&#9889;</div>
+      <div>
+        <div style="font-size:22px;font-weight:800;background:linear-gradient(90deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent">VulnScan Pro</div>
+        <div style="font-size:10px;color:var(--m);letter-spacing:3px;font-family:'JetBrains Mono',monospace;margin-top:2px">OPEN SOURCE SECURITY PLATFORM</div>
+      </div>
+    </div>
+
+    <!-- Divider -->
+    <div style="height:1px;background:linear-gradient(90deg,var(--red),var(--purple),transparent);margin-bottom:22px"></div>
+
+    <!-- Purpose -->
+    <div style="margin-bottom:20px">
+      <div style="font-size:10px;color:var(--m);letter-spacing:3px;font-family:'JetBrains Mono',monospace;margin-bottom:8px">PURPOSE</div>
+      <p style="color:#c0c0d0;font-size:14px;line-height:1.8;margin:0">
+        VulnScan Pro is a free, open-source vulnerability assessment platform designed for security professionals, penetration testers, and system administrators. It enables comprehensive scanning of networks, web servers, and infrastructure to identify security weaknesses before attackers do.
+      </p>
+    </div>
+
+    <!-- Features grid -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:22px">
+      <div style="background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:12px">
+        <div style="color:var(--cyan);font-size:18px;margin-bottom:5px">&#128268;</div>
+        <div style="font-size:12px;font-weight:700;color:var(--t);margin-bottom:3px">Port Scanner</div>
+        <div style="font-size:11px;color:var(--m)">Nmap-powered with CVE intelligence</div>
+      </div>
+      <div style="background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:12px">
+        <div style="color:var(--purple);font-size:18px;margin-bottom:5px">&#127760;</div>
+        <div style="font-size:12px;font-weight:700;color:var(--t);margin-bottom:3px">Subdomain Finder</div>
+        <div style="font-size:11px;color:var(--m)">crt.sh + HackerTarget + brute force</div>
+      </div>
+      <div style="background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:12px">
+        <div style="color:var(--orange);font-size:18px;margin-bottom:5px">&#128193;</div>
+        <div style="font-size:12px;font-weight:700;color:var(--t);margin-bottom:3px">Directory Buster</div>
+        <div style="font-size:11px;color:var(--m)">Hidden path & file enumeration</div>
+      </div>
+      <div style="background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:12px">
+        <div style="color:var(--green);font-size:18px;margin-bottom:5px">&#128274;</div>
+        <div style="font-size:12px;font-weight:700;color:var(--t);margin-bottom:3px">SSL/TLS Analyser</div>
+        <div style="font-size:11px;color:var(--m)">Certificate & cipher analysis</div>
+      </div>
+    </div>
+
+    <!-- Divider -->
+    <div style="height:1px;background:var(--b2);margin-bottom:20px"></div>
+
+    <!-- Creator -->
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
+      <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--purple));display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:var(--bg);flex-shrink:0">V</div>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:var(--t)">Vijay Katariya</div>
+        <div style="font-size:11px;color:var(--m);font-family:'JetBrains Mono',monospace;margin-top:2px">Creator &amp; Lead Developer</div>
+        <div style="font-size:11px;color:var(--cyan);font-family:'JetBrains Mono',monospace;margin-top:1px">Motalund Organization</div>
+      </div>
+      <div style="margin-left:auto;text-align:right">
+        <div style="background:rgba(0,255,157,0.08);border:1px solid rgba(0,255,157,0.2);border-radius:20px;padding:4px 12px;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--green)">&#11044; OPEN SOURCE</div>
+      </div>
+    </div>
+
+    <!-- Disclaimer -->
+    <div style="background:rgba(255,214,10,0.05);border:1px solid rgba(255,214,10,0.15);border-radius:8px;padding:12px">
+      <div style="font-size:11px;color:var(--yellow);font-family:'JetBrains Mono',monospace;line-height:1.7">
+        &#9888; <strong>Legal Disclaimer:</strong> This tool is intended for authorized security testing only. Only scan systems you own or have explicit written permission to test. Unauthorized scanning is illegal.
+      </div>
+    </div>
+
+    <!-- GitHub link -->
+    <div style="text-align:center;margin-top:18px">
+      <a href="https://github.com/labpnet33/vulnscan" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:9px 18px;color:var(--t);text-decoration:none;font-family:'JetBrains Mono',monospace;font-size:12px;transition:border-color 0.2s" onmouseover="this.style.borderColor='var(--cyan)'" onmouseout="this.style.borderColor='var(--b2)'">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        github.com/labpnet33/vulnscan
+      </a>
+    </div>
+  </div>
+</div>
+
 <!-- ══ HEADER ══ -->
 <header>
   <div class="brand">
@@ -270,6 +353,7 @@ textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
     <button class="nb" onclick="pg('hist',this)">&#128196; History</button>
     <button class="nb" onclick="pg('dash',this)">&#128202; Dashboard</button>
     <button class="nb admin-only" onclick="pg('admin',this)" style="display:none">&#9881; Admin</button>
+    <button class="nb" onclick="showAbout()" style="color:var(--cyan)">&#9432; About</button>
     <div class="user-chip" onclick="pg('profile',this)" id="user-chip" style="display:none">
       <div class="user-avatar" id="user-avatar">?</div>
       <div><div class="user-name" id="user-name-disp">User</div><div class="user-role" id="user-role-disp">user</div></div>
@@ -1025,7 +1109,19 @@ if(vt){
   });
 }
 
-document.addEventListener("keydown",e=>{if(e.key==="Enter"&&document.getElementById("l-pass")===document.activeElement)doLogin();});
+// ── About Modal ────────────────────────────────
+function showAbout(){
+  const m=document.getElementById("about-modal");
+  m.style.display="flex";
+  setTimeout(()=>m.style.opacity="1",10);
+}
+function closeAbout(){
+  document.getElementById("about-modal").style.display="none";
+}
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape") closeAbout();
+  if(e.key==="Enter"&&document.getElementById("l-pass")===document.activeElement)doLogin();
+});
 loadUser();
 </script>
 </body>
