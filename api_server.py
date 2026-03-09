@@ -80,12 +80,14 @@ nav{display:flex;gap:3px;flex-wrap:wrap;align-items:center}
 .nb{padding:6px 13px;border:none;background:transparent;color:var(--m);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:1px;border-radius:6px;transition:all 0.2s;white-space:nowrap}
 .nb:hover,.nb.active{background:var(--b);color:var(--cyan)}
 .nav-dropdown{position:relative;display:inline-block}
+.nav-dropdown:hover .nav-dropdown-menu{display:block;animation:ddFade 0.15s ease}
+.nav-dropdown:hover .nav-dropdown-btn{background:var(--b);color:var(--cyan)}
+.nav-dropdown:hover .nav-dropdown-btn .arrow{transform:rotate(180deg)}
+@keyframes ddFade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 .nav-dropdown-btn{padding:6px 13px;border:none;background:transparent;color:var(--m);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:1px;border-radius:6px;transition:all 0.2s;white-space:nowrap;display:flex;align-items:center;gap:5px}
 .nav-dropdown-btn:hover,.nav-dropdown-btn.active{background:var(--b);color:var(--cyan)}
 .nav-dropdown-btn .arrow{font-size:8px;transition:transform 0.2s}
-.nav-dropdown-btn.open .arrow{transform:rotate(180deg)}
-.nav-dropdown-menu{position:absolute;top:calc(100% + 6px);left:0;background:var(--s1);border:1px solid var(--b2);border-radius:10px;min-width:210px;z-index:100;padding:6px;display:none;box-shadow:0 8px 32px rgba(0,0,0,0.5)}
-.nav-dropdown-menu.open{display:block}
+.nav-dropdown-menu{position:absolute;top:calc(100% + 2px);left:0;background:var(--s1);border:1px solid var(--b2);border-radius:10px;min-width:220px;z-index:100;padding:6px;display:none;box-shadow:0 8px 32px rgba(0,0,0,0.6)}
 .nav-dropdown-section{font-size:9px;color:var(--m);letter-spacing:2px;font-family:'JetBrains Mono',monospace;padding:6px 10px 4px;margin-top:4px}
 .nav-dropdown-section:first-child{margin-top:0}
 .nav-dropdown-item{display:flex;align-items:center;gap:9px;padding:8px 12px;border:none;background:transparent;color:var(--t);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;border-radius:7px;width:100%;text-align:left;transition:all 0.2s}
@@ -94,6 +96,32 @@ nav{display:flex;gap:3px;flex-wrap:wrap;align-items:center}
 .nav-dropdown-item .item-icon{width:22px;text-align:center;font-size:13px}
 .nav-dropdown-item .item-label{flex:1}
 .nav-dropdown-item .item-badge{font-size:8px;background:var(--cyan);color:var(--bg);padding:2px 5px;border-radius:4px;font-weight:700}
+.ver-badge{font-size:9px;font-family:'JetBrains Mono',monospace;background:rgba(0,229,255,0.08);color:var(--cyan);border:1px solid rgba(0,229,255,0.2);border-radius:4px;padding:2px 7px;letter-spacing:1px;cursor:default}
+.brand-link{display:flex;align-items:center;gap:10px;cursor:pointer;text-decoration:none}
+.home-hero{text-align:center;padding:48px 0 36px}
+.home-hero h1{font-size:42px;font-weight:800;background:linear-gradient(135deg,var(--cyan),var(--purple),var(--red));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:10px;line-height:1.1}
+.home-hero p{color:var(--m);font-size:14px;font-family:'JetBrains Mono',monospace;max-width:540px;margin:0 auto 28px}
+.home-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:40px}
+.home-stat{background:var(--s1);border:1px solid var(--b);border-radius:12px;padding:20px;text-align:center;transition:border-color 0.2s}
+.home-stat:hover{border-color:var(--cyan)}
+.home-stat-val{font-size:32px;font-weight:800;font-family:'JetBrains Mono',monospace;background:linear-gradient(135deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.home-stat-lbl{color:var(--m);font-size:10px;letter-spacing:2px;margin-top:4px;font-family:'JetBrains Mono',monospace}
+.home-cat{margin-bottom:36px}
+.home-cat-title{font-size:11px;color:var(--m);letter-spacing:3px;font-family:'JetBrains Mono',monospace;margin-bottom:14px;font-weight:700;display:flex;align-items:center;gap:10px}
+.home-cat-title::after{content:'';flex:1;height:1px;background:var(--b)}
+.home-tools-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.home-tool-card{background:var(--s1);border:1px solid var(--b);border-radius:12px;padding:18px;cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden}
+.home-tool-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,var(--tool-c,var(--cyan)),transparent);opacity:0;transition:opacity 0.3s;pointer-events:none}
+.home-tool-card:hover{border-color:var(--tool-c,var(--cyan));transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.4)}
+.home-tool-card:hover::before{opacity:0.04}
+.home-tool-icon{font-size:28px;margin-bottom:10px}
+.home-tool-name{font-size:15px;font-weight:700;margin-bottom:4px;color:var(--t)}
+.home-tool-desc{font-size:11px;color:var(--m);font-family:'JetBrains Mono',monospace;line-height:1.6}
+.home-tool-tags{display:flex;gap:5px;margin-top:10px;flex-wrap:wrap}
+.home-tool-tag{font-size:9px;font-family:'JetBrains Mono',monospace;padding:2px 7px;border-radius:3px;font-weight:700}
+.home-quick{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:40px}
+.home-quick-btn{padding:10px 20px;border:1px solid var(--b2);border-radius:8px;background:transparent;color:var(--t);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;transition:all 0.2s;display:flex;align-items:center;gap:7px}
+.home-quick-btn:hover{border-color:var(--cyan);color:var(--cyan);background:rgba(0,229,255,0.05)}
 .user-chip{display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--b2);border-radius:20px;padding:4px 12px 4px 8px;cursor:pointer;transition:all 0.2s}
 .user-chip:hover{border-color:var(--cyan)}
 .user-avatar{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--purple));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--bg)}
@@ -355,14 +383,20 @@ textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
 
 <!-- ══ HEADER ══ -->
 <header>
-  <div class="brand">
+  <div class="brand brand-link" onclick="pg('home',null)" title="Go to Home">
     <div class="brand-icon">&#9889;</div>
-    <div><div class="brand-name">VulnScan Pro</div><div class="brand-tag">SECURITY PLATFORM</div></div>
+    <div>
+      <div class="brand-name">VulnScan Pro</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+        <div class="brand-tag">SECURITY PLATFORM</div>
+        <span class="ver-badge">v3.2</span>
+      </div>
+    </div>
   </div>
   <nav id="main-nav">
     <!-- ── Information Gathering Dropdown ── -->
     <div class="nav-dropdown" id="dd-info">
-      <button class="nav-dropdown-btn" id="dd-info-btn" onclick="toggleDropdown('info')">
+      <button class="nav-dropdown-btn" id="dd-info-btn">
         &#128270; Information Gathering <span class="arrow">&#9660;</span>
       </button>
       <div class="nav-dropdown-menu" id="dd-info-menu">
@@ -399,8 +433,118 @@ textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
 
 <div class="container">
 
+<!-- ═══ HOME ═══ -->
+<div class="page active" id="page-home">
+  <div class="home-hero">
+    <h1>VulnScan Pro</h1>
+    <p>Professional security reconnaissance &amp; vulnerability assessment platform. Built for pentesters, sysadmins, and security researchers.</p>
+    <div class="home-quick">
+      <button class="home-quick-btn" onclick="pgFromDd('scan','info')">&#128268; Quick Network Scan</button>
+      <button class="home-quick-btn" onclick="pgFromDd('harvester','info')">&#127919; OSINT Harvest</button>
+      <button class="home-quick-btn" onclick="pg('sub',null)">&#127760; Subdomain Finder</button>
+      <button class="home-quick-btn" onclick="pg('hist',null)">&#128196; View History</button>
+    </div>
+  </div>
+
+  <!-- Live Stats -->
+  <div class="home-stats" id="home-stats">
+    <div class="home-stat"><div class="home-stat-val" id="hs-scans">—</div><div class="home-stat-lbl">TOTAL SCANS</div></div>
+    <div class="home-stat"><div class="home-stat-val" id="hs-cves" style="background:linear-gradient(135deg,var(--red),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent">—</div><div class="home-stat-lbl">CVEs FOUND</div></div>
+    <div class="home-stat"><div class="home-stat-val" id="hs-ports" style="background:linear-gradient(135deg,var(--yellow),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent">—</div><div class="home-stat-lbl">OPEN PORTS</div></div>
+    <div class="home-stat"><div class="home-stat-val" id="hs-tools" style="background:linear-gradient(135deg,var(--green),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent">7</div><div class="home-stat-lbl">TOOLS AVAILABLE</div></div>
+  </div>
+
+  <!-- Category: Information Gathering -->
+  <div class="home-cat">
+    <div class="home-cat-title">&#128270; 01 — INFORMATION GATHERING</div>
+    <div class="home-tools-grid">
+      <div class="home-tool-card" style="--tool-c:var(--cyan)" onclick="pgFromDd('scan','info')">
+        <div class="home-tool-icon">&#128268;</div>
+        <div class="home-tool-name">Network Scanner</div>
+        <div class="home-tool-desc">Deep port scanning with nmap, CVE lookups via NVD, SSL analysis, DNS records, and HTTP header auditing in a single run.</div>
+        <div class="home-tool-tags">
+          <span class="home-tool-tag" style="background:rgba(0,229,255,0.1);color:var(--cyan)">nmap</span>
+          <span class="home-tool-tag" style="background:rgba(0,229,255,0.1);color:var(--cyan)">CVE</span>
+          <span class="home-tool-tag" style="background:rgba(0,229,255,0.1);color:var(--cyan)">SSL</span>
+          <span class="home-tool-tag" style="background:rgba(0,229,255,0.1);color:var(--cyan)">DNS</span>
+        </div>
+      </div>
+      <div class="home-tool-card" style="--tool-c:var(--purple)" onclick="pgFromDd('harvester','info')">
+        <div class="home-tool-icon">&#127919;</div>
+        <div class="home-tool-name">theHarvester</div>
+        <div class="home-tool-desc">OSINT recon to harvest emails, subdomains, hosts, and IPs from public sources — Google, Bing, LinkedIn, crt.sh, and more.</div>
+        <div class="home-tool-tags">
+          <span class="home-tool-tag" style="background:rgba(176,111,255,0.1);color:var(--purple)">OSINT</span>
+          <span class="home-tool-tag" style="background:rgba(176,111,255,0.1);color:var(--purple)">emails</span>
+          <span class="home-tool-tag" style="background:rgba(176,111,255,0.1);color:var(--purple)">subdomains</span>
+        </div>
+      </div>
+      <div class="home-tool-card" style="--tool-c:var(--green)" onclick="pg('sub',null)">
+        <div class="home-tool-icon">&#127760;</div>
+        <div class="home-tool-name">Subdomain Finder</div>
+        <div class="home-tool-desc">Enumerate subdomains via DNS brute-force and passive sources. Map the full attack surface of any domain.</div>
+        <div class="home-tool-tags">
+          <span class="home-tool-tag" style="background:rgba(0,255,157,0.1);color:var(--green)">DNS</span>
+          <span class="home-tool-tag" style="background:rgba(0,255,157,0.1);color:var(--green)">brute-force</span>
+        </div>
+      </div>
+      <div class="home-tool-card" style="--tool-c:var(--yellow)" onclick="pg('disc',null)">
+        <div class="home-tool-icon">&#128225;</div>
+        <div class="home-tool-name">Network Discovery</div>
+        <div class="home-tool-desc">Sweep subnets to discover live hosts, identify OS fingerprints, and map your network topology automatically.</div>
+        <div class="home-tool-tags">
+          <span class="home-tool-tag" style="background:rgba(255,214,10,0.1);color:var(--yellow)">subnet</span>
+          <span class="home-tool-tag" style="background:rgba(255,214,10,0.1);color:var(--yellow)">host discovery</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Category: Web Application Testing -->
+  <div class="home-cat">
+    <div class="home-cat-title">&#127760; 02 — WEB APPLICATION TESTING</div>
+    <div class="home-tools-grid">
+      <div class="home-tool-card" style="--tool-c:var(--orange)" onclick="pg('dir',null)">
+        <div class="home-tool-icon">&#128193;</div>
+        <div class="home-tool-name">Directory Buster</div>
+        <div class="home-tool-desc">Brute-force hidden directories, admin panels, and sensitive files on web servers using wordlist-based enumeration.</div>
+        <div class="home-tool-tags">
+          <span class="home-tool-tag" style="background:rgba(255,107,53,0.1);color:var(--orange)">HTTP</span>
+          <span class="home-tool-tag" style="background:rgba(255,107,53,0.1);color:var(--orange)">fuzzing</span>
+          <span class="home-tool-tag" style="background:rgba(255,107,53,0.1);color:var(--orange)">wordlist</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Category: Password Attacks -->
+  <div class="home-cat">
+    <div class="home-cat-title">&#128272; 03 — PASSWORD ATTACKS</div>
+    <div class="home-tools-grid">
+      <div class="home-tool-card" style="--tool-c:var(--red)" onclick="pg('brute',null)">
+        <div class="home-tool-icon">&#128272;</div>
+        <div class="home-tool-name">Brute Force</div>
+        <div class="home-tool-desc">Credential testing against HTTP login forms and SSH services using custom or built-in wordlists.</div>
+        <div class="home-tool-tags">
+          <span class="home-tool-tag" style="background:rgba(255,51,102,0.1);color:var(--red)">HTTP</span>
+          <span class="home-tool-tag" style="background:rgba(255,51,102,0.1);color:var(--red)">SSH</span>
+          <span class="home-tool-tag" style="background:rgba(255,51,102,0.1);color:var(--red)">credentials</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Legal notice -->
+  <div style="background:rgba(255,214,10,0.04);border:1px solid rgba(255,214,10,0.12);border-radius:10px;padding:14px 18px;margin-bottom:24px;display:flex;gap:12px;align-items:flex-start">
+    <span style="font-size:16px">&#9888;</span>
+    <div style="font-size:11px;color:var(--m);font-family:'JetBrains Mono',monospace;line-height:1.8">
+      <strong style="color:var(--yellow)">Authorized Use Only.</strong> VulnScan Pro is designed exclusively for security testing on systems you own or have explicit written permission to assess. Unauthorized use is illegal and unethical. Always obtain proper authorization before scanning.
+    </div>
+  </div>
+</div>
+
 <!-- ═══ SCANNER ═══ -->
-<div class="page active" id="page-scan">
+<div class="page" id="page-scan">
   <div class="hero">
     <h2>Vulnerability Intelligence</h2>
     <p>Port scan &middot; CVE lookup &middot; SSL analysis &middot; DNS recon &middot; Header audit</p>
@@ -702,6 +846,7 @@ async function loadUser(){
       document.getElementById("user-role-disp").textContent=d.role==="admin"?"★ ADMIN":"USER";
       if(d.role==="admin") document.querySelectorAll(".admin-only").forEach(e=>e.style.display="block");
       loadProfileInfo(d);
+      loadHomeStats();
     } else {
       document.getElementById("auth-overlay").style.display="flex";
     }
@@ -755,39 +900,33 @@ function pg(id,el){
   if(id==="hist")loadHist();
   if(id==="dash")loadDash();
   if(id==="admin")loadAdmin();
+  if(id==="home")loadHomeStats();
   if(id==="profile"&&currentUser)loadProfileInfo(currentUser);
 }
 function pgFromDd(id, ddId){
-  // close dropdown
-  document.getElementById("dd-"+ddId+"-menu").classList.remove("open");
-  document.getElementById("dd-"+ddId+"-btn").classList.remove("open");
-  // mark page active
   document.querySelectorAll(".page").forEach(e=>e.classList.remove("active"));
   document.querySelectorAll(".nb").forEach(e=>e.classList.remove("active"));
   document.querySelectorAll(".nav-dropdown-item").forEach(e=>e.classList.remove("active"));
   document.querySelectorAll(".nav-dropdown-btn").forEach(e=>e.classList.remove("active"));
   document.getElementById("page-"+id).classList.add("active");
-  document.getElementById("dd-item-"+id).classList.add("active");
-  document.getElementById("dd-"+ddId+"-btn").classList.add("active");
+  const item=document.getElementById("dd-item-"+id);
+  if(item)item.classList.add("active");
+  const btn=document.getElementById("dd-"+ddId+"-btn");
+  if(btn)btn.classList.add("active");
   if(id==="hist")loadHist();
   if(id==="dash")loadDash();
 }
-function toggleDropdown(id){
-  const menu=document.getElementById("dd-"+id+"-menu");
-  const btn=document.getElementById("dd-"+id+"-btn");
-  const open=menu.classList.contains("open");
-  // close all dropdowns first
-  document.querySelectorAll(".nav-dropdown-menu").forEach(m=>m.classList.remove("open"));
-  document.querySelectorAll(".nav-dropdown-btn").forEach(b=>b.classList.remove("open"));
-  if(!open){menu.classList.add("open");btn.classList.add("open");}
+async function loadHomeStats(){
+  try{
+    const r=await fetch("/history");const d=await r.json();
+    const scans=d.scans||[];
+    let totalCves=0,totalPorts=0;
+    scans.forEach(s=>{totalCves+=(s.total_cves||0);totalPorts+=(s.open_ports||0);});
+    document.getElementById("hs-scans").textContent=scans.length;
+    document.getElementById("hs-cves").textContent=totalCves;
+    document.getElementById("hs-ports").textContent=totalPorts;
+  }catch(e){["hs-scans","hs-cves","hs-ports"].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent="0";});}
 }
-// Close dropdown when clicking outside
-document.addEventListener("click",function(e){
-  if(!e.target.closest(".nav-dropdown")){
-    document.querySelectorAll(".nav-dropdown-menu").forEach(m=>m.classList.remove("open"));
-    document.querySelectorAll(".nav-dropdown-btn").forEach(b=>b.classList.remove("open"));
-  }
-});
 
 // ── theHarvester ──
 let hvLogEl=null,hvProgT=null,hvProgV=0;
