@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SysOps Admin Console</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c0f;
+    --surface: #0f1318;
+    --panel: #141920;
+    --border: #1e2730;
+    --border-bright: #2a3540;
+    --green: #00ff88;
+    --green-dim: #00cc6a;
+    --green-dark: rgba(0,255,136,0.08);
+    --amber: #ffb700;
+    --amber-dim: rgba(255,183,0,0.15);
+    --red: #ff4d6a;
+    --red-dim: rgba(255,77,106,0.12);
+    --blue: #4d9fff;
+    --blue-dim: rgba(77,159,255,0.12);
+    --cyan: #00d4ff;
+    --text: #c8d8e8;
+    --text-dim: #5a6e80;
+    --text-muted: #2e3e4e;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px; height: 46px;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 16px; }
+  .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 14px; letter-spacing: 0.1em; color: var(--green); }
+  .logo span { color: var(--text-dim); font-weight: 400; }
+  .server-pill {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--green-dark); border: 1px solid rgba(0,255,136,0.2);
+    padding: 3px 10px; border-radius: 3px; font-size: 11px; color: var(--green-dim);
+  }
+  .pulse { width: 6px; height: 6px; background: var(--green); border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; box-shadow:0 0 0 0 rgba(0,255,136,0.4); } 50% { opacity:0.7; box-shadow:0 0 0 4px rgba(0,255,136,0); } }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .top-btn { background: transparent; border: 1px solid var(--border); color: var(--text-dim); padding: 4px 12px; border-radius: 3px; cursor: pointer; font-family: 'JetBrains Mono', monospace; font-size: 11px; transition: all 0.15s; }
+  .top-btn:hover { border-color: var(--green); color: var(--green); }
+  .top-btn.danger:hover { border-color: var(--red); color: var(--red); }
+  .main {
+    display: grid;
+    grid-template-columns: 220px 1fr 260px;
+    grid-template-rows: 1fr 180px;
+    flex: 1; overflow: hidden; gap: 1px; background: var(--border);
+  }
+  .panel { background: var(--panel); overflow: hidden; display: flex; flex-direction: column; }
+  .panel-header {
+    padding: 8px 14px; background: var(--surface); border-bottom: 1px solid var(--border);
+    font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-dim);
+    display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+  }
+  .panel-header-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); display: inline-block; margin-right: 7px; }
+  .sidebar { grid-row: 1 / 3; }
+  .nav-section { padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .nav-section-label { padding: 6px 14px 2px; font-size: 9px; letter-spacing: 0.2em; color: var(--text-muted); text-transform: uppercase; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 7px 14px; cursor: pointer; color: var(--text-dim); transition: all 0.15s; font-size: 12px; border-left: 2px solid transparent; }
+  .nav-item:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+  .nav-item.active { color: var(--green); background: var(--green-dark); border-left-color: var(--green); }
+  .nav-icon { width: 14px; text-align: center; opacity: 0.7; }
+  .nav-badge { margin-left: auto; background: var(--red); color: white; font-size: 9px; padding: 1px 5px; border-radius: 10px; min-width: 16px; text-align: center; }
+  .nav-badge.amber { background: var(--amber); color: #000; }
+  .nav-badge.green { background: var(--green); color: #000; }
+  .terminal-panel { grid-row: 1; }
+  .terminal-tabs { display: flex; align-items: center; background: var(--surface); border-bottom: 1px solid var(--border); overflow-x: auto; flex-shrink: 0; }
+  .tab { padding: 7px 16px; font-size: 11px; color: var(--text-dim); cursor: pointer; border-right: 1px solid var(--border); white-space: nowrap; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .tab:hover { color: var(--text); background: rgba(255,255,255,0.02); }
+  .tab.active { color: var(--green); background: var(--panel); border-bottom: 2px solid var(--green); }
+  .tab-close { opacity: 0.4; font-size: 10px; padding: 1px 3px; border-radius: 2px; }
+  .tab-close:hover { opacity: 1; background: var(--red-dim); color: var(--red); }
+  .tab-add { padding: 7px 12px; color: var(--text-muted); cursor: pointer; font-size: 14px; transition: color 0.15s; }
+  .tab-add:hover { color: var(--green); }
+  .terminal-output { flex: 1; overflow-y: auto; padding: 12px 16px; line-height: 1.7; scroll-behavior: smooth; }
+  .terminal-output::-webkit-scrollbar { width: 4px; }
+  .terminal-output::-webkit-scrollbar-track { background: transparent; }
+  .terminal-output::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+  .line { display: flex; gap: 8px; align-items: flex-start; margin: 1px 0; }
+  .line-prompt { color: var(--green); flex-shrink: 0; }
+  .line-cmd { color: var(--text); }
+  .line-out { color: var(--text-dim); }
+  .line-err { color: var(--red); }
+  .line-warn { color: var(--amber); }
+  .line-success { color: var(--green); }
+  .line-info { color: var(--cyan); }
+  .progress-bar { display: flex; align-items: center; gap: 10px; padding: 2px 0; }
+  .progress-track { flex: 1; max-width: 300px; height: 4px; background: var(--border-bright); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--green); border-radius: 2px; transition: width 0.1s ease; }
+  .progress-label { color: var(--text-dim); font-size: 11px; }
+  .terminal-input-row { display: flex; align-items: center; padding: 10px 16px; border-top: 1px solid var(--border); gap: 8px; flex-shrink: 0; }
+  .input-prompt { color: var(--green); flex-shrink: 0; font-size: 13px; }
+  #cli-input { flex: 1; background: transparent; border: none; outline: none; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 13px; caret-color: var(--green); }
+  #cli-input::placeholder { color: var(--text-muted); }
+  .right-panel { grid-row: 1 / 3; }
+  .metric-item { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .metric-label { font-size: 10px; color: var(--text-dim); margin-bottom: 5px; letter-spacing: 0.05em; }
+  .metric-value { font-size: 20px; font-family: 'Syne', sans-serif; font-weight: 600; color: var(--text); }
+  .metric-bar { margin-top: 6px; height: 3px; background: var(--border-bright); border-radius: 2px; overflow: hidden; }
+  .metric-fill { height: 100%; border-radius: 2px; transition: width 1s ease; }
+  .metric-fill.green { background: var(--green); }
+  .metric-fill.amber { background: var(--amber); }
+  .metric-fill.red { background: var(--red); }
+  .scan-item { padding: 8px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  .scan-icon { width: 18px; height: 18px; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 10px; flex-shrink: 0; }
+  .scan-icon.running { background: var(--amber-dim); color: var(--amber); animation: blink 1s step-end infinite; }
+  .scan-icon.done { background: var(--green-dark); color: var(--green); }
+  .scan-icon.idle { background: var(--border); color: var(--text-muted); }
+  @keyframes blink { 50% { opacity: 0.4; } }
+  .scan-name { flex: 1; font-size: 11px; color: var(--text); }
+  .scan-time { font-size: 10px; color: var(--text-dim); }
+  .run-btn { margin: 10px 14px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px; border: 1px solid var(--green); background: var(--green-dark); color: var(--green); border-radius: 3px; cursor: pointer; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.05em; transition: all 0.2s; }
+  .run-btn:hover { background: rgba(0,255,136,0.15); box-shadow: 0 0 12px rgba(0,255,136,0.15); }
+  .log-panel { grid-column: 2; grid-row: 2; }
+  .log-stream { flex: 1; overflow-y: auto; padding: 8px 14px; line-height: 1.6; }
+  .log-stream::-webkit-scrollbar { width: 3px; }
+  .log-stream::-webkit-scrollbar-thumb { background: var(--border); }
+  .log-entry { display: flex; gap: 10px; font-size: 11px; padding: 1px 0; align-items: baseline; }
+  .log-ts { color: var(--text-muted); flex-shrink: 0; }
+  .log-level { flex-shrink: 0; min-width: 42px; font-weight: 500; }
+  .log-level.INFO { color: var(--blue); }
+  .log-level.WARN { color: var(--amber); }
+  .log-level.ERR { color: var(--red); }
+  .log-level.OK { color: var(--green); }
+  .log-msg { color: var(--text-dim); }
+  #notification-stack { position: fixed; bottom: 24px; right: 24px; display: flex; flex-direction: column-reverse; gap: 10px; z-index: 1000; pointer-events: none; }
+  .notif { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-radius: 4px; background: var(--surface); border: 1px solid var(--border-bright); min-width: 320px; max-width: 400px; pointer-events: all; animation: slideIn 0.3s cubic-bezier(0.34,1.56,0.64,1) forwards; box-shadow: 0 4px 24px rgba(0,0,0,0.5); cursor: pointer; position: relative; overflow: hidden; }
+  .notif::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .notif.success::before { background: var(--green); }
+  .notif.error::before { background: var(--red); }
+  .notif.warning::before { background: var(--amber); }
+  .notif.info::before { background: var(--blue); }
+  .notif.installing::before { background: var(--cyan); animation: installPulse 1s infinite; }
+  @keyframes installPulse { 50% { opacity: 0.4; } }
+  @keyframes slideIn { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  .notif.dismissing { animation: slideOut 0.25s ease forwards; }
+  @keyframes slideOut { to { transform: translateX(110%); opacity: 0; } }
+  .notif-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .notif-body { flex: 1; }
+  .notif-title { font-size: 12px; font-weight: 500; margin-bottom: 3px; }
+  .notif-title.success { color: var(--green); }
+  .notif-title.error { color: var(--red); }
+  .notif-title.warning { color: var(--amber); }
+  .notif-title.info { color: var(--blue); }
+  .notif-title.installing { color: var(--cyan); }
+  .notif-msg { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
+  .notif-close { font-size: 14px; color: var(--text-muted); padding: 0 2px; transition: color 0.15s; flex-shrink: 0; }
+  .notif-close:hover { color: var(--text); }
+  .notif-timer { position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: rgba(255,255,255,0.08); }
+  .notif-timer-fill { height: 100%; border-radius: 0 1px 0 0; animation: timerDrain var(--duration, 5s) linear forwards; }
+  .notif.success .notif-timer-fill { background: var(--green); }
+  .notif.error .notif-timer-fill { background: var(--red); }
+  .notif.warning .notif-timer-fill { background: var(--amber); }
+  .notif.info .notif-timer-fill { background: var(--blue); }
+  .notif.installing .notif-timer-fill { background: var(--cyan); }
+  @keyframes timerDrain { from { width: 100%; } to { width: 0%; } }
+  #install-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 2000; align-items: center; justify-content: center; }
+  #install-modal.show { display: flex; }
+  .modal-box { background: var(--surface); border: 1px solid var(--border-bright); border-radius: 6px; padding: 24px; min-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); animation: modalIn 0.25s ease; }
+  @keyframes modalIn { from { transform: scale(0.95) translateY(8px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+  .modal-title { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .modal-sub { font-size: 11px; color: var(--text-dim); margin-bottom: 20px; }
+  .modal-pkg { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 10px 14px; margin-bottom: 16px; font-size: 12px; color: var(--cyan); }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+  .btn { padding: 7px 18px; border-radius: 3px; cursor: pointer; font-family: 'JetBrains Mono', monospace; font-size: 12px; border: 1px solid; transition: all 0.15s; }
+  .btn-primary { background: var(--green); border-color: var(--green); color: #000; font-weight: 700; }
+  .btn-primary:hover { background: #00ffaa; border-color: #00ffaa; }
+  .btn-secondary { background: transparent; border-color: var(--border-bright); color: var(--text-dim); }
+  .btn-secondary:hover { border-color: var(--text-dim); color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo">SYSOPS<span> / ADMIN</span></div>
+    <div class="server-pill"><div class="pulse"></div>prod-server-01</div>
+    <div class="server-pill" style="border-color:rgba(77,159,255,0.2);background:rgba(77,159,255,0.06);color:#4d9fff;">
+      <div class="pulse" style="background:#4d9fff;"></div>Ubuntu 22.04
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span style="font-size:11px;color:var(--text-dim);">root@prod-server-01</span>
+    <button class="top-btn" onclick="runFullScan()">&#9654; Run Scan</button>
+    <button class="top-btn danger">&#9211; Shutdown</button>
+  </div>
+</div>
+
+<div class="main">
+  <!-- SIDEBAR -->
+  <div class="panel sidebar">
+    <div class="panel-header"><span><span class="panel-header-dot"></span>Navigation</span></div>
+    <div class="nav-section">
+      <div class="nav-section-label">Console</div>
+      <div class="nav-item active"><span class="nav-icon">&#9632;</span>Terminal</div>
+      <div class="nav-item"><span class="nav-icon">&#128203;</span>System Logs</div>
+      <div class="nav-item"><span class="nav-icon">&#128225;</span>Processes <span class="nav-badge green">142</span></div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">Security</div>
+      <div class="nav-item" onclick="runFullScan()"><span class="nav-icon">&#128269;</span>Lynis Audit</div>
+      <div class="nav-item"><span class="nav-icon">&#128737;</span>Firewall <span class="nav-badge amber">3</span></div>
+      <div class="nav-item"><span class="nav-icon">&#128274;</span>Auth Logs <span class="nav-badge">2</span></div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">Tools</div>
+      <div class="nav-item"><span class="nav-icon">&#128230;</span>Packages</div>
+      <div class="nav-item"><span class="nav-icon">&#128190;</span>Backup</div>
+      <div class="nav-item"><span class="nav-icon">&#9881;</span>Config</div>
+    </div>
+    <div style="margin-top:auto;padding:14px;">
+      <div style="font-size:10px;color:var(--text-muted);line-height:1.8;">
+        Uptime: <span style="color:var(--green)">42d 7h 18m</span><br>
+        Load: <span style="color:var(--amber)">0.82, 0.74, 0.68</span><br>
+        Kernel: <span style="color:var(--text-dim)">5.15.0-91-generic</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TERMINAL -->
+  <div class="panel terminal-panel">
+    <div class="terminal-tabs">
+      <div class="tab active">bash <span class="tab-close">&#10005;</span></div>
+      <div class="tab">ssh:staging <span class="tab-close">&#10005;</span></div>
+      <div class="tab">htop <span class="tab-close">&#10005;</span></div>
+      <div class="tab-add">+</div>
+    </div>
+    <div class="terminal-output" id="terminal-output">
+      <div class="line"><span class="line-info">--- SysOps Admin Console v3.1.0 -------------------------------------------</span></div>
+      <div class="line"><span class="line-out">Type <span style="color:var(--green)">help</span> for commands. Type <span style="color:var(--green)">scan</span> to run security audit.</span></div>
+      <div class="line">&nbsp;</div>
+    </div>
+    <div class="terminal-input-row">
+      <span class="input-prompt">root@prod-server-01:~#</span>
+      <input type="text" id="cli-input" placeholder="enter command..." autocomplete="off" spellcheck="false" />
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="panel right-panel">
+    <div class="panel-header"><span><span class="panel-header-dot"></span>System Metrics</span> <span style="color:var(--green);font-size:9px;">LIVE</span></div>
+    <div class="metric-item">
+      <div class="metric-label">CPU Usage</div>
+      <div class="metric-value" id="cpu-val">23%</div>
+      <div class="metric-bar"><div class="metric-fill green" id="cpu-bar" style="width:23%"></div></div>
+    </div>
+    <div class="metric-item">
+      <div class="metric-label">Memory</div>
+      <div class="metric-value" id="mem-val">61%</div>
+      <div class="metric-bar"><div class="metric-fill amber" id="mem-bar" style="width:61%"></div></div>
+    </div>
+    <div class="metric-item">
+      <div class="metric-label">Disk I/O</div>
+      <div class="metric-value" id="disk-val">12%</div>
+      <div class="metric-bar"><div class="metric-fill green" id="disk-bar" style="width:12%"></div></div>
+    </div>
+    <div class="metric-item">
+      <div class="metric-label">Network</div>
+      <div class="metric-value">&#8593;2.1 <span style="font-size:12px;color:var(--text-dim)">MB/s</span></div>
+      <div class="metric-bar"><div class="metric-fill green" style="width:18%"></div></div>
+    </div>
+    <div class="panel-header" style="border-top:1px solid var(--border);"><span><span class="panel-header-dot" style="background:var(--amber)"></span>Security Scans</span></div>
+    <div class="scan-item">
+      <div class="scan-icon done">&#10003;</div>
+      <div class="scan-name">ClamAV</div>
+      <div class="scan-time">2m ago</div>
+    </div>
+    <div class="scan-item">
+      <div class="scan-icon idle" id="lynis-icon">&#9675;</div>
+      <div class="scan-name">Lynis Audit</div>
+      <div class="scan-time" id="lynis-time">-</div>
+    </div>
+    <div class="scan-item">
+      <div class="scan-icon done">&#10003;</div>
+      <div class="scan-name">rkhunter</div>
+      <div class="scan-time">1h ago</div>
+    </div>
+    <div class="scan-item">
+      <div class="scan-icon idle">&#9675;</div>
+      <div class="scan-name">OpenSCAP</div>
+      <div class="scan-time">-</div>
+    </div>
+    <button class="run-btn" onclick="runFullScan()">&#9654; RUN SECURITY SCAN</button>
+  </div>
+
+  <!-- LOG PANEL -->
+  <div class="panel log-panel">
+    <div class="panel-header">
+      <span><span class="panel-header-dot" style="background:var(--blue)"></span>System Log Stream</span>
+      <span style="color:var(--text-muted);font-size:9px;">live tail</span>
+    </div>
+    <div class="log-stream" id="log-stream">
+      <div class="log-entry"><span class="log-ts">14:22:01</span><span class="log-level INFO">INFO</span><span class="log-msg">sshd: Accepted key for root from 192.168.1.10</span></div>
+      <div class="log-entry"><span class="log-ts">14:22:04</span><span class="log-level OK">OK</span><span class="log-msg">systemd: nginx.service active</span></div>
+      <div class="log-entry"><span class="log-ts">14:22:09</span><span class="log-level WARN">WARN</span><span class="log-msg">kernel: TCP retransmit timeout on eth0</span></div>
+      <div class="log-entry"><span class="log-ts">14:22:11</span><span class="log-level INFO">INFO</span><span class="log-msg">cron: Running scheduled backup task</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- INSTALL MODAL -->
+<div id="install-modal">
+  <div class="modal-box">
+    <div class="modal-title">&#9888; Missing Dependency Detected</div>
+    <div class="modal-sub">A required tool is not installed on this system.</div>
+    <div class="modal-pkg" id="modal-pkg-cmd">$ sudo apt-get install -y lynis</div>
+    <div style="font-size:11px;color:var(--text-dim);margin-bottom:20px;line-height:1.7;">
+      Auto-install will run: <span style="color:var(--green)">sudo apt-get install -y <span id="modal-pkg-inline">lynis</span></span><br>
+      This requires elevated (sudo) privileges on the server.
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Skip</button>
+      <button class="btn btn-primary" onclick="autoInstall()">&#9889; Install Now</button>
+    </div>
+  </div>
+</div>
+
+<!-- NOTIFICATIONS -->
+<div id="notification-stack"></div>
+
+<script>
+const output = document.getElementById('terminal-output');
+const input = document.getElementById('cli-input');
+const logStream = document.getElementById('log-stream');
+let cmdHistory = [], histIdx = -1, currentPkg = 'lynis', scanRunning = false, notifCount = 0;
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function print(html, cls, delay=0) {
+  return new Promise(res => setTimeout(() => {
+    const line = document.createElement('div');
+    line.className = 'line';
+    const span = document.createElement('span');
+    span.className = cls || 'line-out';
+    span.innerHTML = html;
+    line.appendChild(span);
+    output.appendChild(line);
+    output.scrollTop = output.scrollHeight;
+    res();
+  }, delay));
+}
+
+function printCmd(cmd) {
+  const line = document.createElement('div');
+  line.className = 'line';
+  line.innerHTML = `<span class="line-prompt">root@prod-server-01:~#</span><span class="line-cmd"> ${cmd}</span>`;
+  output.appendChild(line);
+  output.scrollTop = output.scrollHeight;
+}
+
+function printProgress(label, duration) {
+  return new Promise(res => {
+    const line = document.createElement('div');
+    line.className = 'line';
+    const uid = 'pf' + Date.now();
+    line.innerHTML = `<div class="progress-bar"><div class="progress-track"><div class="progress-fill" id="${uid}" style="width:0%"></div></div><span class="progress-label">${label}</span></div>`;
+    output.appendChild(line);
+    output.scrollTop = output.scrollHeight;
+    const fill = document.getElementById(uid);
+    let w = 0;
+    const step = 100 / (duration / 40);
+    const iv = setInterval(() => {
+      w = Math.min(w + step + Math.random() * step * 0.4, 100);
+      fill.style.width = w + '%';
+      if (w >= 100) { clearInterval(iv); setTimeout(res, 150); }
+    }, 40);
+  });
+}
+
+function notify(type, title, msg, duration=6000) {
+  const stack = document.getElementById('notification-stack');
+  const id = 'notif' + (++notifCount);
+  const icons = {success:'✅', error:'❌', warning:'⚠️', info:'ℹ️', installing:'⚙️'};
+  const el = document.createElement('div');
+  el.className = `notif ${type}`;
+  el.id = id;
+  if (duration > 0) el.style.setProperty('--duration', duration/1000 + 's');
+  el.innerHTML = `<div class="notif-icon">${icons[type]||'●'}</div><div class="notif-body"><div class="notif-title ${type}">${title}</div><div class="notif-msg">${msg}</div></div><div class="notif-close" onclick="event.stopPropagation();dismissNotif('${id}')">&#10005;</div><div class="notif-timer"><div class="notif-timer-fill"></div></div>`;
+  el.addEventListener('click', () => dismissNotif(id));
+  stack.appendChild(el);
+  addLog(type==='success'?'OK':type==='error'?'ERR':type==='warning'?'WARN':'INFO', msg.replace(/<[^>]+>/g,''));
+  if (duration > 0) setTimeout(() => dismissNotif(id), duration);
+  return id;
+}
+
+function dismissNotif(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.add('dismissing');
+  setTimeout(() => el.remove(), 260);
+}
+
+function addLog(level, msg) {
+  const ts = new Date().toTimeString().slice(0,8);
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = `<span class="log-ts">${ts}</span><span class="log-level ${level}">${level}</span><span class="log-msg">${msg.substring(0,80)}</span>`;
+  logStream.appendChild(entry);
+  logStream.scrollTop = logStream.scrollHeight;
+}
+
+function updateMetrics() {
+  const cpu = 10 + Math.floor(Math.random()*40);
+  const mem = 55 + Math.floor(Math.random()*20);
+  const disk = 5 + Math.floor(Math.random()*25);
+  document.getElementById('cpu-val').textContent = cpu+'%';
+  document.getElementById('cpu-bar').style.width = cpu+'%';
+  document.getElementById('cpu-bar').className = 'metric-fill '+(cpu>70?'red':cpu>40?'amber':'green');
+  document.getElementById('mem-val').textContent = mem+'%';
+  document.getElementById('mem-bar').style.width = mem+'%';
+  document.getElementById('disk-val').textContent = disk+'%';
+  document.getElementById('disk-bar').style.width = disk+'%';
+}
+setInterval(updateMetrics, 3000);
+
+const logTicker = [
+  ['INFO','cron: healthcheck.sh completed OK'],
+  ['OK','nginx: 200 GET /api/status 12ms'],
+  ['INFO','kernel: oom_kill_process skipped'],
+  ['WARN','disk: /var/log 78% capacity'],
+  ['INFO','resolved: DNS query cache hit'],
+  ['OK','postfix: mail queue empty'],
+];
+let logIdx = 0;
+setInterval(() => { const [l,m]=logTicker[logIdx++%logTicker.length]; addLog(l,m); }, 4500);
+
+function showInstallModal(pkg) {
+  currentPkg = pkg;
+  document.getElementById('modal-pkg-cmd').textContent = `$ sudo apt-get install -y ${pkg}`;
+  document.getElementById('modal-pkg-inline').textContent = pkg;
+  document.getElementById('install-modal').classList.add('show');
+}
+function closeModal() { document.getElementById('install-modal').classList.remove('show'); }
+
+async function autoInstall() {
+  closeModal();
+  const nid = notify('installing', `Installing ${currentPkg}...`, `Running: sudo apt-get install -y ${currentPkg}`, 0);
+  printCmd(`sudo apt-get install -y ${currentPkg}`);
+  await print('Reading package lists... Done', 'line-out', 100);
+  await print('Building dependency tree... Done', 'line-out', 400);
+  await print(`The following NEW packages will be installed: <span style="color:var(--cyan)">${currentPkg}</span>`, 'line-out', 700);
+  await printProgress('Fetching packages', 2200);
+  await printProgress('Unpacking & configuring', 1800);
+  await print(`Setting up ${currentPkg} ...`, 'line-out', 200);
+  await print(`<span style="color:var(--green)">✓ ${currentPkg} installed successfully.</span>`, 'line-success', 400);
+  dismissNotif(nid);
+  notify('success', `${currentPkg} Installed`, `Package installed successfully. Resuming operation.`, 6000);
+  if (currentPkg === 'lynis') setTimeout(() => continueLynisScan(), 600);
+}
+
+async function runFullScan() {
+  if (scanRunning) return;
+  scanRunning = true;
+  input.disabled = true;
+  printCmd('lynis audit system');
+  await print('bash: lynis: command not found', 'line-err', 300);
+  await print('', 'line-out', 400);
+  await print('<span style="color:var(--amber)">⚠ Error: Lynis is not installed.</span>', 'line-warn', 500);
+  await print('Run: <span style="color:var(--cyan)">sudo apt install lynis</span>', 'line-out', 650);
+  await print('', 'line-out', 700);
+  await print('<span style="color:var(--cyan)">→ Auto-install detected. Prompting for confirmation...</span>', 'line-info', 900);
+  document.getElementById('lynis-icon').className = 'scan-icon running';
+  document.getElementById('lynis-icon').textContent = '◈';
+  document.getElementById('lynis-time').textContent = 'pending';
+  notify('warning', 'Missing Tool: lynis', 'Lynis is not installed. Auto-install is available.', 0);
+  setTimeout(() => showInstallModal('lynis'), 1400);
+}
+
+async function continueLynisScan() {
+  await print('', 'line-out', 0);
+  await print('[ Lynis 3.0.9 ] --- Security Audit', 'line-info', 100);
+  await print('-----------------------------------------------------------', 'line-out', 200);
+  notify('info', 'Lynis Scan Started', 'Background security audit in progress...', 4000);
+  document.getElementById('lynis-icon').className = 'scan-icon running';
+  document.getElementById('lynis-time').textContent = 'running';
+  const steps = [
+    ['Initializing program', 600],
+    ['Boot & services check', 900],
+    ['Kernel parameters audit', 800],
+    ['File system integrity', 1000],
+    ['USB devices check', 600],
+    ['Network configuration', 900],
+    ['SSH configuration', 700],
+    ['Scanning for malware', 1200],
+    ['Finalizing report', 700],
+  ];
+  for (const [label, dur] of steps) await printProgress(label, dur);
+  await print('', 'line-out', 200);
+  await print('=== Lynis Scan Summary ================================================', 'line-info', 300);
+  await print('  Hardening index : <span style="color:var(--amber)">72 [##########      ]</span>', 'line-out', 400);
+  await print('  Tests performed : <span style="color:var(--text)">236</span>', 'line-out', 500);
+  await print('  <span style="color:var(--amber)">⚠ Warnings   : 3</span>', 'line-warn', 600);
+  await print('  <span style="color:var(--red)">✘ Suggestions: 18</span>', 'line-err', 700);
+  await print('  <span style="color:var(--green)">✓ Passed     : 215</span>', 'line-success', 800);
+  await print('  Report: <span style="color:var(--cyan)">/var/log/lynis.log</span>', 'line-out', 900);
+  document.getElementById('lynis-icon').className = 'scan-icon done';
+  document.getElementById('lynis-icon').textContent = '✓';
+  document.getElementById('lynis-time').textContent = 'just now';
+  notify('success', 'Scan Complete — Lynis Audit', '236 tests | 3 warnings | 18 suggestions. Report: /var/log/lynis.log', 12000);
+  scanRunning = false;
+  input.disabled = false;
+  input.focus();
+}
+
+const commands = {
+  help: async () => {
+    await print('Available commands:', 'line-info');
+    await print('  <span style="color:var(--green)">scan</span>          — Run security audit (auto-installs missing tools)', 'line-out');
+    await print('  <span style="color:var(--green)">install</span> &lt;pkg&gt;  — Install a package with auto-install prompt', 'line-out');
+    await print('  <span style="color:var(--green)">status</span>        — System service status', 'line-out');
+    await print('  <span style="color:var(--green)">top</span>           — Process list', 'line-out');
+    await print('  <span style="color:var(--green)">uptime</span>        — System uptime', 'line-out');
+    await print('  <span style="color:var(--green)">clear</span>         — Clear terminal', 'line-out');
+    await print('  <span style="color:var(--green)">notify</span> &lt;type&gt; — Test notification (success/error/warning/info)', 'line-out');
+  },
+  scan: async () => runFullScan(),
+  clear: async () => { output.innerHTML = ''; },
+  uptime: async () => { await print(' 14:22:18 up 42 days, 7:18, load average: 0.82, 0.74, 0.68', 'line-out'); },
+  status: async () => {
+    await print('<span style="color:var(--green)">● nginx  </span> active (running) since 42d', 'line-success');
+    await print('<span style="color:var(--green)">● sshd   </span> active (running)', 'line-success');
+    await print('<span style="color:var(--green)">● cron   </span> active (running)', 'line-success');
+    await print('<span style="color:var(--amber)">● postfix</span> activating (start)', 'line-warn');
+  },
+  top: async () => {
+    await print('PID    USER  %CPU  %MEM  COMMAND', 'line-info');
+    await print('1      root   0.0   0.2  systemd', 'line-out');
+    await print('1842   www    2.1   4.7  nginx: worker process', 'line-out');
+    await print('2031   root   1.4   3.2  node /app/server.js', 'line-out');
+    await print('3108   mysql  3.8  12.1  mysqld', 'line-out');
+  },
+};
+
+async function handleCommand(raw) {
+  const parts = raw.trim().split(/\s+/);
+  const cmd = parts[0].toLowerCase();
+  if (!cmd) return;
+  cmdHistory.unshift(raw); histIdx = -1;
+  printCmd(raw);
+  if (cmd === 'install') {
+    showInstallModal(parts[1] || 'unknown-package');
+  } else if (cmd === 'notify') {
+    notify(parts[1]||'info', `Test: ${parts[1]||'info'}`, 'This is a test notification from the console.');
+  } else if (commands[cmd]) {
+    await commands[cmd](parts.slice(1));
+  } else {
+    await print(`bash: ${cmd}: command not found`, 'line-err');
+  }
+}
+
+input.addEventListener('keydown', async (e) => {
+  if (e.key === 'Enter') { const v = input.value; input.value = ''; await handleCommand(v); }
+  else if (e.key === 'ArrowUp') { histIdx = Math.min(histIdx+1, cmdHistory.length-1); input.value = cmdHistory[histIdx]||''; e.preventDefault(); }
+  else if (e.key === 'ArrowDown') { histIdx = Math.max(histIdx-1, -1); input.value = histIdx>=0?cmdHistory[histIdx]:''; e.preventDefault(); }
+});
+
+document.querySelector('.terminal-panel').addEventListener('click', () => input.focus());
+input.focus();
+setTimeout(() => notify('info', 'Console Ready', 'Connected to prod-server-01. Type help for commands.', 5000), 700);
+</script>
+</body>
+</html>
