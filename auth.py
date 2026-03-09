@@ -24,7 +24,8 @@ def verify_password(password, stored):
         salt, h = stored.split(":")
         new_h = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 260000)
         return secrets.compare_digest(h, new_h.hex())
-    except: return False
+    except Exception:
+        return False
 
 # ── Token generation ───────────────────────────
 def gen_token(length=32):
@@ -76,7 +77,6 @@ def admin_required(f):
     return decorated
 
 def optional_login(f):
-    """Route works with or without login"""
     @wraps(f)
     def decorated(*args, **kwargs):
         return f(*args, **kwargs)
@@ -84,127 +84,37 @@ def optional_login(f):
 
 # ── Email sending ──────────────────────────────
 def send_verification_email(email, username, token):
-    """Send verification email - configure SMTP in mail_config.py"""
     try:
         from mail_config import send_mail, APP_URL
         subject = "Verify your VulnScan Pro account"
         link = f"{APP_URL}/verify/{token}"
-        body = f"""
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <style>
-        body {{
-            font-family: 'Syne', 'Helvetica', sans-serif;
-            background-color: #04040a;
-            color: #e8e8f0;
-            margin: 0;
-            padding: 0;
-        }}
-        .container {{
-            background: linear-gradient(135deg, #0d0d18 0%, #08081010 100%);
-            border: 1px solid #16162a;
-            border-radius: 12px;
-            max-width: 600px;
-            margin: 20px auto;
-            overflow: hidden;
-            box-shadow: 0 8px 32px rgba(0, 229, 255, 0.15);
-        }}
-        .header {{
-            background: linear-gradient(90deg, #00e5ff 0%, #b06fff 100%);
-            padding: 30px;
-            text-align: center;
-        }}
-        .header h1 {{
-            margin: 0;
-            color: white;
-            font-size: 28px;
-            font-weight: 800;
-        }}
-        .content {{
-            padding: 40px 30px;
-        }}
-        .content h2 {{
-            color: #00e5ff;
-            font-size: 20px;
-            margin-top: 0;
-            margin-bottom: 15px;
-        }}
-        .content p {{
-            color: #c0c0d0;
-            line-height: 1.8;
-            margin: 15px 0;
-            font-size: 14px;
-        }}
-        .button {{
-            display: inline-block;
-            background: linear-gradient(135deg, #ff3366 0%, #ff6b35 100%);
-            color: white;
-            padding: 14px 32px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-weight: 700;
-            font-size: 14px;
-            margin: 25px 0;
-            text-align: center;
-            box-shadow: 0 4px 18px rgba(255, 51, 102, 0.3);
-            display: block;
-            width: fit-content;
-        }}
-        .button:hover {{
-            opacity: 0.9;
-        }}
-        .footer {{
-            background-color: #0d0d18;
-            padding: 20px 30px;
-            text-align: center;
-            border-top: 1px solid #16162a;
-            font-size: 11px;
-            color: #5a5a8a;
-        }}
-        .warning {{
-            background-color: #16162a;
-            border-left: 4px solid #ffd60a;
-            padding: 12px 15px;
-            margin: 20px 0;
-            border-radius: 4px;
-            font-size: 12px;
-            color: #c0c0d0;
-        }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🔐 VulnScan Pro</h1>
-        </div>
-        <div class="content">
-            <h2>Welcome, {username}!</h2>
-            <p>Thank you for registering with VulnScan Pro. To activate your account, please verify your email address by clicking the button below:</p>
-
-            <a href="{link}" class="button">VERIFY EMAIL ADDRESS</a>
-
-            <p style="text-align: center; color: #5a5a8a; font-size: 12px; margin-top: 30px;">
-                Or copy this link:<br>
-                <code style="background-color: #16162a; padding: 8px 12px; border-radius: 4px; word-break: break-all; display: block; margin-top: 8px;">{link}</code>
-            </p>
-
-            <div class="warning">
-                ⏰ <strong>Link expires in 24 hours.</strong> If you did not register for this account, you can safely ignore this email.
-            </div>
-        </div>
-        <div class="footer">
-            <p>© 2024 VulnScan Pro. Security Intelligence Platform.</p>
-            <p style="color: #5a5a8a; margin: 5px 0;">This is an automated email. Please do not reply.</p>
-        </div>
-    </div>
-</body>
-</html>
-"""
+        body = f"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><style>
+body{{font-family:Helvetica,sans-serif;background-color:#04040a;color:#e8e8f0;margin:0;padding:0}}
+.container{{background:#0d0d18;border:1px solid #16162a;border-radius:12px;max-width:600px;margin:20px auto;overflow:hidden}}
+.header{{background:linear-gradient(90deg,#00e5ff,#b06fff);padding:30px;text-align:center}}
+.header h1{{margin:0;color:white;font-size:28px;font-weight:800}}
+.content{{padding:40px 30px}}
+.content h2{{color:#00e5ff;font-size:20px;margin-top:0}}
+.content p{{color:#c0c0d0;line-height:1.8;font-size:14px}}
+.button{{display:block;width:fit-content;background:linear-gradient(135deg,#ff3366,#ff6b35);color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;margin:25px 0}}
+.warning{{background:#16162a;border-left:4px solid #ffd60a;padding:12px 15px;margin:20px 0;border-radius:4px;font-size:12px;color:#c0c0d0}}
+.footer{{background:#0d0d18;padding:20px 30px;text-align:center;border-top:1px solid #16162a;font-size:11px;color:#5a5a8a}}
+code{{background:#16162a;padding:8px 12px;border-radius:4px;word-break:break-all;display:block;margin-top:8px}}
+</style></head><body>
+<div class="container">
+  <div class="header"><h1>🔐 VulnScan Pro</h1></div>
+  <div class="content">
+    <h2>Welcome, {username}!</h2>
+    <p>Thank you for registering. Click below to verify your email:</p>
+    <a href="{link}" class="button">VERIFY EMAIL ADDRESS</a>
+    <p style="text-align:center;color:#5a5a8a;font-size:12px">Or copy this link:<code>{link}</code></p>
+    <div class="warning">⏰ <strong>Link expires in 24 hours.</strong> If you did not register, ignore this email.</div>
+  </div>
+  <div class="footer"><p>© 2024 VulnScan Pro. Security Intelligence Platform.</p></div>
+</div></body></html>"""
         return send_mail(email, subject, body, is_html=True)
     except ImportError:
-        # Email not configured - return token for manual verification
         print(f"[!] Email not configured. Verify token for {username}: {token}")
         return True
     except Exception as e:
@@ -216,120 +126,32 @@ def send_reset_email(email, username, token):
         from mail_config import send_mail, APP_URL
         subject = "VulnScan Pro — Password Reset"
         link = f"{APP_URL}/reset-password/{token}"
-        body = f"""
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <style>
-        body {{
-            font-family: 'Syne', 'Helvetica', sans-serif;
-            background-color: #04040a;
-            color: #e8e8f0;
-            margin: 0;
-            padding: 0;
-        }}
-        .container {{
-            background: linear-gradient(135deg, #0d0d18 0%, #08081010 100%);
-            border: 1px solid #16162a;
-            border-radius: 12px;
-            max-width: 600px;
-            margin: 20px auto;
-            overflow: hidden;
-            box-shadow: 0 8px 32px rgba(255, 107, 53, 0.15);
-        }}
-        .header {{
-            background: linear-gradient(90deg, #ff6b35 0%, #ff3366 100%);
-            padding: 30px;
-            text-align: center;
-        }}
-        .header h1 {{
-            margin: 0;
-            color: white;
-            font-size: 28px;
-            font-weight: 800;
-        }}
-        .content {{
-            padding: 40px 30px;
-        }}
-        .content h2 {{
-            color: #ff6b35;
-            font-size: 20px;
-            margin-top: 0;
-            margin-bottom: 15px;
-        }}
-        .content p {{
-            color: #c0c0d0;
-            line-height: 1.8;
-            margin: 15px 0;
-            font-size: 14px;
-        }}
-        .button {{
-            display: inline-block;
-            background: linear-gradient(135deg, #00e5ff 0%, #00ff9d 100%);
-            color: #04040a;
-            padding: 14px 32px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-weight: 700;
-            font-size: 14px;
-            margin: 25px 0;
-            text-align: center;
-            box-shadow: 0 4px 18px rgba(0, 229, 255, 0.3);
-            display: block;
-            width: fit-content;
-        }}
-        .button:hover {{
-            opacity: 0.9;
-        }}
-        .footer {{
-            background-color: #0d0d18;
-            padding: 20px 30px;
-            text-align: center;
-            border-top: 1px solid #16162a;
-            font-size: 11px;
-            color: #5a5a8a;
-        }}
-        .alert {{
-            background-color: #1a1a2e;
-            border-left: 4px solid #ff3366;
-            padding: 12px 15px;
-            margin: 20px 0;
-            border-radius: 4px;
-            font-size: 12px;
-            color: #c0c0d0;
-        }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🔑 Password Reset</h1>
-        </div>
-        <div class="content">
-            <h2>Reset Your Password</h2>
-            <p>Hi {username},</p>
-            <p>A password reset was requested for your VulnScan Pro account. Click the button below to set a new password:</p>
-
-            <a href="{link}" class="button">RESET PASSWORD</a>
-
-            <p style="text-align: center; color: #5a5a8a; font-size: 12px; margin-top: 30px;">
-                Or copy this link:<br>
-                <code style="background-color: #16162a; padding: 8px 12px; border-radius: 4px; word-break: break-all; display: block; margin-top: 8px;">{link}</code>
-            </p>
-
-            <div class="alert">
-                ⏱️ <strong>Link expires in 1 hour.</strong> If you did not request a password reset, you can safely ignore this email. Your account is still secure.
-            </div>
-        </div>
-        <div class="footer">
-            <p>© 2024 VulnScan Pro. Security Intelligence Platform.</p>
-            <p style="color: #5a5a8a; margin: 5px 0;">This is an automated email. Please do not reply.</p>
-        </div>
-    </div>
-</body>
-</html>
-"""
+        body = f"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><style>
+body{{font-family:Helvetica,sans-serif;background-color:#04040a;color:#e8e8f0;margin:0;padding:0}}
+.container{{background:#0d0d18;border:1px solid #16162a;border-radius:12px;max-width:600px;margin:20px auto;overflow:hidden}}
+.header{{background:linear-gradient(90deg,#ff6b35,#ff3366);padding:30px;text-align:center}}
+.header h1{{margin:0;color:white;font-size:28px;font-weight:800}}
+.content{{padding:40px 30px}}
+.content h2{{color:#ff6b35;font-size:20px;margin-top:0}}
+.content p{{color:#c0c0d0;line-height:1.8;font-size:14px}}
+.button{{display:block;width:fit-content;background:linear-gradient(135deg,#00e5ff,#00ff9d);color:#04040a;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;margin:25px 0}}
+.alert{{background:#1a1a2e;border-left:4px solid #ff3366;padding:12px 15px;margin:20px 0;border-radius:4px;font-size:12px;color:#c0c0d0}}
+.footer{{background:#0d0d18;padding:20px 30px;text-align:center;border-top:1px solid #16162a;font-size:11px;color:#5a5a8a}}
+code{{background:#16162a;padding:8px 12px;border-radius:4px;word-break:break-all;display:block;margin-top:8px}}
+</style></head><body>
+<div class="container">
+  <div class="header"><h1>🔑 Password Reset</h1></div>
+  <div class="content">
+    <h2>Reset Your Password</h2>
+    <p>Hi {username},</p>
+    <p>Click the button below to set a new password:</p>
+    <a href="{link}" class="button">RESET PASSWORD</a>
+    <p style="text-align:center;color:#5a5a8a;font-size:12px">Or copy this link:<code>{link}</code></p>
+    <div class="alert">⏱️ <strong>Link expires in 1 hour.</strong> If you did not request this, ignore this email.</div>
+  </div>
+  <div class="footer"><p>© 2024 VulnScan Pro. Security Intelligence Platform.</p></div>
+</div></body></html>"""
         return send_mail(email, subject, body, is_html=True)
     except Exception as e:
         print(f"[!] Reset email failed: {e}")
@@ -341,26 +163,23 @@ def register_auth_routes(app):
     @app.route("/api/register", methods=["POST"])
     def api_register():
         d = request.get_json() or {}
-        username = d.get("username","").strip()
-        email = d.get("email","").strip()
-        password = d.get("password","")
-        full_name = d.get("full_name","").strip()
+        username = d.get("username", "").strip()
+        email = d.get("email", "").strip()
+        password = d.get("password", "")
+        full_name = d.get("full_name", "").strip()
 
-        # Validate
         ok, msg = validate_username(username)
         if not ok: return jsonify({"error": msg}), 400
         if not validate_email(email): return jsonify({"error": "Invalid email address"}), 400
         ok, msg = validate_password(password)
         if not ok: return jsonify({"error": msg}), 400
 
-        # Check existing
         if get_user_by_username(username): return jsonify({"error": "Username already taken"}), 409
         if get_user_by_email(email): return jsonify({"error": "Email already registered"}), 409
 
         token = gen_token()
         ph = hash_password(password)
 
-        # First user becomes admin, auto-verified
         from database import get_db
         con = get_db()
         count = con.execute("SELECT COUNT(*) FROM users").fetchone()[0]
@@ -374,7 +193,7 @@ def register_auth_routes(app):
         if not is_verified:
             send_verification_email(email, username, token)
 
-        audit(None, username, "REGISTER", ip=request.remote_addr, ua=request.headers.get("User-Agent",""),
+        audit(None, username, "REGISTER", ip=request.remote_addr, ua=request.headers.get("User-Agent", ""),
               details=f"role={role}, verified={is_verified}")
 
         return jsonify({
@@ -387,8 +206,8 @@ def register_auth_routes(app):
     @app.route("/api/login", methods=["POST"])
     def api_login():
         d = request.get_json() or {}
-        username = d.get("username","").strip()
-        password = d.get("password","")
+        username = d.get("username", "").strip()
+        password = d.get("password", "")
 
         user = get_user_by_username(username)
         if not user: return jsonify({"error": "Invalid username or password"}), 401
@@ -404,18 +223,18 @@ def register_auth_routes(app):
         session["role"] = user["role"]
 
         update_last_login(user["id"], request.remote_addr)
-        audit(user["id"], username, "LOGIN", ip=request.remote_addr, ua=request.headers.get("User-Agent",""))
+        audit(user["id"], username, "LOGIN", ip=request.remote_addr, ua=request.headers.get("User-Agent", ""))
 
         return jsonify({
             "success": True,
             "username": user["username"],
             "role": user["role"],
-            "full_name": user.get("full_name","")
+            "full_name": user.get("full_name", "")
         })
 
     @app.route("/api/logout", methods=["POST"])
     def api_logout():
-        username = session.get("username","")
+        username = session.get("username", "")
         uid = session.get("user_id")
         if uid: audit(uid, username, "LOGOUT", ip=request.remote_addr)
         session.clear()
@@ -431,10 +250,10 @@ def register_auth_routes(app):
             "username": user["username"],
             "email": user["email"],
             "role": user["role"],
-            "full_name": user.get("full_name",""),
-            "created_at": user.get("created_at",""),
-            "last_login": user.get("last_login",""),
-            "login_count": user.get("login_count",0)
+            "full_name": user.get("full_name", ""),
+            "created_at": user.get("created_at", ""),
+            "last_login": user.get("last_login", ""),
+            "login_count": user.get("login_count", 0)
         })
 
     @app.route("/api/verify/<token>")
@@ -448,7 +267,7 @@ def register_auth_routes(app):
     @app.route("/api/forgot-password", methods=["POST"])
     def api_forgot():
         d = request.get_json() or {}
-        email = d.get("email","").strip()
+        email = d.get("email", "").strip()
         user = get_user_by_email(email)
         if not user:
             return jsonify({"success": True, "message": "If that email exists, a reset link was sent."})
@@ -462,11 +281,11 @@ def register_auth_routes(app):
     @app.route("/api/reset-password", methods=["POST"])
     def api_reset():
         d = request.get_json() or {}
-        token = d.get("token","")
-        password = d.get("password","")
+        token = d.get("token", "")
+        password = d.get("password", "")
         user = get_user_by_token(token, "reset")
         if not user: return jsonify({"error": "Invalid or expired reset link"}), 400
-        expires = user.get("reset_expires","")
+        expires = user.get("reset_expires", "")
         if expires and datetime.utcnow() > datetime.fromisoformat(expires):
             return jsonify({"error": "Reset link has expired"}), 400
         ok, msg = validate_password(password)
@@ -481,8 +300,8 @@ def register_auth_routes(app):
     def api_change_password():
         user = get_current_user()
         d = request.get_json() or {}
-        old_pwd = d.get("old_password","")
-        new_pwd = d.get("new_password","")
+        old_pwd = d.get("old_password", "")
+        new_pwd = d.get("new_password", "")
         if not verify_password(old_pwd, user["password_hash"]):
             return jsonify({"error": "Current password is incorrect"}), 400
         ok, msg = validate_password(new_pwd)
@@ -496,7 +315,7 @@ def register_auth_routes(app):
     def api_profile():
         user = get_current_user()
         d = request.get_json() or {}
-        full_name = d.get("full_name","").strip()[:100]
+        full_name = d.get("full_name", "").strip()[:100]
         update_user(user["id"], full_name=full_name)
         return jsonify({"success": True, "message": "Profile updated"})
 
@@ -520,8 +339,8 @@ def register_auth_routes(app):
     @admin_required
     def api_admin_role(uid):
         d = request.get_json() or {}
-        role = d.get("role","user")
-        if role not in ["user","admin"]: return jsonify({"error": "Invalid role"}), 400
+        role = d.get("role", "user")
+        if role not in ["user", "admin"]: return jsonify({"error": "Invalid role"}), 400
         from database import set_user_role
         set_user_role(uid, role)
         return jsonify({"success": True})
