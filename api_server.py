@@ -389,36 +389,88 @@ textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
       <div class="brand-name">VulnScan Pro</div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
         <div class="brand-tag">SECURITY PLATFORM</div>
-        <span class="ver-badge">v3.2</span>
+        <span class="ver-badge">v3.4</span>
       </div>
     </div>
   </div>
   <nav id="main-nav">
-    <!-- ── Information Gathering Dropdown ── -->
+
+    <!-- ── 01 Information Gathering ── -->
     <div class="nav-dropdown" id="dd-info">
       <button class="nav-dropdown-btn" id="dd-info-btn">
-        &#128270; Information Gathering <span class="arrow">&#9660;</span>
+        &#128270; Info Gathering <span class="arrow">&#9660;</span>
       </button>
       <div class="nav-dropdown-menu" id="dd-info-menu">
         <div class="nav-dropdown-section">&#9632; NETWORK</div>
         <button class="nav-dropdown-item" id="dd-item-scan" onclick="pgFromDd('scan','info')">
-          <span class="item-icon">&#128268;</span>
-          <span class="item-label">Network Scanner</span>
-          <span class="item-badge">nmap</span>
+          <span class="item-icon">&#128268;</span><span class="item-label">Network Scanner</span><span class="item-badge">nmap</span>
+        </button>
+        <button class="nav-dropdown-item" id="dd-item-dnsrecon" onclick="pgFromDd('dnsrecon','info')">
+          <span class="item-icon">&#127760;</span><span class="item-label">DNSRecon</span><span class="item-badge">dns</span>
+        </button>
+        <button class="nav-dropdown-item" id="dd-item-disc" onclick="pgFromDd('disc','info')">
+          <span class="item-icon">&#128225;</span><span class="item-label">Network Discovery</span><span class="item-badge">subnet</span>
+        </button>
+        <button class="nav-dropdown-item" id="dd-item-legion" onclick="pgFromDd('legion','info')">
+          <span class="item-icon">&#9881;</span><span class="item-label">Legion</span><span class="item-badge">auto</span>
         </button>
         <div class="nav-dropdown-section">&#9632; OSINT</div>
         <button class="nav-dropdown-item" id="dd-item-harvester" onclick="pgFromDd('harvester','info')">
-          <span class="item-icon">&#127919;</span>
-          <span class="item-label">theHarvester</span>
-          <span class="item-badge">recon</span>
+          <span class="item-icon">&#127919;</span><span class="item-label">theHarvester</span><span class="item-badge">recon</span>
+        </button>
+        <button class="nav-dropdown-item" id="dd-item-sub" onclick="pgFromDd('sub','info')">
+          <span class="item-icon">&#127758;</span><span class="item-label">Subdomain Finder</span><span class="item-badge">dns</span>
         </button>
       </div>
     </div>
-    <!-- ── Regular Nav ── -->
-    <button class="nb" onclick="pg('sub',this)">&#127760; Subdomains</button>
-    <button class="nb" onclick="pg('dir',this)">&#128193; DirBust</button>
-    <button class="nb" onclick="pg('brute',this)">&#128272; BruteForce</button>
-    <button class="nb" onclick="pg('disc',this)">&#128225; Discover</button>
+
+    <!-- ── 02 Web Application Testing ── -->
+    <div class="nav-dropdown" id="dd-web">
+      <button class="nav-dropdown-btn" id="dd-web-btn">
+        &#127760; Web Testing <span class="arrow">&#9660;</span>
+      </button>
+      <div class="nav-dropdown-menu" id="dd-web-menu">
+        <div class="nav-dropdown-section">&#9632; SCANNERS</div>
+        <button class="nav-dropdown-item" id="dd-item-nikto" onclick="pgFromDd('nikto','web')">
+          <span class="item-icon">&#128200;</span><span class="item-label">Nikto</span><span class="item-badge">web vuln</span>
+        </button>
+        <button class="nav-dropdown-item" id="dd-item-wpscan" onclick="pgFromDd('wpscan','web')">
+          <span class="item-icon">&#128196;</span><span class="item-label">WPScan</span><span class="item-badge">wordpress</span>
+        </button>
+        <div class="nav-dropdown-section">&#9632; ENUMERATION</div>
+        <button class="nav-dropdown-item" id="dd-item-dir" onclick="pgFromDd('dir','web')">
+          <span class="item-icon">&#128193;</span><span class="item-label">Directory Buster</span><span class="item-badge">fuzzing</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── 03 Password Attacks ── -->
+    <div class="nav-dropdown" id="dd-pwd">
+      <button class="nav-dropdown-btn" id="dd-pwd-btn">
+        &#128272; Password Attacks <span class="arrow">&#9660;</span>
+      </button>
+      <div class="nav-dropdown-menu" id="dd-pwd-menu">
+        <div class="nav-dropdown-section">&#9632; BRUTE FORCE</div>
+        <button class="nav-dropdown-item" id="dd-item-brute" onclick="pgFromDd('brute','pwd')">
+          <span class="item-icon">&#128272;</span><span class="item-label">Brute Force</span><span class="item-badge">http/ssh</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── 04 System Auditing ── -->
+    <div class="nav-dropdown" id="dd-audit">
+      <button class="nav-dropdown-btn" id="dd-audit-btn">
+        &#128203; System Auditing <span class="arrow">&#9660;</span>
+      </button>
+      <div class="nav-dropdown-menu" id="dd-audit-menu">
+        <div class="nav-dropdown-section">&#9632; HOST SECURITY</div>
+        <button class="nav-dropdown-item" id="dd-item-lynis" onclick="pgFromDd('lynis','audit')">
+          <span class="item-icon">&#128203;</span><span class="item-label">Lynis</span><span class="item-badge">hardening</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Utilities ── -->
     <button class="nb" onclick="pg('hist',this)">&#128196; History</button>
     <button class="nb" onclick="pg('dash',this)">&#128202; Dashboard</button>
     <button class="nb admin-only" onclick="pg('admin',this)" style="display:none">&#9881; Admin</button>
@@ -451,7 +503,7 @@ textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
     <div class="home-stat"><div class="home-stat-val" id="hs-scans">—</div><div class="home-stat-lbl">TOTAL SCANS</div></div>
     <div class="home-stat"><div class="home-stat-val" id="hs-cves" style="background:linear-gradient(135deg,var(--red),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent">—</div><div class="home-stat-lbl">CVEs FOUND</div></div>
     <div class="home-stat"><div class="home-stat-val" id="hs-ports" style="background:linear-gradient(135deg,var(--yellow),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent">—</div><div class="home-stat-lbl">OPEN PORTS</div></div>
-    <div class="home-stat"><div class="home-stat-val" id="hs-tools" style="background:linear-gradient(135deg,var(--green),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent">7</div><div class="home-stat-lbl">TOOLS AVAILABLE</div></div>
+    <div class="home-stat"><div class="home-stat-val" id="hs-tools" style="background:linear-gradient(135deg,var(--green),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent">12</div><div class="home-stat-lbl">TOOLS AVAILABLE</div></div>
   </div>
 
   <!-- Category: Information Gathering -->
@@ -466,7 +518,34 @@ textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
           <span class="home-tool-tag" style="background:rgba(0,229,255,0.1);color:var(--cyan)">nmap</span>
           <span class="home-tool-tag" style="background:rgba(0,229,255,0.1);color:var(--cyan)">CVE</span>
           <span class="home-tool-tag" style="background:rgba(0,229,255,0.1);color:var(--cyan)">SSL</span>
+        </div>
+      </div>
+      <div class="home-tool-card" style="--tool-c:var(--cyan)" onclick="pgFromDd('dnsrecon','info')">
+        <div class="home-tool-icon">&#127760;</div>
+        <div class="home-tool-name">DNSRecon</div>
+        <div class="home-tool-desc">Comprehensive DNS enumeration — zone transfers, record types (A, MX, NS, TXT, SRV), reverse lookups, and DNS cache snooping.</div>
+        <div class="home-tool-tags">
           <span class="home-tool-tag" style="background:rgba(0,229,255,0.1);color:var(--cyan)">DNS</span>
+          <span class="home-tool-tag" style="background:rgba(0,229,255,0.1);color:var(--cyan)">zone transfer</span>
+          <span class="home-tool-tag" style="background:rgba(0,229,255,0.1);color:var(--cyan)">records</span>
+        </div>
+      </div>
+      <div class="home-tool-card" style="--tool-c:var(--yellow)" onclick="pgFromDd('disc','info')">
+        <div class="home-tool-icon">&#128225;</div>
+        <div class="home-tool-name">Network Discovery</div>
+        <div class="home-tool-desc">Sweep subnets to discover live hosts, identify OS fingerprints, and map your network topology automatically.</div>
+        <div class="home-tool-tags">
+          <span class="home-tool-tag" style="background:rgba(255,214,10,0.1);color:var(--yellow)">subnet</span>
+          <span class="home-tool-tag" style="background:rgba(255,214,10,0.1);color:var(--yellow)">host discovery</span>
+        </div>
+      </div>
+      <div class="home-tool-card" style="--tool-c:var(--red)" onclick="pgFromDd('legion','info')">
+        <div class="home-tool-icon">&#9881;</div>
+        <div class="home-tool-name">Legion</div>
+        <div class="home-tool-desc">Semi-automated network recon and vulnerability assessment framework. Orchestrates nmap, nikto, and other tools in a unified workflow.</div>
+        <div class="home-tool-tags">
+          <span class="home-tool-tag" style="background:rgba(255,51,102,0.1);color:var(--red)">auto-recon</span>
+          <span class="home-tool-tag" style="background:rgba(255,51,102,0.1);color:var(--red)">framework</span>
         </div>
       </div>
       <div class="home-tool-card" style="--tool-c:var(--purple)" onclick="pgFromDd('harvester','info')">
@@ -479,22 +558,13 @@ textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
           <span class="home-tool-tag" style="background:rgba(176,111,255,0.1);color:var(--purple)">subdomains</span>
         </div>
       </div>
-      <div class="home-tool-card" style="--tool-c:var(--green)" onclick="pg('sub',null)">
-        <div class="home-tool-icon">&#127760;</div>
+      <div class="home-tool-card" style="--tool-c:var(--green)" onclick="pgFromDd('sub','info')">
+        <div class="home-tool-icon">&#127758;</div>
         <div class="home-tool-name">Subdomain Finder</div>
         <div class="home-tool-desc">Enumerate subdomains via DNS brute-force and passive sources. Map the full attack surface of any domain.</div>
         <div class="home-tool-tags">
           <span class="home-tool-tag" style="background:rgba(0,255,157,0.1);color:var(--green)">DNS</span>
           <span class="home-tool-tag" style="background:rgba(0,255,157,0.1);color:var(--green)">brute-force</span>
-        </div>
-      </div>
-      <div class="home-tool-card" style="--tool-c:var(--yellow)" onclick="pg('disc',null)">
-        <div class="home-tool-icon">&#128225;</div>
-        <div class="home-tool-name">Network Discovery</div>
-        <div class="home-tool-desc">Sweep subnets to discover live hosts, identify OS fingerprints, and map your network topology automatically.</div>
-        <div class="home-tool-tags">
-          <span class="home-tool-tag" style="background:rgba(255,214,10,0.1);color:var(--yellow)">subnet</span>
-          <span class="home-tool-tag" style="background:rgba(255,214,10,0.1);color:var(--yellow)">host discovery</span>
         </div>
       </div>
     </div>
@@ -504,14 +574,33 @@ textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
   <div class="home-cat">
     <div class="home-cat-title">&#127760; 02 — WEB APPLICATION TESTING</div>
     <div class="home-tools-grid">
-      <div class="home-tool-card" style="--tool-c:var(--orange)" onclick="pg('dir',null)">
+      <div class="home-tool-card" style="--tool-c:var(--orange)" onclick="pgFromDd('nikto','web')">
+        <div class="home-tool-icon">&#128200;</div>
+        <div class="home-tool-name">Nikto</div>
+        <div class="home-tool-desc">Web server vulnerability scanner that checks for dangerous files, outdated software, misconfigurations, and over 6700 known issues.</div>
+        <div class="home-tool-tags">
+          <span class="home-tool-tag" style="background:rgba(255,107,53,0.1);color:var(--orange)">web vuln</span>
+          <span class="home-tool-tag" style="background:rgba(255,107,53,0.1);color:var(--orange)">CVE</span>
+          <span class="home-tool-tag" style="background:rgba(255,107,53,0.1);color:var(--orange)">headers</span>
+        </div>
+      </div>
+      <div class="home-tool-card" style="--tool-c:var(--purple)" onclick="pgFromDd('wpscan','web')">
+        <div class="home-tool-icon">&#128196;</div>
+        <div class="home-tool-name">WPScan</div>
+        <div class="home-tool-desc">WordPress security scanner — detects vulnerable plugins, themes, weak credentials, user enumeration, and config exposures.</div>
+        <div class="home-tool-tags">
+          <span class="home-tool-tag" style="background:rgba(176,111,255,0.1);color:var(--purple)">WordPress</span>
+          <span class="home-tool-tag" style="background:rgba(176,111,255,0.1);color:var(--purple)">plugins</span>
+          <span class="home-tool-tag" style="background:rgba(176,111,255,0.1);color:var(--purple)">users</span>
+        </div>
+      </div>
+      <div class="home-tool-card" style="--tool-c:var(--orange)" onclick="pgFromDd('dir','web')">
         <div class="home-tool-icon">&#128193;</div>
         <div class="home-tool-name">Directory Buster</div>
         <div class="home-tool-desc">Brute-force hidden directories, admin panels, and sensitive files on web servers using wordlist-based enumeration.</div>
         <div class="home-tool-tags">
           <span class="home-tool-tag" style="background:rgba(255,107,53,0.1);color:var(--orange)">HTTP</span>
           <span class="home-tool-tag" style="background:rgba(255,107,53,0.1);color:var(--orange)">fuzzing</span>
-          <span class="home-tool-tag" style="background:rgba(255,107,53,0.1);color:var(--orange)">wordlist</span>
         </div>
       </div>
     </div>
@@ -521,7 +610,7 @@ textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
   <div class="home-cat">
     <div class="home-cat-title">&#128272; 03 — PASSWORD ATTACKS</div>
     <div class="home-tools-grid">
-      <div class="home-tool-card" style="--tool-c:var(--red)" onclick="pg('brute',null)">
+      <div class="home-tool-card" style="--tool-c:var(--red)" onclick="pgFromDd('brute','pwd')">
         <div class="home-tool-icon">&#128272;</div>
         <div class="home-tool-name">Brute Force</div>
         <div class="home-tool-desc">Credential testing against HTTP login forms and SSH services using custom or built-in wordlists.</div>
@@ -529,6 +618,23 @@ textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
           <span class="home-tool-tag" style="background:rgba(255,51,102,0.1);color:var(--red)">HTTP</span>
           <span class="home-tool-tag" style="background:rgba(255,51,102,0.1);color:var(--red)">SSH</span>
           <span class="home-tool-tag" style="background:rgba(255,51,102,0.1);color:var(--red)">credentials</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Category: System Auditing -->
+  <div class="home-cat">
+    <div class="home-cat-title">&#128203; 04 — SYSTEM AUDITING</div>
+    <div class="home-tools-grid">
+      <div class="home-tool-card" style="--tool-c:var(--green)" onclick="pgFromDd('lynis','audit')">
+        <div class="home-tool-icon">&#128203;</div>
+        <div class="home-tool-name">Lynis</div>
+        <div class="home-tool-desc">In-depth local system security audit — checks OS hardening, installed packages, file permissions, firewall rules, and compliance posture.</div>
+        <div class="home-tool-tags">
+          <span class="home-tool-tag" style="background:rgba(0,255,157,0.1);color:var(--green)">hardening</span>
+          <span class="home-tool-tag" style="background:rgba(0,255,157,0.1);color:var(--green)">compliance</span>
+          <span class="home-tool-tag" style="background:rgba(0,255,157,0.1);color:var(--green)">local</span>
         </div>
       </div>
     </div>
@@ -623,6 +729,233 @@ textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
     <div id="hv-term" class="terminal" style="display:none;margin-top:14px"></div>
     <div id="hv-err" class="err-box" style="display:none;margin-top:10px"></div>
     <div id="hv-res" style="display:none;margin-top:16px"></div>
+  </div>
+</div>
+
+<!-- ═══ DNSRECON ═══ -->
+<div class="page" id="page-dnsrecon">
+  <div class="card">
+    <div class="ctitle">&#127760; DNSRecon — DNS Enumeration</div>
+    <div class="notice">&#9888; Only enumerate domains you own or have explicit written permission to test.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div class="fg">
+        <label>TARGET DOMAIN</label>
+        <input class="inp" id="dr-target" type="text" placeholder="e.g. example.com" />
+      </div>
+      <div class="fg">
+        <label>SCAN TYPE</label>
+        <select class="inp" id="dr-type">
+          <option value="std">Standard (all record types)</option>
+          <option value="axfr">Zone Transfer (AXFR)</option>
+          <option value="brt">Brute Force subdomains</option>
+          <option value="srv">SRV record enumeration</option>
+          <option value="rvl">Reverse lookup</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div class="fg">
+        <label>NAMESERVER (optional)</label>
+        <input class="inp" id="dr-ns" type="text" placeholder="e.g. 8.8.8.8  (leave blank for default)" />
+      </div>
+      <div class="fg">
+        <label>RECORD FILTER</label>
+        <select class="inp" id="dr-filter">
+          <option value="">All records</option>
+          <option value="A">A records</option>
+          <option value="MX">MX records</option>
+          <option value="NS">NS records</option>
+          <option value="TXT">TXT records</option>
+          <option value="SOA">SOA records</option>
+          <option value="CNAME">CNAME records</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-p" id="dr-btn" onclick="doDnsRecon()" style="width:auto;padding:10px 32px">&#127760; RUN DNSRECON</button>
+    <p style="color:var(--m);font-size:11px;margin-top:12px;font-family:'JetBrains Mono',monospace">&#9432; Zone transfers and brute-force scans may take 30–90 seconds.</p>
+    <div id="dr-prog" style="display:none;margin-top:14px"><div style="height:3px;background:var(--b2);border-radius:2px"><div id="dr-pb" style="height:100%;width:0%;background:linear-gradient(90deg,var(--cyan),var(--purple));border-radius:2px;transition:width 0.4s"></div></div></div>
+    <div id="dr-term" class="terminal" style="display:none;margin-top:14px;background:#020208;border:1px solid var(--b);border-radius:9px;padding:13px 15px;max-height:160px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:13px"></div>
+    <div id="dr-err" style="display:none;margin-top:10px;background:rgba(255,51,102,0.07);border:1px solid rgba(255,51,102,0.22);border-radius:9px;padding:13px 16px;color:var(--red);font-size:13px;font-family:'JetBrains Mono',monospace"></div>
+    <div id="dr-res" style="display:none;margin-top:16px"></div>
+  </div>
+</div>
+
+<!-- ═══ NIKTO ═══ -->
+<div class="page" id="page-nikto">
+  <div class="card">
+    <div class="ctitle">&#128200; Nikto — Web Vulnerability Scanner</div>
+    <div class="notice">&#9888; Only scan web servers you own or have explicit written permission to test.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div class="fg">
+        <label>TARGET URL / HOST</label>
+        <input class="inp" id="nk-target" type="text" placeholder="e.g. http://192.168.1.1 or example.com" />
+      </div>
+      <div class="fg">
+        <label>PORT</label>
+        <input class="inp" id="nk-port" type="number" placeholder="80" value="80" min="1" max="65535" />
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div class="fg">
+        <label>SSL</label>
+        <select class="inp" id="nk-ssl">
+          <option value="">Auto-detect</option>
+          <option value="-ssl">Force SSL</option>
+          <option value="-nossl">Disable SSL</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>TUNING (optional)</label>
+        <select class="inp" id="nk-tuning">
+          <option value="">All tests</option>
+          <option value="1">File upload</option>
+          <option value="2">Misconfiguration</option>
+          <option value="4">XSS</option>
+          <option value="8">Command injection</option>
+          <option value="9">SQL injection</option>
+          <option value="b">Software identification</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-p" id="nk-btn" onclick="doNikto()" style="width:auto;padding:10px 32px">&#128200; RUN NIKTO</button>
+    <p style="color:var(--m);font-size:11px;margin-top:12px;font-family:'JetBrains Mono',monospace">&#9432; Nikto scans may take 2–10 minutes depending on server response time.</p>
+    <div id="nk-prog" style="display:none;margin-top:14px"><div style="height:3px;background:var(--b2);border-radius:2px"><div id="nk-pb" style="height:100%;width:0%;background:linear-gradient(90deg,var(--orange),var(--red));border-radius:2px;transition:width 0.4s"></div></div></div>
+    <div id="nk-term" style="display:none;margin-top:14px;background:#020208;border:1px solid var(--b);border-radius:9px;padding:13px 15px;max-height:180px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:12px"></div>
+    <div id="nk-err" style="display:none;margin-top:10px;background:rgba(255,51,102,0.07);border:1px solid rgba(255,51,102,0.22);border-radius:9px;padding:13px 16px;color:var(--red);font-size:13px;font-family:'JetBrains Mono',monospace"></div>
+    <div id="nk-res" style="display:none;margin-top:16px"></div>
+  </div>
+</div>
+
+<!-- ═══ WPSCAN ═══ -->
+<div class="page" id="page-wpscan">
+  <div class="card">
+    <div class="ctitle">&#128196; WPScan — WordPress Security Scanner</div>
+    <div class="notice">&#9888; Only scan WordPress sites you own or have explicit written permission to test.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div class="fg">
+        <label>TARGET URL</label>
+        <input class="inp" id="wp-target" type="text" placeholder="e.g. https://example.com" />
+      </div>
+      <div class="fg">
+        <label>ENUMERATION</label>
+        <select class="inp" id="wp-enum" multiple style="height:96px;padding:6px">
+          <option value="p" selected>Plugins (vulnerable)</option>
+          <option value="t">Themes</option>
+          <option value="u" selected>Users</option>
+          <option value="vp">Vulnerable plugins only</option>
+          <option value="ap">All plugins</option>
+          <option value="at">All themes</option>
+          <option value="tt">Timthumbs</option>
+          <option value="cb">Config backups</option>
+        </select>
+        <div style="font-size:9px;color:var(--m);margin-top:3px;font-family:'JetBrains Mono',monospace">Hold Ctrl/Cmd to select multiple</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div class="fg">
+        <label>WPScan API TOKEN (optional)</label>
+        <input class="inp" id="wp-token" type="password" placeholder="Get free token at wpscan.com" />
+      </div>
+      <div class="fg">
+        <label>DETECTION MODE</label>
+        <select class="inp" id="wp-mode">
+          <option value="mixed">Mixed (default)</option>
+          <option value="passive">Passive (stealthy)</option>
+          <option value="aggressive">Aggressive</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-p" id="wp-btn" onclick="doWPScan()" style="width:auto;padding:10px 32px">&#128196; RUN WPSCAN</button>
+    <p style="color:var(--m);font-size:11px;margin-top:12px;font-family:'JetBrains Mono',monospace">&#9432; WPScan may take 1–5 minutes. API token enables CVE data for plugins.</p>
+    <div id="wp-prog" style="display:none;margin-top:14px"><div style="height:3px;background:var(--b2);border-radius:2px"><div id="wp-pb" style="height:100%;width:0%;background:linear-gradient(90deg,var(--purple),var(--cyan));border-radius:2px;transition:width 0.4s"></div></div></div>
+    <div id="wp-term" style="display:none;margin-top:14px;background:#020208;border:1px solid var(--b);border-radius:9px;padding:13px 15px;max-height:180px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:12px"></div>
+    <div id="wp-err" style="display:none;margin-top:10px;background:rgba(255,51,102,0.07);border:1px solid rgba(255,51,102,0.22);border-radius:9px;padding:13px 16px;color:var(--red);font-size:13px;font-family:'JetBrains Mono',monospace"></div>
+    <div id="wp-res" style="display:none;margin-top:16px"></div>
+  </div>
+</div>
+
+<!-- ═══ LYNIS ═══ -->
+<div class="page" id="page-lynis">
+  <div class="card">
+    <div class="ctitle">&#128203; Lynis — System Security Audit</div>
+    <div class="notice">&#9432; Lynis audits the <strong>local server</strong> running VulnScan Pro. No target needed.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div class="fg">
+        <label>AUDIT PROFILE</label>
+        <select class="inp" id="ly-profile">
+          <option value="system">Full System Audit</option>
+          <option value="quick">Quick Scan</option>
+          <option value="forensics">Forensics Mode</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>FOCUS CATEGORY</label>
+        <select class="inp" id="ly-category">
+          <option value="">All categories</option>
+          <option value="authentication">Authentication</option>
+          <option value="networking">Networking</option>
+          <option value="storage">Storage &amp; Filesystems</option>
+          <option value="kernel">Kernel &amp; Memory</option>
+          <option value="software">Installed Software</option>
+          <option value="logging">Logging &amp; Auditing</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg" style="margin-bottom:16px">
+      <label>COMPLIANCE STANDARD</label>
+      <select class="inp" id="ly-compliance">
+        <option value="">None</option>
+        <option value="ISO27001">ISO 27001</option>
+        <option value="PCI-DSS">PCI-DSS</option>
+        <option value="HIPAA">HIPAA</option>
+        <option value="CIS">CIS Benchmark</option>
+      </select>
+    </div>
+    <button class="btn btn-p" id="ly-btn" onclick="doLynis()" style="width:auto;padding:10px 32px">&#128203; RUN LYNIS AUDIT</button>
+    <p style="color:var(--m);font-size:11px;margin-top:12px;font-family:'JetBrains Mono',monospace">&#9432; Full audit may take 2–5 minutes. Results include hardening index score.</p>
+    <div id="ly-prog" style="display:none;margin-top:14px"><div style="height:3px;background:var(--b2);border-radius:2px"><div id="ly-pb" style="height:100%;width:0%;background:linear-gradient(90deg,var(--green),var(--cyan));border-radius:2px;transition:width 0.4s"></div></div></div>
+    <div id="ly-term" style="display:none;margin-top:14px;background:#020208;border:1px solid var(--b);border-radius:9px;padding:13px 15px;max-height:200px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:12px"></div>
+    <div id="ly-err" style="display:none;margin-top:10px;background:rgba(255,51,102,0.07);border:1px solid rgba(255,51,102,0.22);border-radius:9px;padding:13px 16px;color:var(--red);font-size:13px;font-family:'JetBrains Mono',monospace"></div>
+    <div id="ly-res" style="display:none;margin-top:16px"></div>
+  </div>
+</div>
+
+<!-- ═══ LEGION ═══ -->
+<div class="page" id="page-legion">
+  <div class="card">
+    <div class="ctitle">&#9881; Legion — Auto-Recon Framework</div>
+    <div class="notice">&#9888; Only scan hosts you own or have explicit written permission to test. Legion runs multiple active tools.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div class="fg">
+        <label>TARGET HOST / IP</label>
+        <input class="inp" id="lg-target" type="text" placeholder="e.g. 192.168.1.1 or example.com" />
+      </div>
+      <div class="fg">
+        <label>SCAN INTENSITY</label>
+        <select class="inp" id="lg-intensity">
+          <option value="light">Light (fast, low noise)</option>
+          <option value="normal" selected>Normal</option>
+          <option value="aggressive">Aggressive (thorough)</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg" style="margin-bottom:16px">
+      <label>MODULES TO RUN</label>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+        <button class="mt on" id="lg-mod-nmap" onclick="lgMod('nmap',this)">&#128268; nmap</button>
+        <button class="mt on" id="lg-mod-nikto" onclick="lgMod('nikto',this)">&#128200; nikto</button>
+        <button class="mt on" id="lg-mod-smb" onclick="lgMod('smb',this)">&#128229; SMB</button>
+        <button class="mt on" id="lg-mod-snmp" onclick="lgMod('snmp',this)">&#128241; SNMP</button>
+        <button class="mt" id="lg-mod-hydra" onclick="lgMod('hydra',this)">&#128272; hydra</button>
+        <button class="mt" id="lg-mod-finger" onclick="lgMod('finger',this)">&#128100; finger</button>
+      </div>
+    </div>
+    <button class="btn btn-p" id="lg-btn" onclick="doLegion()" style="width:auto;padding:10px 32px">&#9881; RUN LEGION</button>
+    <p style="color:var(--m);font-size:11px;margin-top:12px;font-family:'JetBrains Mono',monospace">&#9432; Legion orchestrates multiple tools. Aggressive scans may take 5–15 minutes.</p>
+    <div id="lg-prog" style="display:none;margin-top:14px"><div style="height:3px;background:var(--b2);border-radius:2px"><div id="lg-pb" style="height:100%;width:0%;background:linear-gradient(90deg,var(--red),var(--orange));border-radius:2px;transition:width 0.4s"></div></div></div>
+    <div id="lg-term" style="display:none;margin-top:14px;background:#020208;border:1px solid var(--b);border-radius:9px;padding:13px 15px;max-height:200px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:12px"></div>
+    <div id="lg-err" style="display:none;margin-top:10px;background:rgba(255,51,102,0.07);border:1px solid rgba(255,51,102,0.22);border-radius:9px;padding:13px 16px;color:var(--red);font-size:13px;font-family:'JetBrains Mono',monospace"></div>
+    <div id="lg-res" style="display:none;margin-top:16px"></div>
   </div>
 </div>
 
@@ -969,6 +1302,179 @@ function renderHarvest(d){
   if(hosts.length){html+=`<div class="card" style="margin-bottom:12px"><div class="ctitle" style="font-size:11px">&#127968; HOSTS (${hosts.length})</div><div style="overflow-x:auto"><table class="res-tbl"><thead><tr><th>HOST</th><th>IP</th></tr></thead><tbody>${hosts.map(h=>`<tr><td>${h.host||h}</td><td>${h.ip||"—"}</td></tr>`).join("")}</tbody></table></div></div>`;}
   if(ips.length){html+=`<div class="card"><div class="ctitle" style="font-size:11px">&#128205; IP ADDRESSES (${ips.length})</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${ips.map(ip=>`<span class="tag" style="background:rgba(57,255,20,0.08);color:var(--green);border-color:rgba(57,255,20,0.2)">${ip}</span>`).join("")}</div></div>`;}
   res.innerHTML=html;
+}
+
+// ── Generic tool runner helper ──
+function mkToolRunner(prefix,color){
+  let logEl=null,progT=null,progV=0;
+  return{
+    log(t,tp="i"){if(!logEl)return;const p={i:"[*]",s:"[+]",w:"[!]",e:"[x]"}[tp]||"[*]";const d=document.createElement("div");d.className="tl t"+tp;d.style.color=tp==="s"?"var(--green)":tp==="e"?"var(--red)":tp==="w"?"var(--yellow)":"#4a4a7a";d.innerHTML=`<span style="color:var(--cyan)">${p}</span> `+t;logEl.appendChild(d);logEl.scrollTop=logEl.scrollHeight;},
+    start(){progV=0;logEl=document.getElementById(prefix+"-term");logEl.innerHTML="";logEl.style.display="block";document.getElementById(prefix+"-err").style.display="none";document.getElementById(prefix+"-res").style.display="none";document.getElementById(prefix+"-prog").style.display="block";document.getElementById(prefix+"-pb").style.width="0%";progT=setInterval(()=>{progV=Math.min(progV+(100-progV)*0.035,90);document.getElementById(prefix+"-pb").style.width=progV+"%";},500);},
+    end(){clearInterval(progT);document.getElementById(prefix+"-pb").style.width="100%";setTimeout(()=>document.getElementById(prefix+"-prog").style.display="none",400);},
+    err(msg){document.getElementById(prefix+"-err").textContent="Error: "+msg;document.getElementById(prefix+"-err").style.display="block";},
+    res(html){const el=document.getElementById(prefix+"-res");el.innerHTML=html;el.style.display="block";}
+  };
+}
+
+// ── DNSRecon ──
+const drTool=mkToolRunner("dr","--cyan");
+async function doDnsRecon(){
+  const target=document.getElementById("dr-target").value.trim();
+  if(!target){alert("Enter a target domain");return;}
+  const type=document.getElementById("dr-type").value;
+  const ns=document.getElementById("dr-ns").value.trim();
+  const filter=document.getElementById("dr-filter").value;
+  const btn=document.getElementById("dr-btn");btn.disabled=true;btn.textContent="Running...";
+  drTool.start();drTool.log("Target: "+target);drTool.log("Type: "+type);
+  try{
+    const r=await fetchWithTimeout("/dnsrecon",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({target,type,ns,filter})},120000);
+    const d=await r.json();drTool.end();
+    if(d.error){drTool.err(d.error);drTool.log(d.error,"e");}
+    else{drTool.log("Done — "+(d.records?.length||0)+" records found","s");renderDnsRecon(d);}
+  }catch(e){drTool.end();drTool.err(e.message);drTool.log(e.message,"e");}
+  finally{btn.disabled=false;btn.textContent="🌐 RUN DNSRECON";}
+}
+function renderDnsRecon(d){
+  const recs=d.records||[];
+  const byType={};recs.forEach(r=>{if(!byType[r.type])byType[r.type]=[];byType[r.type].push(r);});
+  let html=`<div class="sc" style="margin-bottom:16px"><div class="sv" style="color:var(--cyan)">${recs.length}</div><div class="sl">RECORDS FOUND</div></div>`;
+  Object.entries(byType).forEach(([type,items])=>{
+    html+=`<div class="card" style="margin-bottom:10px"><div class="ctitle" style="font-size:11px;color:var(--cyan)">${type} RECORDS (${items.length})</div><div style="overflow-x:auto"><table class="res-tbl"><thead><tr><th>NAME</th><th>VALUE</th><th>TTL</th></tr></thead><tbody>`;
+    items.forEach(r=>{html+=`<tr><td>${r.name||"—"}</td><td style="color:var(--t)">${r.address||r.value||r.data||"—"}</td><td style="color:var(--m)">${r.ttl||"—"}</td></tr>`;});
+    html+=`</tbody></table></div></div>`;
+  });
+  drTool.res(html);
+}
+
+// ── Nikto ──
+const nkTool=mkToolRunner("nk","--orange");
+async function doNikto(){
+  const target=document.getElementById("nk-target").value.trim();
+  if(!target){alert("Enter a target URL or host");return;}
+  const port=document.getElementById("nk-port").value||80;
+  const ssl=document.getElementById("nk-ssl").value;
+  const tuning=document.getElementById("nk-tuning").value;
+  const btn=document.getElementById("nk-btn");btn.disabled=true;btn.textContent="Scanning...";
+  nkTool.start();nkTool.log("Target: "+target+" port "+port);nkTool.log("Nikto scan started — this may take several minutes","w");
+  try{
+    const r=await fetchWithTimeout("/nikto",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({target,port:parseInt(port),ssl,tuning})},600000);
+    const d=await r.json();nkTool.end();
+    if(d.error){nkTool.err(d.error);nkTool.log(d.error,"e");}
+    else{nkTool.log("Done — "+(d.findings?.length||0)+" findings","s");renderNikto(d);}
+  }catch(e){nkTool.end();nkTool.err(e.message);nkTool.log(e.message,"e");}
+  finally{btn.disabled=false;btn.textContent="📈 RUN NIKTO";}
+}
+function renderNikto(d){
+  const findings=d.findings||[];
+  const crit=findings.filter(f=>f.severity==="high").length;
+  let html=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+    <div class="sc"><div class="sv" style="color:var(--orange)">${findings.length}</div><div class="sl">FINDINGS</div></div>
+    <div class="sc"><div class="sv" style="color:var(--red)">${crit}</div><div class="sl">HIGH SEVERITY</div></div>
+    <div class="sc"><div class="sv" style="color:var(--green)">${d.server||"—"}</div><div class="sl">SERVER</div></div>
+  </div>`;
+  if(findings.length){
+    html+=`<div class="card"><div class="ctitle" style="font-size:11px">FINDINGS</div><div style="overflow-x:auto"><table class="res-tbl"><thead><tr><th>ID</th><th>DESCRIPTION</th><th>URL</th></tr></thead><tbody>`;
+    findings.forEach(f=>{html+=`<tr><td style="color:var(--cyan);white-space:nowrap">${f.id||"—"}</td><td style="color:${f.severity==="high"?"var(--red)":f.severity==="medium"?"var(--orange)":"var(--t)"}">${f.description||f.msg||"—"}</td><td style="color:var(--m);font-size:10px">${f.url||""}</td></tr>`;});
+    html+=`</tbody></table></div></div>`;
+  }else{html+=`<div class="card"><p style="color:var(--green)">&#10003; No findings detected.</p></div>`;}
+  nkTool.res(html);
+}
+
+// ── WPScan ──
+const wpTool=mkToolRunner("wp","--purple");
+async function doWPScan(){
+  const target=document.getElementById("wp-target").value.trim();
+  if(!target){alert("Enter a target URL");return;}
+  const enumEl=document.getElementById("wp-enum");
+  const enumFlags=Array.from(enumEl.selectedOptions).map(o=>o.value).join(",");
+  const token=document.getElementById("wp-token").value.trim();
+  const mode=document.getElementById("wp-mode").value;
+  const btn=document.getElementById("wp-btn");btn.disabled=true;btn.textContent="Scanning...";
+  wpTool.start();wpTool.log("Target: "+target);wpTool.log("Enumerating: "+enumFlags);
+  try{
+    const r=await fetchWithTimeout("/wpscan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({target,enum_flags:enumFlags,token,mode})},300000);
+    const d=await r.json();wpTool.end();
+    if(d.error){wpTool.err(d.error);wpTool.log(d.error,"e");}
+    else{wpTool.log("Done — "+(d.vulnerabilities?.length||0)+" vulnerabilities, "+(d.users?.length||0)+" users","s");renderWPScan(d);}
+  }catch(e){wpTool.end();wpTool.err(e.message);wpTool.log(e.message,"e");}
+  finally{btn.disabled=false;btn.textContent="📄 RUN WPSCAN";}
+}
+function renderWPScan(d){
+  const vulns=d.vulnerabilities||[];const users=d.users||[];const plugins=d.plugins||[];
+  let html=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+    <div class="sc"><div class="sv" style="color:var(--red)">${vulns.length}</div><div class="sl">VULNERABILITIES</div></div>
+    <div class="sc"><div class="sv" style="color:var(--purple)">${plugins.length}</div><div class="sl">PLUGINS</div></div>
+    <div class="sc"><div class="sv" style="color:var(--cyan)">${users.length}</div><div class="sl">USERS</div></div>
+    <div class="sc"><div class="sv" style="color:var(--yellow)">${d.wp_version||"?"}</div><div class="sl">WP VERSION</div></div>
+  </div>`;
+  if(vulns.length){html+=`<div class="card" style="margin-bottom:10px"><div class="ctitle" style="font-size:11px;color:var(--red)">VULNERABILITIES</div><div style="overflow-x:auto"><table class="res-tbl"><thead><tr><th>TITLE</th><th>TYPE</th><th>REF</th></tr></thead><tbody>${vulns.map(v=>`<tr><td style="color:var(--red)">${v.title||v.name||"—"}</td><td style="color:var(--orange)">${v.type||"—"}</td><td style="color:var(--cyan);font-size:10px">${v.references?.cve?.join(", ")||v.ref||"—"}</td></tr>`).join("")}</tbody></table></div></div>`;}
+  if(users.length){html+=`<div class="card" style="margin-bottom:10px"><div class="ctitle" style="font-size:11px;color:var(--cyan)">USERS FOUND</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${users.map(u=>`<span class="tag" style="background:rgba(0,229,255,0.08);color:var(--cyan);border-color:rgba(0,229,255,0.2)">${u}</span>`).join("")}</div></div>`;}
+  if(plugins.length){html+=`<div class="card"><div class="ctitle" style="font-size:11px">PLUGINS (${plugins.length})</div><div style="overflow-x:auto"><table class="res-tbl"><thead><tr><th>PLUGIN</th><th>VERSION</th><th>VULNS</th></tr></thead><tbody>${plugins.map(p=>`<tr><td style="color:var(--t)">${p.name||"—"}</td><td style="color:var(--m)">${p.version||"—"}</td><td style="color:${p.vulnerabilities?.length?"var(--red)":"var(--green)"}">${p.vulnerabilities?.length||0}</td></tr>`).join("")}</tbody></table></div></div>`;}
+  wpTool.res(html);
+}
+
+// ── Lynis ──
+const lyTool=mkToolRunner("ly","--green");
+async function doLynis(){
+  const profile=document.getElementById("ly-profile").value;
+  const category=document.getElementById("ly-category").value;
+  const compliance=document.getElementById("ly-compliance").value;
+  const btn=document.getElementById("ly-btn");btn.disabled=true;btn.textContent="Auditing...";
+  lyTool.start();lyTool.log("Lynis system audit starting...");lyTool.log("Profile: "+profile+(compliance?" | Compliance: "+compliance:""),"w");
+  try{
+    const r=await fetchWithTimeout("/lynis",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({profile,category,compliance})},300000);
+    const d=await r.json();lyTool.end();
+    if(d.error){lyTool.err(d.error);lyTool.log(d.error,"e");}
+    else{lyTool.log("Audit complete — Hardening Index: "+(d.hardening_index||"?"),d.hardening_index>=70?"s":"w");renderLynis(d);}
+  }catch(e){lyTool.end();lyTool.err(e.message);lyTool.log(e.message,"e");}
+  finally{btn.disabled=false;btn.textContent="📋 RUN LYNIS AUDIT";}
+}
+function renderLynis(d){
+  const warnings=d.warnings||[];const suggestions=d.suggestions||[];const score=d.hardening_index||0;
+  const scoreColor=score>=80?"var(--green)":score>=60?"var(--yellow)":score>=40?"var(--orange)":"var(--red)";
+  let html=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+    <div class="sc"><div class="sv" style="color:${scoreColor}">${score}</div><div class="sl">HARDENING INDEX</div></div>
+    <div class="sc"><div class="sv" style="color:var(--red)">${warnings.length}</div><div class="sl">WARNINGS</div></div>
+    <div class="sc"><div class="sv" style="color:var(--yellow)">${suggestions.length}</div><div class="sl">SUGGESTIONS</div></div>
+    <div class="sc"><div class="sv" style="color:var(--cyan)">${d.tests_performed||"—"}</div><div class="sl">TESTS RUN</div></div>
+  </div>`;
+  if(warnings.length){html+=`<div class="card" style="margin-bottom:10px"><div class="ctitle" style="font-size:11px;color:var(--red)">&#9888; WARNINGS</div>${warnings.map(w=>`<div style="border-bottom:1px solid var(--b);padding:8px 0;font-size:12px;color:var(--orange);font-family:'JetBrains Mono',monospace">${w}</div>`).join("")}</div>`;}
+  if(suggestions.length){html+=`<div class="card"><div class="ctitle" style="font-size:11px;color:var(--yellow)">&#128161; SUGGESTIONS (${suggestions.length})</div>${suggestions.slice(0,30).map(s=>`<div style="border-bottom:1px solid var(--b);padding:7px 0;font-size:11px;color:var(--m);font-family:'JetBrains Mono',monospace">&#8250; ${s}</div>`).join("")}${suggestions.length>30?`<div style="color:var(--m);font-size:11px;padding-top:8px">...and ${suggestions.length-30} more</div>`:""}</div>`;}
+  lyTool.res(html);
+}
+
+// ── Legion ──
+const lgMods={"nmap":true,"nikto":true,"smb":true,"snmp":true,"hydra":false,"finger":false};
+function lgMod(m,el){lgMods[m]=!lgMods[m];el.classList.toggle("on",lgMods[m]);}
+const lgTool=mkToolRunner("lg","--red");
+async function doLegion(){
+  const target=document.getElementById("lg-target").value.trim();
+  if(!target){alert("Enter a target host or IP");return;}
+  const intensity=document.getElementById("lg-intensity").value;
+  const modules=Object.entries(lgMods).filter(([,v])=>v).map(([k])=>k);
+  const btn=document.getElementById("lg-btn");btn.disabled=true;btn.textContent="Running...";
+  lgTool.start();lgTool.log("Target: "+target);lgTool.log("Modules: "+modules.join(", "));lgTool.log("Intensity: "+intensity,"w");
+  try{
+    const r=await fetchWithTimeout("/legion",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({target,intensity,modules})},900000);
+    const d=await r.json();lgTool.end();
+    if(d.error){lgTool.err(d.error);lgTool.log(d.error,"e");}
+    else{lgTool.log("Legion scan complete","s");renderLegion(d);}
+  }catch(e){lgTool.end();lgTool.err(e.message);lgTool.log(e.message,"e");}
+  finally{btn.disabled=false;btn.textContent="⚙ RUN LEGION";}
+}
+function renderLegion(d){
+  let html=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+    <div class="sc"><div class="sv" style="color:var(--cyan)">${d.open_ports||0}</div><div class="sl">OPEN PORTS</div></div>
+    <div class="sc"><div class="sv" style="color:var(--red)">${d.total_issues||0}</div><div class="sl">ISSUES FOUND</div></div>
+    <div class="sc"><div class="sv" style="color:var(--green)">${d.modules_run||0}</div><div class="sl">MODULES RAN</div></div>
+  </div>`;
+  (d.results||[]).forEach(r=>{
+    html+=`<div class="card" style="margin-bottom:10px"><div class="ctitle" style="font-size:11px;color:var(--orange)">&#9881; ${r.module?.toUpperCase()||"MODULE"}</div>`;
+    if(r.findings?.length){html+=`<div style="overflow-x:auto"><table class="res-tbl"><thead><tr><th>FINDING</th><th>DETAIL</th></tr></thead><tbody>${r.findings.map(f=>`<tr><td style="color:var(--t)">${f.title||f}</td><td style="color:var(--m);font-size:10px">${f.detail||""}</td></tr>`).join("")}</tbody></table></div>`;}
+    else{html+=`<p style="color:var(--m);font-size:12px;font-family:'JetBrains Mono',monospace">${r.summary||"No findings"}</p>`;}
+    html+=`</div>`;
+  });
+  lgTool.res(html);
 }
 function tmg(m,el){mods[m]=!mods[m];el.classList.toggle("on",mods[m]);}
 
@@ -1672,6 +2178,214 @@ def report():
     return Response(buf.read(), mimetype="application/pdf",
                     headers={"Content-Disposition": f"attachment; filename={fname}"})
 
+@app.route("/dnsrecon", methods=["POST"])
+def dnsrecon_route():
+    import shutil, subprocess, json as _json, re as _re
+    data = request.get_json() or {}
+    target = (data.get("target") or "").strip()
+    scan_type = data.get("type", "std")
+    ns = (data.get("ns") or "").strip()
+    rec_filter = (data.get("filter") or "").strip()
+    if not target:
+        return jsonify({"error": "No target specified"})
+    binary = shutil.which("dnsrecon")
+    if not binary:
+        return jsonify({"error": "dnsrecon is not installed. Run: sudo apt install dnsrecon  OR  pip3 install dnsrecon"})
+    import tempfile
+    with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tf:
+        out_file = tf.name
+    cmd = [binary, "-d", target, "-t", scan_type, "-j", out_file]
+    if ns: cmd += ["-n", ns]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        records = []
+        if os.path.exists(out_file):
+            try:
+                with open(out_file) as f:
+                    raw = _json.load(f)
+                for item in (raw if isinstance(raw, list) else raw.get("records", [])):
+                    if isinstance(item, dict):
+                        rec = {"type": item.get("type","?"), "name": item.get("name",""), "address": item.get("address", item.get("data",""))}
+                        if rec_filter and rec["type"] != rec_filter: continue
+                        records.append(rec)
+            except Exception: pass
+        if not records:
+            for line in proc.stdout.splitlines():
+                m = _re.match(r'\s*\[\*\]\s*(\w+)\s+([\w\.\-]+)\s+([\d\.]+)', line)
+                if m: records.append({"type": m.group(1), "name": m.group(2), "address": m.group(3)})
+        os.unlink(out_file) if os.path.exists(out_file) else None
+        return jsonify({"target": target, "records": records, "scan_type": scan_type})
+    except subprocess.TimeoutExpired:
+        return jsonify({"error": "dnsrecon timed out"})
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+@app.route("/nikto", methods=["POST"])
+def nikto_route():
+    import shutil, subprocess, json as _json, re as _re
+    data = request.get_json() or {}
+    target = (data.get("target") or "").strip()
+    port = int(data.get("port") or 80)
+    ssl_flag = data.get("ssl", "")
+    tuning = data.get("tuning", "")
+    if not target:
+        return jsonify({"error": "No target specified"})
+    binary = shutil.which("nikto")
+    if not binary:
+        return jsonify({"error": "Nikto is not installed. Run: sudo apt install nikto"})
+    import tempfile
+    with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as tf:
+        out_file = tf.name
+    cmd = [binary, "-h", target, "-p", str(port), "-Format", "json", "-o", out_file, "-nointeractive"]
+    if ssl_flag == "-ssl": cmd += ["-ssl"]
+    elif ssl_flag == "-nossl": cmd += ["-nossl"]
+    if tuning: cmd += ["-Tuning", tuning]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        findings, server = [], ""
+        if os.path.exists(out_file):
+            try:
+                with open(out_file) as f:
+                    raw = _json.load(f)
+                for host in (raw.get("host", []) if isinstance(raw, dict) else []):
+                    server = host.get("banner", "")
+                    for item in host.get("vulnerabilities", []):
+                        findings.append({"id": item.get("id",""), "description": item.get("msg",""), "url": item.get("uri",""), "method": item.get("method",""), "severity": "high" if item.get("OSVDB","0") != "0" else "info"})
+            except Exception: pass
+        if not findings:
+            for line in proc.stdout.splitlines():
+                m = _re.search(r'\+ (OSVDB-\d+|[\w-]+): (.+)', line)
+                if m: findings.append({"id": m.group(1), "description": m.group(2), "severity": "high" if "OSVDB" in m.group(1) else "info"})
+        os.unlink(out_file) if os.path.exists(out_file) else None
+        return jsonify({"target": target, "port": port, "server": server, "findings": findings})
+    except subprocess.TimeoutExpired:
+        return jsonify({"error": "Nikto timed out after 10 minutes"})
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+@app.route("/wpscan", methods=["POST"])
+def wpscan_route():
+    import shutil, subprocess, json as _json
+    data = request.get_json() or {}
+    target = (data.get("target") or "").strip()
+    enum_flags = data.get("enum_flags", "p,u")
+    token = (data.get("token") or "").strip()
+    mode = data.get("mode", "mixed")
+    if not target:
+        return jsonify({"error": "No target specified"})
+    binary = shutil.which("wpscan")
+    if not binary:
+        return jsonify({"error": "WPScan is not installed. Run: sudo gem install wpscan  OR  docker pull wpscanteam/wpscan"})
+    import tempfile
+    with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tf:
+        out_file = tf.name
+    cmd = [binary, "--url", target, "--enumerate", enum_flags, "--detection-mode", mode, "--format", "json", "--output", out_file, "--no-banner"]
+    if token: cmd += ["--api-token", token]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        if os.path.exists(out_file):
+            try:
+                with open(out_file) as f:
+                    raw = _json.load(f)
+                wp_version = raw.get("version", {}).get("number", "unknown")
+                users = list(raw.get("users", {}).keys())
+                plugins = []
+                for name, pdata in raw.get("plugins", {}).items():
+                    plugins.append({"name": name, "version": pdata.get("version", {}).get("number", "?"), "vulnerabilities": pdata.get("vulnerabilities", [])})
+                vulns = []
+                for name, pdata in raw.get("plugins", {}).items():
+                    for v in pdata.get("vulnerabilities", []):
+                        vulns.append({"title": v.get("title",""), "type": v.get("type",""), "references": v.get("references",{})})
+                os.unlink(out_file) if os.path.exists(out_file) else None
+                return jsonify({"target": target, "wp_version": wp_version, "users": users, "plugins": plugins, "vulnerabilities": vulns})
+            except Exception as e:
+                return jsonify({"error": f"Parse error: {e}"})
+        return jsonify({"error": "WPScan produced no output. Is the target a WordPress site?"})
+    except subprocess.TimeoutExpired:
+        return jsonify({"error": "WPScan timed out after 5 minutes"})
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+@app.route("/lynis", methods=["POST"])
+def lynis_route():
+    import shutil, subprocess, re as _re
+    data = request.get_json() or {}
+    profile = data.get("profile", "system")
+    category = (data.get("category") or "").strip()
+    compliance = (data.get("compliance") or "").strip()
+    binary = shutil.which("lynis")
+    if not binary:
+        return jsonify({"error": "Lynis is not installed. Run: sudo apt install lynis"})
+    cmd = [binary, "audit", "system", "--quiet", "--no-colors", "--noplugins"]
+    if compliance: cmd += ["--compliance", compliance.lower()]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        output = proc.stdout + proc.stderr
+        hardening_index = 0
+        warnings, suggestions = [], []
+        for line in output.splitlines():
+            m = _re.search(r'Hardening index\s*[:\|]\s*(\d+)', line, _re.IGNORECASE)
+            if m: hardening_index = int(m.group(1))
+            if "Warning" in line or "warning" in line:
+                clean = _re.sub(r'\033\[[0-9;]*m', '', line).strip()
+                if len(clean) > 10 and "==" not in clean: warnings.append(clean)
+            elif "Suggestion" in line or "suggestion" in line:
+                clean = _re.sub(r'\033\[[0-9;]*m', '', line).strip()
+                if len(clean) > 10 and "==" not in clean: suggestions.append(clean)
+        tests_m = _re.search(r'Tests performed\s*[:\|]\s*(\d+)', output, _re.IGNORECASE)
+        tests_performed = tests_m.group(1) if tests_m else "?"
+        return jsonify({"hardening_index": hardening_index, "warnings": list(set(warnings))[:50], "suggestions": list(set(suggestions))[:100], "tests_performed": tests_performed})
+    except subprocess.TimeoutExpired:
+        return jsonify({"error": "Lynis timed out after 5 minutes"})
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+@app.route("/legion", methods=["POST"])
+def legion_route():
+    import shutil, subprocess, json as _json
+    data = request.get_json() or {}
+    target = (data.get("target") or "").strip()
+    intensity = data.get("intensity", "normal")
+    modules = data.get("modules", ["nmap", "nikto"])
+    if not target:
+        return jsonify({"error": "No target specified"})
+    results, open_ports, total_issues, modules_run = [], 0, 0, 0
+    # Run each requested module independently
+    for mod in modules:
+        binary = shutil.which(mod) or shutil.which(mod.lower())
+        if not binary:
+            results.append({"module": mod, "summary": f"{mod} not found — install with: sudo apt install {mod}", "findings": []})
+            continue
+        modules_run += 1
+        findings = []
+        try:
+            if mod == "nmap":
+                speed = {"light": "-T2", "normal": "-T3", "aggressive": "-T4"}[intensity]
+                proc = subprocess.run(["nmap", speed, "-sV", "--open", target], capture_output=True, text=True, timeout=300)
+                import re as _re
+                for line in proc.stdout.splitlines():
+                    m = _re.match(r'^(\d+/\w+)\s+open\s+(\S+)\s*(.*)', line)
+                    if m:
+                        open_ports += 1
+                        findings.append({"title": f"Port {m.group(1)} open", "detail": f"{m.group(2)} {m.group(3)}".strip()})
+            elif mod == "nikto":
+                proc = subprocess.run(["nikto", "-h", target, "-nointeractive"], capture_output=True, text=True, timeout=300)
+                import re as _re
+                for line in proc.stdout.splitlines():
+                    if line.strip().startswith("+"):
+                        findings.append({"title": line.strip()[2:80], "detail": ""})
+                        total_issues += 1
+            else:
+                proc = subprocess.run([binary, target], capture_output=True, text=True, timeout=120)
+                if proc.stdout.strip():
+                    findings.append({"title": f"{mod} output", "detail": proc.stdout[:500]})
+        except subprocess.TimeoutExpired:
+            findings.append({"title": f"{mod} timed out", "detail": ""})
+        except Exception as e:
+            findings.append({"title": f"{mod} error", "detail": str(e)})
+        results.append({"module": mod, "findings": findings, "summary": f"{len(findings)} findings"})
+    return jsonify({"target": target, "open_ports": open_ports, "total_issues": total_issues, "modules_run": modules_run, "results": results})
+
 @app.route("/harvester", methods=["POST"])
 def harvester():
     import shutil, subprocess, json as _json, tempfile, re as _re
@@ -1753,7 +2467,7 @@ def health():
     })
 
 if __name__ == "__main__":
-    print("[*] VulnScan Pro v3.2 starting")
+    print("[*] VulnScan Pro v3.4 starting")
     print("[*] Open: http://localhost:5000")
     print("[*] Health check: http://localhost:5000/health")
     app.run(host="0.0.0.0", port=5000, debug=False)
