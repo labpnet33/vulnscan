@@ -79,6 +79,21 @@ header{position:sticky;top:0;z-index:100;background:rgba(4,4,10,0.92);backdrop-f
 nav{display:flex;gap:3px;flex-wrap:wrap;align-items:center}
 .nb{padding:6px 13px;border:none;background:transparent;color:var(--m);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:1px;border-radius:6px;transition:all 0.2s;white-space:nowrap}
 .nb:hover,.nb.active{background:var(--b);color:var(--cyan)}
+.nav-dropdown{position:relative;display:inline-block}
+.nav-dropdown-btn{padding:6px 13px;border:none;background:transparent;color:var(--m);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:1px;border-radius:6px;transition:all 0.2s;white-space:nowrap;display:flex;align-items:center;gap:5px}
+.nav-dropdown-btn:hover,.nav-dropdown-btn.active{background:var(--b);color:var(--cyan)}
+.nav-dropdown-btn .arrow{font-size:8px;transition:transform 0.2s}
+.nav-dropdown-btn.open .arrow{transform:rotate(180deg)}
+.nav-dropdown-menu{position:absolute;top:calc(100% + 6px);left:0;background:var(--s1);border:1px solid var(--b2);border-radius:10px;min-width:210px;z-index:100;padding:6px;display:none;box-shadow:0 8px 32px rgba(0,0,0,0.5)}
+.nav-dropdown-menu.open{display:block}
+.nav-dropdown-section{font-size:9px;color:var(--m);letter-spacing:2px;font-family:'JetBrains Mono',monospace;padding:6px 10px 4px;margin-top:4px}
+.nav-dropdown-section:first-child{margin-top:0}
+.nav-dropdown-item{display:flex;align-items:center;gap:9px;padding:8px 12px;border:none;background:transparent;color:var(--t);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;border-radius:7px;width:100%;text-align:left;transition:all 0.2s}
+.nav-dropdown-item:hover{background:var(--b);color:var(--cyan)}
+.nav-dropdown-item.active{background:var(--b);color:var(--cyan)}
+.nav-dropdown-item .item-icon{width:22px;text-align:center;font-size:13px}
+.nav-dropdown-item .item-label{flex:1}
+.nav-dropdown-item .item-badge{font-size:8px;background:var(--cyan);color:var(--bg);padding:2px 5px;border-radius:4px;font-weight:700}
 .user-chip{display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--b2);border-radius:20px;padding:4px 12px 4px 8px;cursor:pointer;transition:all 0.2s}
 .user-chip:hover{border-color:var(--cyan)}
 .user-avatar{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--purple));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--bg)}
@@ -345,7 +360,27 @@ textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
     <div><div class="brand-name">VulnScan Pro</div><div class="brand-tag">SECURITY PLATFORM</div></div>
   </div>
   <nav id="main-nav">
-    <button class="nb active" onclick="pg('scan',this)">&#128269; Scanner</button>
+    <!-- ── Information Gathering Dropdown ── -->
+    <div class="nav-dropdown" id="dd-info">
+      <button class="nav-dropdown-btn" id="dd-info-btn" onclick="toggleDropdown('info')">
+        &#128270; Information Gathering <span class="arrow">&#9660;</span>
+      </button>
+      <div class="nav-dropdown-menu" id="dd-info-menu">
+        <div class="nav-dropdown-section">&#9632; NETWORK</div>
+        <button class="nav-dropdown-item" id="dd-item-scan" onclick="pgFromDd('scan','info')">
+          <span class="item-icon">&#128268;</span>
+          <span class="item-label">Network Scanner</span>
+          <span class="item-badge">nmap</span>
+        </button>
+        <div class="nav-dropdown-section">&#9632; OSINT</div>
+        <button class="nav-dropdown-item" id="dd-item-harvester" onclick="pgFromDd('harvester','info')">
+          <span class="item-icon">&#127919;</span>
+          <span class="item-label">theHarvester</span>
+          <span class="item-badge">recon</span>
+        </button>
+      </div>
+    </div>
+    <!-- ── Regular Nav ── -->
     <button class="nb" onclick="pg('sub',this)">&#127760; Subdomains</button>
     <button class="nb" onclick="pg('dir',this)">&#128193; DirBust</button>
     <button class="nb" onclick="pg('brute',this)">&#128272; BruteForce</button>
@@ -386,6 +421,65 @@ textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
   <div id="term"></div>
   <div id="err"></div>
   <div id="res"></div>
+</div>
+
+<!-- ═══ THE HARVESTER ═══ -->
+<div class="page" id="page-harvester">
+  <div class="card">
+    <div class="ctitle">&#127919; theHarvester — OSINT Recon</div>
+    <div class="notice">&#9888; Only perform reconnaissance on domains you own or have explicit written permission to test.</div>
+    <div class="hero" style="padding:16px 0 8px">
+      <p style="color:var(--m);font-size:12px;font-family:'JetBrains Mono',monospace;max-width:600px;margin:0 auto">
+        theHarvester gathers emails, subdomains, hosts, employee names, open ports, and banners from public sources (Google, Bing, LinkedIn, DNS, and more).
+      </p>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div class="fg">
+        <label>TARGET DOMAIN</label>
+        <input class="inp" id="hv-target" type="text" placeholder="e.g. example.com" />
+      </div>
+      <div class="fg">
+        <label>DATA SOURCES</label>
+        <select class="inp" id="hv-sources" multiple style="height:90px;padding:6px">
+          <option value="google" selected>Google</option>
+          <option value="bing" selected>Bing</option>
+          <option value="linkedin">LinkedIn</option>
+          <option value="dnsdumpster" selected>DNSDumpster</option>
+          <option value="crtsh" selected>crt.sh</option>
+          <option value="hackertarget">HackerTarget</option>
+          <option value="baidu">Baidu</option>
+          <option value="yahoo">Yahoo</option>
+        </select>
+        <div style="font-size:9px;color:var(--m);margin-top:3px;font-family:'JetBrains Mono',monospace">Hold Ctrl/Cmd to select multiple</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+      <div class="fg">
+        <label>RESULT LIMIT</label>
+        <input class="inp" id="hv-limit" type="number" value="500" min="50" max="2000" />
+      </div>
+      <div class="fg">
+        <label>DNS BRUTE-FORCE</label>
+        <select class="inp" id="hv-dns">
+          <option value="">Disabled</option>
+          <option value="-f /tmp/hv_out -b all --dns-brute">Enable</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>OUTPUT FORMAT</label>
+        <select class="inp" id="hv-fmt">
+          <option value="xml">XML (full)</option>
+          <option value="json">JSON</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-p" id="hv-btn" onclick="doHarvest()" style="width:auto;padding:10px 32px">&#127919; RUN HARVESTER</button>
+    <p style="color:var(--m);font-size:11px;margin-top:12px;font-family:'JetBrains Mono',monospace">&#9432; Recon may take 30–120 seconds depending on sources selected.</p>
+    <div id="hv-prog" style="display:none;margin-top:14px"><div style="height:3px;background:var(--b2);border-radius:2px"><div id="hv-pb" style="height:100%;width:0%;background:linear-gradient(90deg,var(--cyan),var(--purple));border-radius:2px;transition:width 0.4s"></div></div></div>
+    <div id="hv-term" class="terminal" style="display:none;margin-top:14px"></div>
+    <div id="hv-err" class="err-box" style="display:none;margin-top:10px"></div>
+    <div id="hv-res" style="display:none;margin-top:16px"></div>
+  </div>
 </div>
 
 <!-- ═══ SUBDOMAIN ═══ -->
@@ -654,12 +748,88 @@ function showPwdMsg(msg,type){const el=document.getElementById("pwd-msg");el.tex
 function pg(id,el){
   document.querySelectorAll(".page").forEach(e=>e.classList.remove("active"));
   document.querySelectorAll(".nb").forEach(e=>e.classList.remove("active"));
+  document.querySelectorAll(".nav-dropdown-item").forEach(e=>e.classList.remove("active"));
+  document.querySelectorAll(".nav-dropdown-btn").forEach(e=>e.classList.remove("active"));
   document.getElementById("page-"+id).classList.add("active");
   if(el)el.classList.add("active");
   if(id==="hist")loadHist();
   if(id==="dash")loadDash();
   if(id==="admin")loadAdmin();
   if(id==="profile"&&currentUser)loadProfileInfo(currentUser);
+}
+function pgFromDd(id, ddId){
+  // close dropdown
+  document.getElementById("dd-"+ddId+"-menu").classList.remove("open");
+  document.getElementById("dd-"+ddId+"-btn").classList.remove("open");
+  // mark page active
+  document.querySelectorAll(".page").forEach(e=>e.classList.remove("active"));
+  document.querySelectorAll(".nb").forEach(e=>e.classList.remove("active"));
+  document.querySelectorAll(".nav-dropdown-item").forEach(e=>e.classList.remove("active"));
+  document.querySelectorAll(".nav-dropdown-btn").forEach(e=>e.classList.remove("active"));
+  document.getElementById("page-"+id).classList.add("active");
+  document.getElementById("dd-item-"+id).classList.add("active");
+  document.getElementById("dd-"+ddId+"-btn").classList.add("active");
+  if(id==="hist")loadHist();
+  if(id==="dash")loadDash();
+}
+function toggleDropdown(id){
+  const menu=document.getElementById("dd-"+id+"-menu");
+  const btn=document.getElementById("dd-"+id+"-btn");
+  const open=menu.classList.contains("open");
+  // close all dropdowns first
+  document.querySelectorAll(".nav-dropdown-menu").forEach(m=>m.classList.remove("open"));
+  document.querySelectorAll(".nav-dropdown-btn").forEach(b=>b.classList.remove("open"));
+  if(!open){menu.classList.add("open");btn.classList.add("open");}
+}
+// Close dropdown when clicking outside
+document.addEventListener("click",function(e){
+  if(!e.target.closest(".nav-dropdown")){
+    document.querySelectorAll(".nav-dropdown-menu").forEach(m=>m.classList.remove("open"));
+    document.querySelectorAll(".nav-dropdown-btn").forEach(b=>b.classList.remove("open"));
+  }
+});
+
+// ── theHarvester ──
+let hvLogEl=null,hvProgT=null,hvProgV=0;
+function hvLog(t,tp="i"){if(!hvLogEl)return;const p={i:"[*]",s:"[+]",w:"[!]",e:"[x]"}[tp]||"[*]";const d=document.createElement("div");d.className="tl t"+tp;d.innerHTML="<span class='p'>"+p+"</span> "+t;hvLogEl.appendChild(d);hvLogEl.scrollTop=hvLogEl.scrollHeight;}
+function hvStartProg(){hvProgV=0;document.getElementById("hv-prog").style.display="block";document.getElementById("hv-pb").style.width="0%";hvProgT=setInterval(()=>{hvProgV=Math.min(hvProgV+(100-hvProgV)*0.035,90);document.getElementById("hv-pb").style.width=hvProgV+"%";},500);}
+function hvEndProg(){clearInterval(hvProgT);document.getElementById("hv-pb").style.width="100%";setTimeout(()=>document.getElementById("hv-prog").style.display="none",400);}
+async function doHarvest(){
+  const target=document.getElementById("hv-target").value.trim();
+  if(!target){alert("Please enter a target domain");return;}
+  const srcEl=document.getElementById("hv-sources");
+  const sources=Array.from(srcEl.selectedOptions).map(o=>o.value).join(",");
+  const limit=document.getElementById("hv-limit").value||500;
+  const btn=document.getElementById("hv-btn");
+  btn.disabled=true;btn.textContent="Running...";
+  hvLogEl=document.getElementById("hv-term");hvLogEl.innerHTML="";hvLogEl.style.display="block";
+  document.getElementById("hv-err").style.display="none";
+  document.getElementById("hv-res").style.display="none";
+  hvStartProg();
+  hvLog("Target: "+target);hvLog("Sources: "+sources);hvLog("Limit: "+limit);hvLog("Launching theHarvester...","w");
+  try{
+    const r=await fetchWithTimeout("/harvester",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({target,sources,limit:parseInt(limit)})},180000);
+    const d=await r.json();
+    hvEndProg();
+    if(d.error){document.getElementById("hv-err").textContent="Error: "+d.error;document.getElementById("hv-err").style.display="block";hvLog(d.error,"e");}
+    else{hvLog("Done — "+( d.emails?.length||0)+" emails, "+(d.hosts?.length||0)+" hosts, "+(d.subdomains?.length||0)+" subdomains","s");renderHarvest(d);}
+  }catch(e){hvEndProg();document.getElementById("hv-err").textContent="Error: "+e.message;document.getElementById("hv-err").style.display="block";hvLog(e.message,"e");}
+  finally{btn.disabled=false;btn.textContent="🎯 RUN HARVESTER";}
+}
+function renderHarvest(d){
+  const res=document.getElementById("hv-res");res.style.display="block";
+  const emails=d.emails||[];const hosts=d.hosts||[];const subs=d.subdomains||[];const ips=d.ips||[];
+  let html=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px">
+    <div class="sc"><div class="sv" style="color:var(--cyan)">${emails.length}</div><div class="sl">EMAILS</div></div>
+    <div class="sc"><div class="sv" style="color:var(--purple)">${hosts.length}</div><div class="sl">HOSTS</div></div>
+    <div class="sc"><div class="sv" style="color:var(--green)">${subs.length}</div><div class="sl">SUBDOMAINS</div></div>
+    <div class="sc"><div class="sv" style="color:var(--yellow)">${ips.length}</div><div class="sl">IPs FOUND</div></div>
+  </div>`;
+  if(emails.length){html+=`<div class="card" style="margin-bottom:12px"><div class="ctitle" style="font-size:11px">&#128231; EMAILS (${emails.length})</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${emails.map(e=>`<span class="tag" style="background:rgba(0,229,255,0.08);color:var(--cyan);border-color:rgba(0,229,255,0.2)">${e}</span>`).join("")}</div></div>`;}
+  if(subs.length){html+=`<div class="card" style="margin-bottom:12px"><div class="ctitle" style="font-size:11px">&#127760; SUBDOMAINS (${subs.length})</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${subs.map(s=>`<span class="tag" style="background:rgba(176,111,255,0.08);color:var(--purple);border-color:rgba(176,111,255,0.2)">${s}</span>`).join("")}</div></div>`;}
+  if(hosts.length){html+=`<div class="card" style="margin-bottom:12px"><div class="ctitle" style="font-size:11px">&#127968; HOSTS (${hosts.length})</div><div style="overflow-x:auto"><table class="res-tbl"><thead><tr><th>HOST</th><th>IP</th></tr></thead><tbody>${hosts.map(h=>`<tr><td>${h.host||h}</td><td>${h.ip||"—"}</td></tr>`).join("")}</tbody></table></div></div>`;}
+  if(ips.length){html+=`<div class="card"><div class="ctitle" style="font-size:11px">&#128205; IP ADDRESSES (${ips.length})</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${ips.map(ip=>`<span class="tag" style="background:rgba(57,255,20,0.08);color:var(--green);border-color:rgba(57,255,20,0.2)">${ip}</span>`).join("")}</div></div>`;}
+  res.innerHTML=html;
 }
 function tmg(m,el){mods[m]=!mods[m];el.classList.toggle("on",mods[m]);}
 
@@ -1363,20 +1533,88 @@ def report():
     return Response(buf.read(), mimetype="application/pdf",
                     headers={"Content-Disposition": f"attachment; filename={fname}"})
 
+@app.route("/harvester", methods=["POST"])
+def harvester():
+    import shutil, subprocess, json as _json, tempfile, re as _re
+    data = request.get_json() or {}
+    target = (data.get("target") or "").strip()
+    sources = (data.get("sources") or "google,bing,dnsdumpster,crtsh").strip()
+    limit = int(data.get("limit") or 500)
+    if not target:
+        return jsonify({"error": "No target specified"})
+    # Validate domain (basic)
+    if not _re.match(r'^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z]{2,})+$', target):
+        return jsonify({"error": "Invalid domain format"})
+    if not shutil.which("theHarvester") and not shutil.which("theharvester"):
+        return jsonify({"error": "theHarvester is not installed. Run: sudo apt install theharvester  OR  pip3 install theHarvester"})
+    binary = shutil.which("theHarvester") or shutil.which("theharvester")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        out_file = os.path.join(tmpdir, "harvest")
+        cmd = [binary, "-d", target, "-l", str(limit), "-b", sources, "-f", out_file]
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=150)
+            raw_out = proc.stdout + proc.stderr
+        except subprocess.TimeoutExpired:
+            return jsonify({"error": "theHarvester timed out after 150s"})
+        except Exception as e:
+            return jsonify({"error": str(e)})
+        # Parse JSON output if available
+        emails, hosts, subdomains, ips = [], [], [], []
+        json_path = out_file + ".json"
+        if os.path.exists(json_path):
+            try:
+                with open(json_path) as f:
+                    jd = _json.load(f)
+                emails = list(set(jd.get("emails", [])))
+                hosts_raw = jd.get("hosts", [])
+                for h in hosts_raw:
+                    if isinstance(h, dict):
+                        hosts.append(h)
+                        if h.get("ip"): ips.append(h["ip"])
+                    else:
+                        hosts.append({"host": h, "ip": ""})
+                subdomains = list(set(jd.get("hosts", []) if not hosts else
+                                      [h["host"] if isinstance(h,dict) else h for h in hosts_raw]))
+                ips = list(set(ips + jd.get("ips", [])))
+            except Exception:
+                pass
+        # Fallback: parse stdout
+        if not emails and not hosts:
+            for line in raw_out.splitlines():
+                line = line.strip()
+                if "@" in line and "." in line and " " not in line:
+                    emails.append(line)
+                elif _re.match(r'^([a-zA-Z0-9\-]+\.)+[a-zA-Z]{2,}$', line):
+                    subdomains.append(line)
+                elif _re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', line):
+                    ips.append(line)
+            emails = list(set(emails))
+            subdomains = list(set(subdomains))
+            ips = list(set(ips))
+        return jsonify({
+            "target": target,
+            "sources": sources,
+            "emails": emails[:500],
+            "hosts": hosts[:500],
+            "subdomains": subdomains[:500],
+            "ips": ips[:500],
+            "raw_lines": len(raw_out.splitlines())
+        })
+
 @app.route("/health")
 def health():
     # FIX: Also check if nmap and dig are available
     import shutil
     return jsonify({
         "status": "ok",
-        "version": "3.1",
+        "version": "3.2",
         "nmap": bool(shutil.which("nmap")),
         "dig": bool(shutil.which("dig")),
         "python": sys.version
     })
 
 if __name__ == "__main__":
-    print("[*] VulnScan Pro v3.1 starting")
+    print("[*] VulnScan Pro v3.2 starting")
     print("[*] Open: http://localhost:5000")
     print("[*] Health check: http://localhost:5000/health")
     app.run(host="0.0.0.0", port=5000, debug=False)
