@@ -469,7 +469,6 @@ textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
       <div>
         <div style="font-size:14px;font-weight:700;color:var(--t)">Vijay Katariya</div>
         <div style="font-size:11px;color:var(--m);font-family:'JetBrains Mono',monospace;margin-top:2px">Creator &amp; Lead Developer</div>
-        <div style="font-size:11px;color:var(--cyan);font-family:'JetBrains Mono',monospace;margin-top:1px">Motalund Organization</div>
       </div>
       <div style="margin-left:auto;text-align:right">
         <div style="background:rgba(0,255,157,0.08);border:1px solid rgba(0,255,157,0.2);border-radius:20px;padding:4px 12px;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--green)">&#11044; OPEN SOURCE</div>
