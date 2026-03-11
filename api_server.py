@@ -785,7 +785,7 @@ textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
       <div class="brand-name" data-text="VulnScan Pro">VulnScan Pro</div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
         <div class="brand-tag">SECURITY PLATFORM</div>
-        <span class="ver-badge">v3.6</span>
+        <span class="ver-badge">v3.7</span>
       </div>
     </div>
   </div>
@@ -1543,12 +1543,16 @@ textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
         <div style="color:var(--m);margin-bottom:4px">VulnScan Pro — Server Console v2.0</div>
         <div style="color:var(--m);margin-bottom:14px;border-bottom:1px solid var(--b);padding-bottom:10px">Connected to: <span style="color:var(--green)" id="cli-hostname">loading...</span> | User: <span style="color:var(--yellow)" id="cli-user-label">admin</span></div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center">
+      <div style="display:flex;gap:8px;align-items:center;position:relative">
         <span style="color:var(--green);font-family:'JetBrains Mono',monospace;font-size:12px;flex-shrink:0;white-space:nowrap">root@vulnscan:~$</span>
-        <input class="inp" id="cli-input" type="text" placeholder="Enter command..." onkeydown="cliKey(event)" autocomplete="off" spellcheck="false" style="font-family:'JetBrains Mono',monospace;font-size:12px;padding:8px 12px"/>
+        <div style="position:relative;flex:1;display:flex">
+          <input class="inp" id="cli-input" type="text" placeholder="Enter command... (up/down history, Tab autocomplete)" onkeydown="cliKey(event)" oninput="cliInputHint(this.value)" autocomplete="off" spellcheck="false" style="font-family:'JetBrains Mono',monospace;font-size:12px;padding:8px 12px;width:100%"/>
+          <span id="cli-hint" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);color:var(--m);font-family:'JetBrains Mono',monospace;font-size:12px;pointer-events:none;opacity:0.5"></span>
+        </div>
         <button class="btn btn-g btn-sm" onclick="cliRun()" style="flex-shrink:0">&#9654; RUN</button>
         <button class="btn btn-g btn-sm" onclick="cliClear()" style="flex-shrink:0;color:var(--m)">CLR</button>
       </div>
+      <div id="cli-statusbar" style="margin-top:6px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--green);opacity:0.7">Ready | 0 in history</div>
       <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px" id="cli-quick-cmds">
         <button class="lbtn" onclick="cliQuick('uptime')">uptime</button>
         <button class="lbtn" onclick="cliQuick('df -h')">df -h</button>
@@ -1560,6 +1564,11 @@ textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
         <button class="lbtn" onclick="cliQuick('uname -a')">uname</button>
         <button class="lbtn" onclick="cliQuick('ip addr')">ip addr</button>
         <button class="lbtn" onclick="cliQuick('journalctl -n 30 --no-pager')">recent logs</button>
+        <button class="lbtn" onclick="cliQuick('cat /etc/os-release')">OS info</button>
+        <button class="lbtn" onclick="cliQuick('ss -tlnp')">listening</button>
+        <button class="lbtn" onclick="cliQuick('ls /home')">home dirs</button>
+        <button class="lbtn" onclick="cliQuick('last -n 10')">last logins</button>
+        <button class="lbtn" onclick="cliQuick('echo Help: use arrow keys for history, Tab to autocomplete')">help</button>
       </div>
     </div>
   </div>
@@ -1589,16 +1598,25 @@ textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
     catch(e){return '#00e5ff';}
   }
   function hexToRgb(hex){
+    if(!hex||typeof hex!=='string')return[0,229,255];
+    hex=hex.trim();
+    // Handle CSS variable references
+    if(hex.startsWith('var('))return[0,229,255];
+    // Handle rgb() format
+    const rgbMatch=hex.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+    if(rgbMatch)return[parseInt(rgbMatch[1]),parseInt(rgbMatch[2]),parseInt(rgbMatch[3])];
     hex=hex.replace(/[^0-9a-f]/gi,'');
+    if(!hex.length)return[0,229,255];
     if(hex.length===3)hex=hex.split('').map(c=>c+c).join('');
+    if(hex.length!==6)return[0,229,255];
     const n=parseInt(hex,16);
-    return [(n>>16)&255,(n>>8)&255,n&255];
+    return[(n>>16)&255,(n>>8)&255,n&255];
   }
   for(let i=0;i<60;i++)particles.push({x:Math.random()*window.innerWidth,y:Math.random()*window.innerHeight,vx:(Math.random()-0.5)*0.4,vy:(Math.random()-0.5)*0.4,r:Math.random()*1.8+0.3,life:Math.random()});
   function draw(){
     ctx.clearRect(0,0,W,H);
     let rgb=[0,229,255];
-    try{rgb=hexToRgb(getAccent().replace('var(--cyan)','00e5ff'));}catch(e){}
+    try{rgb=hexToRgb(getAccent());}catch(e){}
     particles.forEach(p=>{
       p.x+=p.vx;p.y+=p.vy;p.life+=0.003;
       if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;
@@ -1873,7 +1891,68 @@ function initCliHeader(){
   const ul=document.getElementById('cli-user-label');if(ul&&currentUser)ul.textContent=currentUser.username;
 }
 
+// ── CLI: full terminal implementation ──
+let _cliHistory=[],_cliHistIdx=-1;
 
+function cliInputHint(val){
+  const hint=document.getElementById('cli-hint');
+  if(!hint)return;
+  if(!val.trim()){hint.textContent='';return;}
+  const cmds=['uptime','df -h','free -h','ps aux','ss -tlnp','ip addr','uname -a','hostname','whoami','systemctl status vulnscan','journalctl -n 30 --no-pager','which nmap nikto lynis dnsrecon theHarvester wpscan','ls -la','pwd'];
+  const match=cmds.find(c=>c.startsWith(val)&&c!==val);
+  hint.textContent=match?match.slice(val.length):'';
+}
+
+async function cliRun(){
+  const inp=document.getElementById('cli-input');
+  const out=document.getElementById('cli-output');
+  const sb=document.getElementById('cli-statusbar');
+  if(!inp||!out)return;
+  const cmd=inp.value.trim();
+  if(!cmd)return;
+  // history
+  if(_cliHistory[0]!==cmd)_cliHistory.unshift(cmd);
+  if(_cliHistory.length>50)_cliHistory.pop();
+  _cliHistIdx=-1;
+  // show command in terminal
+  const ts=new Date().toLocaleTimeString();
+  out.innerHTML+=`<div style="color:var(--cyan);margin-top:6px"><span style="color:var(--m)">[${ts}]</span> <span style="color:var(--green)">$</span> ${cmd.replace(/</g,'&lt;')}</div>`;
+  inp.value='';
+  if(sb){sb.textContent='Running...';sb.style.color='var(--yellow)';}
+  try{
+    const r=await fetch('/api/exec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:cmd})});
+    const d=await r.json();
+    if(d.error){
+      out.innerHTML+=`<div style="color:var(--red);white-space:pre-wrap;font-size:11px">${d.error.replace(/</g,'&lt;')}</div>`;
+    }
+    if(d.output){
+      out.innerHTML+=`<div style="color:var(--t);white-space:pre-wrap;font-size:11px">${d.output.replace(/</g,'&lt;')}</div>`;
+    }
+    if(!d.output&&!d.error){
+      out.innerHTML+=`<div style="color:var(--m);font-size:11px">(no output)</div>`;
+    }
+    if(sb){sb.textContent=`Ready | ${_cliHistory.length} in history | Exit: ${d.exit_code??'?'}`;sb.style.color='var(--green)';}
+  }catch(e){
+    out.innerHTML+=`<div style="color:var(--red);font-size:11px">Network error: ${e.message}</div>`;
+    if(sb){sb.textContent='Error';sb.style.color='var(--red)';}
+  }
+  out.scrollTop=out.scrollHeight;
+}
+
+function cliKey(e){
+  const inp=document.getElementById('cli-input');
+  if(!inp)return;
+  if(e.key==='Enter'){e.preventDefault();cliRun();}
+  else if(e.key==='ArrowUp'){e.preventDefault();if(_cliHistIdx<_cliHistory.length-1){_cliHistIdx++;inp.value=_cliHistory[_cliHistIdx]||'';}}
+  else if(e.key==='ArrowDown'){e.preventDefault();if(_cliHistIdx>0){_cliHistIdx--;inp.value=_cliHistory[_cliHistIdx]||'';}else{_cliHistIdx=-1;inp.value='';}}
+  else if(e.key==='Tab'){e.preventDefault();const hint=document.getElementById('cli-hint');if(hint&&hint.textContent){inp.value+=hint.textContent;hint.textContent='';}}
+  cliInputHint(inp.value);
+}
+
+function cliClear(){
+  const out=document.getElementById('cli-output');
+  if(out)out.innerHTML='<div style="color:var(--m);font-size:11px">Terminal cleared. Type a command below.</div>';
+}
 
 // ══ STAT COUNTER ANIMATION ══
 function animateCount(el,target){
@@ -2336,21 +2415,6 @@ function endProg(){clearInterval(progT);document.getElementById("pb").style.widt
 function bdg(lv,sm=false){const s=SEV[lv]||SEV.UNKNOWN;return`<span class="bdg${sm?" btn-sm":""}" style="background:${s.b};color:${s.c};border-color:${s.c}40">${s.i} ${lv}</span>`;}
 function tag(t,c){return`<span class="tag" style="background:${c}15;color:${c};border-color:${c}30">${t}</span>`;}
 function statusCol(s){return s===200?"var(--green)":s<400?"var(--yellow)":"var(--orange)";}
-
-// FIX: Increased fetch timeout from default to 300s to allow long scans to complete
-async function fetchWithTimeout(url, options={}, timeoutMs=300000){
-  const controller = new AbortController();
-  const timer = setTimeout(()=>controller.abort(), timeoutMs);
-  try {
-    const r = await fetch(url, {...options, signal: controller.signal});
-    clearTimeout(timer);
-    return r;
-  } catch(e) {
-    clearTimeout(timer);
-    if(e.name==='AbortError') throw new Error('Request timed out after '+Math.round(timeoutMs/1000)+'s. Try scanning fewer modules.');
-    throw e;
-  }
-}
 
 async function doScan(){
   const target=document.getElementById("tgt").value.trim();
@@ -3391,7 +3455,7 @@ BLOCKED_PATTERNS = [
     r'wget.*\|.*sh', r'base64.*decode.*\|'
 ]
 
-@app.route("/api/cli", methods=["POST"])
+@app.route("/api/exec", methods=["POST"])
 def cli_route():
     import shutil, subprocess, re as _re
     u = get_current_user()
@@ -3434,14 +3498,14 @@ def health():
     import shutil
     return jsonify({
         "status": "ok",
-        "version": "3.2",
+        "version": "3.7",
         "nmap": bool(shutil.which("nmap")),
         "dig": bool(shutil.which("dig")),
         "python": sys.version
     })
 
 if __name__ == "__main__":
-    print("[*] VulnScan Pro v3.6 starting")
+    print("[*] VulnScan Pro v3.7 starting")
     print("[*] Open: http://localhost:5000")
     print("[*] Health check: http://localhost:5000/health")
     app.run(host="0.0.0.0", port=5000, debug=False)
