@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-import json, re, sys, os, subprocess, io
-from flask import Flask, request, jsonify, Response
+import json, re, sys, os, subprocess, io, socket, platform, time
+from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 from datetime import datetime, timedelta, timezone
 
@@ -870,7 +870,7 @@ textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
     <button class="nb" onclick="pg('hist',this)">&#128196; History</button>
     <button class="nb" onclick="pg('dash',this)">&#128202; Dashboard</button>
     <button class="nb admin-only" onclick="pg('admin',this)" style="display:none">&#9881; Admin</button>
-    <button class="nb admin-only" onclick="pg('cli',this)" style="display:none;color:var(--green)">&#9654; Console</button>
+    <button class="nb admin-only" onclick="pg('console',this)" style="display:none;color:var(--green)">&#9654; Console</button>
     <button class="nb" onclick="showAbout()" style="color:var(--cyan)">&#9432; About</button>
     <div class="user-chip" onclick="pg('profile',this)" id="user-chip" style="display:none">
       <div class="user-avatar" id="user-avatar">?</div>
@@ -1575,9 +1575,245 @@ textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
 </div>
 
 <!-- ═══ CLI STANDALONE PAGE (kept for direct nav) ═══ -->
-<div class="page" id="page-cli" style="display:none">
-  <!-- redirects to admin > CLI tab -->
-</div>
+<div class="page" id="page-console">
+
+  <!-- ──── SERVER HEALTH STATUS ──── -->
+  <div class="card" style="margin-bottom:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div class="ctitle" style="margin-bottom:4px">🖥 SERVER HEALTH STATUS</div>
+        <div style="font-size:10px;color:var(--m);font-family:var(--font-mono)">
+          Auto-refreshes every 10s &nbsp;·&nbsp;
+          <span id="health-last-updated" style="color:var(--cyan)">loading...</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="pulse-dot" id="health-pulse"></span>
+        <span id="health-status-label" style="font-size:11px;font-family:var(--font-mono);color:var(--green)">ONLINE</span>
+        <button onclick="loadHealthStatus()"
+          style="background:transparent;border:1px solid var(--b2);color:var(--m);padding:4px 10px;
+                 border-radius:5px;cursor:pointer;font-family:var(--font-mono);font-size:10px;transition:all 0.2s"
+          onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+          onmouseout="this.style.borderColor='var(--b2)';this.style.color='var(--m)'">⟳ REFRESH</button>
+      </div>
+    </div>
+
+    <!-- Metric cards -->
+    <div class="health-grid">
+      <div class="health-card">
+        <div class="health-card-icon">🖥️</div>
+        <div class="health-card-label">CPU USAGE</div>
+        <div class="health-card-val" id="hc-cpu" style="color:var(--cyan)">—</div>
+        <div class="health-card-sub" id="hc-cpu-sub">Loading...</div>
+        <div class="health-bar"><div class="health-bar-fill" id="hc-cpu-bar" style="background:var(--cyan);width:0%"></div></div>
+      </div>
+      <div class="health-card">
+        <div class="health-card-icon">🧠</div>
+        <div class="health-card-label">MEMORY (RAM)</div>
+        <div class="health-card-val" id="hc-mem" style="color:var(--purple)">—</div>
+        <div class="health-card-sub" id="hc-mem-sub">Loading...</div>
+        <div class="health-bar"><div class="health-bar-fill" id="hc-mem-bar" style="background:var(--purple);width:0%"></div></div>
+      </div>
+      <div class="health-card">
+        <div class="health-card-icon">💾</div>
+        <div class="health-card-label">DISK STORAGE</div>
+        <div class="health-card-val" id="hc-disk" style="color:var(--yellow)">—</div>
+        <div class="health-card-sub" id="hc-disk-sub">Loading...</div>
+        <div class="health-bar"><div class="health-bar-fill" id="hc-disk-bar" style="background:var(--yellow);width:0%"></div></div>
+      </div>
+      <div class="health-card">
+        <div class="health-card-icon">🌐</div>
+        <div class="health-card-label">PUBLIC IP</div>
+        <div class="health-card-val" id="hc-ip" style="color:var(--green);font-size:16px;margin-top:6px">—</div>
+        <div class="health-card-sub" id="hc-ip-sub">Fetching...</div>
+      </div>
+      <div class="health-card">
+        <div class="health-card-icon">⏱️</div>
+        <div class="health-card-label">UPTIME</div>
+        <div class="health-card-val" id="hc-uptime" style="color:var(--orange);font-size:18px;margin-top:4px">—</div>
+        <div class="health-card-sub" id="hc-uptime-sub">Boot time</div>
+      </div>
+      <div class="health-card">
+        <div class="health-card-icon">⚙️</div>
+        <div class="health-card-label">PROCESSES</div>
+        <div class="health-card-val" id="hc-procs" style="color:var(--red)">—</div>
+        <div class="health-card-sub" id="hc-procs-sub">Running / Total</div>
+      </div>
+      <div class="health-card">
+        <div class="health-card-icon">🌡️</div>
+        <div class="health-card-label">LOAD AVERAGE</div>
+        <div class="health-card-val" id="hc-load" style="color:var(--cyan);font-size:15px;margin-top:6px">—</div>
+        <div class="health-card-sub" id="hc-load-sub">1m / 5m / 15m</div>
+      </div>
+      <div class="health-card">
+        <div class="health-card-icon">🔌</div>
+        <div class="health-card-label">NETWORK I/O</div>
+        <div class="health-card-val" id="hc-net" style="color:var(--green);font-size:14px;margin-top:6px">—</div>
+        <div class="health-card-sub" id="hc-net-sub">↑ Sent / ↓ Received</div>
+      </div>
+    </div>
+
+    <!-- Extra info strip -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+                gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--b)">
+      <div style="font-family:var(--font-mono);font-size:11px">
+        <span style="color:var(--m)">HOSTNAME:</span> <span id="hc-hostname" style="color:var(--t)">—</span>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:11px">
+        <span style="color:var(--m)">OS:</span> <span id="hc-os" style="color:var(--t)">—</span>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:11px">
+        <span style="color:var(--m)">KERNEL:</span> <span id="hc-kernel" style="color:var(--t)">—</span>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:11px">
+        <span style="color:var(--m)">PYTHON:</span> <span id="hc-python" style="color:var(--cyan)">—</span>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:11px">
+        <span style="color:var(--m)">LOCAL IP:</span> <span id="hc-localip" style="color:var(--t)">—</span>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:11px">
+        <span style="color:var(--m)">LISTENING PORTS:</span>
+        <span id="hc-openports" style="color:var(--yellow)">—</span>
+      </div>
+    </div>
+  </div><!-- /health card -->
+
+  <!-- ──── LIVE TERMINAL ──── -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div class="ctitle" style="margin-bottom:4px">▶ LIVE SERVER CONSOLE</div>
+        <div style="font-size:10px;color:var(--m);font-family:var(--font-mono)">
+          Admin only &nbsp;·&nbsp; All commands are logged &nbsp;·&nbsp; Allowlisted commands only
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="pulse-dot" id="console-status-dot"></span>
+        <span id="console-status-txt" style="font-size:10px;color:var(--green);font-family:var(--font-mono)">READY</span>
+        <button onclick="consoleClear()"
+          style="background:transparent;border:1px solid var(--b2);color:var(--m);
+                 padding:4px 10px;border-radius:5px;cursor:pointer;font-family:var(--font-mono);
+                 font-size:10px;transition:all 0.2s"
+          onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'"
+          onmouseout="this.style.borderColor='var(--b2)';this.style.color='var(--m)'">CLR</button>
+      </div>
+    </div>
+
+    <!-- Quick pill shortcuts -->
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px" id="quick-pills">
+      <button class="quick-pill" onclick="consoleQuick('uptime')">uptime</button>
+      <button class="quick-pill" onclick="consoleQuick('df -h')">df -h</button>
+      <button class="quick-pill" onclick="consoleQuick('free -h')">free -h</button>
+      <button class="quick-pill" onclick="consoleQuick('ps aux --sort=-%cpu | head -15')">top procs</button>
+      <button class="quick-pill" onclick="consoleQuick('ss -tlnp')">open ports</button>
+      <button class="quick-pill" onclick="consoleQuick('ip addr')">ip addr</button>
+      <button class="quick-pill" onclick="consoleQuick('uname -a')">uname</button>
+      <button class="quick-pill" onclick="consoleQuick('last -n 10')">last logins</button>
+      <button class="quick-pill" onclick="consoleQuick('journalctl -n 30 --no-pager')">recent logs</button>
+      <button class="quick-pill" onclick="consoleQuick('cat /etc/os-release')">os info</button>
+      <button class="quick-pill" onclick="consoleQuick('which nmap nikto lynis dnsrecon theHarvester wpscan')">check tools</button>
+      <button class="quick-pill" onclick="consoleQuick('help')">help</button>
+    </div>
+
+    <!-- Terminal window chrome -->
+    <div class="live-terminal" id="live-terminal">
+      <!-- Title bar -->
+      <div class="live-terminal-header">
+        <div class="term-dot" style="background:#ff5f57"></div>
+        <div class="term-dot" style="background:#ffbd2e"></div>
+        <div class="term-dot" style="background:#28ca41"></div>
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--m);margin-left:8px"
+              id="terminal-title">vulnscan@server — bash</span>
+        <span style="margin-left:auto;font-size:10px;color:var(--m);font-family:var(--font-mono)"
+              id="terminal-cmd-count">0 commands run</span>
+      </div>
+
+      <!-- Scrollable output -->
+      <div class="live-terminal-output" id="live-term-output">
+        <div class="term-line sys">VulnScan Pro — Live Server Console v3.7</div>
+        <div class="term-line sys">Type a command or click a quick action above. Type <span style="color:var(--cyan)">help</span> to list allowed commands.</div>
+        <div class="term-line sys" style="border-bottom:1px solid var(--b);padding-bottom:8px;margin-bottom:8px">
+          ─────────────────────────────────────────────────────────
+        </div>
+      </div>
+
+      <!-- Input row -->
+      <div class="live-terminal-input">
+        <span class="term-prompt" id="term-prompt-user">admin@vulnscan:~$</span>
+        <input class="term-input" id="live-term-input"
+               type="text" placeholder="enter command..."
+               autocomplete="off" spellcheck="false"
+               onkeydown="liveTermKey(event)"/>
+        <span id="live-term-hint"
+              style="color:var(--m);font-family:var(--font-mono);font-size:11px;
+                     pointer-events:none;opacity:0.4;white-space:nowrap;margin-right:6px"></span>
+        <button class="term-run-btn" id="term-run-btn" onclick="liveTermRun()">▶ RUN</button>
+        <button id="term-cancel-btn" onclick="liveTermCancel()"
+                style="display:none;background:rgba(255,51,102,0.12);border:1px solid rgba(255,51,102,0.35);
+                       color:var(--red);border-radius:5px;padding:5px 10px;cursor:pointer;
+                       font-family:var(--font-mono);font-size:10px;font-weight:700;margin-left:4px">
+          ✕ STOP
+        </button>
+      </div>
+    </div>
+
+    <div style="margin-top:8px;font-size:10px;color:var(--m);font-family:var(--font-mono);text-align:center">
+      ↑ / ↓ &nbsp; history &nbsp;·&nbsp; Tab &nbsp; autocomplete &nbsp;·&nbsp; Enter &nbsp; run &nbsp;·&nbsp; ✕ STOP &nbsp; cancel stream
+    </div>
+  </div><!-- /live terminal card -->
+
+</div><!-- /page-console -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     CSS TO ADD — paste inside your existing <style> block
+     ═══════════════════════════════════════════════════════════════════ -->
+<style id="console-styles">
+/* ── Health Cards ── */
+.health-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:6px}
+.health-card{background:var(--s2);border:1px solid var(--b2);border-radius:12px;padding:18px;
+             position:relative;overflow:hidden;transition:all 0.25s}
+.health-card:hover{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 6px 24px rgba(0,0,0,0.4)}
+.health-card-icon{position:absolute;top:14px;right:14px;font-size:20px;opacity:0.25}
+.health-card-label{font-size:9px;color:var(--m);letter-spacing:3px;font-family:var(--font-mono);font-weight:700;margin-bottom:10px}
+.health-card-val{font-size:26px;font-weight:800;font-family:var(--font-mono);line-height:1;margin-bottom:6px}
+.health-card-sub{font-size:11px;color:var(--m);font-family:var(--font-mono)}
+.health-bar{height:4px;background:var(--b);border-radius:2px;margin-top:10px;overflow:hidden}
+.health-bar-fill{height:100%;border-radius:2px;transition:width 1s ease}
+
+/* ── Live Terminal ── */
+.live-terminal{background:#000;border:1px solid var(--b);border-radius:10px;
+               overflow:hidden;display:flex;flex-direction:column;height:500px}
+.live-terminal-header{background:var(--s2);padding:10px 16px;display:flex;align-items:center;
+                       gap:8px;border-bottom:1px solid var(--b);flex-shrink:0}
+.term-dot{width:10px;height:10px;border-radius:50%}
+.live-terminal-output{flex:1;overflow-y:auto;padding:14px 16px;
+                       font-family:var(--font-mono);font-size:12px;line-height:1.8;color:#c8c8d8}
+.live-terminal-output::-webkit-scrollbar{width:4px}
+.live-terminal-output::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
+.term-line{white-space:pre-wrap;word-break:break-all;animation:termFadeIn 0.08s ease}
+@keyframes termFadeIn{from{opacity:0;transform:translateX(-3px)}to{opacity:1;transform:none}}
+.term-line.cmd{color:var(--cyan)}
+.term-line.out{color:#c8c8d8}
+.term-line.err{color:var(--red)}
+.term-line.sys{color:var(--m)}
+.term-line.ok {color:var(--green)}
+.live-terminal-input{border-top:1px solid var(--b);padding:10px 16px;display:flex;
+                      align-items:center;gap:10px;background:var(--s1);flex-shrink:0}
+.term-prompt{color:var(--green);font-family:var(--font-mono);font-size:12px;white-space:nowrap;flex-shrink:0}
+.term-input{flex:1;background:transparent;border:none;outline:none;
+            color:var(--accent);font-family:var(--font-mono);font-size:12px;caret-color:var(--accent)}
+.term-run-btn{background:var(--accent);color:var(--bg);border:none;border-radius:5px;
+              padding:5px 12px;cursor:pointer;font-family:var(--font-mono);font-size:10px;
+              font-weight:700;letter-spacing:1px;transition:all 0.2s;flex-shrink:0}
+.term-run-btn:hover{opacity:0.85;transform:scale(1.05)}
+.term-run-btn:disabled{opacity:0.35;cursor:not-allowed;transform:none}
+/* quick pills */
+.quick-pill{padding:4px 11px;border:1px solid var(--b2);border-radius:20px;background:transparent;
+            color:var(--m);cursor:pointer;font-family:var(--font-mono);font-size:10px;transition:all 0.2s}
+.quick-pill:hover{border-color:var(--accent);color:var(--accent);background:rgba(0,229,255,0.05)}
+@media(max-width:600px){.health-grid{grid-template-columns:1fr 1fr}.live-terminal{height:400px}}
+</style>
 
 </div><!-- /container -->
 
@@ -2126,6 +2362,11 @@ function pg(id,el){
   if(id==="hist")loadHist();
   if(id==="dash")loadDash();
   if(id==="admin"){loadAdmin();setTimeout(initCliHeader,400);}
+  if(id==="console"){
+    loadHealthStatus();startHealthPolling();
+    if(currentUser){var _tpu=document.getElementById('term-prompt-user');if(_tpu)_tpu.textContent=(currentUser.username||'admin')+'@vulnscan:~$';}
+    setTimeout(function(){var _tpi=document.getElementById('live-term-input');if(_tpi)_tpi.focus();},200);
+  } else { stopHealthPolling(); }
   if(id==="home")loadHomeStats();
   if(id==="profile"&&currentUser){loadProfileInfo(currentUser);buildThemeGrid();}
 }
@@ -2854,6 +3095,338 @@ document.addEventListener("keydown",e=>{
   if(e.key==="Enter"&&document.getElementById("l-pass")===document.activeElement)doLogin();
 });
 loadUser();
+
+
+// ════ CONSOLE PAGE: HEALTH STATUS + LIVE TERMINAL ════
+let _healthTimer = null;
+
+function startHealthPolling() {
+  stopHealthPolling();
+  _healthTimer = setInterval(loadHealthStatus, 10000); // every 10s
+}
+function stopHealthPolling() {
+  if (_healthTimer) { clearInterval(_healthTimer); _healthTimer = null; }
+}
+
+async function loadHealthStatus() {
+  try {
+    const r = await fetch('/api/health-status');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    _renderHealth(d);
+  } catch(e) {
+    const lbl = document.getElementById('health-status-label');
+    if (lbl) { lbl.textContent = 'ERROR'; lbl.style.color = 'var(--red)'; }
+    const upd = document.getElementById('health-last-updated');
+    if (upd) upd.textContent = 'fetch failed — ' + e.message;
+  }
+}
+
+function _clampColor(pct) {
+  if (pct >= 90) return 'var(--red)';
+  if (pct >= 70) return 'var(--yellow)';
+  return 'var(--green)';
+}
+
+function _renderHealth(d) {
+  // ── timestamp ──────────────────────────────────────────────
+  const upd = document.getElementById('health-last-updated');
+  if (upd) upd.textContent = 'updated ' + new Date().toLocaleTimeString();
+
+  // ── CPU ────────────────────────────────────────────────────
+  const cpuPct = d.cpu_percent || 0;
+  _setEl('hc-cpu', cpuPct.toFixed(1) + '%');
+  _setEl('hc-cpu-sub', `${d.cpu_count || '?'} logical cores`);
+  _bar('hc-cpu-bar', cpuPct, _clampColor(cpuPct));
+
+  // ── Memory ─────────────────────────────────────────────────
+  const mem = d.memory || {};
+  _setEl('hc-mem', (mem.percent || 0).toFixed(1) + '%');
+  _setEl('hc-mem-sub', `${mem.used_gb || 0} GB / ${mem.total_gb || 0} GB`);
+  _bar('hc-mem-bar', mem.percent || 0, _clampColor(mem.percent || 0));
+
+  // ── Disk ───────────────────────────────────────────────────
+  const disk = d.disk || {};
+  _setEl('hc-disk', (disk.percent || 0).toFixed(1) + '%');
+  _setEl('hc-disk-sub', `${disk.used_gb || 0} GB / ${disk.total_gb || 0} GB`);
+  _bar('hc-disk-bar', disk.percent || 0, _clampColor(disk.percent || 0));
+
+  // ── Public IP ──────────────────────────────────────────────
+  _setEl('hc-ip', d.public_ip || '—');
+  _setEl('hc-ip-sub', d.public_ip === 'unavailable' ? 'No external access' : 'External address');
+
+  // ── Uptime ─────────────────────────────────────────────────
+  const up = d.uptime || {};
+  _setEl('hc-uptime', up.human || '—');
+  _setEl('hc-uptime-sub', up.boot_time ? 'Boot: ' + up.boot_time : '');
+
+  // ── Processes ──────────────────────────────────────────────
+  const procs = d.processes || {};
+  _setEl('hc-procs', procs.total || '—');
+  _setEl('hc-procs-sub', `${procs.running || 0} running / ${procs.total || 0} total`);
+
+  // ── Load average ───────────────────────────────────────────
+  const load = d.load_avg || {};
+  _setEl('hc-load', `${load['1m']||0} · ${load['5m']||0} · ${load['15m']||0}`);
+  _setEl('hc-load-sub', '1m · 5m · 15m averages');
+
+  // ── Network I/O ────────────────────────────────────────────
+  const net = d.network || {};
+  _setEl('hc-net', `↑ ${net.sent || '—'}  ↓ ${net.received || '—'}`);
+  _setEl('hc-net-sub', 'Total since boot');
+
+  // ── System extras ──────────────────────────────────────────
+  const sys = d.system || {};
+  _setEl('hc-hostname', sys.hostname || '—');
+  _setEl('hc-os', sys.os || '—');
+  _setEl('hc-kernel', (sys.kernel || '—').slice(0, 55));
+  _setEl('hc-python', sys.python || '—');
+  _setEl('hc-localip', d.local_ip || '—');
+  const ports = (d.open_ports || []).slice(0, 12).join(', ');
+  _setEl('hc-openports', ports || '—');
+
+  // ── Status label colour ────────────────────────────────────
+  const lbl = document.getElementById('health-status-label');
+  if (lbl) {
+    const crit = cpuPct > 90 || (mem.percent || 0) > 90 || (disk.percent || 0) > 90;
+    const warn = cpuPct > 70 || (mem.percent || 0) > 70 || (disk.percent || 0) > 80;
+    lbl.textContent = crit ? 'HIGH LOAD' : warn ? 'WARNING'  : 'HEALTHY';
+    lbl.style.color = crit ? 'var(--red)' : warn ? 'var(--yellow)' : 'var(--green)';
+  }
+}
+
+function _setEl(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+function _bar(id, pct, color) {
+  const el = document.getElementById(id);
+  if (el) { el.style.width = Math.min(pct, 100) + '%'; el.style.background = color; }
+}
+
+
+// ════════════════════════════════════════════════════════════════
+//  B) LIVE TERMINAL
+// ════════════════════════════════════════════════════════════════
+let _termHistory   = [];    // command history
+let _termHistIdx   = -1;    // history nav pointer
+let _termRunning   = false; // is a stream active?
+let _termCmdCount  = 0;     // total commands run
+let _activeReader  = null;  // ReadableStream reader (for cancel)
+
+// ── autocomplete hints ──────────────────────────────────────────
+const HINT_MAP = {
+  'u': 'uptime', 'd': 'df -h', 'f': 'free -h',
+  'p': 'ps aux --sort=-%cpu | head -15',
+  's': 'ss -tlnp', 'i': 'ip addr', 'un': 'uname -a',
+  'l': 'last -n 10', 'j': 'journalctl -n 30 --no-pager',
+  'c': 'cat /etc/os-release', 'w': 'which nmap nikto lynis',
+  'h': 'help',
+};
+
+function liveTermHint(val) {
+  const hint = document.getElementById('live-term-hint');
+  if (!hint) return;
+  if (!val) { hint.textContent = ''; return; }
+  const match = Object.entries(HINT_MAP).find(([k]) => k.startsWith(val.toLowerCase()));
+  hint.textContent = match ? match[1].slice(val.length) : '';
+}
+
+function liveTermKey(e) {
+  const inp = document.getElementById('live-term-input');
+  if (!inp) return;
+
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    liveTermRun();
+    return;
+  }
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    // complete from hint
+    const hint = document.getElementById('live-term-hint');
+    if (hint && hint.textContent) {
+      inp.value += hint.textContent;
+      hint.textContent = '';
+    }
+    return;
+  }
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (_termHistIdx < _termHistory.length - 1) {
+      _termHistIdx++;
+      inp.value = _termHistory[_termHistory.length - 1 - _termHistIdx] || '';
+      liveTermHint(inp.value);
+    }
+    return;
+  }
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (_termHistIdx > 0) {
+      _termHistIdx--;
+      inp.value = _termHistory[_termHistory.length - 1 - _termHistIdx] || '';
+    } else {
+      _termHistIdx = -1;
+      inp.value = '';
+    }
+    liveTermHint(inp.value);
+    return;
+  }
+}
+
+function consoleQuick(cmd) {
+  const inp = document.getElementById('live-term-input');
+  if (inp) { inp.value = cmd; inp.focus(); liveTermHint(cmd); }
+  liveTermRun();
+}
+
+function consoleClear() {
+  const out = document.getElementById('live-term-output');
+  if (!out) return;
+  out.innerHTML = '';
+  _termAddLine('Console cleared.', 'sys');
+  _termCmdCount = 0;
+  _updateCmdCount();
+}
+
+function liveTermCancel() {
+  if (_activeReader) {
+    _activeReader.cancel();
+    _activeReader = null;
+  }
+  _setTermRunning(false);
+  _termAddLine('\n[Stream cancelled by user]', 'sys');
+}
+
+async function liveTermRun() {
+  const inp = document.getElementById('live-term-input');
+  if (!inp) return;
+  const cmd = inp.value.trim();
+  if (!cmd || _termRunning) return;
+
+  // record history
+  if (_termHistory[_termHistory.length - 1] !== cmd) _termHistory.push(cmd);
+  if (_termHistory.length > 200) _termHistory.shift();
+  _termHistIdx = -1;
+  inp.value = '';
+  document.getElementById('live-term-hint').textContent = '';
+
+  // echo command
+  _termAddLine('$ ' + cmd, 'cmd');
+  _setTermRunning(true);
+  _termCmdCount++;
+  _updateCmdCount();
+
+  try {
+    const res = await fetch('/api/exec-stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command: cmd }),
+    });
+
+    if (!res.ok) {
+      _termAddLine('HTTP error ' + res.status, 'err');
+      _setTermRunning(false);
+      return;
+    }
+
+    const reader = res.body.getReader();
+    _activeReader = reader;
+    const dec = new TextDecoder();
+    let buf = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const parts = buf.split('\n\n');
+      buf = parts.pop(); // keep incomplete chunk
+      for (const part of parts) {
+        const line = part.replace(/^data: /, '').trim();
+        if (!line) continue;
+        try {
+          const obj = JSON.parse(line);
+          if (obj.done) {
+            const code = obj.exit_code || 0;
+            _termAddLine(
+              code === 0 ? '✓ Done (exit 0)' : `✗ Exit code ${code}`,
+              code === 0 ? 'ok' : 'err'
+            );
+          } else if (obj.line !== undefined) {
+            _termAddLine(obj.line, obj.type || 'out');
+          }
+        } catch (_) { /* skip malformed */ }
+      }
+    }
+  } catch (e) {
+    if (e.name !== 'AbortError') _termAddLine('Error: ' + e.message, 'err');
+  } finally {
+    _activeReader = null;
+    _setTermRunning(false);
+    _scrollTermToBottom();
+  }
+}
+
+function _termAddLine(text, cls = 'out') {
+  const out = document.getElementById('live-term-output');
+  if (!out) return;
+  const div = document.createElement('div');
+  div.className = 'term-line ' + cls;
+  div.textContent = text;
+  out.appendChild(div);
+  _scrollTermToBottom();
+}
+
+function _scrollTermToBottom() {
+  const out = document.getElementById('live-term-output');
+  if (out) requestAnimationFrame(() => { out.scrollTop = out.scrollHeight; });
+}
+
+function _setTermRunning(running) {
+  _termRunning = running;
+  const btn    = document.getElementById('term-run-btn');
+  const cancel = document.getElementById('term-cancel-btn');
+  const inp    = document.getElementById('live-term-input');
+  const status = document.getElementById('console-status-txt');
+  if (btn)    { btn.disabled = running; btn.textContent = running ? '⏳' : '▶ RUN'; }
+  if (cancel) cancel.style.display = running ? 'inline-block' : 'none';
+  if (inp)    inp.disabled = running;
+  if (status) { status.textContent = running ? 'RUNNING...' : 'READY'; status.style.color = running ? 'var(--yellow)' : 'var(--green)'; }
+}
+
+function _updateCmdCount() {
+  const el = document.getElementById('terminal-cmd-count');
+  if (el) el.textContent = _termCmdCount + ' command' + (_termCmdCount === 1 ? '' : 's') + ' run';
+}
+
+
+// ════════════════════════════════════════════════════════════════
+//  C) HOOK INTO YOUR EXISTING pg() FUNCTION
+//     Find your pg() function and add this case inside the switch/if:
+// ════════════════════════════════════════════════════════════════
+/*
+  // Inside pg(), find where you switch on the page id, then add:
+
+  if (id === 'console') {
+    // start health status
+    loadHealthStatus();
+    startHealthPolling();
+    // set terminal prompt to logged-in username
+    if (currentUser) {
+      const el = document.getElementById('term-prompt-user');
+      if (el) el.textContent = (currentUser.username || 'admin') + '@vulnscan:~$ ';
+    }
+    // focus terminal input
+    setTimeout(() => {
+      const inp = document.getElementById('live-term-input');
+      if (inp) inp.focus();
+    }, 200);
+  } else {
+    // leaving console page — stop polling
+    stopHealthPolling();
+  }
+*/
+
 </script>
 </body>
 </html>"""
@@ -3441,23 +4014,32 @@ def theme_api():
         return jsonify({"ok": True, "theme": t})
     return jsonify({"theme": _global_theme["theme"]})
 
-# ── Server CLI Console ─────────────────────────────────────────────────────────
+
+# ─── Helper: require admin ───────────────────────────────────────
+def require_admin(f):
+    """Decorator — only allows requests from logged-in admins."""
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        user = get_current_user()          # your existing helper
+        if not user or user.get('role') != 'admin':
+            return jsonify({'error': 'Admin access required'}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+
+# ── Server CLI Console (legacy non-streaming — used by admin tab) ────────────
 ALLOWED_CLI_COMMANDS = {
     "ls", "pwd", "whoami", "uptime", "df", "free", "ps", "netstat", "ss",
     "nmap", "theHarvester", "dnsrecon", "nikto", "lynis", "wpscan",
     "systemctl", "journalctl", "cat", "echo", "uname", "hostname",
-    "ip", "ifconfig", "ping", "traceroute", "curl", "wget", "which",
-    "apt", "apt-get", "dpkg", "pip3", "python3", "gem"
+    "ip", "ifconfig", "ping", "traceroute", "which",
+    "apt", "apt-get", "dpkg", "pip3", "python3"
 }
-BLOCKED_PATTERNS = [
-    r'rm\s+-rf', r'>\s*/etc', r'chmod\s+777\s+/', r'dd\s+if=',
-    r'mkfs', r'fdisk', r';.*rm\s', r'\|\s*sh\b', r'curl.*\|.*bash',
-    r'wget.*\|.*sh', r'base64.*decode.*\|'
-]
 
 @app.route("/api/exec", methods=["POST"])
 def cli_route():
-    import shutil, subprocess, re as _re
+    import re as _re
     u = get_current_user()
     if not u or u.get("role") != "admin":
         return jsonify({"error": "Admin access required for CLI console"})
@@ -3465,28 +4047,277 @@ def cli_route():
     cmd_str = (data.get("command") or "").strip()
     if not cmd_str:
         return jsonify({"output": "", "error": ""})
-    # Block dangerous patterns
-    for pat in BLOCKED_PATTERNS:
+    blocked = [r'rm\s+-rf', r'>\s*/etc', r'chmod\s+777\s+/', r'dd\s+if=',
+               r'mkfs', r'fdisk', r';.*rm\s', r'\|\s*sh\b', r'curl.*\|.*bash']
+    for pat in blocked:
         if _re.search(pat, cmd_str, _re.IGNORECASE):
-            return jsonify({"error": f"Blocked: dangerous pattern detected ({pat})"})
-    # Check first word is in allowlist
+            return jsonify({"error": f"Blocked: dangerous pattern detected"})
     first_word = cmd_str.split()[0]
     if first_word not in ALLOWED_CLI_COMMANDS:
-        return jsonify({"error": f"Command '{first_word}' is not in the allowlist. Allowed: {', '.join(sorted(ALLOWED_CLI_COMMANDS))}"})
+        return jsonify({"error": f"Command '{first_word}' not in allowlist."})
     try:
-        r = subprocess.run(
-            cmd_str, shell=True, capture_output=True, text=True, timeout=30,
-            cwd=os.path.expanduser("~")
-        )
-        return jsonify({
-            "output": r.stdout[:8000],
-            "error": r.stderr[:2000],
-            "exit_code": r.returncode
-        })
+        r = subprocess.run(cmd_str, shell=True, capture_output=True, text=True, timeout=30,
+                           cwd=os.path.expanduser("~"))
+        return jsonify({"output": r.stdout[:8000], "error": r.stderr[:2000], "exit_code": r.returncode})
     except subprocess.TimeoutExpired:
         return jsonify({"error": "Command timed out (30s limit)", "output": ""})
     except Exception as e:
         return jsonify({"error": str(e), "output": ""})
+
+
+# ─────────────────────────────────────────────────────────────────
+# ROUTE 1:  GET /api/health-status
+# Returns live server metrics as JSON.
+# ─────────────────────────────────────────────────────────────────
+@app.route('/api/health-status')
+@require_admin
+def health_status():
+    try:
+        import psutil
+    except ImportError:
+        subprocess.run([sys.executable, '-m', 'pip', 'install', 'psutil', '-q'])
+        import psutil
+
+    data = {}
+
+    # ── CPU ────────────────────────────────────────────────────
+    data['cpu_percent']   = psutil.cpu_percent(interval=0.5)
+    data['cpu_count']     = psutil.cpu_count(logical=True)
+    load = os.getloadavg() if hasattr(os, 'getloadavg') else (0, 0, 0)
+    data['load_avg']      = {'1m': round(load[0], 2),
+                             '5m': round(load[1], 2),
+                             '15m': round(load[2], 2)}
+
+    # ── Memory ────────────────────────────────────────────────
+    mem = psutil.virtual_memory()
+    data['memory'] = {
+        'total_gb':   round(mem.total / 1024**3, 2),
+        'used_gb':    round(mem.used  / 1024**3, 2),
+        'avail_gb':   round(mem.available / 1024**3, 2),
+        'percent':    mem.percent,
+    }
+
+    # ── Disk ──────────────────────────────────────────────────
+    disk = psutil.disk_usage('/')
+    data['disk'] = {
+        'total_gb': round(disk.total / 1024**3, 1),
+        'used_gb':  round(disk.used  / 1024**3, 1),
+        'free_gb':  round(disk.free  / 1024**3, 1),
+        'percent':  disk.percent,
+    }
+
+    # ── Uptime ────────────────────────────────────────────────
+    boot_ts   = psutil.boot_time()
+    uptime_s  = int(time.time() - boot_ts)
+    days, rem = divmod(uptime_s, 86400)
+    hrs, rem  = divmod(rem, 3600)
+    mins      = rem // 60
+    data['uptime'] = {
+        'seconds':     uptime_s,
+        'human':       f"{days}d {hrs}h {mins}m",
+        'boot_time':   datetime.fromtimestamp(boot_ts).strftime('%Y-%m-%d %H:%M'),
+    }
+
+    # ── Processes ─────────────────────────────────────────────
+    procs = list(psutil.process_iter(['status']))
+    data['processes'] = {
+        'total':   len(procs),
+        'running': sum(1 for p in procs if p.info['status'] == 'running'),
+    }
+
+    # ── Network I/O ───────────────────────────────────────────
+    net = psutil.net_io_counters()
+    def _fmt_bytes(b):
+        for unit in ('B','KB','MB','GB','TB'):
+            if b < 1024:
+                return f"{b:.1f} {unit}"
+            b /= 1024
+        return f"{b:.1f} PB"
+    data['network'] = {
+        'sent':     _fmt_bytes(net.bytes_sent),
+        'received': _fmt_bytes(net.bytes_recv),
+    }
+
+    # ── System info ───────────────────────────────────────────
+    data['system'] = {
+        'hostname': socket.gethostname(),
+        'os':       f"{platform.system()} {platform.release()}",
+        'kernel':   platform.version()[:60],
+        'python':   sys.version.split()[0],
+        'arch':     platform.machine(),
+    }
+
+    # ── Local IP ──────────────────────────────────────────────
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
+        data['local_ip'] = s.getsockname()[0]
+        s.close()
+    except Exception:
+        data['local_ip'] = '127.0.0.1'
+
+    # ── Public IP (quick external fetch) ──────────────────────
+    try:
+        import urllib.request
+        with urllib.request.urlopen('https://api.ipify.org', timeout=4) as r:
+            data['public_ip'] = r.read().decode().strip()
+    except Exception:
+        data['public_ip'] = 'unavailable'
+
+    # ── Open listening ports ───────────────────────────────────
+    try:
+        conns = psutil.net_connections(kind='inet')
+        listening = sorted({c.laddr.port for c in conns
+                            if c.status == 'LISTEN' and c.laddr})
+        data['open_ports'] = listening[:20]        # cap at 20
+    except Exception:
+        data['open_ports'] = []
+
+    data['timestamp'] = datetime.utcnow().isoformat() + 'Z'
+    return jsonify(data)
+
+
+# ─────────────────────────────────────────────────────────────────
+# ROUTE 2:  POST /api/exec-stream
+# Streams command output line-by-line via Server-Sent Events (SSE).
+# Only admin can call it; command must be in the allowlist.
+# ─────────────────────────────────────────────────────────────────
+
+# Allowlisted commands (prefix match — anything starting with these is OK)
+ALLOWED_PREFIXES = [
+    'uptime', 'df ', 'df\n', 'free ', 'free\n',
+    'ps ', 'top ', 'ss ', 'netstat ',
+    'ip addr', 'ip link', 'ip route',
+    'uname', 'hostname', 'whoami', 'id\n', 'id ',
+    'cat /etc/os-release', 'cat /proc/cpuinfo', 'cat /proc/meminfo',
+    'cat /proc/version', 'cat /etc/hostname', 'cat /etc/hosts',
+    'ls ', 'ls\n', 'pwd\n', 'pwd ',
+    'echo ', 'date\n', 'date ',
+    'which ', 'whereis ',
+    'find /usr/bin', 'find /bin', 'find /usr/local/bin',
+    'last ', 'last\n', 'w\n', 'w ',
+    'journalctl ', 'dmesg ',
+    'systemctl status', 'systemctl list-units',
+    'ping -c',
+    'nmap --version', 'nikto --version', 'wpscan --version',
+    'python3 --version', 'python --version',
+    'pip list', 'pip3 list',
+    'env\n', 'printenv',
+    'lsblk', 'lscpu', 'lsmem', 'lsusb',
+    'ifconfig', 'route ',
+    'help\n', 'help ',
+]
+
+BLOCKED_PATTERNS = [
+    'rm ', 'rmdir', 'mkfs', 'dd ', 'fdisk', 'parted',
+    'chmod 777', 'chown ', 'passwd ', 'useradd', 'userdel',
+    'shutdown', 'reboot', 'halt', 'poweroff',
+    'curl ', 'wget ', 'nc ', 'ncat ', 'netcat',
+    'bash -c', 'sh -c', '/bin/sh', '/bin/bash',
+    '$(', '`', '&&', '||', ';', '|', '>>', '>', '<',
+    'sudo', 'su ', 'su\n',
+    'python -c', 'python3 -c', 'perl -e', 'ruby -e',
+    'eval', 'exec ',
+]
+
+def _cmd_allowed(cmd: str) -> tuple[bool, str]:
+    """Returns (allowed, reason)."""
+    cmd_stripped = cmd.strip()
+    if not cmd_stripped:
+        return False, 'Empty command'
+    # Block list check (always applied first)
+    for pat in BLOCKED_PATTERNS:
+        if pat in cmd_stripped:
+            return False, f'Blocked pattern: {pat!r}'
+    # Allowlist prefix check
+    cmd_lower = cmd_stripped.lower() + '\n'   # add newline so bare commands match
+    for prefix in ALLOWED_PREFIXES:
+        if cmd_lower.startswith(prefix) or cmd_stripped.startswith(prefix):
+            return True, 'OK'
+    return False, 'Command not in allowlist'
+
+
+@app.route('/api/exec-stream', methods=['POST'])
+@require_admin
+def exec_stream():
+    data = request.get_json(silent=True) or {}
+    cmd  = str(data.get('command', '')).strip()
+
+    # ── special built-in: help ─────────────────────────────────
+    if cmd.lower() in ('help', '?'):
+        help_lines = [
+            '# VulnScan Pro — Allowed Console Commands',
+            '# ─────────────────────────────────────────',
+            'uptime             — system uptime',
+            'df -h              — disk usage',
+            'free -h            — memory usage',
+            'ps aux --sort=-%cpu | head -20 — top processes',
+            'ss -tlnp           — listening sockets',
+            'ip addr            — network interfaces',
+            'ip route           — routing table',
+            'uname -a           — kernel info',
+            'cat /etc/os-release — OS details',
+            'lscpu              — CPU info',
+            'lsblk              — block devices',
+            'last -n 20         — recent logins',
+            'w                  — who is logged in',
+            'journalctl -n 50 --no-pager — system logs',
+            'ping -c 4 8.8.8.8  — ping test',
+            'which nmap nikto   — locate tools',
+            'pip3 list          — Python packages',
+            '',
+            '# Type any allowed command in the input below.',
+        ]
+        def _gen():
+            for line in help_lines:
+                yield f"data: {json.dumps({'line': line, 'type': 'out'})}\n\n"
+            yield f"data: {json.dumps({'done': True, 'exit_code': 0})}\n\n"
+        return Response(stream_with_context(_gen()),
+                        mimetype='text/event-stream',
+                        headers={'Cache-Control': 'no-cache',
+                                 'X-Accel-Buffering': 'no'})
+
+    allowed, reason = _cmd_allowed(cmd)
+    if not allowed:
+        def _deny():
+            yield f"data: {json.dumps({'line': f'[DENIED] {reason}', 'type': 'err'})}\n\n"
+            yield f"data: {json.dumps({'done': True, 'exit_code': 1})}\n\n"
+        return Response(stream_with_context(_deny()),
+                        mimetype='text/event-stream',
+                        headers={'Cache-Control': 'no-cache'})
+
+    # Audit log the command
+    try:
+        user = get_current_user()
+        audit(user['username'] if user else 'unknown',
+              'console_exec', f'CMD: {cmd}')
+    except Exception:
+        pass
+
+    def _stream():
+        try:
+            proc = subprocess.Popen(
+                cmd, shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                env={**os.environ, 'TERM': 'dumb', 'COLUMNS': '120'}
+            )
+            for line in proc.stdout:
+                line = line.rstrip('\n')
+                yield f"data: {json.dumps({'line': line, 'type': 'out'})}\n\n"
+            proc.wait()
+            yield f"data: {json.dumps({'done': True, 'exit_code': proc.returncode})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'line': f'Error: {e}', 'type': 'err'})}\n\n"
+            yield f"data: {json.dumps({'done': True, 'exit_code': 1})}\n\n"
+
+    return Response(
+        stream_with_context(_stream()),
+        mimetype='text/event-stream',
+        headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'}
+    )
 
 # ── Scan cancel store ──────────────────────────────────────────────────────────
 # Client-side AbortController handles most cancel logic; this is for server-side tracking
