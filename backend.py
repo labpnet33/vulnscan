@@ -122,7 +122,6 @@ def search_nvd_cves(product, version="", retries=3):
                 break
             except urllib.error.HTTPError as e:
                 if e.code == 429:
-                    # Rate limited — wait longer and retry
                     wait = 30 if not NVD_API_KEY else 6
                     print(f"[!] NVD rate limit hit, waiting {wait}s (attempt {attempt+1}/{retries})", file=sys.stderr)
                     time.sleep(wait)
@@ -238,7 +237,6 @@ def analyze_ssl(host, port=443):
 def dns_recon(target):
     result = {"target": target, "records": {}, "issues": [], "subdomains": [], "has_spf": False, "has_dmarc": False}
 
-    # Try dig first, fallback to nslookup, fallback to socket
     dig_available = False
     try:
         subprocess.run(["dig", "-v"], capture_output=True, timeout=3)
@@ -253,7 +251,6 @@ def dns_recon(target):
                 if r.stdout.strip():
                     result["records"][rtype] = [l.strip() for l in r.stdout.strip().split("\n") if l.strip()]
             else:
-                # Fallback: use nslookup
                 r = subprocess.run(["nslookup", "-type=" + rtype, target], capture_output=True, text=True, timeout=10)
                 lines = [l.strip() for l in r.stdout.split("\n") if l.strip() and "=" in l]
                 if lines:
@@ -261,7 +258,6 @@ def dns_recon(target):
         except Exception:
             pass
 
-    # Fallback A record via socket if no results
     if "A" not in result["records"]:
         try:
             ip = socket.gethostbyname(target)
@@ -277,7 +273,6 @@ def dns_recon(target):
     if not result["has_dmarc"]:
         result["issues"].append({"severity": "MEDIUM", "msg": "No DMARC record — email spoofing risk"})
 
-    # Zone transfer check
     if dig_available:
         for ns in result["records"].get("NS", [])[:2]:
             try:
@@ -287,7 +282,6 @@ def dns_recon(target):
             except Exception:
                 pass
 
-    # Subdomain brute force
     for sub in ["www", "mail", "ftp", "admin", "api", "dev", "staging", "test", "vpn",
                 "smtp", "pop", "imap", "remote", "portal", "shop", "blog", "app",
                 "cdn", "ns1", "ns2"]:
@@ -335,7 +329,6 @@ def subdomain_finder(domain, wordlist_size="medium"):
         except Exception:
             pass
 
-    # crt.sh
     try:
         url = f"https://crt.sh/?q=%.{domain}&output=json"
         req = urllib.request.Request(url, headers={"User-Agent": "VulnScanner/2.0"})
@@ -357,7 +350,6 @@ def subdomain_finder(domain, wordlist_size="medium"):
     except Exception as e:
         print(f"[!] crt.sh lookup failed: {e}", file=sys.stderr)
 
-    # HackerTarget
     try:
         url = f"https://api.hackertarget.com/hostsearch/?q={domain}"
         req = urllib.request.Request(url, headers={"User-Agent": "VulnScanner/2.0"})
@@ -556,6 +548,145 @@ def brute_force_ssh(host, port, usernames, passwords):
         result["note"] = "paramiko not installed: pip3 install paramiko --break-system-packages"
     return result
 
+# ─── JOHN THE RIPPER ──────────────────────────
+def john_the_ripper(hash_input, hash_format="", wordlist="", mode="wordlist", extra_options=""):
+    """
+    Run John the Ripper to crack password hashes.
+
+    Args:
+        hash_input   : raw hash string(s), one per line  OR  a file path
+        hash_format  : e.g. md5crypt, sha512crypt, NT, bcrypt, raw-md5, raw-sha256 …
+        wordlist     : path to a wordlist file (used in wordlist / rules mode)
+        mode         : wordlist | incremental | single | rules | show
+        extra_options: any extra john flags (validated against allowlist)
+    """
+    import shutil, tempfile, os as _os
+
+    result = {
+        "mode": mode,
+        "hash_format": hash_format or "auto-detect",
+        "cracked": [],
+        "total_hashes": 0,
+        "status": "running",
+        "output": "",
+        "note": ""
+    }
+
+    # ── locate binary ──────────────────────────────────────────────────────
+    binary = shutil.which("john") or shutil.which("john-the-ripper")
+    if not binary:
+        result["status"] = "error"
+        result["note"] = "John the Ripper not installed. Run: sudo apt-get install john"
+        return result
+
+    # ── write hashes to a temp file if raw strings were supplied ──────────
+    hash_file = hash_input.strip()
+    tmp_file = None
+    if not _os.path.isfile(hash_file):
+        # treat input as raw hash lines
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tf:
+            tf.write(hash_input.strip() + "\n")
+            tmp_file = tf.name
+        hash_file = tmp_file
+
+    # count hashes
+    with open(hash_file) as f:
+        result["total_hashes"] = sum(1 for line in f if line.strip())
+
+    # ── build command ──────────────────────────────────────────────────────
+    cmd = [binary]
+
+    if hash_format:
+        cmd += [f"--format={hash_format}"]
+
+    if mode == "wordlist":
+        wl = wordlist if wordlist and _os.path.isfile(wordlist) else "/usr/share/wordlists/rockyou.txt"
+        if not _os.path.isfile(wl):
+            # try common fallback paths
+            for fallback in ["/usr/share/john/password.lst", "/usr/share/dict/words"]:
+                if _os.path.isfile(fallback):
+                    wl = fallback
+                    break
+            else:
+                result["status"] = "error"
+                result["note"] = f"Wordlist not found. Provide a path or install rockyou: sudo apt-get install wordlists"
+                if tmp_file:
+                    _os.unlink(tmp_file)
+                return result
+        cmd += [f"--wordlist={wl}"]
+
+    elif mode == "rules":
+        wl = wordlist if wordlist and _os.path.isfile(wordlist) else "/usr/share/wordlists/rockyou.txt"
+        cmd += [f"--wordlist={wl}", "--rules"]
+
+    elif mode == "incremental":
+        cmd += ["--incremental"]
+
+    elif mode == "single":
+        cmd += ["--single"]
+
+    elif mode == "show":
+        cmd += ["--show"]
+
+    # allow a safe subset of extra options
+    SAFE_EXTRA = re.compile(
+        r'^--(min-length=\d+|max-length=\d+|fork=\d+|node=\d+/\d+|session=\w+|restore=\w*|pot=[\w/.-]+)$'
+    )
+    for opt in extra_options.split():
+        if SAFE_EXTRA.match(opt):
+            cmd.append(opt)
+
+    cmd.append(hash_file)
+
+    # ── run ────────────────────────────────────────────────────────────────
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        raw_out = proc.stdout + "\n" + proc.stderr
+        result["output"] = raw_out[:3000]
+
+        # parse cracked passwords from john --show output
+        show_cmd = [binary, "--show", hash_file]
+        if hash_format:
+            show_cmd.insert(1, f"--format={hash_format}")
+        show_proc = subprocess.run(show_cmd, capture_output=True, text=True, timeout=30)
+        for line in show_proc.stdout.splitlines():
+            # john --show format:  user:password:...  OR  hash:password
+            if ":" in line and not line.startswith("#"):
+                parts = line.split(":")
+                if len(parts) >= 2 and parts[1]:
+                    result["cracked"].append({
+                        "hash": parts[0],
+                        "password": parts[1],
+                        "extra": ":".join(parts[2:]) if len(parts) > 2 else ""
+                    })
+
+        # summary line: "X password hash(es) cracked, Y left"
+        m = re.search(r'(\d+)\s+password\s+hash(?:es)?\s+cracked', raw_out, re.IGNORECASE)
+        cracked_count = int(m.group(1)) if m else len(result["cracked"])
+
+        result["status"] = "complete"
+        result["cracked_count"] = cracked_count
+        result["note"] = (
+            f"{cracked_count} of {result['total_hashes']} hash(es) cracked."
+            if cracked_count else
+            "No hashes cracked. Try a different mode, wordlist, or format."
+        )
+
+    except subprocess.TimeoutExpired:
+        result["status"] = "timeout"
+        result["note"] = "John the Ripper timed out after 5 minutes."
+    except FileNotFoundError:
+        result["status"] = "error"
+        result["note"] = "john binary not found after locate attempt."
+    except Exception as e:
+        result["status"] = "error"
+        result["note"] = str(e)
+    finally:
+        if tmp_file and _os.path.exists(tmp_file):
+            _os.unlink(tmp_file)
+
+    return result
+
 # ─── WEB HEADERS ──────────────────────────────
 def analyze_web_headers(target):
     result = {
@@ -688,7 +819,6 @@ def full_scan(target, modules=None):
 
     scan = run_nmap_scan(target)
     if "error" in scan:
-        # Still populate modules so the frontend gets a proper error
         result["modules"]["ports"] = scan
         result["summary"] = {"total_cves": 0, "critical_cves": 0, "high_cves": 0, "exploitable": 0, "open_ports": 0}
         result["error"] = scan["error"]
@@ -702,7 +832,6 @@ def full_scan(target, modules=None):
             cves = []
             if prod:
                 cves = search_nvd_cves(prod, ver)
-                # Delay: 6s without API key, 1s with key (NVD rate limit)
                 time.sleep(1 if NVD_API_KEY else 6)
             if not cves and svc:
                 cves = search_nvd_cves(svc, ver)
@@ -746,8 +875,6 @@ def full_scan(target, modules=None):
 # ─── ENTRY POINT ──────────────────────────────
 if __name__ == "__main__":
     import os
-    # NOTE: Do NOT suppress stderr during production — it hides real errors
-    # sys.stderr = open(os.devnull, 'w')  # <-- removed: was hiding all errors
 
     if len(sys.argv) < 2:
         print(json.dumps({"error": "No target specified"}))
@@ -788,6 +915,17 @@ if __name__ == "__main__":
         users = sys.argv[idx + 3].split(",")
         pwds = sys.argv[idx + 4].split(",")
         print(json.dumps(brute_force_ssh(host, port, users, pwds)))
+        sys.exit(0)
+
+    # ── John the Ripper CLI entry ──────────────────────────────────────────
+    if "--john" in sys.argv:
+        idx = sys.argv.index("--john")
+        hash_input   = sys.argv[idx + 1] if len(sys.argv) > idx + 1 else ""
+        hash_format  = sys.argv[idx + 2] if len(sys.argv) > idx + 2 else ""
+        wordlist     = sys.argv[idx + 3] if len(sys.argv) > idx + 3 else ""
+        mode         = sys.argv[idx + 4] if len(sys.argv) > idx + 4 else "wordlist"
+        extra        = sys.argv[idx + 5] if len(sys.argv) > idx + 5 else ""
+        print(json.dumps(john_the_ripper(hash_input, hash_format, wordlist, mode, extra)))
         sys.exit(0)
 
     mods = ["ports", "ssl", "dns", "headers"]
