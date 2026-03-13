@@ -6,8 +6,16 @@ from datetime import datetime
 # ─── NMAP PORT SCAN ───────────────────────────
 def run_nmap_scan(target):
     try:
-        cmd = ["nmap", "-sV", "--version-intensity", "5", "-sC", "-T4", "--open",
-               "-p", "1-10000", "--script", "banner,http-title,ssl-cert", "-oX", "-", target]
+        # CHANGED: -sT (TCP connect) instead of -sS (SYN)
+        # proxychains only works with TCP connect scans
+        cmd = ["proxychains", "-q", "nmap", 
+               "-sT",                    # TCP connect (required for proxychains)
+               "-Pn",                    # skip ping (required for proxychains)
+               "--version-intensity", "5",
+               "-sV",
+               "--open",
+               "-p", "1-10000",
+               "-oX", "-", target]
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
         if r.returncode != 0 and not r.stdout.strip():
             return {"error": f"nmap error: {r.stderr.strip()[:300]}"}
@@ -15,9 +23,10 @@ def run_nmap_scan(target):
     except subprocess.TimeoutExpired:
         return {"error": "Scan timed out after 120 seconds"}
     except FileNotFoundError:
-        return {"error": "nmap not found. Install with: sudo apt-get install nmap"}
+        return {"error": "nmap not found"}
     except Exception as e:
         return {"error": str(e)}
+
 
 def parse_nmap_xml(xml_output):
     if not xml_output or not xml_output.strip():
