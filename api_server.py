@@ -3113,10 +3113,10 @@ def dnsrecon_route():
     import tempfile
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tf:
         out_file = tf.name
-    cmd = [binary, "-d", target, "-t", scan_type, "-j", out_file]
+    cmd = ["proxychains", "-q", binary, "-d", target, "-t", scan_type, "-j", out_file]
     if ns: cmd += ["-n", ns]
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        proc = subprocess.run(["proxychains", "-q", "nmap", "-sT", "-Pn", speed, "-sV", "--open", target])
         records = []
         if os.path.exists(out_file):
             try:
@@ -3332,7 +3332,7 @@ def harvester():
     binary = shutil.which("theHarvester") or shutil.which("theharvester")
     with tempfile.TemporaryDirectory() as tmpdir:
         out_file = os.path.join(tmpdir, "harvest")
-        cmd = [binary, "-d", target, "-l", str(limit), "-b", sources, "-f", out_file]
+        cmd = ["proxychains", "-q", binary, "-d", target, "-l", str(limit), "-b", sources, "-f", out_file]
         try:
             proc = subprocess.run(cmd, capture_output=True, text=True, timeout=150)
             raw_out = proc.stdout + proc.stderr
