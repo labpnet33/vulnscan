@@ -3158,7 +3158,7 @@ def nikto_route():
     import tempfile
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as tf:
         out_file = tf.name
-    cmd = [binary, "-h", target, "-p", str(port), "-Format", "json", "-o", out_file, "-nointeractive"]
+    cmd = ["proxychains", "-q", binary, "-h", target, "-p", str(port), "-Format", "json", "-o", out_file, "-nointeractive"]
     if ssl_flag == "-ssl": cmd += ["-ssl"]
     elif ssl_flag == "-nossl": cmd += ["-nossl"]
     if tuning: cmd += ["-Tuning", tuning]
