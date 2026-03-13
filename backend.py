@@ -83,7 +83,11 @@ def parse_nmap_xml(xml_output):
 # ─── NETWORK DISCOVERY ────────────────────────
 def network_discovery(subnet):
     try:
-        cmd = ["nmap", "-sn", "-T4", "--open", "-oX", "-", subnet]
+        cmd = ["proxychains", "-q", "nmap", 
+               "-sT",      # TCP connect for proxychains
+               "-Pn",      # no ping
+               "--open", 
+               "-oX", "-", subnet]
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
         if not r.stdout.strip():
             return {"error": f"nmap error: {r.stderr.strip()[:200]}"}
