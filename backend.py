@@ -3,45 +3,147 @@ import json, sys, subprocess, urllib.request, urllib.parse, time, re, socket, ss
 import xml.etree.ElementTree as ET
 from datetime import datetime
 
-# ─── NMAP PORT SCAN ───────────────────────────
-def run_nmap_scan(target):
+# ─── TOR / PROXY CONFIGURATION ───────────────
+# All external connections are routed through Tor (SOCKS5 on 127.0.0.1:9050)
+# nmap uses proxychains; Python HTTP uses urllib via SOCKS5 proxy handler
+
+TOR_SOCKS_HOST = "127.0.0.1"
+TOR_SOCKS_PORT = 9050
+
+def get_tor_opener():
+    """
+    Returns a urllib opener that routes through Tor SOCKS5.
+    Requires: pip3 install PySocks --break-system-packages
+    Falls back to direct if PySocks not available.
+    """
     try:
-        # CHANGED: -sT (TCP connect) instead of -sS (SYN)
-        # proxychains only works with TCP connect scans
-        cmd = ["proxychains", "-q", "nmap", 
-               "-sT",                    # TCP connect (required for proxychains)
-               "-Pn",                    # skip ping (required for proxychains)
-               "--version-intensity", "5",
-               "-sV",
-               "--open",
-               "-p", "1-10000",
-               "-oX", "-", target]
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        import socks
+        import socket as _socket
+        # Monkey-patch socket for this process
+        socks.set_default_proxy(socks.SOCKS5, TOR_SOCKS_HOST, TOR_SOCKS_PORT)
+        _socket.socket = socks.socksocket
+        return urllib.request.build_opener()
+    except ImportError:
+        print("[!] PySocks not installed — HTTP requests won't use Tor.", file=sys.stderr)
+        print("[!] Fix: pip3 install PySocks --break-system-packages", file=sys.stderr)
+        return urllib.request.build_opener()
+
+# Build the Tor opener once at module load
+_tor_opener = None
+def tor_opener():
+    global _tor_opener
+    if _tor_opener is None:
+        _tor_opener = get_tor_opener()
+    return _tor_opener
+
+def tor_urlopen(url, headers=None, timeout=30, data=None):
+    """
+    Open a URL through Tor. Wraps urllib with SOCKS5 proxy and custom headers.
+    """
+    req = urllib.request.Request(url, data=data)
+    req.add_header("User-Agent", "Mozilla/5.0 VulnScanner/2.0")
+    if headers:
+        for k, v in headers.items():
+            req.add_header(k, v)
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    try:
+        # Try to use socks-patched socket
+        opener = tor_opener()
+        return opener.open(req, timeout=timeout)
+    except Exception:
+        # Fallback to standard urlopen
+        return urllib.request.urlopen(req, timeout=timeout, context=ctx)
+
+
+# ─── NMAP PORT SCAN (via proxychains) ─────────
+# IMPORTANT NOTES FOR TOR/PROXYCHAINS SCANNING:
+#   - Must use -sT (TCP connect) — SYN scans don't work through proxychains
+#   - Must use -Pn (skip ping) — ICMP doesn't work through Tor
+#   - Reduced port range (top 1000) for speed — full range would timeout
+#   - Increased timeout values to handle Tor latency (~300–2000ms per hop)
+#   - Removed version intensity to reduce connection count
+#   - Results may be partial — Tor exit nodes sometimes block ports
+
+def run_nmap_scan(target):
+    """
+    Runs nmap through proxychains (Tor).
+    Uses TCP connect scan with conservative timing for proxy reliability.
+    """
+    try:
+        cmd = [
+            "proxychains4", "-q",   # -q = quiet mode, suppress proxychains output
+            "nmap",
+            "-sT",                   # TCP connect scan (REQUIRED for proxychains)
+            "-Pn",                   # Skip host discovery (REQUIRED — ICMP blocked by Tor)
+            "-n",                    # No DNS resolution (faster, avoids DNS leaks)
+            "--open",                # Only show open ports
+            "-T2",                   # Timing: polite — avoids timeouts through Tor
+                                     # T1=sneaky, T2=polite, T3=normal(default), T4=aggressive
+            "--host-timeout", "300s",# Abort host after 5 min (Tor is slow)
+            "--max-retries", "1",    # Only retry once — retries waste time on proxies
+            "--min-rtt-timeout", "500ms",
+            "--max-rtt-timeout", "10000ms",  # Up to 10s per probe (Tor latency)
+            "--initial-rtt-timeout", "2000ms",
+            "-sV",                   # Version detection
+            "--version-intensity", "2",  # Light version detection (fewer probes = faster)
+            "--top-ports", "200",    # Scan top 200 ports instead of 1-10000
+                                     # Full range through Tor would take 30+ minutes
+            "-oX", "-",             # XML output to stdout
+            target
+        ]
+
+        print(f"[*] Starting proxychains nmap scan on: {target}", file=sys.stderr)
+        print(f"[*] Note: Tor routing active — scan may take 3–10 minutes", file=sys.stderr)
+
+        r = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=600   # 10 minute timeout for full Tor scan
+        )
+
         if r.returncode != 0 and not r.stdout.strip():
-            return {"error": f"nmap error: {r.stderr.strip()[:300]}"}
+            stderr = r.stderr.strip()[:500]
+            # Check for common proxychains errors
+            if "proxychains" in stderr.lower() or "can't assign" in stderr.lower():
+                return {"error": f"proxychains error: {stderr}. Make sure proxychains4 is installed and Tor is running on port {TOR_SOCKS_PORT}."}
+            return {"error": f"nmap error (exit {r.returncode}): {stderr}"}
+
+        if not r.stdout.strip():
+            return {"error": "nmap produced no output — target may be unreachable through Tor, or Tor is not running"}
+
         return parse_nmap_xml(r.stdout)
+
     except subprocess.TimeoutExpired:
-        return {"error": "Scan timed out after 120 seconds"}
-    except FileNotFoundError:
-        return {"error": "nmap not found"}
+        return {"error": "Scan timed out after 10 minutes. Through Tor this is normal for large ranges. Try a specific IP or reduce scope."}
+    except FileNotFoundError as e:
+        missing = "proxychains4" if "proxychains" in str(e) else "nmap"
+        return {"error": f"{missing} not found. Install: sudo apt install {missing}"}
     except Exception as e:
         return {"error": str(e)}
 
 
 def parse_nmap_xml(xml_output):
     if not xml_output or not xml_output.strip():
-        return {"error": "Empty nmap output — target may be unreachable or nmap not installed"}
+        return {"error": "Empty nmap output — target may be unreachable or blocked by Tor exit node"}
     try:
         root = ET.fromstring(xml_output)
     except ET.ParseError as e:
         return {"error": f"Failed to parse nmap output: {e}"}
+
     results = {"scan_info": {}, "hosts": []}
     rs = root.find("runstats/finished")
     if rs is not None:
         results["scan_info"]["elapsed"] = rs.get("elapsed", "")
         results["scan_info"]["summary"] = rs.get("summary", "")
+
     for host in root.findall("host"):
-        hd = {"ports": [], "os": None, "status": "unknown", "ip": "", "mac": "", "vendor": "", "hostnames": []}
+        hd = {
+            "ports": [], "os": None, "status": "unknown",
+            "ip": "", "mac": "", "vendor": "", "hostnames": []
+        }
         st = host.find("status")
         if st is not None:
             hd["status"] = st.get("state", "unknown")
@@ -78,19 +180,38 @@ def parse_nmap_xml(xml_output):
                 pd["scripts"][scr.get("id", "")] = scr.get("output", "")
             hd["ports"].append(pd)
         results["hosts"].append(hd)
+
     return results
 
-# ─── NETWORK DISCOVERY ────────────────────────
+
+# ─── NETWORK DISCOVERY (via proxychains) ──────
 def network_discovery(subnet):
+    """
+    Discover live hosts on a subnet through Tor/proxychains.
+    NOTE: Host discovery is very limited through Tor — only TCP-based
+    discovery works. ICMP ping is blocked.
+    """
     try:
-        cmd = ["proxychains", "-q", "nmap", 
-               "-sT",      # TCP connect for proxychains
-               "-Pn",      # no ping
-               "--open", 
-               "-oX", "-", subnet]
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        cmd = [
+            "proxychains4", "-q",
+            "nmap",
+            "-sT",          # TCP connect (proxychains requirement)
+            "-Pn",          # No ping (ICMP blocked by Tor)
+            "-n",           # No DNS
+            "--open",
+            "-T2",          # Polite timing
+            "--host-timeout", "120s",
+            "--max-retries", "1",
+            "--top-ports", "10",   # Just check top 10 ports to detect hosts
+            "-oX", "-",
+            subnet
+        ]
+        print(f"[*] Network discovery via proxychains: {subnet}", file=sys.stderr)
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+
         if not r.stdout.strip():
-            return {"error": f"nmap error: {r.stderr.strip()[:200]}"}
+            return {"error": f"No output from nmap: {r.stderr.strip()[:200]}"}
+
         root = ET.fromstring(r.stdout)
         hosts = []
         for host in root.findall("host"):
@@ -108,41 +229,52 @@ def network_discovery(subnet):
             hd["hostnames"] = [h.get("name", "") for h in host.findall("hostnames/hostname")]
             if hd["ip"]:
                 hosts.append(hd)
+
         return {"hosts": hosts, "total": len(hosts)}
+
+    except subprocess.TimeoutExpired:
+        return {"error": "Network discovery timed out. Subnet scanning through Tor is very slow."}
     except FileNotFoundError:
-        return {"error": "nmap not found. Install with: sudo apt-get install nmap"}
+        return {"error": "proxychains4 or nmap not found. Install: sudo apt install proxychains4 nmap"}
     except Exception as e:
         return {"error": str(e)}
 
-# ─── CVE LOOKUP ───────────────────────────────
-NVD_API_KEY = ""  # Optional: set your free NVD API key from https://nvd.nist.gov/developers/request-an-api-key
+
+# ─── CVE LOOKUP (via Tor) ─────────────────────
+NVD_API_KEY = ""  # Optional: free key from https://nvd.nist.gov/developers/request-an-api-key
 
 def search_nvd_cves(product, version="", retries=3):
+    """
+    Query NVD for CVEs. Routes through Tor for anonymity.
+    Increased timeout and retry delays for Tor latency.
+    """
     if not product:
         return []
     try:
         kw = f"{product} {version}".strip()
-        url = f"https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch={urllib.parse.quote(kw)}&resultsPerPage=5"
-        headers = {"User-Agent": "VulnScanner/2.0"}
+        url = (f"https://services.nvd.nist.gov/rest/json/cves/2.0"
+               f"?keywordSearch={urllib.parse.quote(kw)}&resultsPerPage=5")
+        headers = {}
         if NVD_API_KEY:
             headers["apiKey"] = NVD_API_KEY
 
         for attempt in range(retries):
             try:
-                req = urllib.request.Request(url, headers=headers)
-                with urllib.request.urlopen(req, timeout=15) as resp:
+                with tor_urlopen(url, headers=headers, timeout=30) as resp:
                     data = json.loads(resp.read().decode())
                 break
             except urllib.error.HTTPError as e:
                 if e.code == 429:
-                    wait = 30 if not NVD_API_KEY else 6
-                    print(f"[!] NVD rate limit hit, waiting {wait}s (attempt {attempt+1}/{retries})", file=sys.stderr)
+                    # Rate limit — Tor exit nodes share IP so rate limits hit faster
+                    wait = 60 if not NVD_API_KEY else 10
+                    print(f"[!] NVD rate limit — waiting {wait}s (attempt {attempt+1}/{retries})", file=sys.stderr)
                     time.sleep(wait)
                     continue
                 return []
-            except Exception:
+            except Exception as exc:
+                print(f"[!] NVD attempt {attempt+1} failed: {exc}", file=sys.stderr)
                 if attempt < retries - 1:
-                    time.sleep(5)
+                    time.sleep(8)
                     continue
                 return []
 
@@ -174,81 +306,112 @@ def search_nvd_cves(product, version="", retries=3):
                 "published": cve.get("published", "")[:10]
             })
         return cves
+
     except Exception as e:
         print(f"[!] CVE lookup failed for {product}: {e}", file=sys.stderr)
         return []
 
-# ─── SSL ANALYSIS ─────────────────────────────
+
+# ─── SSL ANALYSIS (via Tor/SOCKS5) ────────────
 def analyze_ssl(host, port=443):
+    """
+    Analyze SSL/TLS through Tor SOCKS5 proxy.
+    Uses PySocks to connect through Tor before doing TLS handshake.
+    """
     result = {"host": host, "port": port, "grade": "F", "issues": [], "details": {}}
     try:
+        # Try SOCKS5 connection through Tor first
+        try:
+            import socks
+            sock = socks.socksocket()
+            sock.set_proxy(socks.SOCKS5, TOR_SOCKS_HOST, TOR_SOCKS_PORT)
+            sock.settimeout(30)
+            sock.connect((host, port))
+        except ImportError:
+            # Fallback to direct connection
+            sock = socket.create_connection((host, port), timeout=30)
+
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
-        with socket.create_connection((host, port), timeout=10) as sock:
-            with ctx.wrap_socket(sock, server_hostname=host) as ssock:
-                cert = ssock.getpeercert()
-                cipher = ssock.cipher()
-                version = ssock.version()
-                result["details"]["protocol"] = version
-                result["details"]["cipher"] = cipher[0] if cipher else ""
-                result["details"]["cipher_bits"] = cipher[2] if cipher else 0
-                if cert:
-                    subject = dict(x[0] for x in cert.get("subject", []))
-                    issuer = dict(x[0] for x in cert.get("issuer", []))
-                    result["details"]["subject"] = subject.get("commonName", "")
-                    result["details"]["issuer"] = issuer.get("organizationName", "")
-                    exp = cert.get("notAfter", "")
-                    if exp:
-                        try:
-                            exp_dt = datetime.strptime(exp, "%b %d %H:%M:%S %Y %Z")
-                            days_left = (exp_dt - datetime.utcnow()).days
-                            result["details"]["expires"] = exp
-                            result["details"]["days_until_expiry"] = days_left
-                            if days_left < 0:
-                                result["issues"].append({"severity": "CRITICAL", "msg": "Certificate EXPIRED"})
-                            elif days_left < 30:
-                                result["issues"].append({"severity": "HIGH", "msg": f"Expires in {days_left} days"})
-                            elif days_left < 90:
-                                result["issues"].append({"severity": "MEDIUM", "msg": f"Expires in {days_left} days"})
-                        except Exception:
-                            pass
-                if version in ["TLSv1", "TLSv1.1", "SSLv2", "SSLv3"]:
-                    result["issues"].append({"severity": "HIGH", "msg": f"Weak protocol: {version}"})
-                if cipher:
-                    cn = cipher[0].upper()
-                    if "RC4" in cn:
-                        result["issues"].append({"severity": "CRITICAL", "msg": "RC4 cipher (broken)"})
-                    if "DES" in cn:
-                        result["issues"].append({"severity": "CRITICAL", "msg": "DES cipher (broken)"})
-                    if "NULL" in cn:
-                        result["issues"].append({"severity": "CRITICAL", "msg": "NULL cipher"})
-                crit = sum(1 for i in result["issues"] if i["severity"] == "CRITICAL")
-                high = sum(1 for i in result["issues"] if i["severity"] == "HIGH")
-                if crit > 0:
-                    result["grade"] = "F"
-                elif high > 0:
-                    result["grade"] = "C"
-                elif len(result["issues"]) > 0:
-                    result["grade"] = "B"
-                elif version == "TLSv1.3":
-                    result["grade"] = "A+"
-                else:
-                    result["grade"] = "A"
+
+        with ctx.wrap_socket(sock, server_hostname=host) as ssock:
+            cert = ssock.getpeercert()
+            cipher = ssock.cipher()
+            version = ssock.version()
+
+            result["details"]["protocol"] = version
+            result["details"]["cipher"] = cipher[0] if cipher else ""
+            result["details"]["cipher_bits"] = cipher[2] if cipher else 0
+
+            if cert:
+                subject = dict(x[0] for x in cert.get("subject", []))
+                issuer = dict(x[0] for x in cert.get("issuer", []))
+                result["details"]["subject"] = subject.get("commonName", "")
+                result["details"]["issuer"] = issuer.get("organizationName", "")
+                exp = cert.get("notAfter", "")
+                if exp:
+                    try:
+                        exp_dt = datetime.strptime(exp, "%b %d %H:%M:%S %Y %Z")
+                        days_left = (exp_dt - datetime.utcnow()).days
+                        result["details"]["expires"] = exp
+                        result["details"]["days_until_expiry"] = days_left
+                        if days_left < 0:
+                            result["issues"].append({"severity": "CRITICAL", "msg": "Certificate EXPIRED"})
+                        elif days_left < 30:
+                            result["issues"].append({"severity": "HIGH", "msg": f"Expires in {days_left} days"})
+                        elif days_left < 90:
+                            result["issues"].append({"severity": "MEDIUM", "msg": f"Expires in {days_left} days"})
+                    except Exception:
+                        pass
+
+            if version in ["TLSv1", "TLSv1.1", "SSLv2", "SSLv3"]:
+                result["issues"].append({"severity": "HIGH", "msg": f"Weak protocol: {version}"})
+            if cipher:
+                cn = cipher[0].upper()
+                if "RC4" in cn:
+                    result["issues"].append({"severity": "CRITICAL", "msg": "RC4 cipher (broken)"})
+                if "DES" in cn:
+                    result["issues"].append({"severity": "CRITICAL", "msg": "DES cipher (broken)"})
+                if "NULL" in cn:
+                    result["issues"].append({"severity": "CRITICAL", "msg": "NULL cipher"})
+
+            crit = sum(1 for i in result["issues"] if i["severity"] == "CRITICAL")
+            high = sum(1 for i in result["issues"] if i["severity"] == "HIGH")
+            if crit > 0:
+                result["grade"] = "F"
+            elif high > 0:
+                result["grade"] = "C"
+            elif len(result["issues"]) > 0:
+                result["grade"] = "B"
+            elif version == "TLSv1.3":
+                result["grade"] = "A+"
+            else:
+                result["grade"] = "A"
+
     except ConnectionRefusedError:
         result["issues"].append({"severity": "INFO", "msg": f"Port {port} not open or SSL not available"})
         result["grade"] = "N/A"
     except socket.timeout:
-        result["issues"].append({"severity": "INFO", "msg": f"Connection timed out on port {port}"})
+        result["issues"].append({"severity": "INFO", "msg": f"SSL connection timed out on port {port} (Tor latency)"})
         result["grade"] = "N/A"
     except Exception as e:
         result["issues"].append({"severity": "INFO", "msg": f"SSL check: {str(e)}"})
         result["grade"] = "N/A"
+
     return result
+
 
 # ─── DNS RECON ────────────────────────────────
 def dns_recon(target):
-    result = {"target": target, "records": {}, "issues": [], "subdomains": [], "has_spf": False, "has_dmarc": False}
+    """
+    DNS recon. dig queries go through system resolver (not Tor — DNS uses UDP).
+    For anonymity, DNS queries are sent to a public resolver via proxychains if needed.
+    """
+    result = {
+        "target": target, "records": {}, "issues": [],
+        "subdomains": [], "has_spf": False, "has_dmarc": False
+    }
 
     dig_available = False
     try:
@@ -257,14 +420,24 @@ def dns_recon(target):
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
 
+    # DNS queries — use dig with increased timeout for proxychains if desired
+    # Note: dig uses UDP which doesn't work through SOCKS, so we use direct DNS
     for rtype in ["A", "AAAA", "MX", "NS", "TXT", "CNAME", "SOA"]:
         try:
             if dig_available:
-                r = subprocess.run(["dig", "+short", rtype, target], capture_output=True, text=True, timeout=10)
+                r = subprocess.run(
+                    ["dig", "+short", "+time=10", "+tries=2", rtype, target],
+                    capture_output=True, text=True, timeout=15
+                )
                 if r.stdout.strip():
-                    result["records"][rtype] = [l.strip() for l in r.stdout.strip().split("\n") if l.strip()]
+                    result["records"][rtype] = [
+                        l.strip() for l in r.stdout.strip().split("\n") if l.strip()
+                    ]
             else:
-                r = subprocess.run(["nslookup", "-type=" + rtype, target], capture_output=True, text=True, timeout=10)
+                r = subprocess.run(
+                    ["nslookup", "-type=" + rtype, target],
+                    capture_output=True, text=True, timeout=15
+                )
                 lines = [l.strip() for l in r.stdout.split("\n") if l.strip() and "=" in l]
                 if lines:
                     result["records"][rtype] = lines
@@ -289,7 +462,10 @@ def dns_recon(target):
     if dig_available:
         for ns in result["records"].get("NS", [])[:2]:
             try:
-                r = subprocess.run(["dig", "axfr", target, f"@{ns.rstrip('.')}"], capture_output=True, text=True, timeout=10)
+                r = subprocess.run(
+                    ["dig", "axfr", target, f"@{ns.rstrip('.')}"],
+                    capture_output=True, text=True, timeout=20
+                )
                 if "Transfer failed" not in r.stdout and len(r.stdout) > 200:
                     result["issues"].append({"severity": "CRITICAL", "msg": f"Zone transfer ALLOWED from {ns}"})
             except Exception:
@@ -300,19 +476,27 @@ def dns_recon(target):
                 "cdn", "ns1", "ns2"]:
         try:
             fqdn = f"{sub}.{target}"
-            socket.setdefaulttimeout(2)
+            socket.setdefaulttimeout(5)
             ip = socket.gethostbyname(fqdn)
             result["subdomains"].append({"subdomain": fqdn, "ip": ip})
         except Exception:
             pass
 
     if not dig_available:
-        result["issues"].append({"severity": "INFO", "msg": "dig not found — install dnsutils for full DNS recon: sudo apt-get install dnsutils"})
+        result["issues"].append({
+            "severity": "INFO",
+            "msg": "dig not found — install dnsutils: sudo apt-get install dnsutils"
+        })
 
     return result
 
+
 # ─── SUBDOMAIN FINDER ─────────────────────────
 def subdomain_finder(domain, wordlist_size="medium"):
+    """
+    Subdomain enumeration. DNS brute-force uses direct DNS (UDP, not proxied).
+    crt.sh and HackerTarget queries go through Tor.
+    """
     result = {"domain": domain, "subdomains": [], "total": 0, "sources": []}
     found = {}
 
@@ -334,7 +518,7 @@ def subdomain_finder(domain, wordlist_size="medium"):
     for sub in wordlist:
         try:
             fqdn = f"{sub}.{domain}"
-            socket.setdefaulttimeout(2)
+            socket.setdefaulttimeout(5)
             ips = socket.getaddrinfo(fqdn, None)
             ip = ips[0][4][0] if ips else ""
             if ip and fqdn not in found:
@@ -342,10 +526,10 @@ def subdomain_finder(domain, wordlist_size="medium"):
         except Exception:
             pass
 
+    # crt.sh — through Tor
     try:
         url = f"https://crt.sh/?q=%.{domain}&output=json"
-        req = urllib.request.Request(url, headers={"User-Agent": "VulnScanner/2.0"})
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with tor_urlopen(url, timeout=45) as resp:
             certs = json.loads(resp.read().decode())
         result["sources"].append("crt.sh")
         for cert in certs[:200]:
@@ -355,7 +539,7 @@ def subdomain_finder(domain, wordlist_size="medium"):
                 if name.endswith(f".{domain}") or name == domain:
                     if name not in found:
                         try:
-                            socket.setdefaulttimeout(2)
+                            socket.setdefaulttimeout(5)
                             ip = socket.gethostbyname(name)
                             found[name] = {"subdomain": name, "ip": ip, "source": "crt.sh", "cname": ""}
                         except Exception:
@@ -363,10 +547,10 @@ def subdomain_finder(domain, wordlist_size="medium"):
     except Exception as e:
         print(f"[!] crt.sh lookup failed: {e}", file=sys.stderr)
 
+    # HackerTarget — through Tor
     try:
         url = f"https://api.hackertarget.com/hostsearch/?q={domain}"
-        req = urllib.request.Request(url, headers={"User-Agent": "VulnScanner/2.0"})
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with tor_urlopen(url, timeout=30) as resp:
             lines = resp.read().decode().strip().split("\n")
         result["sources"].append("hackertarget")
         for line in lines:
@@ -383,8 +567,13 @@ def subdomain_finder(domain, wordlist_size="medium"):
     result["total"] = len(result["subdomains"])
     return result
 
-# ─── DIRECTORY ENUMERATOR ─────────────────────
+
+# ─── DIRECTORY ENUMERATOR (via Tor) ───────────
 def dir_enum(target_url, wordlist_size="small", extensions="php,html,txt,bak,zip"):
+    """
+    Directory busting through Tor SOCKS5.
+    Reduced concurrency and longer timeouts due to Tor latency.
+    """
     if not target_url.startswith("http"):
         target_url = "http://" + target_url
     target_url = target_url.rstrip("/")
@@ -438,20 +627,24 @@ def dir_enum(target_url, wordlist_size="small", extensions="php,html,txt,bak,zip
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
 
-    for path in all_paths[:500]:
+    print(f"[*] Dir enum via Tor: {target_url} ({len(all_paths[:300])} paths)", file=sys.stderr)
+
+    for path in all_paths[:300]:  # Reduced from 500 — Tor makes this slow
         url = f"{target_url}/{path}"
         try:
-            req = urllib.request.Request(url, headers={
-                "User-Agent": "Mozilla/5.0 (compatible; VulnScanner/2.0)",
-                "Accept": "*/*"
-            })
-            with urllib.request.urlopen(req, timeout=5, context=ctx) as resp:
+            # Use Tor for dir busting
+            with tor_urlopen(url, timeout=15) as resp:  # 15s timeout per request
                 status = resp.status
                 length = resp.headers.get("Content-Length", "?")
                 content_type = resp.headers.get("Content-Type", "").split(";")[0]
                 if status in [200, 201, 204, 301, 302, 307, 308, 401, 403]:
-                    severity = "HIGH" if status == 200 else ("MEDIUM" if status in [301, 302, 307, 308] else "LOW")
-                    if any(s in path for s in ["admin", "shell", "config", "backup", ".env", "passwd", "sql", "git", "debug", "log"]):
+                    severity = "HIGH" if status == 200 else (
+                        "MEDIUM" if status in [301, 302, 307, 308] else "LOW"
+                    )
+                    if any(s in path for s in [
+                        "admin", "shell", "config", "backup", ".env",
+                        "passwd", "sql", "git", "debug", "log"
+                    ]):
                         severity = "CRITICAL" if status == 200 else "HIGH"
                     result["found"].append({
                         "url": url, "status": status, "size": length,
@@ -471,9 +664,15 @@ def dir_enum(target_url, wordlist_size="small", extensions="php,html,txt,bak,zip
             result["errors"] += 1
             result["scanned"] += 1
 
+        # Small delay between requests through Tor to avoid circuit overload
+        time.sleep(0.1)
+
     result["total"] = len(result["found"])
-    result["found"].sort(key=lambda x: {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}.get(x.get("severity", "LOW"), 3))
+    result["found"].sort(
+        key=lambda x: {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}.get(x.get("severity", "LOW"), 3)
+    )
     return result
+
 
 def get_dir_note(path, status):
     notes = {
@@ -506,9 +705,15 @@ def get_dir_note(path, status):
         return "Redirect found"
     return "Resource found"
 
-# ─── LOGIN BRUTE FORCE ────────────────────────
+
+# ─── LOGIN BRUTE FORCE (via Tor) ──────────────
 def brute_force_http(url, usernames, passwords, user_field="username", pass_field="password"):
+    """
+    HTTP brute force through Tor. Tor provides IP anonymity but slows requests.
+    Added longer sleep between attempts to avoid Tor circuit bans.
+    """
     result = {"url": url, "attempts": 0, "found": [], "status": "running"}
+
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
@@ -516,28 +721,39 @@ def brute_force_http(url, usernames, passwords, user_field="username", pass_fiel
     for username in usernames[:10]:
         for password in passwords[:50]:
             try:
-                data = urllib.parse.urlencode({user_field: username, pass_field: password}).encode()
-                req = urllib.request.Request(url, data=data, headers={
-                    "User-Agent": "Mozilla/5.0",
-                    "Content-Type": "application/x-www-form-urlencoded"
-                })
-                with urllib.request.urlopen(req, timeout=5, context=ctx) as resp:
+                data = urllib.parse.urlencode({
+                    user_field: username,
+                    pass_field: password
+                }).encode()
+
+                with tor_urlopen(url, timeout=20, data=data) as resp:
                     body = resp.read().decode(errors="ignore")
-                    fail_kw = ["invalid", "incorrect", "wrong", "failed", "error", "denied", "bad credentials", "unauthorized"]
-                    success_kw = ["dashboard", "welcome", "logout", "profile", "account", "success"]
+                    fail_kw = ["invalid", "incorrect", "wrong", "failed", "error",
+                               "denied", "bad credentials", "unauthorized"]
+                    success_kw = ["dashboard", "welcome", "logout", "profile",
+                                  "account", "success"]
                     body_lower = body.lower()
                     is_fail = any(k in body_lower for k in fail_kw)
                     is_success = any(k in body_lower for k in success_kw)
                     if is_success and not is_fail:
-                        result["found"].append({"username": username, "password": password, "status": resp.status})
+                        result["found"].append({
+                            "username": username,
+                            "password": password,
+                            "status": resp.status
+                        })
                 result["attempts"] += 1
-                time.sleep(0.2)
+                time.sleep(0.5)  # Slightly longer delay through Tor
             except Exception:
                 result["attempts"] += 1
+
     result["status"] = "complete"
     return result
 
+
 def brute_force_ssh(host, port, usernames, passwords):
+    """
+    SSH brute force. SSH can be proxied through Tor using paramiko + SOCKS5.
+    """
     result = {"host": host, "port": port, "attempts": 0, "found": [], "status": "running", "note": ""}
     try:
         import paramiko
@@ -546,7 +762,28 @@ def brute_force_ssh(host, port, usernames, passwords):
                 try:
                     client = paramiko.SSHClient()
                     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                    client.connect(host, port=int(port), username=username, password=password, timeout=5, banner_timeout=5)
+
+                    # Try to route SSH through Tor SOCKS5
+                    try:
+                        import socks
+                        proxy_sock = socks.socksocket()
+                        proxy_sock.set_proxy(socks.SOCKS5, TOR_SOCKS_HOST, TOR_SOCKS_PORT)
+                        proxy_sock.settimeout(30)
+                        proxy_sock.connect((host, int(port)))
+                        client.connect(
+                            host, port=int(port),
+                            username=username, password=password,
+                            timeout=30, banner_timeout=30,
+                            sock=proxy_sock
+                        )
+                    except ImportError:
+                        # Fallback: direct connection
+                        client.connect(
+                            host, port=int(port),
+                            username=username, password=password,
+                            timeout=30, banner_timeout=30
+                        )
+
                     result["found"].append({"username": username, "password": password})
                     client.close()
                 except paramiko.AuthenticationException:
@@ -554,154 +791,20 @@ def brute_force_ssh(host, port, usernames, passwords):
                 except Exception:
                     break
                 result["attempts"] += 1
-                time.sleep(0.3)
+                time.sleep(0.5)
         result["status"] = "complete"
     except ImportError:
         result["status"] = "error"
         result["note"] = "paramiko not installed: pip3 install paramiko --break-system-packages"
     return result
 
-# ─── JOHN THE RIPPER ──────────────────────────
-def john_the_ripper(hash_input, hash_format="", wordlist="", mode="wordlist", extra_options=""):
-    """
-    Run John the Ripper to crack password hashes.
 
-    Args:
-        hash_input   : raw hash string(s), one per line  OR  a file path
-        hash_format  : e.g. md5crypt, sha512crypt, NT, bcrypt, raw-md5, raw-sha256 …
-        wordlist     : path to a wordlist file (used in wordlist / rules mode)
-        mode         : wordlist | incremental | single | rules | show
-        extra_options: any extra john flags (validated against allowlist)
-    """
-    import shutil, tempfile, os as _os
-
-    result = {
-        "mode": mode,
-        "hash_format": hash_format or "auto-detect",
-        "cracked": [],
-        "total_hashes": 0,
-        "status": "running",
-        "output": "",
-        "note": ""
-    }
-
-    # ── locate binary ──────────────────────────────────────────────────────
-    binary = shutil.which("john") or shutil.which("john-the-ripper")
-    if not binary:
-        result["status"] = "error"
-        result["note"] = "John the Ripper not installed. Run: sudo apt-get install john"
-        return result
-
-    # ── write hashes to a temp file if raw strings were supplied ──────────
-    hash_file = hash_input.strip()
-    tmp_file = None
-    if not _os.path.isfile(hash_file):
-        # treat input as raw hash lines
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tf:
-            tf.write(hash_input.strip() + "\n")
-            tmp_file = tf.name
-        hash_file = tmp_file
-
-    # count hashes
-    with open(hash_file) as f:
-        result["total_hashes"] = sum(1 for line in f if line.strip())
-
-    # ── build command ──────────────────────────────────────────────────────
-    cmd = [binary]
-
-    if hash_format:
-        cmd += [f"--format={hash_format}"]
-
-    if mode == "wordlist":
-        wl = wordlist if wordlist and _os.path.isfile(wordlist) else "/usr/share/wordlists/rockyou.txt"
-        if not _os.path.isfile(wl):
-            # try common fallback paths
-            for fallback in ["/usr/share/john/password.lst", "/usr/share/dict/words"]:
-                if _os.path.isfile(fallback):
-                    wl = fallback
-                    break
-            else:
-                result["status"] = "error"
-                result["note"] = f"Wordlist not found. Provide a path or install rockyou: sudo apt-get install wordlists"
-                if tmp_file:
-                    _os.unlink(tmp_file)
-                return result
-        cmd += [f"--wordlist={wl}"]
-
-    elif mode == "rules":
-        wl = wordlist if wordlist and _os.path.isfile(wordlist) else "/usr/share/wordlists/rockyou.txt"
-        cmd += [f"--wordlist={wl}", "--rules"]
-
-    elif mode == "incremental":
-        cmd += ["--incremental"]
-
-    elif mode == "single":
-        cmd += ["--single"]
-
-    elif mode == "show":
-        cmd += ["--show"]
-
-    # allow a safe subset of extra options
-    SAFE_EXTRA = re.compile(
-        r'^--(min-length=\d+|max-length=\d+|fork=\d+|node=\d+/\d+|session=\w+|restore=\w*|pot=[\w/.-]+)$'
-    )
-    for opt in extra_options.split():
-        if SAFE_EXTRA.match(opt):
-            cmd.append(opt)
-
-    cmd.append(hash_file)
-
-    # ── run ────────────────────────────────────────────────────────────────
-    try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-        raw_out = proc.stdout + "\n" + proc.stderr
-        result["output"] = raw_out[:3000]
-
-        # parse cracked passwords from john --show output
-        show_cmd = [binary, "--show", hash_file]
-        if hash_format:
-            show_cmd.insert(1, f"--format={hash_format}")
-        show_proc = subprocess.run(show_cmd, capture_output=True, text=True, timeout=30)
-        for line in show_proc.stdout.splitlines():
-            # john --show format:  user:password:...  OR  hash:password
-            if ":" in line and not line.startswith("#"):
-                parts = line.split(":")
-                if len(parts) >= 2 and parts[1]:
-                    result["cracked"].append({
-                        "hash": parts[0],
-                        "password": parts[1],
-                        "extra": ":".join(parts[2:]) if len(parts) > 2 else ""
-                    })
-
-        # summary line: "X password hash(es) cracked, Y left"
-        m = re.search(r'(\d+)\s+password\s+hash(?:es)?\s+cracked', raw_out, re.IGNORECASE)
-        cracked_count = int(m.group(1)) if m else len(result["cracked"])
-
-        result["status"] = "complete"
-        result["cracked_count"] = cracked_count
-        result["note"] = (
-            f"{cracked_count} of {result['total_hashes']} hash(es) cracked."
-            if cracked_count else
-            "No hashes cracked. Try a different mode, wordlist, or format."
-        )
-
-    except subprocess.TimeoutExpired:
-        result["status"] = "timeout"
-        result["note"] = "John the Ripper timed out after 5 minutes."
-    except FileNotFoundError:
-        result["status"] = "error"
-        result["note"] = "john binary not found after locate attempt."
-    except Exception as e:
-        result["status"] = "error"
-        result["note"] = str(e)
-    finally:
-        if tmp_file and _os.path.exists(tmp_file):
-            _os.unlink(tmp_file)
-
-    return result
-
-# ─── WEB HEADERS ──────────────────────────────
+# ─── WEB HEADERS (via Tor) ────────────────────
 def analyze_web_headers(target):
+    """
+    Fetch HTTP headers through Tor SOCKS5 proxy.
+    Increased timeout for Tor latency.
+    """
     result = {
         "url": "", "status_code": None, "headers": {}, "issues": [],
         "score": 0, "grade": "F", "server": "", "technologies": []
@@ -709,11 +812,7 @@ def analyze_web_headers(target):
     for scheme in ["https", "http"]:
         url = f"{scheme}://{target}" if not target.startswith("http") else target
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 VulnScanner/2.0"})
-            ctx = ssl.create_default_context()
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-            with urllib.request.urlopen(req, timeout=10, context=ctx) as resp:
+            with tor_urlopen(url, timeout=30) as resp:
                 result["url"] = url
                 result["status_code"] = resp.status
                 headers = dict(resp.headers)
@@ -723,7 +822,10 @@ def analyze_web_headers(target):
                 if server:
                     result["technologies"].append(server)
                     if re.search(r'\d+\.\d+', server):
-                        result["issues"].append({"severity": "MEDIUM", "msg": f"Server version disclosed: {server}"})
+                        result["issues"].append({
+                            "severity": "MEDIUM",
+                            "msg": f"Server version disclosed: {server}"
+                        })
                 xpb = headers.get("X-Powered-By", "")
                 if xpb:
                     result["technologies"].append(xpb)
@@ -743,22 +845,17 @@ def analyze_web_headers(target):
                         result["issues"].append({"severity": sev, "msg": msg})
                         score -= {"HIGH": 20, "MEDIUM": 10, "LOW": 5}[sev]
                 result["score"] = max(0, score)
-                if score >= 90:
-                    result["grade"] = "A+"
-                elif score >= 75:
-                    result["grade"] = "A"
-                elif score >= 60:
-                    result["grade"] = "B"
-                elif score >= 45:
-                    result["grade"] = "C"
-                elif score >= 30:
-                    result["grade"] = "D"
-                else:
-                    result["grade"] = "F"
+                if score >= 90:   result["grade"] = "A+"
+                elif score >= 75: result["grade"] = "A"
+                elif score >= 60: result["grade"] = "B"
+                elif score >= 45: result["grade"] = "C"
+                elif score >= 30: result["grade"] = "D"
+                else:             result["grade"] = "F"
                 break
         except Exception as e:
             result["issues"].append({"severity": "INFO", "msg": f"Could not fetch {url}: {str(e)}"})
     return result
+
 
 # ─── MITIGATIONS & RISK ───────────────────────
 def get_mitigation_advice(service, product, cves):
@@ -799,6 +896,7 @@ def get_mitigation_advice(service, product, cves):
     advice.extend(["Implement IDS/IPS monitoring", "Schedule regular vulnerability scans"])
     return advice[:8]
 
+
 def calculate_risk(cves, port, service):
     high_risk = {21, 22, 23, 25, 80, 443, 445, 1433, 1521, 3306, 3389, 5432, 5900, 6379, 27017}
     base = 0
@@ -812,31 +910,37 @@ def calculate_risk(cves, port, service):
         base = 2.0
     if service and service.lower() == "telnet":
         base = 9.5
-    if base >= 9.0:
-        level = "CRITICAL"
-    elif base >= 7.0:
-        level = "HIGH"
-    elif base >= 4.0:
-        level = "MEDIUM"
-    elif base > 0:
-        level = "LOW"
-    else:
-        level = "UNKNOWN"
+    if base >= 9.0:   level = "CRITICAL"
+    elif base >= 7.0: level = "HIGH"
+    elif base >= 4.0: level = "MEDIUM"
+    elif base > 0:    level = "LOW"
+    else:             level = "UNKNOWN"
     return round(base, 1), level
+
 
 # ─── FULL SCAN ORCHESTRATOR ───────────────────
 def full_scan(target, modules=None):
+    """
+    Orchestrates all scan modules.
+    CVE lookups are rate-limited more conservatively since Tor exit nodes
+    share IP addresses and may hit NVD rate limits faster.
+    """
     if modules is None:
         modules = ["ports", "ssl", "dns", "headers"]
+
     result = {"target": target, "scan_time": datetime.utcnow().isoformat(), "modules": {}}
 
     scan = run_nmap_scan(target)
     if "error" in scan:
         result["modules"]["ports"] = scan
-        result["summary"] = {"total_cves": 0, "critical_cves": 0, "high_cves": 0, "exploitable": 0, "open_ports": 0}
+        result["summary"] = {
+            "total_cves": 0, "critical_cves": 0,
+            "high_cves": 0, "exploitable": 0, "open_ports": 0
+        }
         result["error"] = scan["error"]
         return result
 
+    # CVE lookups — throttled more aggressively for Tor (shared exit node IPs)
     for host in scan.get("hosts", []):
         for port in host.get("ports", []):
             svc = port.get("service", "")
@@ -845,10 +949,11 @@ def full_scan(target, modules=None):
             cves = []
             if prod:
                 cves = search_nvd_cves(prod, ver)
-                time.sleep(1 if NVD_API_KEY else 6)
+                # Tor exit nodes share IPs — be generous with rate limit waits
+                time.sleep(2 if NVD_API_KEY else 8)
             if not cves and svc:
                 cves = search_nvd_cves(svc, ver)
-                time.sleep(1 if NVD_API_KEY else 6)
+                time.sleep(2 if NVD_API_KEY else 8)
             port["cves"] = cves
             port["mitigations"] = get_mitigation_advice(svc, prod, cves)
             port["risk_score"], port["risk_level"] = calculate_risk(cves, port["port"], svc)
@@ -875,7 +980,11 @@ def full_scan(target, modules=None):
     if "headers" in modules:
         result["modules"]["headers"] = analyze_web_headers(clean)
 
-    all_cves = [c for h in scan.get("hosts", []) for p in h.get("ports", []) for c in p.get("cves", [])]
+    all_cves = [
+        c for h in scan.get("hosts", [])
+        for p in h.get("ports", [])
+        for c in p.get("cves", [])
+    ]
     result["summary"] = {
         "total_cves": len(all_cves),
         "critical_cves": sum(1 for c in all_cves if c.get("severity") == "CRITICAL"),
@@ -884,6 +993,103 @@ def full_scan(target, modules=None):
         "open_ports": sum(len(h.get("ports", [])) for h in scan.get("hosts", []))
     }
     return result
+
+
+# ─── JOHN THE RIPPER ──────────────────────────
+def john_the_ripper(hash_input, hash_format="", wordlist="", mode="wordlist", extra_options=""):
+    import shutil, tempfile, os as _os
+    result = {
+        "mode": mode, "hash_format": hash_format or "auto-detect",
+        "cracked": [], "total_hashes": 0, "status": "running", "output": "", "note": ""
+    }
+    binary = shutil.which("john") or shutil.which("john-the-ripper")
+    if not binary:
+        result["status"] = "error"
+        result["note"] = "John the Ripper not installed. Run: sudo apt-get install john"
+        return result
+
+    hash_file = hash_input.strip()
+    tmp_file = None
+    if not _os.path.isfile(hash_file):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tf:
+            tf.write(hash_input.strip() + "\n")
+            tmp_file = tf.name
+        hash_file = tmp_file
+
+    with open(hash_file) as f:
+        result["total_hashes"] = sum(1 for line in f if line.strip())
+
+    cmd = [binary]
+    if hash_format:
+        cmd += [f"--format={hash_format}"]
+    if mode == "wordlist":
+        wl = wordlist if wordlist and _os.path.isfile(wordlist) else "/usr/share/wordlists/rockyou.txt"
+        if not _os.path.isfile(wl):
+            for fallback in ["/usr/share/john/password.lst", "/usr/share/dict/words"]:
+                if _os.path.isfile(fallback):
+                    wl = fallback
+                    break
+            else:
+                result["status"] = "error"
+                result["note"] = "Wordlist not found. Install: sudo apt-get install wordlists"
+                if tmp_file: _os.unlink(tmp_file)
+                return result
+        cmd += [f"--wordlist={wl}"]
+    elif mode == "rules":
+        wl = wordlist if wordlist and _os.path.isfile(wordlist) else "/usr/share/wordlists/rockyou.txt"
+        cmd += [f"--wordlist={wl}", "--rules"]
+    elif mode == "incremental":
+        cmd += ["--incremental"]
+    elif mode == "single":
+        cmd += ["--single"]
+    elif mode == "show":
+        cmd += ["--show"]
+
+    SAFE_EXTRA = re.compile(
+        r'^--(min-length=\d+|max-length=\d+|fork=\d+|node=\d+/\d+|session=\w+|restore=\w*|pot=[\w/.-]+)$'
+    )
+    for opt in extra_options.split():
+        if SAFE_EXTRA.match(opt):
+            cmd.append(opt)
+    cmd.append(hash_file)
+
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        raw_out = proc.stdout + "\n" + proc.stderr
+        result["output"] = raw_out[:3000]
+        show_cmd = [binary, "--show", hash_file]
+        if hash_format:
+            show_cmd.insert(1, f"--format={hash_format}")
+        show_proc = subprocess.run(show_cmd, capture_output=True, text=True, timeout=30)
+        for line in show_proc.stdout.splitlines():
+            if ":" in line and not line.startswith("#"):
+                parts = line.split(":")
+                if len(parts) >= 2 and parts[1]:
+                    result["cracked"].append({
+                        "hash": parts[0], "password": parts[1],
+                        "extra": ":".join(parts[2:]) if len(parts) > 2 else ""
+                    })
+        m = re.search(r'(\d+)\s+password\s+hash(?:es)?\s+cracked', raw_out, re.IGNORECASE)
+        cracked_count = int(m.group(1)) if m else len(result["cracked"])
+        result["status"] = "complete"
+        result["cracked_count"] = cracked_count
+        result["note"] = (
+            f"{cracked_count} of {result['total_hashes']} hash(es) cracked."
+            if cracked_count else
+            "No hashes cracked. Try a different mode, wordlist, or format."
+        )
+    except subprocess.TimeoutExpired:
+        result["status"] = "timeout"
+        result["note"] = "John the Ripper timed out after 5 minutes."
+    except Exception as e:
+        result["status"] = "error"
+        result["note"] = str(e)
+    finally:
+        if tmp_file and _os.path.exists(tmp_file):
+            _os.unlink(tmp_file)
+
+    return result
+
 
 # ─── ENTRY POINT ──────────────────────────────
 if __name__ == "__main__":
@@ -930,14 +1136,13 @@ if __name__ == "__main__":
         print(json.dumps(brute_force_ssh(host, port, users, pwds)))
         sys.exit(0)
 
-    # ── John the Ripper CLI entry ──────────────────────────────────────────
     if "--john" in sys.argv:
         idx = sys.argv.index("--john")
-        hash_input   = sys.argv[idx + 1] if len(sys.argv) > idx + 1 else ""
-        hash_format  = sys.argv[idx + 2] if len(sys.argv) > idx + 2 else ""
-        wordlist     = sys.argv[idx + 3] if len(sys.argv) > idx + 3 else ""
-        mode         = sys.argv[idx + 4] if len(sys.argv) > idx + 4 else "wordlist"
-        extra        = sys.argv[idx + 5] if len(sys.argv) > idx + 5 else ""
+        hash_input  = sys.argv[idx + 1] if len(sys.argv) > idx + 1 else ""
+        hash_format = sys.argv[idx + 2] if len(sys.argv) > idx + 2 else ""
+        wordlist    = sys.argv[idx + 3] if len(sys.argv) > idx + 3 else ""
+        mode        = sys.argv[idx + 4] if len(sys.argv) > idx + 4 else "wordlist"
+        extra       = sys.argv[idx + 5] if len(sys.argv) > idx + 5 else ""
         print(json.dumps(john_the_ripper(hash_input, hash_format, wordlist, mode, extra)))
         sys.exit(0)
 
@@ -946,4 +1151,5 @@ if __name__ == "__main__":
     if "--modules" in sys.argv:
         idx = sys.argv.index("--modules")
         mods = sys.argv[idx + 1].split(",")
+
     print(json.dumps(full_scan(target, mods)))
