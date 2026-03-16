@@ -904,7 +904,6 @@ textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
     <button class="nb" onclick="pg('hist',this)">&#128196; History</button>
     <button class="nb" onclick="pg('dash',this)">&#128202; Dashboard</button>
     <button class="nb admin-only" onclick="pg('admin',this)" style="display:none">&#9881; Admin</button>
-    <button class="nb admin-only" onclick="pg('cli',this)" style="display:none;color:var(--green)">&#9654; Console</button>
     <button class="nb" onclick="showAbout()" style="color:var(--cyan)">&#9432; About</button>
     <div class="user-chip" onclick="pg('profile',this)" id="user-chip" style="display:none">
       <div class="user-avatar" id="user-avatar">?</div>
