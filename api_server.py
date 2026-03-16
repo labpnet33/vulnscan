@@ -1545,13 +1545,13 @@ textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
 <!-- ═══ ADMIN ═══ -->
 <div class="page" id="page-admin">
   <div class="tabs" id="admin-tabs">
-    <button class="tab active" onclick="adminTab(event,'at-users')">&#128100; Users</button>
+    <button class="tab active" onclick="adminTab(event,'at-cli')">&#9654; Console</button>
+    <button class="tab" onclick="adminTab(event,'at-users')">&#128100; Users</button>
     <button class="tab" onclick="adminTab(event,'at-stats')">&#128202; Stats</button>
     <button class="tab" onclick="adminTab(event,'at-audit')">&#128196; Audit Log</button>
     <button class="tab" onclick="adminTab(event,'at-scans')">&#128269; All Scans</button>
-    <button class="tab" onclick="adminTab(event,'at-cli')">&#9881; Server CLI</button>
   </div>
-  <div class="tc active" id="at-users">
+  <div class="tc" id="at-users">
     <div class="card"><div class="ctitle">USER MANAGEMENT</div><div id="admin-users"><p style="color:var(--m)">Loading...</p></div></div>
   </div>
   <div class="tc" id="at-stats">
@@ -1563,7 +1563,98 @@ textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
   <div class="tc" id="at-scans">
     <div class="card"><div class="ctitle">ALL SCANS</div><div id="admin-scans" style="overflow-x:auto"></div></div>
   </div>
-  <div class="tc" id="at-cli">
+  <div class="tc active" id="at-cli">
+    <!-- ══ SERVER STATS PANEL ══ -->
+    <div class="card" style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div class="ctitle" style="margin-bottom:0">&#128200; SERVER STATISTICS</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="pulse-dot"></span>
+          <span style="font-size:10px;color:var(--m);font-family:'JetBrains Mono',monospace" id="stats-updated">LIVE</span>
+          <button class="lbtn" onclick="loadServerStats()" style="font-size:9px">&#8635; REFRESH</button>
+        </div>
+      </div>
+
+      <!-- Stats grid: 5 metric cards -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:14px" id="stats-grid">
+        <div class="sc" id="stat-cpu">
+          <div style="font-size:10px;color:var(--m);letter-spacing:2px;font-family:'JetBrains Mono',monospace;margin-bottom:8px">CPU USAGE</div>
+          <div style="position:relative;height:6px;background:var(--b2);border-radius:3px;margin-bottom:6px;overflow:hidden">
+            <div id="cpu-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--cyan),var(--green));border-radius:3px;transition:width 0.5s ease"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span id="cpu-val" style="font-size:22px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--cyan)">—</span>
+            <span id="cpu-cores" style="font-size:10px;color:var(--m)">— cores</span>
+          </div>
+        </div>
+
+        <div class="sc" id="stat-mem">
+          <div style="font-size:10px;color:var(--m);letter-spacing:2px;font-family:'JetBrains Mono',monospace;margin-bottom:8px">MEMORY</div>
+          <div style="position:relative;height:6px;background:var(--b2);border-radius:3px;margin-bottom:6px;overflow:hidden">
+            <div id="mem-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--purple),var(--cyan));border-radius:3px;transition:width 0.5s ease"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span id="mem-val" style="font-size:22px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--purple)">—</span>
+            <span id="mem-total" style="font-size:10px;color:var(--m)">of —</span>
+          </div>
+        </div>
+
+        <div class="sc" id="stat-swap">
+          <div style="font-size:10px;color:var(--m);letter-spacing:2px;font-family:'JetBrains Mono',monospace;margin-bottom:8px">SWAP</div>
+          <div style="position:relative;height:6px;background:var(--b2);border-radius:3px;margin-bottom:6px;overflow:hidden">
+            <div id="swap-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--yellow),var(--orange));border-radius:3px;transition:width 0.5s ease"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span id="swap-val" style="font-size:22px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--yellow)">—</span>
+            <span id="swap-total" style="font-size:10px;color:var(--m)">of —</span>
+          </div>
+        </div>
+
+        <div class="sc" id="stat-disk">
+          <div style="font-size:10px;color:var(--m);letter-spacing:2px;font-family:'JetBrains Mono',monospace;margin-bottom:8px">STORAGE (/)</div>
+          <div style="position:relative;height:6px;background:var(--b2);border-radius:3px;margin-bottom:6px;overflow:hidden">
+            <div id="disk-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--orange),var(--red));border-radius:3px;transition:width 0.5s ease"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span id="disk-val" style="font-size:22px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--orange)">—</span>
+            <span id="disk-total" style="font-size:10px;color:var(--m)">of —</span>
+          </div>
+        </div>
+
+        <div class="sc" id="stat-net">
+          <div style="font-size:10px;color:var(--m);letter-spacing:2px;font-family:'JetBrains Mono',monospace;margin-bottom:8px">NETWORK</div>
+          <div style="margin-top:4px">
+            <div style="display:flex;justify-content:space-between;font-size:11px;font-family:'JetBrains Mono',monospace;margin-bottom:4px">
+              <span style="color:var(--green)">&#8593; TX</span>
+              <span id="net-tx" style="color:var(--t)">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;font-family:'JetBrains Mono',monospace">
+              <span style="color:var(--cyan)">&#8595; RX</span>
+              <span id="net-rx" style="color:var(--t)">—</span>
+            </div>
+          </div>
+          <div id="net-iface" style="color:var(--m);font-size:9px;margin-top:6px;text-align:right"></div>
+        </div>
+      </div>
+
+      <!-- Extra row: uptime, load, processes -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+        <div style="background:var(--s2);border:1px solid var(--b2);border-radius:7px;padding:10px">
+          <div style="font-size:9px;color:var(--m);letter-spacing:2px;font-family:'JetBrains Mono',monospace;margin-bottom:4px">UPTIME</div>
+          <div id="sys-uptime" style="font-size:13px;font-family:'JetBrains Mono',monospace;color:var(--green)">—</div>
+        </div>
+        <div style="background:var(--s2);border:1px solid var(--b2);border-radius:7px;padding:10px">
+          <div style="font-size:9px;color:var(--m);letter-spacing:2px;font-family:'JetBrains Mono',monospace;margin-bottom:4px">LOAD AVG</div>
+          <div id="sys-load" style="font-size:13px;font-family:'JetBrains Mono',monospace;color:var(--yellow)">—</div>
+        </div>
+        <div style="background:var(--s2);border:1px solid var(--b2);border-radius:7px;padding:10px">
+          <div style="font-size:9px;color:var(--m);letter-spacing:2px;font-family:'JetBrains Mono',monospace;margin-bottom:4px">PROCESSES</div>
+          <div id="sys-procs" style="font-size:13px;font-family:'JetBrains Mono',monospace;color:var(--cyan)">—</div>
+        </div>
+      </div>
+    </div>
+    <!-- ══ END SERVER STATS ══ -->
+
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
         <div class="ctitle" style="margin-bottom:0">&#9881; SERVER CLI CONSOLE</div>
@@ -2773,8 +2864,96 @@ function adminTab(e,id){
   if(id==="at-stats")loadAdminStats();
   if(id==="at-audit")loadAdminAudit();
   if(id==="at-scans")loadAdminScans();
+  if(id==="at-cli"){loadServerStats();initCliHeader();}
+  // Clear auto-refresh when leaving CLI tab
+  if(id!=="at-cli"&&window._statsInterval){clearInterval(window._statsInterval);window._statsInterval=null;}
 }
-async function loadAdmin(){loadAdminUsers();loadAdminStats();}
+async function loadAdmin(){loadServerStats();setTimeout(initCliHeader,400);}
+
+// ── Server Statistics ──────────────────────────────────────────────────────
+let _statsInterval=null;
+function fmtBytes(b){
+  if(b===null||b===undefined)return"—";
+  if(b>=1073741824)return(b/1073741824).toFixed(1)+"G";
+  if(b>=1048576)return(b/1048576).toFixed(1)+"M";
+  if(b>=1024)return(b/1024).toFixed(1)+"K";
+  return b+"B";
+}
+function setBar(id,pct){
+  const el=document.getElementById(id);
+  if(!el)return;
+  const color=pct>90?"var(--red)":pct>70?"var(--orange)":pct>50?"var(--yellow)":"";
+  el.style.width=Math.min(100,pct)+"%";
+  if(color)el.style.background=color;
+}
+async function loadServerStats(){
+  try{
+    const r=await fetch("/api/server-stats");
+    const d=await r.json();
+    if(d.error){console.warn("stats:",d.error);return;}
+
+    // CPU
+    const cpuEl=document.getElementById("cpu-val");
+    const cpuPct=d.cpu_percent??0;
+    if(cpuEl){cpuEl.textContent=cpuPct+"%";cpuEl.style.color=cpuPct>90?"var(--red)":cpuPct>70?"var(--orange)":"var(--cyan)";}
+    setBar("cpu-bar",cpuPct);
+    const coresEl=document.getElementById("cpu-cores");
+    if(coresEl)coresEl.textContent=(d.cpu_count||"?")+" cores";
+
+    // Memory
+    const memPct=d.memory?.percent??0;
+    const memEl=document.getElementById("mem-val");
+    if(memEl){memEl.textContent=memPct+"%";memEl.style.color=memPct>90?"var(--red)":memPct>70?"var(--orange)":"var(--purple)";}
+    setBar("mem-bar",memPct);
+    const memTot=document.getElementById("mem-total");
+    if(memTot)memTot.textContent="of "+fmtBytes(d.memory?.total);
+
+    // Swap
+    const swapPct=d.swap?.percent??0;
+    const swapEl=document.getElementById("swap-val");
+    if(swapEl){swapEl.textContent=swapPct+"%";swapEl.style.color=swapPct>80?"var(--red)":swapPct>50?"var(--orange)":"var(--yellow)";}
+    setBar("swap-bar",swapPct);
+    const swapTot=document.getElementById("swap-total");
+    if(swapTot)swapTot.textContent="of "+fmtBytes(d.swap?.total);
+
+    // Disk
+    const diskPct=d.disk?.percent??0;
+    const diskEl=document.getElementById("disk-val");
+    if(diskEl){diskEl.textContent=diskPct+"%";diskEl.style.color=diskPct>90?"var(--red)":diskPct>75?"var(--orange)":"var(--orange)";}
+    setBar("disk-bar",diskPct);
+    const diskTot=document.getElementById("disk-total");
+    if(diskTot)diskTot.textContent="of "+fmtBytes(d.disk?.total);
+
+    // Network
+    const txEl=document.getElementById("net-tx");
+    const rxEl=document.getElementById("net-rx");
+    if(txEl)txEl.textContent=fmtBytes(d.net?.bytes_sent);
+    if(rxEl)rxEl.textContent=fmtBytes(d.net?.bytes_recv);
+    const ifaceEl=document.getElementById("net-iface");
+    if(ifaceEl)ifaceEl.textContent=d.net?.iface||"";
+
+    // System info
+    const upEl=document.getElementById("sys-uptime");
+    if(upEl&&d.uptime)upEl.textContent=d.uptime;
+    const ldEl=document.getElementById("sys-load");
+    if(ldEl&&d.load_avg)ldEl.textContent=d.load_avg;
+    const prEl=document.getElementById("sys-procs");
+    if(prEl)prEl.textContent=(d.process_count||"?")+' procs';
+
+    const tsEl=document.getElementById("stats-updated");
+    if(tsEl)tsEl.textContent="UPDATED "+new Date().toLocaleTimeString();
+
+  }catch(e){console.warn("stats fetch:",e.message);}
+
+  // Auto-refresh every 3 seconds while CLI tab is active
+  if(!window._statsInterval){
+    window._statsInterval=setInterval(()=>{
+      const cliPane=document.getElementById("at-cli");
+      if(cliPane&&cliPane.classList.contains("active"))loadServerStats();
+      else{clearInterval(window._statsInterval);window._statsInterval=null;}
+    },3000);
+  }
+}
 
 async function loadAdminUsers(){
   try{
@@ -3842,6 +4021,154 @@ def health():
         "python": sys.version
     })
 
+
+# ── Server Statistics route ───────────────────────────────────────────────────
+@app.route("/api/server-stats")
+def server_stats():
+    """Return live server resource usage. Admin-only for production; open for localhost dev."""
+    import time as _time
+
+    stats = {}
+
+    # ── CPU ──────────────────────────────────────────────────────────────────
+    try:
+        # Read two samples of /proc/stat 200ms apart for delta-based CPU %
+        def read_cpu():
+            with open("/proc/stat") as f:
+                line = f.readline()
+            parts = line.split()
+            total = sum(int(x) for x in parts[1:])
+            idle  = int(parts[4])
+            return total, idle
+
+        t1, i1 = read_cpu()
+        _time.sleep(0.2)
+        t2, i2 = read_cpu()
+        delta_total = t2 - t1
+        delta_idle  = i2 - i1
+        cpu_pct = round((1 - delta_idle / delta_total) * 100, 1) if delta_total else 0
+
+        import os as _os
+        cpu_count = _os.cpu_count() or 1
+        stats["cpu_percent"] = cpu_pct
+        stats["cpu_count"]   = cpu_count
+    except Exception as e:
+        stats["cpu_percent"] = None
+        stats["cpu_count"]   = None
+
+    # ── Memory ───────────────────────────────────────────────────────────────
+    try:
+        mem = {}
+        with open("/proc/meminfo") as f:
+            for line in f:
+                k, v = line.split(":")
+                mem[k.strip()] = int(v.split()[0]) * 1024  # kB → bytes
+
+        total     = mem.get("MemTotal", 0)
+        free      = mem.get("MemFree", 0)
+        buffers   = mem.get("Buffers", 0)
+        cached    = mem.get("Cached", 0) + mem.get("SReclaimable", 0)
+        available = mem.get("MemAvailable", free + buffers + cached)
+        used      = total - available
+        pct       = round(used / total * 100, 1) if total else 0
+
+        stats["memory"] = {
+            "total":     total,
+            "used":      used,
+            "available": available,
+            "percent":   pct,
+        }
+
+        # Swap
+        swap_total = mem.get("SwapTotal", 0)
+        swap_free  = mem.get("SwapFree", 0)
+        swap_used  = swap_total - swap_free
+        swap_pct   = round(swap_used / swap_total * 100, 1) if swap_total else 0
+        stats["swap"] = {
+            "total":   swap_total,
+            "used":    swap_used,
+            "free":    swap_free,
+            "percent": swap_pct,
+        }
+    except Exception:
+        stats["memory"] = None
+        stats["swap"]   = None
+
+    # ── Disk (root filesystem) ────────────────────────────────────────────────
+    try:
+        import os as _os
+        st = _os.statvfs("/")
+        disk_total = st.f_blocks * st.f_frsize
+        disk_free  = st.f_bfree  * st.f_frsize
+        disk_used  = disk_total  - disk_free
+        disk_pct   = round(disk_used / disk_total * 100, 1) if disk_total else 0
+        stats["disk"] = {
+            "total":   disk_total,
+            "used":    disk_used,
+            "free":    disk_free,
+            "percent": disk_pct,
+        }
+    except Exception:
+        stats["disk"] = None
+
+    # ── Network ───────────────────────────────────────────────────────────────
+    try:
+        best_iface = None
+        best_rx    = 0
+
+        with open("/proc/net/dev") as f:
+            lines = f.readlines()[2:]  # skip header rows
+
+        net_data = {}
+        for line in lines:
+            parts = line.split()
+            iface = parts[0].rstrip(":")
+            if iface == "lo":
+                continue
+            rx = int(parts[1])
+            tx = int(parts[9])
+            net_data[iface] = {"bytes_recv": rx, "bytes_sent": tx}
+            if rx > best_rx:
+                best_rx    = rx
+                best_iface = iface
+
+        if best_iface:
+            stats["net"] = {
+                "iface":      best_iface,
+                "bytes_recv": net_data[best_iface]["bytes_recv"],
+                "bytes_sent": net_data[best_iface]["bytes_sent"],
+            }
+        else:
+            stats["net"] = None
+    except Exception:
+        stats["net"] = None
+
+    # ── Uptime & Load ─────────────────────────────────────────────────────────
+    try:
+        with open("/proc/uptime") as f:
+            secs = float(f.read().split()[0])
+        days  = int(secs // 86400)
+        hours = int((secs % 86400) // 3600)
+        mins  = int((secs % 3600)  // 60)
+        if days:
+            stats["uptime"] = f"{days}d {hours}h {mins}m"
+        elif hours:
+            stats["uptime"] = f"{hours}h {mins}m"
+        else:
+            stats["uptime"] = f"{mins}m"
+    except Exception:
+        stats["uptime"] = None
+
+    try:
+        with open("/proc/loadavg") as f:
+            parts = f.read().split()
+        stats["load_avg"]      = f"{parts[0]}  {parts[1]}  {parts[2]}"
+        stats["process_count"] = int(parts[3].split("/")[1])
+    except Exception:
+        stats["load_avg"]      = None
+        stats["process_count"] = None
+
+    return jsonify(stats)
 
 if __name__ == "__main__":
     print("[*] VulnScan Pro v3.7 starting (Tor mode)")
