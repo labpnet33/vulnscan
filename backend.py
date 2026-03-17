@@ -13,18 +13,58 @@ TOR_SOCKS_PORT = 9050
 def get_tor_opener():
     """
     Returns a urllib opener that routes through Tor SOCKS5.
+    Uses a SocksiPyHandler so only HTTP(S) requests are proxied;
+    stdlib DNS (socket.getaddrinfo) is NOT monkey-patched.
     Requires: pip3 install PySocks --break-system-packages
-    Falls back to direct if PySocks not available.
+    Falls back to direct urllib opener if PySocks not available or Tor not running.
     """
+    import socket as _sock_test
+    # Quick check: is Tor actually listening?
+    try:
+        ts = _sock_test.create_connection((TOR_SOCKS_HOST, TOR_SOCKS_PORT), timeout=2)
+        ts.close()
+    except Exception:
+        return urllib.request.build_opener()  # Tor not running — direct connection
+
     try:
         import socks
-        import socket as _socket
-        # Monkey-patch socket for this process
-        socks.set_default_proxy(socks.SOCKS5, TOR_SOCKS_HOST, TOR_SOCKS_PORT)
-        _socket.socket = socks.socksocket
-        return urllib.request.build_opener()
+        import urllib.request as _ureq
+
+        class SocksiPyConnection(socks.socksocket):
+            pass
+
+        class SocksiPyHandler(_ureq.BaseHandler):
+            def __init__(self, *args, **kwargs):
+                pass
+            def http_open(self, req):
+                return self._open(req, "http")
+            def https_open(self, req):
+                return self._open(req, "https")
+            def _open(self, req, scheme):
+                import http.client as _http
+                sock = socks.socksocket()
+                sock.set_proxy(socks.SOCKS5, TOR_SOCKS_HOST, TOR_SOCKS_PORT)
+                sock.settimeout(30)
+                host = req.host
+                port = 443 if scheme == "https" else 80
+                if ":" in host:
+                    host, port = host.rsplit(":", 1)
+                    port = int(port)
+                sock.connect((host, port))
+                if scheme == "https":
+                    import ssl as _ssl
+                    ctx = _ssl.create_default_context()
+                    ctx.check_hostname = False
+                    ctx.verify_mode = _ssl.CERT_NONE
+                    sock = ctx.wrap_socket(sock, server_hostname=host)
+                conn = _http.HTTPResponse(sock)
+                conn.begin()
+                return _ureq.addinfourl(conn.fp, conn.msg, req.full_url, conn.status)
+
+        return _ureq.build_opener(SocksiPyHandler())
+
     except ImportError:
-        print("[!] PySocks not installed — HTTP requests won't use Tor.", file=sys.stderr)
+        print("[!] PySocks not installed — HTTP requests will NOT use Tor.", file=sys.stderr)
         print("[!] Fix: pip3 install PySocks --break-system-packages", file=sys.stderr)
         return urllib.request.build_opener()
 
@@ -38,7 +78,8 @@ def tor_opener():
 
 def tor_urlopen(url, headers=None, timeout=30, data=None):
     """
-    Open a URL through Tor. Wraps urllib with SOCKS5 proxy and custom headers.
+    Open a URL, preferring Tor SOCKS5 proxy when available.
+    Silently falls back to a direct connection so scans work even without Tor.
     """
     req = urllib.request.Request(url, data=data)
     req.add_header("User-Agent", "Mozilla/5.0 VulnScanner/2.0")
@@ -48,13 +89,18 @@ def tor_urlopen(url, headers=None, timeout=30, data=None):
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
+    # 1st attempt: through Tor opener (no-op if Tor is down)
     try:
-        # Try to use socks-patched socket
         opener = tor_opener()
         return opener.open(req, timeout=timeout)
     except Exception:
-        # Fallback to standard urlopen
+        pass
+    # 2nd attempt: direct connection (always works)
+    try:
         return urllib.request.urlopen(req, timeout=timeout, context=ctx)
+    except Exception:
+        # Re-raise so callers can handle it properly
+        raise
 
 
 # ─── NMAP PORT SCAN (via proxychains) ─────────
@@ -66,61 +112,86 @@ def tor_urlopen(url, headers=None, timeout=30, data=None):
 #   - Removed version intensity to reduce connection count
 #   - Results may be partial — Tor exit nodes sometimes block ports
 
+def _has_proxychains():
+    """Return the proxychains binary name if available, else None."""
+    import shutil as _shutil
+    return _shutil.which("proxychains4") or _shutil.which("proxychains") or None
+
+
 def run_nmap_scan(target):
     """
-    Runs nmap through proxychains (Tor).
-    Uses TCP connect scan with conservative timing for proxy reliability.
+    Runs nmap, routing through proxychains/Tor when available.
+    Falls back to direct nmap if proxychains is not installed or Tor is not running.
+    This ensures the scanner works in both Tor-anonymous and standard modes.
     """
-    try:
+    import shutil as _shutil
+    if not _shutil.which("nmap"):
+        return {"error": "nmap not found. Install: sudo apt install nmap"}
+
+    px = _has_proxychains()
+    use_tor = False
+
+    # Verify Tor is actually reachable before adding proxychains overhead
+    if px:
+        import socket as _sock
+        try:
+            s = _sock.create_connection((TOR_SOCKS_HOST, TOR_SOCKS_PORT), timeout=3)
+            s.close()
+            use_tor = True
+        except Exception:
+            use_tor = False
+
+    if use_tor:
+        # TCP connect scan required through proxychains (SYN blocked by SOCKS)
         cmd = [
-            "proxychains4", "-q",   # -q = quiet mode, suppress proxychains output
-            "nmap",
-            "-sT",                   # TCP connect scan (REQUIRED for proxychains)
-            "-Pn",                   # Skip host discovery (REQUIRED — ICMP blocked by Tor)
-            "-n",                    # No DNS resolution (faster, avoids DNS leaks)
-            "--open",                # Only show open ports
-            "-T2",                   # Timing: polite — avoids timeouts through Tor
-                                     # T1=sneaky, T2=polite, T3=normal(default), T4=aggressive
-            "--host-timeout", "300s",# Abort host after 5 min (Tor is slow)
-            "--max-retries", "1",    # Only retry once — retries waste time on proxies
+            px, "-q",
+            "nmap", "-sT", "-Pn", "-n", "--open",
+            "-T2",
+            "--host-timeout", "300s",
+            "--max-retries", "1",
             "--min-rtt-timeout", "500ms",
-            "--max-rtt-timeout", "10000ms",  # Up to 10s per probe (Tor latency)
+            "--max-rtt-timeout", "10000ms",
             "--initial-rtt-timeout", "2000ms",
-            "-sV",                   # Version detection
-            "--version-intensity", "2",  # Light version detection (fewer probes = faster)
-            "--top-ports", "200",    # Scan top 200 ports instead of 1-10000
-                                     # Full range through Tor would take 30+ minutes
-            "-oX", "-",             # XML output to stdout
-            target
+            "-sV", "--version-intensity", "2",
+            "--top-ports", "200",
+            "-oX", "-", target
         ]
+        timeout = 600
+        print(f"[*] nmap via Tor/proxychains on: {target}", file=sys.stderr)
+    else:
+        # Direct scan — faster, more reliable, SYN scan available if root
+        cmd = [
+            "nmap", "-sV", "--version-intensity", "5",
+            "-Pn", "-n", "--open",
+            "-T4",
+            "--host-timeout", "120s",
+            "--max-retries", "2",
+            "--top-ports", "1000",
+            "-oX", "-", target
+        ]
+        timeout = 300
+        mode_note = "(direct — proxychains/Tor not available)" if px is None else "(direct — Tor not running on port " + str(TOR_SOCKS_PORT) + ")"
+        print(f"[*] nmap direct scan on: {target} {mode_note}", file=sys.stderr)
 
-        print(f"[*] Starting proxychains nmap scan on: {target}", file=sys.stderr)
-        print(f"[*] Note: Tor routing active — scan may take 3–10 minutes", file=sys.stderr)
-
-        r = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=600   # 10 minute timeout for full Tor scan
-        )
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
 
         if r.returncode != 0 and not r.stdout.strip():
             stderr = r.stderr.strip()[:500]
-            # Check for common proxychains errors
-            if "proxychains" in stderr.lower() or "can't assign" in stderr.lower():
-                return {"error": f"proxychains error: {stderr}. Make sure proxychains4 is installed and Tor is running on port {TOR_SOCKS_PORT}."}
             return {"error": f"nmap error (exit {r.returncode}): {stderr}"}
 
         if not r.stdout.strip():
-            return {"error": "nmap produced no output — target may be unreachable through Tor, or Tor is not running"}
+            return {"error": "nmap produced no output. Is the target reachable?"}
 
-        return parse_nmap_xml(r.stdout)
+        result = parse_nmap_xml(r.stdout)
+        result["via_tor"] = use_tor
+        return result
 
     except subprocess.TimeoutExpired:
-        return {"error": "Scan timed out after 10 minutes. Through Tor this is normal for large ranges. Try a specific IP or reduce scope."}
-    except FileNotFoundError as e:
-        missing = "proxychains4" if "proxychains" in str(e) else "nmap"
-        return {"error": f"{missing} not found. Install: sudo apt install {missing}"}
+        limit = "10 min (Tor mode)" if use_tor else "5 min"
+        return {"error": f"Scan timed out after {limit}. Try a narrower port range or specific IP."}
+    except FileNotFoundError:
+        return {"error": "nmap not found. Install: sudo apt install nmap"}
     except Exception as e:
         return {"error": str(e)}
 
@@ -191,22 +262,30 @@ def network_discovery(subnet):
     NOTE: Host discovery is very limited through Tor — only TCP-based
     discovery works. ICMP ping is blocked.
     """
+    import shutil as _shutil
+    if not _shutil.which("nmap"):
+        return {"error": "nmap not found. Install: sudo apt install nmap"}
+
+    px = _has_proxychains()
+    use_tor = False
+    if px:
+        import socket as _sock2
+        try:
+            s2 = _sock2.create_connection((TOR_SOCKS_HOST, TOR_SOCKS_PORT), timeout=3)
+            s2.close()
+            use_tor = True
+        except Exception:
+            pass
+
     try:
-        cmd = [
-            "proxychains4", "-q",
-            "nmap",
-            "-sT",          # TCP connect (proxychains requirement)
-            "-Pn",          # No ping (ICMP blocked by Tor)
-            "-n",           # No DNS
-            "--open",
-            "-T2",          # Polite timing
-            "--host-timeout", "120s",
-            "--max-retries", "1",
-            "--top-ports", "10",   # Just check top 10 ports to detect hosts
-            "-oX", "-",
-            subnet
-        ]
-        print(f"[*] Network discovery via proxychains: {subnet}", file=sys.stderr)
+        if use_tor:
+            cmd = [px, "-q", "nmap", "-sT", "-Pn", "-n", "--open",
+                   "-T2", "--host-timeout", "120s", "--max-retries", "1",
+                   "--top-ports", "10", "-oX", "-", subnet]
+        else:
+            cmd = ["nmap", "-sn", "-T4", "--host-timeout", "30s",
+                   "-oX", "-", subnet]
+        print(f"[*] Network discovery ({'Tor' if use_tor else 'direct'}) on: {subnet}", file=sys.stderr)
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
 
         if not r.stdout.strip():

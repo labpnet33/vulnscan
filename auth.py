@@ -174,6 +174,11 @@ def register_auth_routes(app):
         ok, msg = validate_password(password)
         if not ok: return jsonify({"error": msg}), 400
 
+        # Server-side ToS acceptance check
+        tos_accepted = d.get("tos_accepted", False)
+        if not tos_accepted:
+            return jsonify({"error": "You must accept the Terms of Use before registering."}), 400
+
         if get_user_by_username(username): return jsonify({"error": "Username already taken"}), 409
         if get_user_by_email(email): return jsonify({"error": "Email already registered"}), 409
 

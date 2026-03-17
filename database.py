@@ -215,13 +215,17 @@ def save_scan(target, result, user_id=None, modules=""):
 
 def get_history(limit=20, user_id=None):
     con = get_db()
-    if user_id:
+    if user_id is not None:
+        # Fetch only this user's scans (integer user_id)
         rows = con.execute(
-            "SELECT id,target,scan_time,open_ports,total_cves,critical_cves,modules FROM scans WHERE user_id=? ORDER BY id DESC LIMIT ?",
+            "SELECT id,target,scan_time,open_ports,total_cves,critical_cves,modules "
+            "FROM scans WHERE user_id=? ORDER BY id DESC LIMIT ?",
             (user_id, limit)).fetchall()
     else:
+        # Admin/system call: return all scans regardless of owner
         rows = con.execute(
-            "SELECT id,target,scan_time,open_ports,total_cves,critical_cves,modules FROM scans ORDER BY id DESC LIMIT ?",
+            "SELECT id,target,scan_time,open_ports,total_cves,critical_cves,modules "
+            "FROM scans ORDER BY id DESC LIMIT ?",
             (limit,)).fetchall()
     con.close()
     return [dict(r) for r in rows]
