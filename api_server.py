@@ -36,6 +36,17 @@ GRADE_COL = {"A+": "#00ff9d", "A": "#00e5ff", "B": "#ffd60a", "C": "#ff6b35", "D
 TOR_SOCKS_HOST = "127.0.0.1"
 TOR_SOCKS_PORT = 9050
 
+
+def _check_tor_port():
+    """Return True if Tor SOCKS5 is reachable."""
+    try:
+        import socket as _s
+        sock = _s.create_connection((TOR_SOCKS_HOST, TOR_SOCKS_PORT), timeout=2)
+        sock.close()
+        return True
+    except Exception:
+        return False
+
 # ── Timeout constants (all inflated for Tor latency) ─────────────────────────
 TIMEOUT_SCAN       = 720   # 12 min — nmap through Tor can be slow
 TIMEOUT_SUBDOMAIN  = 180   # 3 min
@@ -3550,13 +3561,16 @@ def dnsrecon_route():
         binary = shutil.which("dnsrecon")
 
     px = proxychains_cmd()
+    tor_up = _check_tor_port()
 
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tf:
         out_file = tf.name
 
-    # Build dnsrecon command through proxychains
-    # Use --tcp flag so DNS queries go through SOCKS (TCP only — UDP is blocked by Tor)
-    cmd = [px, "-q", binary, "-d", target, "-t", scan_type, "-j", out_file, "--tcp"]
+    # Use proxychains only when both proxychains and Tor are available
+    if px and tor_up:
+        cmd = [px, "-q", binary, "-d", target, "-t", scan_type, "-j", out_file, "--tcp"]
+    else:
+        cmd = [binary, "-d", target, "-t", scan_type, "-j", out_file]
     if ns:
         cmd += ["-n", ns]
 
@@ -3640,23 +3654,26 @@ def nikto_route():
         binary = shutil.which("nikto")
 
     px = proxychains_cmd()
+    tor_up = _check_tor_port()
 
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as tf:
         out_file = tf.name
 
-    # Route Nikto through proxychains
-    # Also pass -useproxy pointing to Tor SOCKS5 as a secondary proxy option
-    cmd = [
-        px, "-q",
-        binary,
-        "-h", target,
-        "-p", str(port),
-        "-Format", "json",
-        "-o", out_file,
-        "-nointeractive",
-        "-timeout", "30",      # 30s per request (Tor latency)
-        "-maxtime", "1800",    # Max 30 min total
-    ]
+    # Route through proxychains only when Tor is actually running
+    if px and tor_up:
+        cmd = [
+            px, "-q", binary,
+            "-h", target, "-p", str(port),
+            "-Format", "json", "-o", out_file,
+            "-nointeractive", "-timeout", "30", "-maxtime", "1800",
+        ]
+    else:
+        cmd = [
+            binary,
+            "-h", target, "-p", str(port),
+            "-Format", "json", "-o", out_file,
+            "-nointeractive", "-timeout", "15", "-maxtime", "600",
+        ]
     if ssl_flag == "-ssl":
         cmd += ["-ssl"]
     elif ssl_flag == "-nossl":
@@ -3878,10 +3895,11 @@ def legion_route():
         return jsonify({"error": "No target specified"})
 
     px = proxychains_cmd()
+    tor_up = _check_tor_port()
+    use_proxy = bool(px and tor_up)
     results, open_ports, total_issues, modules_run = [], 0, 0, 0
 
-    # Timing map adjusted for Tor
-    speed = {"light": "-T1", "normal": "-T2", "aggressive": "-T2"}[intensity]
+    speed = {"light": "-T3", "normal": "-T4", "aggressive": "-T4"}[intensity]
 
     for mod in modules:
         binary = shutil.which(mod) or shutil.which(mod.lower())
@@ -3898,19 +3916,16 @@ def legion_route():
 
         try:
             if mod == "nmap":
-                # nmap through proxychains
-                cmd = [
-                    px, "-q", "nmap",
-                    "-sT", "-Pn", "-n",    # TCP connect, no ping, no DNS
-                    speed,
-                    "--open",
-                    "--host-timeout", "180s",
-                    "--max-retries", "1",
-                    "--top-ports", "100",
-                    "-sV", "--version-intensity", "2",
-                    target
-                ]
-                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+                if use_proxy:
+                    cmd = [px, "-q", "nmap", "-sT", "-Pn", "-n", "-T2",
+                           "--open", "--host-timeout", "180s", "--max-retries", "1",
+                           "--top-ports", "100", "-sV", "--version-intensity", "2", target]
+                    t = 300
+                else:
+                    cmd = ["nmap", "-sV", "-Pn", "-n", speed, "--open",
+                           "--host-timeout", "60s", "--top-ports", "100", target]
+                    t = 120
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=t)
                 for line in proc.stdout.splitlines():
                     m = re.match(r'^(\d+/\w+)\s+open\s+(\S+)\s*(.*)', line)
                     if m:
@@ -3921,26 +3936,23 @@ def legion_route():
                         })
 
             elif mod == "nikto":
-                # Nikto through proxychains
-                cmd = [
-                    px, "-q", binary,
-                    "-h", target,
-                    "-nointeractive",
-                    "-timeout", "30",
-                    "-maxtime", "600",
-                ]
-                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=700)
+                if use_proxy:
+                    cmd = [px, "-q", binary, "-h", target,
+                           "-nointeractive", "-timeout", "30", "-maxtime", "600"]
+                    t = 700
+                else:
+                    cmd = [binary, "-h", target, "-nointeractive",
+                           "-timeout", "10", "-maxtime", "300"]
+                    t = 360
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=t)
                 for line in proc.stdout.splitlines():
                     if line.strip().startswith("+"):
                         findings.append({"title": line.strip()[2:80], "detail": ""})
                         total_issues += 1
 
             else:
-                # Other tools through proxychains
-                proc = subprocess.run(
-                    [px, "-q", binary, target],
-                    capture_output=True, text=True, timeout=180
-                )
+                base_cmd = [px, "-q", binary, target] if use_proxy else [binary, target]
+                proc = subprocess.run(base_cmd, capture_output=True, text=True, timeout=180)
                 if proc.stdout.strip():
                     findings.append({"title": f"{mod} output", "detail": proc.stdout[:500]})
 
@@ -3990,12 +4002,16 @@ def harvester():
 
     binary = shutil.which("theHarvester") or shutil.which("theharvester")
     px = proxychains_cmd()
+    tor_up = _check_tor_port()
 
     with tempfile.TemporaryDirectory() as tmpdir:
         out_file = os.path.join(tmpdir, "harvest")
 
-        # Route theHarvester through proxychains
-        cmd = [px, "-q", binary, "-d", target, "-l", str(limit), "-b", sources, "-f", out_file]
+        # Use proxychains only when Tor is available
+        if px and tor_up:
+            cmd = [px, "-q", binary, "-d", target, "-l", str(limit), "-b", sources, "-f", out_file]
+        else:
+            cmd = [binary, "-d", target, "-l", str(limit), "-b", sources, "-f", out_file]
 
         try:
             proc = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT_HARVESTER)
@@ -4288,14 +4304,17 @@ def health():
     except Exception:
         pass
 
+    px_bin = shutil.which("proxychains4") or shutil.which("proxychains")
     return jsonify({
         "status": "ok",
         "version": "3.7",
         "nmap": bool(shutil.which("nmap")),
         "dig": bool(shutil.which("dig")),
-        "proxychains4": bool(shutil.which("proxychains4") or shutil.which("proxychains")),
+        "proxychains": bool(px_bin),
         "tor_running": tor_running,
+        "tor_mode_active": bool(px_bin and tor_running),
         "tor_port": TOR_SOCKS_PORT,
+        "scan_mode": "tor+proxychains" if (px_bin and tor_running) else "direct",
         "python": sys.version
     })
 
