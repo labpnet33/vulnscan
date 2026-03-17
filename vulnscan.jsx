@@ -433,9 +433,9 @@ export default function VulnScanner() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "#0a0e1a",
-      color: "#e0e8f8",
-      fontFamily: "'Exo 2', 'Rajdhani', sans-serif",
+      background: "#050507",
+      color: "#e5e5ea",
+      fontFamily: "'IBM Plex Mono', 'Courier New', monospace",
       padding: "0",
     }}>
       {/* Header */}
@@ -494,9 +494,7 @@ export default function VulnScanner() {
               }}
             />
             <button onClick={runRealScan} disabled={scanning || !target.trim()} style={{
-              background: scanning ? "rgba(255,255,255,0.05)" : "transparent",
-              border: scanning ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(79,195,247,0.7)",
-              color: scanning ? "#7a8aaa" : "#4fc3f7",
+              background: scanning ? "#1c1c1e" : "linear-gradient(135deg, #ff2d55, #c02030)",
               color: "#fff",
               border: "none",
               borderRadius: 8,
@@ -589,7 +587,7 @@ export default function VulnScanner() {
       </div>
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Exo+2:wght@300;400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&display=swap');
         * { box-sizing: border-box; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #050507; }
