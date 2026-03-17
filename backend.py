@@ -1,33 +1,65 @@
 #!/usr/bin/env python3
 import json, sys, subprocess, urllib.request, urllib.parse, time, re, socket, ssl
-import shutil
+import os, shutil
 import xml.etree.ElementTree as ET
 from datetime import datetime
 
-# ─── TOR / PROXY CONFIGURATION ───────────────
-# All external connections are routed through Tor (SOCKS5 on 127.0.0.1:9050)
-# nmap uses proxychains; Python HTTP uses urllib via SOCKS5 proxy handler
+# ─── TOR / PROXY CONFIGURATION ───────────────────────────────────────────────
+# Direct scans are used by default. No Tor/proxychains required.
+# To enable Tor routing set env var:  USE_TOR=1 python3 api_server.py
+# Requires: tor running on 9050 + proxychains4 installed + PySocks installed.
 
 TOR_SOCKS_HOST = "127.0.0.1"
 TOR_SOCKS_PORT = 9050
+USE_TOR        = os.environ.get("USE_TOR", "0") == "1"
 
-def _tor_available():
-    """Quick check: is Tor SOCKS5 reachable on the configured port?"""
+
+def _proxychains_bin():
+    """Return proxychains binary path, or None if not installed."""
+    return shutil.which("proxychains4") or shutil.which("proxychains")
+
+
+def _tor_reachable():
+    """Return True if Tor SOCKS5 is listening on TOR_SOCKS_PORT."""
     try:
-        import socket as _s
-        sock = _s.create_connection((TOR_SOCKS_HOST, TOR_SOCKS_PORT), timeout=3)
-        sock.close()
+        s = socket.create_connection((TOR_SOCKS_HOST, TOR_SOCKS_PORT), timeout=2)
+        s.close()
         return True
     except Exception:
         return False
 
 
+def _should_use_tor():
+    """
+    Return True ONLY when: USE_TOR=1 AND proxychains installed AND Tor is up.
+    Otherwise returns False and all scans run directly.
+    """
+    if not USE_TOR:
+        return False
+    if not _proxychains_bin():
+        print("[!] USE_TOR=1 but proxychains not found — using direct scan", file=sys.stderr)
+        return False
+    if not _tor_reachable():
+        print("[!] USE_TOR=1 but Tor not reachable on port 9050 — using direct scan", file=sys.stderr)
+        return False
+    return True
+
+
+def _wrap_cmd(cmd):
+    """Prepend proxychains to cmd list when Tor is enabled and reachable."""
+    if _should_use_tor():
+        px = _proxychains_bin()
+        return [px, "-q"] + cmd
+    return cmd
+
+
 def tor_urlopen(url, headers=None, timeout=30, data=None):
     """
-    Open a URL, routing through Tor SOCKS5 if available and PySocks installed.
-    Uses a per-request SocksiPy/urllib handler — does NOT monkey-patch the
-    global socket, so other urllib/SSL calls in the same process are unaffected.
-    Falls back to a direct connection if Tor is unavailable or PySocks missing.
+    Open a URL. When USE_TOR=1 and Tor is reachable, routes through Tor SOCKS5
+    using a safe per-request handler. Does NOT monkey-patch the global socket —
+    that would break all other urllib/SSL calls (CVE lookups, subdomain finder,
+    dir busting, SSL analysis) in the same process.
+    Falls back to a direct connection when Tor is not available.
     """
     req = urllib.request.Request(url, data=data)
     req.add_header("User-Agent", "Mozilla/5.0 VulnScanner/2.0")
@@ -39,89 +71,52 @@ def tor_urlopen(url, headers=None, timeout=30, data=None):
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
 
-    # Try Tor path (requires PySocks)
-    try:
-        import socks
-        import socket as _socket_mod
+    if _should_use_tor():
+        try:
+            import socks, http.client
 
-        if _tor_available():
-            class _SocksHandler(urllib.request.HTTPHandler):
-                def http_open(self, req):
-                    return self.do_open(self._make_conn, req)
-                def _make_conn(self, host, timeout=None, **kw):
-                    s = socks.socksocket()
-                    s.set_proxy(socks.SOCKS5, TOR_SOCKS_HOST, TOR_SOCKS_PORT)
-                    s.settimeout(timeout or 30)
-                    # host may be "host:port"
-                    if ":" in host:
-                        h, p = host.rsplit(":", 1)
-                        s.connect((h, int(p)))
-                    else:
-                        s.connect((host, 80))
-                    return s
-
-            import http.client
-
-            class _SocksSHTTPSConn(http.client.HTTPSConnection):
+            class _SocksHTTPSConn(http.client.HTTPSConnection):
                 def connect(self):
                     s = socks.socksocket()
                     s.set_proxy(socks.SOCKS5, TOR_SOCKS_HOST, TOR_SOCKS_PORT)
                     s.settimeout(self.timeout or 30)
-                    host = self.host
-                    port = self.port or 443
-                    s.connect((host, port))
-                    self.sock = ctx.wrap_socket(s, server_hostname=host)
+                    s.connect((self.host, self.port or 443))
+                    self.sock = ctx.wrap_socket(s, server_hostname=self.host)
 
             class _SocksHTTPSHandler(urllib.request.HTTPSHandler):
-                def https_open(self, req):
-                    return self.do_open(_SocksSHTTPSConn, req)
+                def https_open(self, req2):
+                    return self.do_open(_SocksHTTPSConn, req2)
 
             opener = urllib.request.build_opener(_SocksHTTPSHandler())
             return opener.open(req, timeout=timeout)
-    except Exception:
-        pass  # Fall through to direct
+        except Exception as exc:
+            print(f"[!] Tor urlopen failed ({exc}), falling back to direct", file=sys.stderr)
 
-    # Direct fallback
+    # Direct connection (default when USE_TOR is not set)
     return urllib.request.urlopen(req, timeout=timeout, context=ctx)
 
 
-# ─── NMAP PORT SCAN (via proxychains) ─────────
-# IMPORTANT NOTES FOR TOR/PROXYCHAINS SCANNING:
-#   - Must use -sT (TCP connect) — SYN scans don't work through proxychains
-#   - Must use -Pn (skip ping) — ICMP doesn't work through Tor
-#   - Reduced port range (top 1000) for speed — full range would timeout
-#   - Increased timeout values to handle Tor latency (~300–2000ms per hop)
-#   - Removed version intensity to reduce connection count
-#   - Results may be partial — Tor exit nodes sometimes block ports
-
-def _proxychains_bin():
-    """Return proxychains binary name if installed, else None."""
-    return shutil.which("proxychains4") or shutil.which("proxychains") or None
-
+# ─── NMAP PORT SCAN ───────────────────────────────────────────────────────────
 
 def run_nmap_scan(target):
     """
-    Runs nmap, routing through proxychains/Tor when available.
-    Falls back to a direct nmap scan when proxychains or Tor is not present.
+    Runs nmap directly by default — same as running nmap manually from the terminal.
+    Set USE_TOR=1 env var to route through proxychains/Tor instead.
     """
-    import shutil as _shutil
-
-    nmap_bin = _shutil.which("nmap")
+    nmap_bin = shutil.which("nmap")
     if not nmap_bin:
         return {"error": "nmap not found. Install: sudo apt install nmap"}
 
-    px = _proxychains_bin()
-    tor_up = _tor_available()
-    use_proxy = bool(px and tor_up)
+    use_tor = _should_use_tor()
 
-    if use_proxy:
-        # Tor-routed: TCP connect required, conservative timing
-        cmd = [
-            px, "-q", nmap_bin,
+    if use_tor:
+        # Tor path: TCP connect required, conservative timing
+        base_cmd = [
+            nmap_bin,
             "-sT", "-Pn", "-n", "--open",
             "-T2",
-            "--host-timeout", "300s",
-            "--max-retries", "1",
+            "--host-timeout",        "300s",
+            "--max-retries",         "1",
             "--min-rtt-timeout",     "500ms",
             "--max-rtt-timeout",     "10000ms",
             "--initial-rtt-timeout", "2000ms",
@@ -130,19 +125,18 @@ def run_nmap_scan(target):
             "-oX", "-",
             target,
         ]
+        cmd = _wrap_cmd(base_cmd)
         scan_timeout = 600
-        print(f"[*] nmap via proxychains (Tor) → {target}", file=sys.stderr)
+        print(f"[*] nmap via Tor/proxychains → {target}", file=sys.stderr)
     else:
-        # Direct scan: SYN scan, faster timing
-        if px and not tor_up:
-            print("[!] proxychains found but Tor not running — using direct nmap", file=sys.stderr)
+        # Direct path: fast, SYN scan, top-1000 ports — matches manual nmap behaviour
         cmd = [
             nmap_bin,
             "-sV", "-Pn", "-n", "--open",
             "-T4",
             "--host-timeout", "120s",
-            "--max-retries", "2",
-            "--top-ports", "1000",
+            "--max-retries",  "2",
+            "--top-ports",    "1000",
             "-oX", "-",
             target,
         ]
@@ -152,17 +146,20 @@ def run_nmap_scan(target):
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=scan_timeout)
 
-        # proxychains writes its own lines to stderr; filter them out
+        stdout = r.stdout or ""
+        stderr = r.stderr or ""
+
+        # Strip proxychains header lines from stderr
         stderr_clean = "\n".join(
-            ln for ln in (r.stderr or "").splitlines()
+            ln for ln in stderr.splitlines()
             if not ln.startswith("|") and "ProxyChains" not in ln
         ).strip()
 
-        if not r.stdout.strip():
-            err_detail = stderr_clean[:300] if stderr_clean else "No output from nmap"
-            return {"error": f"nmap produced no output. Details: {err_detail}"}
+        if not stdout.strip():
+            detail = stderr_clean[:300] if stderr_clean else f"nmap exit code {r.returncode}"
+            return {"error": f"nmap produced no output. {detail}"}
 
-        return parse_nmap_xml(r.stdout)
+        return parse_nmap_xml(stdout)
 
     except subprocess.TimeoutExpired:
         return {"error": f"nmap timed out after {scan_timeout}s. Try a smaller target range."}
@@ -175,7 +172,7 @@ def run_nmap_scan(target):
 
 def parse_nmap_xml(xml_output):
     if not xml_output or not xml_output.strip():
-        return {"error": "Empty nmap output — target may be unreachable or blocked by Tor exit node"}
+        return {"error": "Empty nmap output — target may be unreachable"}
     try:
         root = ET.fromstring(xml_output)
     except ET.ParseError as e:
@@ -219,11 +216,11 @@ def parse_nmap_xml(xml_output):
             }
             svc = port.find("service")
             if svc is not None:
-                pd["service"] = svc.get("name", "")
-                pd["product"] = svc.get("product", "")
-                pd["version"] = svc.get("version", "")
+                pd["service"]   = svc.get("name", "")
+                pd["product"]   = svc.get("product", "")
+                pd["version"]   = svc.get("version", "")
                 pd["extrainfo"] = svc.get("extrainfo", "")
-                pd["cpe"] = [c.text for c in svc.findall("cpe") if c.text]
+                pd["cpe"]       = [c.text for c in svc.findall("cpe") if c.text]
             for scr in port.findall("script"):
                 pd["scripts"][scr.get("id", "")] = scr.get("output", "")
             hd["ports"].append(pd)
@@ -232,32 +229,30 @@ def parse_nmap_xml(xml_output):
     return results
 
 
-# ─── NETWORK DISCOVERY (via proxychains) ──────
+# ─── NETWORK DISCOVERY ────────────────────────────────────────────────────────
+
 def network_discovery(subnet):
     """
     Discover live hosts on a subnet.
-    Uses proxychains/Tor when available, falls back to direct nmap.
+    Direct by default; set USE_TOR=1 to route through proxychains/Tor.
     """
-    import shutil as _shutil
-
-    nmap_bin = _shutil.which("nmap")
+    nmap_bin = shutil.which("nmap")
     if not nmap_bin:
         return {"error": "nmap not found. Install: sudo apt install nmap"}
 
-    px = _proxychains_bin()
-    tor_up = _tor_available()
-    use_proxy = bool(px and tor_up)
+    use_tor = _should_use_tor()
 
-    if use_proxy:
-        cmd = [px, "-q", nmap_bin, "-sT", "-Pn", "-n", "--open", "-T2",
-               "--host-timeout", "120s", "--max-retries", "1",
-               "--top-ports", "10", "-oX", "-", subnet]
+    if use_tor:
+        base = [nmap_bin, "-sT", "-Pn", "-n", "--open", "-T2",
+                "--host-timeout", "120s", "--max-retries", "1",
+                "--top-ports", "10", "-oX", "-", subnet]
+        cmd = _wrap_cmd(base)
         timeout = 300
     else:
         cmd = [nmap_bin, "-sn", "-n", "--host-timeout", "30s", "-oX", "-", subnet]
         timeout = 120
 
-    print(f"[*] Network discovery ({'proxychains' if use_proxy else 'direct'}) → {subnet}", file=sys.stderr)
+    print(f"[*] Network discovery ({'Tor' if use_tor else 'direct'}) → {subnet}", file=sys.stderr)
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
 
@@ -292,18 +287,14 @@ def network_discovery(subnet):
         return {"error": str(exc)}
 
 
-# ─── CVE LOOKUP (via Tor) ─────────────────────
+# ─── CVE LOOKUP ───────────────────────────────────────────────────────────────
 NVD_API_KEY = ""  # Optional: free key from https://nvd.nist.gov/developers/request-an-api-key
 
 def search_nvd_cves(product, version="", retries=3):
-    """
-    Query NVD for CVEs. Routes through Tor for anonymity.
-    Increased timeout and retry delays for Tor latency.
-    """
     if not product:
         return []
     try:
-        kw = f"{product} {version}".strip()
+        kw  = f"{product} {version}".strip()
         url = (f"https://services.nvd.nist.gov/rest/json/cves/2.0"
                f"?keywordSearch={urllib.parse.quote(kw)}&resultsPerPage=5")
         headers = {}
@@ -317,31 +308,30 @@ def search_nvd_cves(product, version="", retries=3):
                 break
             except urllib.error.HTTPError as e:
                 if e.code == 429:
-                    # Rate limit — Tor exit nodes share IP so rate limits hit faster
-                    wait = 60 if not NVD_API_KEY else 10
-                    print(f"[!] NVD rate limit — waiting {wait}s (attempt {attempt+1}/{retries})", file=sys.stderr)
+                    wait = 10 if NVD_API_KEY else 60
+                    print(f"[!] NVD rate limit — waiting {wait}s", file=sys.stderr)
                     time.sleep(wait)
                     continue
                 return []
             except Exception as exc:
                 print(f"[!] NVD attempt {attempt+1} failed: {exc}", file=sys.stderr)
                 if attempt < retries - 1:
-                    time.sleep(8)
+                    time.sleep(6)
                     continue
                 return []
 
         cves = []
         for vuln in data.get("vulnerabilities", []):
-            cve = vuln.get("cve", {})
+            cve   = vuln.get("cve", {})
             descs = cve.get("descriptions", [])
-            desc = next((d["value"] for d in descs if d.get("lang") == "en"), "No description")
+            desc  = next((d["value"] for d in descs if d.get("lang") == "en"), "No description")
             metrics = cve.get("metrics", {})
             score, severity = None, "UNKNOWN"
             for mk in ["cvssMetricV31", "cvssMetricV30", "cvssMetricV2"]:
                 ml = metrics.get(mk, [])
                 if ml:
-                    cd = ml[0].get("cvssData", {})
-                    score = cd.get("baseScore")
+                    cd       = ml[0].get("cvssData", {})
+                    score    = cd.get("baseScore")
                     severity = ml[0].get("baseSeverity", cd.get("baseSeverity", "UNKNOWN"))
                     break
             has_exploit = any(
@@ -349,13 +339,13 @@ def search_nvd_cves(product, version="", retries=3):
                 for r in cve.get("references", [])
             )
             cves.append({
-                "id": cve.get("id", ""),
+                "id":          cve.get("id", ""),
                 "description": desc[:350] + "..." if len(desc) > 350 else desc,
-                "score": score,
-                "severity": severity,
+                "score":       score,
+                "severity":    severity,
                 "has_exploit": has_exploit,
-                "references": [r.get("url", "") for r in cve.get("references", [])[:3]],
-                "published": cve.get("published", "")[:10]
+                "references":  [r.get("url", "") for r in cve.get("references", [])[:3]],
+                "published":   cve.get("published", "")[:10]
             })
         return cves
 
@@ -364,50 +354,46 @@ def search_nvd_cves(product, version="", retries=3):
         return []
 
 
-# ─── SSL ANALYSIS (via Tor/SOCKS5) ────────────
+# ─── SSL ANALYSIS ─────────────────────────────────────────────────────────────
+
 def analyze_ssl(host, port=443):
-    """
-    Analyze SSL/TLS through Tor SOCKS5 proxy.
-    Uses PySocks to connect through Tor before doing TLS handshake.
-    """
+    """Always use a direct socket for SSL analysis — no Tor dependency."""
     result = {"host": host, "port": port, "grade": "F", "issues": [], "details": {}}
     try:
-        # Use a direct socket for SSL analysis (Tor adds no value here and
-        # can cause hangs if not running)
-        import socket as _raw_socket
-        sock = _raw_socket.create_connection((host, port), timeout=30)
+        # Direct connection — Tor adds no value for reading a certificate
+        sock = socket.create_connection((host, port), timeout=30)
 
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
+        ctx.verify_mode    = ssl.CERT_NONE
 
         with ctx.wrap_socket(sock, server_hostname=host) as ssock:
-            cert = ssock.getpeercert()
-            cipher = ssock.cipher()
+            cert    = ssock.getpeercert()
+            cipher  = ssock.cipher()
             version = ssock.version()
 
-            result["details"]["protocol"] = version
-            result["details"]["cipher"] = cipher[0] if cipher else ""
+            result["details"]["protocol"]    = version
+            result["details"]["cipher"]      = cipher[0] if cipher else ""
             result["details"]["cipher_bits"] = cipher[2] if cipher else 0
 
             if cert:
                 subject = dict(x[0] for x in cert.get("subject", []))
-                issuer = dict(x[0] for x in cert.get("issuer", []))
+                issuer  = dict(x[0] for x in cert.get("issuer", []))
                 result["details"]["subject"] = subject.get("commonName", "")
-                result["details"]["issuer"] = issuer.get("organizationName", "")
+                result["details"]["issuer"]  = issuer.get("organizationName", "")
                 exp = cert.get("notAfter", "")
                 if exp:
                     try:
-                        exp_dt = datetime.strptime(exp, "%b %d %H:%M:%S %Y %Z")
+                        exp_dt    = datetime.strptime(exp, "%b %d %H:%M:%S %Y %Z")
                         days_left = (exp_dt - datetime.utcnow()).days
-                        result["details"]["expires"] = exp
+                        result["details"]["expires"]          = exp
                         result["details"]["days_until_expiry"] = days_left
                         if days_left < 0:
                             result["issues"].append({"severity": "CRITICAL", "msg": "Certificate EXPIRED"})
                         elif days_left < 30:
-                            result["issues"].append({"severity": "HIGH", "msg": f"Expires in {days_left} days"})
+                            result["issues"].append({"severity": "HIGH",     "msg": f"Expires in {days_left} days"})
                         elif days_left < 90:
-                            result["issues"].append({"severity": "MEDIUM", "msg": f"Expires in {days_left} days"})
+                            result["issues"].append({"severity": "MEDIUM",   "msg": f"Expires in {days_left} days"})
                     except Exception:
                         pass
 
@@ -415,31 +401,23 @@ def analyze_ssl(host, port=443):
                 result["issues"].append({"severity": "HIGH", "msg": f"Weak protocol: {version}"})
             if cipher:
                 cn = cipher[0].upper()
-                if "RC4" in cn:
-                    result["issues"].append({"severity": "CRITICAL", "msg": "RC4 cipher (broken)"})
-                if "DES" in cn:
-                    result["issues"].append({"severity": "CRITICAL", "msg": "DES cipher (broken)"})
-                if "NULL" in cn:
-                    result["issues"].append({"severity": "CRITICAL", "msg": "NULL cipher"})
+                if "RC4"  in cn: result["issues"].append({"severity": "CRITICAL", "msg": "RC4 cipher (broken)"})
+                if "DES"  in cn: result["issues"].append({"severity": "CRITICAL", "msg": "DES cipher (broken)"})
+                if "NULL" in cn: result["issues"].append({"severity": "CRITICAL", "msg": "NULL cipher"})
 
             crit = sum(1 for i in result["issues"] if i["severity"] == "CRITICAL")
             high = sum(1 for i in result["issues"] if i["severity"] == "HIGH")
-            if crit > 0:
-                result["grade"] = "F"
-            elif high > 0:
-                result["grade"] = "C"
-            elif len(result["issues"]) > 0:
-                result["grade"] = "B"
-            elif version == "TLSv1.3":
-                result["grade"] = "A+"
-            else:
-                result["grade"] = "A"
+            if   crit > 0:               result["grade"] = "F"
+            elif high > 0:               result["grade"] = "C"
+            elif result["issues"]:       result["grade"] = "B"
+            elif version == "TLSv1.3":   result["grade"] = "A+"
+            else:                        result["grade"] = "A"
 
     except ConnectionRefusedError:
         result["issues"].append({"severity": "INFO", "msg": f"Port {port} not open or SSL not available"})
         result["grade"] = "N/A"
     except socket.timeout:
-        result["issues"].append({"severity": "INFO", "msg": f"SSL connection timed out on port {port} (Tor latency)"})
+        result["issues"].append({"severity": "INFO", "msg": f"SSL connection timed out on port {port}"})
         result["grade"] = "N/A"
     except Exception as e:
         result["issues"].append({"severity": "INFO", "msg": f"SSL check: {str(e)}"})
@@ -448,26 +426,16 @@ def analyze_ssl(host, port=443):
     return result
 
 
-# ─── DNS RECON ────────────────────────────────
+# ─── DNS RECON ────────────────────────────────────────────────────────────────
+
 def dns_recon(target):
-    """
-    DNS recon. dig queries go through system resolver (not Tor — DNS uses UDP).
-    For anonymity, DNS queries are sent to a public resolver via proxychains if needed.
-    """
     result = {
         "target": target, "records": {}, "issues": [],
         "subdomains": [], "has_spf": False, "has_dmarc": False
     }
 
-    dig_available = False
-    try:
-        subprocess.run(["dig", "-v"], capture_output=True, timeout=3)
-        dig_available = True
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
+    dig_available = bool(shutil.which("dig"))
 
-    # DNS queries — use dig with increased timeout for proxychains if desired
-    # Note: dig uses UDP which doesn't work through SOCKS, so we use direct DNS
     for rtype in ["A", "AAAA", "MX", "NS", "TXT", "CNAME", "SOA"]:
         try:
             if dig_available:
@@ -498,10 +466,10 @@ def dns_recon(target):
             pass
 
     txt = result["records"].get("TXT", [])
-    result["has_spf"] = any("v=spf1" in t for t in txt)
+    result["has_spf"]   = any("v=spf1"  in t for t in txt)
     result["has_dmarc"] = any("v=DMARC1" in t for t in txt)
     if not result["has_spf"]:
-        result["issues"].append({"severity": "HIGH", "msg": "No SPF record — email spoofing risk"})
+        result["issues"].append({"severity": "HIGH",   "msg": "No SPF record — email spoofing risk"})
     if not result["has_dmarc"]:
         result["issues"].append({"severity": "MEDIUM", "msg": "No DMARC record — email spoofing risk"})
 
@@ -513,7 +481,8 @@ def dns_recon(target):
                     capture_output=True, text=True, timeout=20
                 )
                 if "Transfer failed" not in r.stdout and len(r.stdout) > 200:
-                    result["issues"].append({"severity": "CRITICAL", "msg": f"Zone transfer ALLOWED from {ns}"})
+                    result["issues"].append({"severity": "CRITICAL",
+                                             "msg": f"Zone transfer ALLOWED from {ns}"})
             except Exception:
                 pass
 
@@ -537,27 +506,24 @@ def dns_recon(target):
     return result
 
 
-# ─── SUBDOMAIN FINDER ─────────────────────────
-def subdomain_finder(domain, wordlist_size="medium"):
-    """
-    Subdomain enumeration. DNS brute-force uses direct DNS (UDP, not proxied).
-    crt.sh and HackerTarget queries go through Tor.
-    """
-    result = {"domain": domain, "subdomains": [], "total": 0, "sources": []}
-    found = {}
+# ─── SUBDOMAIN FINDER ─────────────────────────────────────────────────────────
 
-    small = ["www", "mail", "ftp", "admin", "api", "dev", "staging", "test", "vpn", "smtp",
-             "pop3", "imap", "remote", "portal", "shop", "blog", "app", "cdn", "ns1", "ns2",
-             "mx", "webmail", "cpanel", "whm", "autodiscover", "autoconfig", "mobile", "m",
-             "static", "media", "img", "assets", "login", "secure", "beta", "alpha", "demo",
-             "docs", "help", "support", "status", "monitor"]
-    medium = small + ["git", "gitlab", "github", "jenkins", "jira", "confluence", "wiki", "kb",
-                      "forum", "community", "chat", "slack", "teams", "meet", "video", "stream",
-                      "api2", "v2", "v1", "old", "new", "backup", "bak", "temp", "tmp", "db",
-                      "database", "mysql", "redis", "elastic", "search", "kibana", "grafana",
-                      "prometheus", "vault", "consul", "etcd", "prod", "production", "stage",
-                      "uat", "qa", "testing", "sandbox", "preview", "internal", "intranet",
-                      "extranet", "private", "public", "external", "dmz"]
+def subdomain_finder(domain, wordlist_size="medium"):
+    result = {"domain": domain, "subdomains": [], "total": 0, "sources": []}
+    found  = {}
+
+    small  = ["www","mail","ftp","admin","api","dev","staging","test","vpn","smtp",
+              "pop3","imap","remote","portal","shop","blog","app","cdn","ns1","ns2",
+              "mx","webmail","cpanel","whm","autodiscover","autoconfig","mobile","m",
+              "static","media","img","assets","login","secure","beta","alpha","demo",
+              "docs","help","support","status","monitor"]
+    medium = small + ["git","gitlab","github","jenkins","jira","confluence","wiki","kb",
+                      "forum","community","chat","slack","teams","meet","video","stream",
+                      "api2","v2","v1","old","new","backup","bak","temp","tmp","db",
+                      "database","mysql","redis","elastic","search","kibana","grafana",
+                      "prometheus","vault","consul","etcd","prod","production","stage",
+                      "uat","qa","testing","sandbox","preview","internal","intranet",
+                      "extranet","private","public","external","dmz"]
     wordlist = medium if wordlist_size == "medium" else small
 
     result["sources"].append("dns_bruteforce")
@@ -565,14 +531,14 @@ def subdomain_finder(domain, wordlist_size="medium"):
         try:
             fqdn = f"{sub}.{domain}"
             socket.setdefaulttimeout(5)
-            ips = socket.getaddrinfo(fqdn, None)
-            ip = ips[0][4][0] if ips else ""
+            ips  = socket.getaddrinfo(fqdn, None)
+            ip   = ips[0][4][0] if ips else ""
             if ip and fqdn not in found:
                 found[fqdn] = {"subdomain": fqdn, "ip": ip, "source": "dns_bruteforce", "cname": ""}
         except Exception:
             pass
 
-    # crt.sh — via tor_urlopen (uses Tor if available, direct otherwise)
+    # crt.sh
     try:
         url = f"https://crt.sh/?q=%.{domain}&output=json"
         with tor_urlopen(url, timeout=45) as resp:
@@ -587,13 +553,15 @@ def subdomain_finder(domain, wordlist_size="medium"):
                         try:
                             socket.setdefaulttimeout(5)
                             ip = socket.gethostbyname(name)
-                            found[name] = {"subdomain": name, "ip": ip, "source": "crt.sh", "cname": ""}
+                            found[name] = {"subdomain": name, "ip": ip,
+                                           "source": "crt.sh", "cname": ""}
                         except Exception:
-                            found[name] = {"subdomain": name, "ip": "(not resolved)", "source": "crt.sh", "cname": ""}
+                            found[name] = {"subdomain": name, "ip": "(not resolved)",
+                                           "source": "crt.sh", "cname": ""}
     except Exception as e:
         print(f"[!] crt.sh lookup failed: {e}", file=sys.stderr)
 
-    # HackerTarget — via tor_urlopen (uses Tor if available, direct otherwise)
+    # HackerTarget
     try:
         url = f"https://api.hackertarget.com/hostsearch/?q={domain}"
         with tor_urlopen(url, timeout=30) as resp:
@@ -602,24 +570,22 @@ def subdomain_finder(domain, wordlist_size="medium"):
         for line in lines:
             if "," in line:
                 parts = line.split(",")
-                sub = parts[0].strip()
-                ip = parts[1].strip() if len(parts) > 1 else ""
+                sub   = parts[0].strip()
+                ip    = parts[1].strip() if len(parts) > 1 else ""
                 if sub.endswith(f".{domain}") and sub not in found:
-                    found[sub] = {"subdomain": sub, "ip": ip, "source": "hackertarget", "cname": ""}
+                    found[sub] = {"subdomain": sub, "ip": ip,
+                                  "source": "hackertarget", "cname": ""}
     except Exception as e:
         print(f"[!] HackerTarget lookup failed: {e}", file=sys.stderr)
 
     result["subdomains"] = sorted(found.values(), key=lambda x: x["subdomain"])
-    result["total"] = len(result["subdomains"])
+    result["total"]      = len(result["subdomains"])
     return result
 
 
-# ─── DIRECTORY ENUMERATOR (via Tor) ───────────
+# ─── DIRECTORY ENUMERATOR ─────────────────────────────────────────────────────
+
 def dir_enum(target_url, wordlist_size="small", extensions="php,html,txt,bak,zip"):
-    """
-    Directory busting through Tor SOCKS5.
-    Reduced concurrency and longer timeouts due to Tor latency.
-    """
     if not target_url.startswith("http"):
         target_url = "http://" + target_url
     target_url = target_url.rstrip("/")
@@ -627,39 +593,39 @@ def dir_enum(target_url, wordlist_size="small", extensions="php,html,txt,bak,zip
     result = {"url": target_url, "found": [], "total": 0, "scanned": 0, "errors": 0}
 
     small_paths = [
-        "admin", "login", "wp-admin", "administrator", "phpmyadmin", "dashboard", "panel",
-        "cpanel", "webmail", "manager", "management", "console", "control", "portal",
-        "api", "api/v1", "api/v2", "swagger", "docs", "documentation", "readme",
-        "backup", "bak", "old", "temp", "tmp", ".git", "config", "configuration",
-        "robots.txt", "sitemap.xml", ".env", "web.config", "phpinfo.php",
-        "install", "setup", "update", "upgrade", "test", "debug", "info",
-        "uploads", "upload", "files", "images", "static", "assets", "media",
-        "wp-content", "wp-includes", "wp-login.php", "xmlrpc.php",
-        "server-status", "server-info", ".htaccess", ".htpasswd",
-        "user", "users", "account", "accounts", "profile", "register", "signup",
-        "logout", "signout", "passwd", "password", "credentials",
-        "shell", "cmd", "command", "exec", "execute", "run", "eval",
-        "db", "database", "sql", "mysql", "sqlite", "mongo", "redis",
-        "log", "logs", "error", "errors", "access", "audit", "trace",
-        "404", "500", "error_log", "access_log", "debug.log", "app.log"
+        "admin","login","wp-admin","administrator","phpmyadmin","dashboard","panel",
+        "cpanel","webmail","manager","management","console","control","portal",
+        "api","api/v1","api/v2","swagger","docs","documentation","readme",
+        "backup","bak","old","temp","tmp",".git","config","configuration",
+        "robots.txt","sitemap.xml",".env","web.config","phpinfo.php",
+        "install","setup","update","upgrade","test","debug","info",
+        "uploads","upload","files","images","static","assets","media",
+        "wp-content","wp-includes","wp-login.php","xmlrpc.php",
+        "server-status","server-info",".htaccess",".htpasswd",
+        "user","users","account","accounts","profile","register","signup",
+        "logout","signout","passwd","password","credentials",
+        "shell","cmd","command","exec","execute","run","eval",
+        "db","database","sql","mysql","sqlite","mongo","redis",
+        "log","logs","error","errors","access","audit","trace",
+        "404","500","error_log","access_log","debug.log","app.log"
     ]
     medium_paths = small_paths + [
-        "jenkins", "gitlab", "github", "jira", "confluence", "wiki",
-        "grafana", "kibana", "elastic", "prometheus", "vault", "consul",
-        "phpMyAdmin", "PMA", "pma", "myadmin", "dbadmin", "sqladmin",
-        "wp-json", "wp-cron.php", "license.txt", "changelog.txt",
-        "composer.json", "package.json", ".gitignore", ".DS_Store",
-        "Thumbs.db", "desktop.ini", "web.config.bak", "web.config.old",
-        "application", "app", "apps", "service", "services", "rest", "soap",
-        "v1", "v2", "v3", "health", "status", "ping", "metrics", "monitor",
-        "secret", "secrets", "private", "hidden", "internal", "dev", "staging",
-        "cgi-bin", "scripts", "bin", "lib", "include", "includes", "src",
-        "classes", "models", "views", "controllers", "helpers", "utils",
-        "index.php", "index.html", "index.asp", "index.aspx", "default.asp",
-        "home", "main", "welcome", "start", "begin", "init", "bootstrap"
+        "jenkins","gitlab","github","jira","confluence","wiki",
+        "grafana","kibana","elastic","prometheus","vault","consul",
+        "phpMyAdmin","PMA","pma","myadmin","dbadmin","sqladmin",
+        "wp-json","wp-cron.php","license.txt","changelog.txt",
+        "composer.json","package.json",".gitignore",".DS_Store",
+        "Thumbs.db","desktop.ini","web.config.bak","web.config.old",
+        "application","app","apps","service","services","rest","soap",
+        "v1","v2","v3","health","status","ping","metrics","monitor",
+        "secret","secrets","private","hidden","internal","dev","staging",
+        "cgi-bin","scripts","bin","lib","include","includes","src",
+        "classes","models","views","controllers","helpers","utils",
+        "index.php","index.html","index.asp","index.aspx","default.asp",
+        "home","main","welcome","start","begin","init","bootstrap"
     ]
     paths = medium_paths if wordlist_size == "medium" else small_paths
-    exts = [""] + [f".{e.strip()}" for e in extensions.split(",") if e.strip()]
+    exts  = [""] + [f".{e.strip()}" for e in extensions.split(",") if e.strip()]
 
     all_paths = []
     for path in paths:
@@ -671,25 +637,22 @@ def dir_enum(target_url, wordlist_size="small", extensions="php,html,txt,bak,zip
 
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
+    ctx.verify_mode    = ssl.CERT_NONE
 
-    print(f"[*] Dir enum via Tor: {target_url} ({len(all_paths[:300])} paths)", file=sys.stderr)
-
-    for path in all_paths[:300]:  # Reduced from 500 — Tor makes this slow
+    for path in all_paths[:300]:
         url = f"{target_url}/{path}"
         try:
-            # Use Tor for dir busting
-            with tor_urlopen(url, timeout=15) as resp:  # 15s timeout per request
-                status = resp.status
-                length = resp.headers.get("Content-Length", "?")
+            with tor_urlopen(url, timeout=10) as resp:
+                status       = resp.status
+                length       = resp.headers.get("Content-Length", "?")
                 content_type = resp.headers.get("Content-Type", "").split(";")[0]
                 if status in [200, 201, 204, 301, 302, 307, 308, 401, 403]:
                     severity = "HIGH" if status == 200 else (
                         "MEDIUM" if status in [301, 302, 307, 308] else "LOW"
                     )
                     if any(s in path for s in [
-                        "admin", "shell", "config", "backup", ".env",
-                        "passwd", "sql", "git", "debug", "log"
+                        "admin","shell","config","backup",".env",
+                        "passwd","sql","git","debug","log"
                     ]):
                         severity = "CRITICAL" if status == 200 else "HIGH"
                     result["found"].append({
@@ -707,62 +670,52 @@ def dir_enum(target_url, wordlist_size="small", extensions="php,html,txt,bak,zip
                 })
             result["scanned"] += 1
         except Exception:
-            result["errors"] += 1
+            result["errors"]  += 1
             result["scanned"] += 1
 
-        # Small delay between requests through Tor to avoid circuit overload
-        time.sleep(0.1)
+        time.sleep(0.05)
 
     result["total"] = len(result["found"])
     result["found"].sort(
-        key=lambda x: {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}.get(x.get("severity", "LOW"), 3)
+        key=lambda x: {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}.get(
+            x.get("severity", "LOW"), 3)
     )
     return result
 
 
 def get_dir_note(path, status):
     notes = {
-        ".git": "Git repository exposed — source code may be accessible",
-        ".env": "Environment file exposed — credentials may be visible",
-        "phpinfo": "PHP configuration exposed",
-        "phpmyadmin": "phpMyAdmin exposed — database admin interface",
-        "wp-admin": "WordPress admin panel",
-        "backup": "Backup file/directory found",
-        ".htpasswd": "Password file exposed",
-        "config": "Configuration file found",
-        "admin": "Admin panel found",
-        "shell": "Potential shell/command execution endpoint",
-        "passwd": "Password file found",
-        "sql": "Database file/endpoint found",
-        "debug": "Debug interface exposed",
-        "log": "Log file accessible",
-        "robots.txt": "Robots.txt — check for hidden paths",
-        ".DS_Store": "macOS metadata file — directory structure exposed",
-        "composer.json": "Dependency file exposed — reveals technology stack",
+        ".git":         "Git repository exposed — source code may be accessible",
+        ".env":         "Environment file exposed — credentials may be visible",
+        "phpinfo":      "PHP configuration exposed",
+        "phpmyadmin":   "phpMyAdmin exposed — database admin interface",
+        "wp-admin":     "WordPress admin panel",
+        "backup":       "Backup file/directory found",
+        ".htpasswd":    "Password file exposed",
+        "config":       "Configuration file found",
+        "admin":        "Admin panel found",
+        "shell":        "Potential shell/command execution endpoint",
+        "passwd":       "Password file found",
+        "sql":          "Database file/endpoint found",
+        "debug":        "Debug interface exposed",
+        "log":          "Log file accessible",
+        "robots.txt":   "Robots.txt — check for hidden paths",
+        ".DS_Store":    "macOS metadata file — directory structure exposed",
+        "composer.json":"Dependency file exposed — reveals technology stack",
     }
     for k, v in notes.items():
         if k in path.lower():
             return v
-    if status == 401:
-        return "Authentication required"
-    if status == 403:
-        return "Forbidden — resource exists but access denied"
-    if status in [301, 302]:
-        return "Redirect found"
+    if status == 401: return "Authentication required"
+    if status == 403: return "Forbidden — resource exists but access denied"
+    if status in [301, 302]: return "Redirect found"
     return "Resource found"
 
 
-# ─── LOGIN BRUTE FORCE (via Tor) ──────────────
-def brute_force_http(url, usernames, passwords, user_field="username", pass_field="password"):
-    """
-    HTTP brute force through Tor. Tor provides IP anonymity but slows requests.
-    Added longer sleep between attempts to avoid Tor circuit bans.
-    """
-    result = {"url": url, "attempts": 0, "found": [], "status": "running"}
+# ─── LOGIN BRUTE FORCE ────────────────────────────────────────────────────────
 
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
+def brute_force_http(url, usernames, passwords, user_field="username", pass_field="password"):
+    result = {"url": url, "attempts": 0, "found": [], "status": "running"}
 
     for username in usernames[:10]:
         for password in passwords[:50]:
@@ -771,24 +724,23 @@ def brute_force_http(url, usernames, passwords, user_field="username", pass_fiel
                     user_field: username,
                     pass_field: password
                 }).encode()
-
-                with tor_urlopen(url, timeout=20, data=data) as resp:
-                    body = resp.read().decode(errors="ignore")
-                    fail_kw = ["invalid", "incorrect", "wrong", "failed", "error",
-                               "denied", "bad credentials", "unauthorized"]
-                    success_kw = ["dashboard", "welcome", "logout", "profile",
-                                  "account", "success"]
+                with tor_urlopen(url, timeout=15, data=data) as resp:
+                    body       = resp.read().decode(errors="ignore")
+                    fail_kw    = ["invalid","incorrect","wrong","failed","error",
+                                  "denied","bad credentials","unauthorized"]
+                    success_kw = ["dashboard","welcome","logout","profile",
+                                  "account","success"]
                     body_lower = body.lower()
-                    is_fail = any(k in body_lower for k in fail_kw)
+                    is_fail    = any(k in body_lower for k in fail_kw)
                     is_success = any(k in body_lower for k in success_kw)
                     if is_success and not is_fail:
                         result["found"].append({
                             "username": username,
                             "password": password,
-                            "status": resp.status
+                            "status":   resp.status
                         })
                 result["attempts"] += 1
-                time.sleep(0.5)  # Slightly longer delay through Tor
+                time.sleep(0.3)
             except Exception:
                 result["attempts"] += 1
 
@@ -797,10 +749,8 @@ def brute_force_http(url, usernames, passwords, user_field="username", pass_fiel
 
 
 def brute_force_ssh(host, port, usernames, passwords):
-    """
-    SSH brute force. SSH can be proxied through Tor using paramiko + SOCKS5.
-    """
-    result = {"host": host, "port": port, "attempts": 0, "found": [], "status": "running", "note": ""}
+    result = {"host": host, "port": port, "attempts": 0,
+              "found": [], "status": "running", "note": ""}
     try:
         import paramiko
         for username in usernames[:5]:
@@ -808,15 +758,11 @@ def brute_force_ssh(host, port, usernames, passwords):
                 try:
                     client = paramiko.SSHClient()
                     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-                    # Direct connection (Tor routing optional — add proxy_sock
-                    # via PySocks if you need anonymised SSH brute-force)
                     client.connect(
                         host, port=int(port),
                         username=username, password=password,
                         timeout=30, banner_timeout=30,
                     )
-
                     result["found"].append({"username": username, "password": password})
                     client.close()
                 except paramiko.AuthenticationException:
@@ -824,20 +770,17 @@ def brute_force_ssh(host, port, usernames, passwords):
                 except Exception:
                     break
                 result["attempts"] += 1
-                time.sleep(0.5)
+                time.sleep(0.3)
         result["status"] = "complete"
     except ImportError:
         result["status"] = "error"
-        result["note"] = "paramiko not installed: pip3 install paramiko --break-system-packages"
+        result["note"]   = "paramiko not installed: pip3 install paramiko --break-system-packages"
     return result
 
 
-# ─── WEB HEADERS (via Tor) ────────────────────
+# ─── WEB HEADERS ──────────────────────────────────────────────────────────────
+
 def analyze_web_headers(target):
-    """
-    Fetch HTTP headers through Tor SOCKS5 proxy.
-    Increased timeout for Tor latency.
-    """
     result = {
         "url": "", "status_code": None, "headers": {}, "issues": [],
         "score": 0, "grade": "F", "server": "", "technologies": []
@@ -845,13 +788,13 @@ def analyze_web_headers(target):
     for scheme in ["https", "http"]:
         url = f"{scheme}://{target}" if not target.startswith("http") else target
         try:
-            with tor_urlopen(url, timeout=30) as resp:
-                result["url"] = url
+            with tor_urlopen(url, timeout=20) as resp:
+                result["url"]         = url
                 result["status_code"] = resp.status
-                headers = dict(resp.headers)
-                result["headers"] = headers
-                server = headers.get("Server", "")
-                result["server"] = server
+                headers               = dict(resp.headers)
+                result["headers"]     = headers
+                server                = headers.get("Server", "")
+                result["server"]      = server
                 if server:
                     result["technologies"].append(server)
                     if re.search(r'\d+\.\d+', server):
@@ -862,15 +805,16 @@ def analyze_web_headers(target):
                 xpb = headers.get("X-Powered-By", "")
                 if xpb:
                     result["technologies"].append(xpb)
-                    result["issues"].append({"severity": "LOW", "msg": f"X-Powered-By disclosed: {xpb}"})
-                score = 100
+                    result["issues"].append({"severity": "LOW",
+                                             "msg": f"X-Powered-By disclosed: {xpb}"})
+                score  = 100
                 checks = [
-                    ("Strict-Transport-Security", "HSTS not set — HTTPS downgrade risk", "HIGH"),
-                    ("Content-Security-Policy", "No CSP — XSS risk", "HIGH"),
-                    ("X-Frame-Options", "No X-Frame-Options — Clickjacking risk", "MEDIUM"),
-                    ("X-Content-Type-Options", "No X-Content-Type-Options — MIME sniffing risk", "MEDIUM"),
-                    ("Referrer-Policy", "No Referrer-Policy", "LOW"),
-                    ("Permissions-Policy", "No Permissions-Policy", "LOW"),
+                    ("Strict-Transport-Security", "HSTS not set — HTTPS downgrade risk",         "HIGH"),
+                    ("Content-Security-Policy",   "No CSP — XSS risk",                           "HIGH"),
+                    ("X-Frame-Options",           "No X-Frame-Options — Clickjacking risk",       "MEDIUM"),
+                    ("X-Content-Type-Options",    "No X-Content-Type-Options — MIME sniff risk",  "MEDIUM"),
+                    ("Referrer-Policy",           "No Referrer-Policy",                           "LOW"),
+                    ("Permissions-Policy",        "No Permissions-Policy",                        "LOW"),
                 ]
                 hdr_lower = {k.lower() for k in headers}
                 for hdr, msg, sev in checks:
@@ -878,7 +822,7 @@ def analyze_web_headers(target):
                         result["issues"].append({"severity": sev, "msg": msg})
                         score -= {"HIGH": 20, "MEDIUM": 10, "LOW": 5}[sev]
                 result["score"] = max(0, score)
-                if score >= 90:   result["grade"] = "A+"
+                if   score >= 90: result["grade"] = "A+"
                 elif score >= 75: result["grade"] = "A"
                 elif score >= 60: result["grade"] = "B"
                 elif score >= 45: result["grade"] = "C"
@@ -886,31 +830,66 @@ def analyze_web_headers(target):
                 else:             result["grade"] = "F"
                 break
         except Exception as e:
-            result["issues"].append({"severity": "INFO", "msg": f"Could not fetch {url}: {str(e)}"})
+            result["issues"].append({"severity": "INFO",
+                                     "msg": f"Could not fetch {url}: {str(e)}"})
     return result
 
 
-# ─── MITIGATIONS & RISK ───────────────────────
+# ─── MITIGATIONS & RISK ───────────────────────────────────────────────────────
+
 def get_mitigation_advice(service, product, cves):
-    advice = []
+    advice  = []
     sl = (service or "").lower()
     pl = (product or "").lower()
     svc_advice = {
-        "ssh": ["Disable root login (PermitRootLogin no)", "Use SSH key authentication",
-                "Change default port 22", "Deploy fail2ban", "Restrict to specific IPs"],
-        "http": ["Enable HTTPS, redirect all HTTP", "Implement CSP headers",
-                 "Add X-Frame-Options", "Keep web server updated", "Disable directory listing"],
-        "https": ["Ensure TLS 1.2+ only", "Use ECDHE/AES-GCM ciphers", "Enable HSTS", "Renew certs before expiry"],
-        "ftp": ["Replace FTP with SFTP/FTPS", "Disable anonymous access", "Use chroot jail"],
-        "smtp": ["Enable SMTP auth", "Implement SPF, DKIM, DMARC", "Use TLS"],
-        "mysql": ["Never expose to internet", "Bind to localhost only", "Least privilege", "Enable audit logging"],
-        "postgresql": ["Restrict via pg_hba.conf", "Use SSL for remote connections", "Enable query logging"],
-        "rdp": ["Enable NLA", "Use VPN", "Account lockout policy", "Change default port 3389", "Require MFA"],
-        "smb": ["Disable SMBv1 immediately", "Enable SMB signing", "Block ports 445/139"],
-        "telnet": ["DISABLE TELNET — plaintext protocol", "Replace with SSH", "Block port 23"],
-        "vnc": ["Never expose VNC publicly", "Use VPN or SSH tunnel", "Enable VNC password auth"],
-        "redis": ["Bind to localhost only", "Enable AUTH password", "Never expose publicly"],
-        "mongodb": ["Enable authentication", "Bind to localhost", "Use TLS", "Enable audit logging"],
+        "ssh":        ["Disable root login (PermitRootLogin no)",
+                       "Use SSH key authentication",
+                       "Change default port 22",
+                       "Deploy fail2ban",
+                       "Restrict to specific IPs"],
+        "http":       ["Enable HTTPS, redirect all HTTP",
+                       "Implement CSP headers",
+                       "Add X-Frame-Options",
+                       "Keep web server updated",
+                       "Disable directory listing"],
+        "https":      ["Ensure TLS 1.2+ only",
+                       "Use ECDHE/AES-GCM ciphers",
+                       "Enable HSTS",
+                       "Renew certs before expiry"],
+        "ftp":        ["Replace FTP with SFTP/FTPS",
+                       "Disable anonymous access",
+                       "Use chroot jail"],
+        "smtp":       ["Enable SMTP auth",
+                       "Implement SPF, DKIM, DMARC",
+                       "Use TLS"],
+        "mysql":      ["Never expose to internet",
+                       "Bind to localhost only",
+                       "Least privilege",
+                       "Enable audit logging"],
+        "postgresql": ["Restrict via pg_hba.conf",
+                       "Use SSL for remote connections",
+                       "Enable query logging"],
+        "rdp":        ["Enable NLA",
+                       "Use VPN",
+                       "Account lockout policy",
+                       "Change default port 3389",
+                       "Require MFA"],
+        "smb":        ["Disable SMBv1 immediately",
+                       "Enable SMB signing",
+                       "Block ports 445/139"],
+        "telnet":     ["DISABLE TELNET — plaintext protocol",
+                       "Replace with SSH",
+                       "Block port 23"],
+        "vnc":        ["Never expose VNC publicly",
+                       "Use VPN or SSH tunnel",
+                       "Enable VNC password auth"],
+        "redis":      ["Bind to localhost only",
+                       "Enable AUTH password",
+                       "Never expose publicly"],
+        "mongodb":    ["Enable authentication",
+                       "Bind to localhost",
+                       "Use TLS",
+                       "Enable audit logging"],
     }
     for svc, tips in svc_advice.items():
         if svc in sl or svc in pl:
@@ -926,12 +905,14 @@ def get_mitigation_advice(service, product, cves):
     critical = [c for c in cves if c.get("severity") in ["CRITICAL", "HIGH"]]
     if critical:
         advice.insert(0, f"URGENT: {len(critical)} critical/high CVEs — patch immediately")
-    advice.extend(["Implement IDS/IPS monitoring", "Schedule regular vulnerability scans"])
+    advice.extend(["Implement IDS/IPS monitoring",
+                   "Schedule regular vulnerability scans"])
     return advice[:8]
 
 
 def calculate_risk(cves, port, service):
-    high_risk = {21, 22, 23, 25, 80, 443, 445, 1433, 1521, 3306, 3389, 5432, 5900, 6379, 27017}
+    high_risk = {21, 22, 23, 25, 80, 443, 445, 1433, 1521,
+                 3306, 3389, 5432, 5900, 6379, 27017}
     base = 0
     if cves:
         base = max((c.get("score") or 0) for c in cves)
@@ -943,25 +924,23 @@ def calculate_risk(cves, port, service):
         base = 2.0
     if service and service.lower() == "telnet":
         base = 9.5
-    if base >= 9.0:   level = "CRITICAL"
+    if   base >= 9.0: level = "CRITICAL"
     elif base >= 7.0: level = "HIGH"
     elif base >= 4.0: level = "MEDIUM"
-    elif base > 0:    level = "LOW"
+    elif base  > 0:   level = "LOW"
     else:             level = "UNKNOWN"
     return round(base, 1), level
 
 
-# ─── FULL SCAN ORCHESTRATOR ───────────────────
+# ─── FULL SCAN ORCHESTRATOR ───────────────────────────────────────────────────
+
 def full_scan(target, modules=None):
-    """
-    Orchestrates all scan modules.
-    CVE lookups are rate-limited more conservatively since Tor exit nodes
-    share IP addresses and may hit NVD rate limits faster.
-    """
     if modules is None:
         modules = ["ports", "ssl", "dns", "headers"]
 
-    result = {"target": target, "scan_time": datetime.utcnow().isoformat(), "modules": {}}
+    result = {"target": target,
+              "scan_time": datetime.utcnow().isoformat(),
+              "modules": {}}
 
     scan = run_nmap_scan(target)
     if "error" in scan:
@@ -973,21 +952,20 @@ def full_scan(target, modules=None):
         result["error"] = scan["error"]
         return result
 
-    # CVE lookups — throttled more aggressively for Tor (shared exit node IPs)
+    # CVE lookups — rate limited to respect NVD
     for host in scan.get("hosts", []):
         for port in host.get("ports", []):
-            svc = port.get("service", "")
+            svc  = port.get("service", "")
             prod = port.get("product", "")
-            ver = port.get("version", "")
+            ver  = port.get("version", "")
             cves = []
             if prod:
                 cves = search_nvd_cves(prod, ver)
-                # Tor exit nodes share IPs — be generous with rate limit waits
-                time.sleep(2 if NVD_API_KEY else 8)
+                time.sleep(2 if NVD_API_KEY else 7)
             if not cves and svc:
                 cves = search_nvd_cves(svc, ver)
-                time.sleep(2 if NVD_API_KEY else 8)
-            port["cves"] = cves
+                time.sleep(2 if NVD_API_KEY else 7)
+            port["cves"]        = cves
             port["mitigations"] = get_mitigation_advice(svc, prod, cves)
             port["risk_score"], port["risk_level"] = calculate_risk(cves, port["port"], svc)
 
@@ -997,9 +975,10 @@ def full_scan(target, modules=None):
     if "ssl" in modules:
         ssl_ports = [443, 8443, 465, 993, 995]
         if "hosts" in scan:
-            open_ports = [p["port"] for h in scan.get("hosts", []) for p in h.get("ports", [])]
-            matched = [p for p in ssl_ports if p in open_ports]
-            ssl_ports = matched if matched else [443]
+            open_ports = [p["port"] for h in scan.get("hosts", [])
+                          for p in h.get("ports", [])]
+            matched    = [p for p in ssl_ports if p in open_ports]
+            ssl_ports  = matched if matched else [443]
         ssl_results = []
         for sp in ssl_ports[:2]:
             sr = analyze_ssl(clean, sp)
@@ -1019,115 +998,18 @@ def full_scan(target, modules=None):
         for c in p.get("cves", [])
     ]
     result["summary"] = {
-        "total_cves": len(all_cves),
+        "total_cves":    len(all_cves),
         "critical_cves": sum(1 for c in all_cves if c.get("severity") == "CRITICAL"),
-        "high_cves": sum(1 for c in all_cves if c.get("severity") == "HIGH"),
-        "exploitable": sum(1 for c in all_cves if c.get("has_exploit")),
-        "open_ports": sum(len(h.get("ports", [])) for h in scan.get("hosts", []))
+        "high_cves":     sum(1 for c in all_cves if c.get("severity") == "HIGH"),
+        "exploitable":   sum(1 for c in all_cves if c.get("has_exploit")),
+        "open_ports":    sum(len(h.get("ports", [])) for h in scan.get("hosts", []))
     }
     return result
 
 
-# ─── JOHN THE RIPPER ──────────────────────────
-def john_the_ripper(hash_input, hash_format="", wordlist="", mode="wordlist", extra_options=""):
-    import shutil, tempfile, os as _os
-    result = {
-        "mode": mode, "hash_format": hash_format or "auto-detect",
-        "cracked": [], "total_hashes": 0, "status": "running", "output": "", "note": ""
-    }
-    binary = shutil.which("john") or shutil.which("john-the-ripper")
-    if not binary:
-        result["status"] = "error"
-        result["note"] = "John the Ripper not installed. Run: sudo apt-get install john"
-        return result
+# ─── ENTRY POINT ──────────────────────────────────────────────────────────────
 
-    hash_file = hash_input.strip()
-    tmp_file = None
-    if not _os.path.isfile(hash_file):
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tf:
-            tf.write(hash_input.strip() + "\n")
-            tmp_file = tf.name
-        hash_file = tmp_file
-
-    with open(hash_file) as f:
-        result["total_hashes"] = sum(1 for line in f if line.strip())
-
-    cmd = [binary]
-    if hash_format:
-        cmd += [f"--format={hash_format}"]
-    if mode == "wordlist":
-        wl = wordlist if wordlist and _os.path.isfile(wordlist) else "/usr/share/wordlists/rockyou.txt"
-        if not _os.path.isfile(wl):
-            for fallback in ["/usr/share/john/password.lst", "/usr/share/dict/words"]:
-                if _os.path.isfile(fallback):
-                    wl = fallback
-                    break
-            else:
-                result["status"] = "error"
-                result["note"] = "Wordlist not found. Install: sudo apt-get install wordlists"
-                if tmp_file: _os.unlink(tmp_file)
-                return result
-        cmd += [f"--wordlist={wl}"]
-    elif mode == "rules":
-        wl = wordlist if wordlist and _os.path.isfile(wordlist) else "/usr/share/wordlists/rockyou.txt"
-        cmd += [f"--wordlist={wl}", "--rules"]
-    elif mode == "incremental":
-        cmd += ["--incremental"]
-    elif mode == "single":
-        cmd += ["--single"]
-    elif mode == "show":
-        cmd += ["--show"]
-
-    SAFE_EXTRA = re.compile(
-        r'^--(min-length=\d+|max-length=\d+|fork=\d+|node=\d+/\d+|session=\w+|restore=\w*|pot=[\w/.-]+)$'
-    )
-    for opt in extra_options.split():
-        if SAFE_EXTRA.match(opt):
-            cmd.append(opt)
-    cmd.append(hash_file)
-
-    try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-        raw_out = proc.stdout + "\n" + proc.stderr
-        result["output"] = raw_out[:3000]
-        show_cmd = [binary, "--show", hash_file]
-        if hash_format:
-            show_cmd.insert(1, f"--format={hash_format}")
-        show_proc = subprocess.run(show_cmd, capture_output=True, text=True, timeout=30)
-        for line in show_proc.stdout.splitlines():
-            if ":" in line and not line.startswith("#"):
-                parts = line.split(":")
-                if len(parts) >= 2 and parts[1]:
-                    result["cracked"].append({
-                        "hash": parts[0], "password": parts[1],
-                        "extra": ":".join(parts[2:]) if len(parts) > 2 else ""
-                    })
-        m = re.search(r'(\d+)\s+password\s+hash(?:es)?\s+cracked', raw_out, re.IGNORECASE)
-        cracked_count = int(m.group(1)) if m else len(result["cracked"])
-        result["status"] = "complete"
-        result["cracked_count"] = cracked_count
-        result["note"] = (
-            f"{cracked_count} of {result['total_hashes']} hash(es) cracked."
-            if cracked_count else
-            "No hashes cracked. Try a different mode, wordlist, or format."
-        )
-    except subprocess.TimeoutExpired:
-        result["status"] = "timeout"
-        result["note"] = "John the Ripper timed out after 5 minutes."
-    except Exception as e:
-        result["status"] = "error"
-        result["note"] = str(e)
-    finally:
-        if tmp_file and _os.path.exists(tmp_file):
-            _os.unlink(tmp_file)
-
-    return result
-
-
-# ─── ENTRY POINT ──────────────────────────────
 if __name__ == "__main__":
-    import os
-
     if len(sys.argv) < 2:
         print(json.dumps({"error": "No target specified"}))
         sys.exit(1)
@@ -1138,51 +1020,41 @@ if __name__ == "__main__":
         sys.exit(0)
 
     if "--subdomains" in sys.argv:
-        idx = sys.argv.index("--subdomains")
+        idx  = sys.argv.index("--subdomains")
         size = sys.argv[idx + 2] if len(sys.argv) > idx + 2 else "medium"
         print(json.dumps(subdomain_finder(sys.argv[idx + 1], size)))
         sys.exit(0)
 
     if "--dirbust" in sys.argv:
-        idx = sys.argv.index("--dirbust")
+        idx  = sys.argv.index("--dirbust")
         size = sys.argv[idx + 2] if len(sys.argv) > idx + 2 else "small"
         exts = sys.argv[idx + 3] if len(sys.argv) > idx + 3 else "php,html,txt"
         print(json.dumps(dir_enum(sys.argv[idx + 1], size, exts)))
         sys.exit(0)
 
     if "--brute-http" in sys.argv:
-        idx = sys.argv.index("--brute-http")
-        url = sys.argv[idx + 1]
+        idx   = sys.argv.index("--brute-http")
+        url   = sys.argv[idx + 1]
         users = sys.argv[idx + 2].split(",")
-        pwds = sys.argv[idx + 3].split(",")
-        uf = sys.argv[idx + 4] if len(sys.argv) > idx + 4 else "username"
-        pf = sys.argv[idx + 5] if len(sys.argv) > idx + 5 else "password"
+        pwds  = sys.argv[idx + 3].split(",")
+        uf    = sys.argv[idx + 4] if len(sys.argv) > idx + 4 else "username"
+        pf    = sys.argv[idx + 5] if len(sys.argv) > idx + 5 else "password"
         print(json.dumps(brute_force_http(url, users, pwds, uf, pf)))
         sys.exit(0)
 
     if "--brute-ssh" in sys.argv:
-        idx = sys.argv.index("--brute-ssh")
-        host = sys.argv[idx + 1]
-        port = sys.argv[idx + 2]
+        idx   = sys.argv.index("--brute-ssh")
+        host  = sys.argv[idx + 1]
+        port  = sys.argv[idx + 2]
         users = sys.argv[idx + 3].split(",")
-        pwds = sys.argv[idx + 4].split(",")
+        pwds  = sys.argv[idx + 4].split(",")
         print(json.dumps(brute_force_ssh(host, port, users, pwds)))
         sys.exit(0)
 
-    if "--john" in sys.argv:
-        idx = sys.argv.index("--john")
-        hash_input  = sys.argv[idx + 1] if len(sys.argv) > idx + 1 else ""
-        hash_format = sys.argv[idx + 2] if len(sys.argv) > idx + 2 else ""
-        wordlist    = sys.argv[idx + 3] if len(sys.argv) > idx + 3 else ""
-        mode        = sys.argv[idx + 4] if len(sys.argv) > idx + 4 else "wordlist"
-        extra       = sys.argv[idx + 5] if len(sys.argv) > idx + 5 else ""
-        print(json.dumps(john_the_ripper(hash_input, hash_format, wordlist, mode, extra)))
-        sys.exit(0)
-
-    mods = ["ports", "ssl", "dns", "headers"]
+    mods   = ["ports", "ssl", "dns", "headers"]
     target = sys.argv[-1]
     if "--modules" in sys.argv:
-        idx = sys.argv.index("--modules")
+        idx  = sys.argv.index("--modules")
         mods = sys.argv[idx + 1].split(",")
 
     print(json.dumps(full_scan(target, mods)))
