@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-VulnScan Pro -- Dull Background Fix
-Makes matrix rain text much darker and smaller so it sits
-quietly in the background without drawing attention.
-Run: python3 patch_bgdull.py
+VulnScan Pro -- Scan Output Visibility Fix
+Adds position:relative + z-index:2 + explicit background to all
+result containers so they always render above the canvas.
+Run: python3 patch_scanfix.py
 """
-import os, re, shutil
+import os, shutil, subprocess, sys
 from datetime import datetime
 
 GREEN = "\033[92m"
@@ -22,154 +22,232 @@ changes = 0
 
 def backup(path):
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return shutil.copy2(path, path + "." + ts + ".bak")
+    shutil.copy2(path, path + "." + ts + ".bak")
+
+def apply(path, patches):
+    global changes
+    if not os.path.isfile(path):
+        fail("Not found: " + path); return
+    with open(path, "r", encoding="utf-8") as f:
+        content = f.read()
+    applied = 0
+    modified = content
+    for desc, old, new in patches:
+        if old in modified:
+            modified = modified.replace(old, new, 1)
+            ok(desc); applied += 1
+        elif new in modified:
+            ok(desc + "  (already applied)")
+        else:
+            fail(desc)
+    if applied:
+        backup(path)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(modified)
+        changes += applied
+
+
+PATCHES = [
+
+    (
+        ".card z-index:1 -> z-index:2",
+        ".card{\n"
+        "  background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);\n"
+        "  position:relative;z-index:1;\n"
+        "  transition:border-color var(--transition),background var(--transition),box-shadow 0.2s ease;\n"
+        "}",
+        ".card{\n"
+        "  background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);\n"
+        "  position:relative;z-index:2;\n"
+        "  transition:border-color var(--transition),background var(--transition),box-shadow 0.2s ease;\n"
+        "}"
+    ),
+
+    (
+        ".stat: add z-index:2",
+        ".stat{\n"
+        "  background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);\n"
+        "  padding:14px 12px;text-align:center;transition:background var(--transition),border-color var(--transition);\n"
+        "}",
+        ".stat{\n"
+        "  background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);\n"
+        "  padding:14px 12px;text-align:center;\n"
+        "  position:relative;z-index:2;\n"
+        "  transition:background var(--transition),border-color var(--transition);\n"
+        "}"
+    ),
+
+    (
+        ".port-panel: solid bg + z-index:2",
+        ".port-panel{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;"
+        "margin-bottom:8px;width:100%;transition:border-color var(--transition)}",
+        ".port-panel{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;"
+        "margin-bottom:8px;width:100%;position:relative;z-index:2;"
+        "background:var(--bg);transition:border-color var(--transition)}"
+    ),
+
+    (
+        ".port-hd: explicit bg",
+        ".port-hd{display:flex;align-items:center;gap:12px;padding:12px 14px;"
+        "cursor:pointer;user-select:none;flex-wrap:wrap;min-height:52px}",
+        ".port-hd{display:flex;align-items:center;gap:12px;padding:12px 14px;"
+        "cursor:pointer;user-select:none;flex-wrap:wrap;min-height:52px;background:var(--bg)}"
+    ),
+
+    (
+        ".tabs: z-index:2 + bg",
+        ".tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);"
+        "margin-bottom:18px;overflow-x:auto}",
+        ".tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);"
+        "margin-bottom:18px;overflow-x:auto;position:relative;z-index:2;background:var(--bg)}"
+    ),
+
+    (
+        ".stats grid: z-index:2",
+        ".stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));"
+        "gap:10px;margin-bottom:20px;width:100%}",
+        ".stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));"
+        "gap:10px;margin-bottom:20px;width:100%;position:relative;z-index:2}"
+    ),
+
+    (
+        "result divs: z-index:2",
+        "#res,#hv-res,#nk-res,#wp-res,#ly-res,#lg-res,#dr-res,"
+        "#sub-res,#dir-res,#bf-res,#disc-res"
+        "{width:100%;max-width:100%;overflow-x:auto}",
+        "#res,#hv-res,#nk-res,#wp-res,#ly-res,#lg-res,#dr-res,"
+        "#sub-res,#dir-res,#bf-res,#disc-res"
+        "{width:100%;max-width:100%;overflow-x:auto;position:relative;z-index:2}"
+    ),
+
+    (
+        ".cve-item: z-index:2",
+        ".cve-item{background:var(--bg2);border:1px solid var(--border);"
+        "border-radius:var(--radius);padding:12px;margin-bottom:6px}",
+        ".cve-item{background:var(--bg2);border:1px solid var(--border);"
+        "border-radius:var(--radius);padding:12px;margin-bottom:6px;"
+        "position:relative;z-index:2}"
+    ),
+
+    (
+        ".host-chip: z-index:2",
+        ".host-chip{display:inline-flex;align-items:center;gap:8px;"
+        "font-family:var(--mono);font-size:12px;background:var(--bg2);"
+        "border:1px solid var(--border);border-radius:var(--radius);"
+        "padding:6px 12px;margin-bottom:14px}",
+        ".host-chip{display:inline-flex;align-items:center;gap:8px;"
+        "font-family:var(--mono);font-size:12px;background:var(--bg2);"
+        "border:1px solid var(--border);border-radius:var(--radius);"
+        "padding:6px 12px;margin-bottom:14px;position:relative;z-index:2}"
+    ),
+
+    (
+        ".tbl-wrap: z-index:2 + bg",
+        ".tbl-wrap{overflow-x:auto;width:100%}",
+        ".tbl-wrap{overflow-x:auto;width:100%;position:relative;z-index:2;background:var(--bg)}"
+    ),
+
+    (
+        ".found badge: z-index:2",
+        ".found{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;"
+        "background:var(--bg2);border:1px solid var(--border);border-radius:20px;"
+        "font-family:var(--mono);font-size:11px;color:var(--text2)}",
+        ".found{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;"
+        "background:var(--bg2);border:1px solid var(--border);border-radius:20px;"
+        "font-family:var(--mono);font-size:11px;color:var(--text2);"
+        "position:relative;z-index:2}"
+    ),
+
+    (
+        ".terminal: z-index:2",
+        ".terminal{\n"
+        "  background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);\n"
+        "  padding:12px 14px;max-height:160px;overflow-y:auto;font-family:var(--mono);\n"
+        "  font-size:12px;line-height:1.8;display:none;margin:12px 0;\n"
+        "}",
+        ".terminal{\n"
+        "  background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);\n"
+        "  padding:12px 14px;max-height:160px;overflow-y:auto;font-family:var(--mono);\n"
+        "  font-size:12px;line-height:1.8;display:none;margin:12px 0;\n"
+        "  position:relative;z-index:2;\n"
+        "}"
+    ),
+
+    (
+        ".err-box: z-index:2",
+        ".err-box{\n"
+        "  background:rgba(192,57,43,0.06);border:1px solid rgba(192,57,43,0.2);"
+        "border-radius:var(--radius);\n"
+        "  padding:10px 14px;color:var(--red);font-size:13px;font-family:var(--mono);"
+        "display:none;margin:10px 0;\n"
+        "}",
+        ".err-box{\n"
+        "  background:rgba(192,57,43,0.06);border:1px solid rgba(192,57,43,0.2);"
+        "border-radius:var(--radius);\n"
+        "  padding:10px 14px;color:var(--red);font-size:13px;font-family:var(--mono);"
+        "display:none;margin:10px 0;\n"
+        "  position:relative;z-index:2;\n"
+        "}"
+    ),
+
+    (
+        ".notice: z-index:2",
+        ".notice{\n"
+        "  background:var(--bg2);border:1px solid var(--border);"
+        "border-left:3px solid var(--yellow);\n"
+        "  border-radius:var(--radius);padding:10px 14px;"
+        "font-size:12px;color:var(--text2);margin-bottom:16px;\n"
+        "}",
+        ".notice{\n"
+        "  background:var(--bg2);border:1px solid var(--border);"
+        "border-left:3px solid var(--yellow);\n"
+        "  border-radius:var(--radius);padding:10px 14px;"
+        "font-size:12px;color:var(--text2);margin-bottom:16px;\n"
+        "  position:relative;z-index:2;\n"
+        "}"
+    ),
+
+    # page-hd and content already have z-index:1, bump to 2
+    (
+        ".content: z-index:1 -> z-index:2",
+        ".content{padding:24px 28px 40px;flex:1;min-width:0;overflow-x:hidden;width:100%;position:relative;z-index:1}",
+        ".content{padding:24px 28px 40px;flex:1;min-width:0;overflow-x:hidden;width:100%;position:relative;z-index:2}"
+    ),
+
+]
+
 
 def main():
-    global changes
-    print("\n" + BOLD + CYAN + "VulnScan Pro -- Dull Background Fix" + RESET)
-    print("=" * 46)
+    print("\n" + BOLD + CYAN + "VulnScan Pro -- Scan Output Visibility Fix" + RESET)
+    print("=" * 54)
 
     F = "api_server.py"
     if not os.path.isfile(F):
         fail("api_server.py not found -- run from ~/vulnscan")
         return
 
-    with open(F, "r", encoding="utf-8") as f:
-        content = f.read()
-    original = content
+    apply(F, PATCHES)
 
-    # ------------------------------------------------------------------
-    #  1. Colours -- very dark/muted on light theme, very dim on dark
-    # ------------------------------------------------------------------
-    colour_patches = [
-        # headRGB light: was [0,80,20] -> near-black grey-green
-        (
-            "function headRGB()  { return isDark() ? [140,255,140] : [0, 80, 20]; }",
-            "function headRGB()  { return isDark() ? [60, 120, 60]  : [40, 40, 40]; }"
-        ),
-        # trailRGB light: was [0,60,10] -> almost invisible
-        (
-            "function trailRGB() { return isDark() ? [0, 180, 60]  : [0, 60, 10]; }",
-            "function trailRGB() { return isDark() ? [0,  90, 30]  : [30, 30, 30]; }"
-        ),
-        # Alternate values from bgfix patch
-        (
-            "function headRGB()  { return isDark() ? [140,255,140] : [0, 80, 20]; }",
-            "function headRGB()  { return isDark() ? [60, 120, 60]  : [40, 40, 40]; }"
-        ),
-    ]
-    for old, new in colour_patches:
-        if old in content:
-            content = content.replace(old, new, 1)
-            ok("headRGB / trailRGB: colours made much darker")
-            changes += 1
-            break
-
-    trail_patches = [
-        (
-            "function trailRGB() { return isDark() ? [0, 180, 60]  : [0, 60, 10]; }",
-            "function trailRGB() { return isDark() ? [0,  90, 30]  : [30, 30, 30]; }"
-        ),
-        (
-            "function trailRGB() { return isDark() ? [0, 180, 60]  : [0, 60, 10]; }",
-            "function trailRGB() { return isDark() ? [0,  90, 30]  : [30, 30, 30]; }"
-        ),
-    ]
-    for old, new in trail_patches:
-        if old in content:
-            content = content.replace(old, new, 1)
-            ok("trailRGB: dimmed")
-            changes += 1
-            break
-
-    # ------------------------------------------------------------------
-    #  2. Opacity -- cut base alpha significantly
-    # ------------------------------------------------------------------
-    alpha_patches = [
-        # Current values from bgfix
-        (
-            "var baseAlpha = isDark() ? 0.45 : 0.28;",
-            "var baseAlpha = isDark() ? 0.18 : 0.12;"
-        ),
-        # Older values
-        (
-            "var baseAlpha = isDark() ? 0.50 : 0.30;",
-            "var baseAlpha = isDark() ? 0.18 : 0.12;"
-        ),
-        (
-            "var baseAlpha = isDark() ? 0.55 : 0.35;",
-            "var baseAlpha = isDark() ? 0.18 : 0.12;"
-        ),
-        (
-            "var baseAlpha=isDark()?0.55:0.35;",
-            "var baseAlpha=isDark()?0.18:0.12;"
-        ),
-    ]
-    for old, new in alpha_patches:
-        if old in content:
-            content = content.replace(old, new, 1)
-            ok("baseAlpha: " + old.split("?")[1].strip()[:20] + " -> 0.18 / 0.12")
-            changes += 1
-            break
-
-    # ------------------------------------------------------------------
-    #  3. Font size -- smaller chars are less distracting
-    # ------------------------------------------------------------------
-    font_patches = [
-        ("var COL_W = 18, FONT_SZ = 11,", "var COL_W = 20, FONT_SZ = 9,"),
-        ("var COL_W=16,FONT_SZ=11,",      "var COL_W=20,FONT_SZ=9,"),
-        ("var COL_W = 16, FONT_SZ = 11,", "var COL_W = 20, FONT_SZ = 9,"),
-    ]
-    for old, new in font_patches:
-        if old in content:
-            content = content.replace(old, new, 1)
-            ok("Font: 11px -> 9px, column spacing widened")
-            changes += 1
-            break
-
-    # ------------------------------------------------------------------
-    #  4. Fade rect -- faster fade = shorter, less visible trails
-    # ------------------------------------------------------------------
-    fade_patches = [
-        (
-            "'rgba(10,10,10,0.15)'",
-            "'rgba(10,10,10,0.25)'"
-        ),
-        (
-            "'rgba(255,255,255,0.18)'",
-            "'rgba(255,255,255,0.30)'"
-        ),
-    ]
-    for old, new in fade_patches:
-        if old in content:
-            content = content.replace(old, new, 1)
-            ok("Fade rect: faster fade (shorter trails)")
-            changes += 1
-
-    # ------------------------------------------------------------------
-    #  Write back
-    # ------------------------------------------------------------------
-    if content != original:
-        backup(F)
-        with open(F, "w", encoding="utf-8") as f:
-            f.write(content)
-        ok("File saved")
+    # Syntax check
+    r = subprocess.run([sys.executable, "-m", "py_compile", F],
+                       capture_output=True, text=True)
+    if r.returncode == 0:
+        ok("Syntax check passed")
     else:
-        fail("No changes matched -- printing relevant lines for diagnosis:")
-        for i, line in enumerate(original.splitlines(), 1):
-            if any(k in line for k in ["headRGB", "trailRGB", "baseAlpha", "FONT_SZ", "fadeFill"]):
-                print("  %4d: %s" % (i, line.rstrip()))
+        fail("SYNTAX ERROR -- see below")
+        print(r.stderr)
 
-    print("\n" + "=" * 46)
+    print("\n" + "=" * 54)
     print(BOLD + "SUMMARY" + RESET)
     print("  Changes : " + GREEN + str(changes) + RESET)
     if changes:
         print("\n  Restart: python3 api_server.py")
-        print("\n  " + GREEN + "Result:" + RESET)
-        print("    Light theme: near-black chars at 12% opacity")
-        print("    Dark theme:  dim green chars at 18% opacity")
-        print("    Font 9px, wider columns -- less dense, less distracting")
-        print("    Faster fade rect -- trails disappear quicker")
+        print("\n  " + GREEN + "Fixed:" + RESET)
+        print("    All cards, stats, port panels, result divs")
+        print("    now have position:relative + z-index:2 + solid bg")
+        print("    Canvas stays at z-index:-1 -- always behind UI")
+    else:
+        print("  Nothing changed.")
     print()
 
 if __name__ == "__main__":
