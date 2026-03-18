@@ -257,7 +257,7 @@ select.inp{cursor:pointer}
 .progress-wrap.active{display:block}
 .terminal{
   background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
-  padding:12px 14px;max-height:160px;overflow-y:auto;font-family:var(--mono);
+  padding:12px 14px;overflow-y:auto;font-family:var(--mono);
   font-size:12px;line-height:1.8;display:none;margin:12px 0;
   position:relative;z-index:2;
 }
