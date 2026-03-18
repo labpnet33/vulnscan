@@ -95,3078 +95,2344 @@ def proxychains_cmd():
 HTML = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>VulnScan Pro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Syne:wght@400;600;700;800&display=swap');
+/* ── Reset ── */
 *{box-sizing:border-box;margin:0;padding:0}
+
+/* ── Theme variables ── */
 :root{
-  --bg:#04040a;--s1:#080810;--s2:#0d0d18;--b:#16162a;--b2:#1e1e35;
-  --t:#e8e8f0;--m:#5a5a8a;
-  --cyan:#00e5ff;--green:#00ff9d;--red:#ff3366;--orange:#ff6b35;--yellow:#ffd60a;--purple:#b06fff;
-  --accent:var(--cyan);--grid-color:rgba(0,229,255,0.025);
-  --font-ui:'Syne',sans-serif; --font-mono:'JetBrains Mono',monospace;
-  --glow-strength:18px;
+  --bg:#ffffff;
+  --bg2:#f5f5f5;
+  --bg3:#ebebeb;
+  --border:#e0e0e0;
+  --border2:#d0d0d0;
+  --text:#0a0a0a;
+  --text2:#444444;
+  --text3:#888888;
+  --accent:#0a0a0a;
+  --accent-inv:#ffffff;
+  --red:#c0392b;
+  --orange:#d35400;
+  --yellow:#b7860b;
+  --green:#1a7a3a;
+  --blue:#1a5fa8;
+  --mono:'DM Mono',monospace;
+  --sans:'DM Sans',sans-serif;
+  --radius:6px;
+  --radius-lg:10px;
+  --shadow:0 1px 3px rgba(0,0,0,0.08),0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md:0 4px 12px rgba(0,0,0,0.1);
+  --transition:0.15s ease;
 }
 
-/* ══ 10 UNIQUE THEMES ══ */
-/* 1. Cyberpunk — default electric dark */
-body.theme-cyberpunk{--bg:#04040a;--s1:#080810;--s2:#0d0d18;--b:#16162a;--b2:#1e1e35;--t:#e8e8f0;--m:#5a5a8a;--cyan:#00e5ff;--green:#00ff9d;--red:#ff3366;--orange:#ff6b35;--yellow:#ffd60a;--purple:#b06fff;--accent:#00e5ff;--grid-color:rgba(0,229,255,0.025);--glow-strength:18px;}
-/* 2. Obsidian — matte black with gold accents, serif feel */
-body.theme-obsidian{--bg:#0a0900;--s1:#110f00;--s2:#181500;--b:#231f00;--b2:#2e2800;--t:#f5ead0;--m:#7a6830;--cyan:#d4a843;--green:#b8c84a;--red:#e05020;--orange:#d47830;--purple:#a07848;--accent:#d4a843;--grid-color:rgba(212,168,67,0.02);--glow-strength:14px;}
-/* 3. Neon Noir — deep purple with hot pink neon */
-body.theme-neon-noir{--bg:#0a0010;--s1:#0f0018;--s2:#150022;--b:#1e0030;--b2:#28003f;--t:#f0d0ff;--m:#604080;--cyan:#ff00cc;--green:#cc00ff;--red:#ff0066;--orange:#ff3399;--purple:#9900ff;--accent:#ff00cc;--grid-color:rgba(255,0,204,0.025);--glow-strength:22px;}
-/* 4. Arctic Terminal — crisp light mode, ink on snow */
-body.theme-arctic{--bg:#f0f4f8;--s1:#e4eaf2;--s2:#d8e0ec;--b:#c0cedf;--b2:#a8bcd4;--t:#0d1a2e;--m:#4a6080;--cyan:#0055cc;--green:#006633;--red:#cc1122;--orange:#cc5500;--purple:#5511aa;--accent:#0055cc;--grid-color:rgba(0,85,204,0.04);--glow-strength:8px;}
-/* 5. Blood Moon — dark crimson, haunting red atmosphere */
-body.theme-blood-moon{--bg:#080002;--s1:#100005;--s2:#180008;--b:#250010;--b2:#300018;--t:#ffcccc;--m:#803040;--cyan:#ff2244;--green:#ff6040;--red:#ff0022;--orange:#ff4020;--purple:#cc1060;--accent:#ff2244;--grid-color:rgba(255,34,68,0.025);--glow-strength:20px;}
-/* 6. Matrix Rain — terminal green, classic hacker */
-body.theme-matrix{--bg:#000300;--s1:#000500;--s2:#000800;--b:#001200;--b2:#001a00;--t:#ccffcc;--m:#2a6020;--cyan:#00ff41;--green:#00cc33;--red:#ff4400;--orange:#ffaa00;--purple:#44ff88;--accent:#00ff41;--grid-color:rgba(0,255,65,0.025);--glow-strength:16px;}
-/* 7. Synthwave — 80s retro sunset gradient vibes */
-body.theme-synthwave{--bg:#0d0020;--s1:#120028;--s2:#180032;--b:#220048;--b2:#2c005a;--t:#ffe8ff;--m:#805090;--cyan:#ff71ce;--green:#05ffa1;--red:#ff3b6b;--orange:#ff9a3c;--purple:#b967ff;--accent:#ff71ce;--grid-color:rgba(255,113,206,0.025);--glow-strength:22px;}
-/* 8. Deep Ocean — bioluminescent blue depths */
-body.theme-deep-ocean{--bg:#000814;--s1:#000d1e;--s2:#001228;--b:#001a38;--b2:#002248;--t:#cceeff;--m:#2a5878;--cyan:#00b4d8;--green:#00f5d4;--red:#ef476f;--orange:#ffd166;--purple:#118ab2;--accent:#00b4d8;--grid-color:rgba(0,180,216,0.025);--glow-strength:16px;}
-/* 9. Ash — stark monochrome, no color, pure contrast */
-body.theme-ash{--bg:#0a0a0a;--s1:#111111;--s2:#161616;--b:#222222;--b2:#2d2d2d;--t:#eeeeee;--m:#666666;--cyan:#ffffff;--green:#cccccc;--red:#999999;--orange:#bbbbbb;--purple:#dddddd;--accent:#ffffff;--grid-color:rgba(255,255,255,0.018);--glow-strength:6px;}
-/* 10. Solar Flare — burnt amber, warm dark, like staring at the sun */
-body.theme-solar{--bg:#0c0400;--s1:#140800;--s2:#1c0c00;--b:#281400;--b2:#341c00;--t:#fff3cc;--m:#9a6020;--cyan:#ff9500;--green:#ffcc00;--red:#ff3300;--orange:#ff6600;--purple:#ffaa44;--accent:#ff9500;--grid-color:rgba(255,149,0,0.025);--glow-strength:18px;}
+body.dark{
+  --bg:#0a0a0a;
+  --bg2:#111111;
+  --bg3:#1a1a1a;
+  --border:#252525;
+  --border2:#333333;
+  --text:#f0f0f0;
+  --text2:#aaaaaa;
+  --text3:#666666;
+  --accent:#f0f0f0;
+  --accent-inv:#0a0a0a;
+  --red:#e05a4e;
+  --orange:#e07840;
+  --yellow:#d4a840;
+  --green:#3db870;
+  --blue:#5a9fe0;
+  --shadow:0 1px 3px rgba(0,0,0,0.4),0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md:0 4px 12px rgba(0,0,0,0.5);
+}
 
+/* ── Base ── */
 html{scroll-behavior:smooth}
-body{background:var(--bg);color:var(--t);font-family:var(--font-ui);min-height:100vh;overflow-x:hidden;transition:background 0.5s,color 0.4s}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+  font-size:14px;
+  line-height:1.6;
+  min-height:100vh;
+  transition:background var(--transition),color var(--transition);
+  -webkit-font-smoothing:antialiased;
+}
 
-/* ── Animated grid ── */
-body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(var(--grid-color) 1px,transparent 1px),linear-gradient(90deg,var(--grid-color) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;animation:gridPulse 8s ease-in-out infinite}
-@keyframes gridPulse{0%,100%{opacity:0.5}50%{opacity:1}}
+/* ── Layout ── */
+.layout{display:flex;min-height:100vh}
+.sidebar{
+  width:220px;
+  flex-shrink:0;
+  background:var(--bg2);
+  border-right:1px solid var(--border);
+  display:flex;
+  flex-direction:column;
+  position:fixed;
+  top:0;left:0;bottom:0;
+  overflow-y:auto;
+  z-index:50;
+  transition:background var(--transition),border-color var(--transition);
+}
+.main{
+  margin-left:220px;
+  flex:1;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+}
+.topbar{
+  height:52px;
+  background:var(--bg);
+  border-bottom:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 24px;
+  position:sticky;
+  top:0;
+  z-index:40;
+  transition:background var(--transition),border-color var(--transition);
+}
+.content{padding:28px 28px;flex:1}
 
-/* ── Scanlines ── */
-body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.025) 2px,rgba(0,0,0,0.025) 4px);pointer-events:none;z-index:0}
+/* ── Brand ── */
+.brand{
+  padding:20px 18px 16px;
+  border-bottom:1px solid var(--border);
+}
+.brand-logo{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  text-decoration:none;
+  cursor:pointer;
+}
+.brand-icon{
+  width:28px;height:28px;
+  background:var(--accent);
+  border-radius:var(--radius);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--accent-inv);
+  font-size:14px;
+  flex-shrink:0;
+}
+.brand-title{
+  font-size:15px;
+  font-weight:600;
+  color:var(--text);
+  letter-spacing:-0.3px;
+}
+.brand-sub{
+  font-family:var(--mono);
+  font-size:9px;
+  color:var(--text3);
+  letter-spacing:1.5px;
+  margin-top:1px;
+}
 
-/* ── Floating orbs ── */
-.orb{position:fixed;border-radius:50%;pointer-events:none;z-index:0;filter:blur(80px);animation:orbFloat 20s ease-in-out infinite}
-.orb1{width:400px;height:400px;background:radial-gradient(circle,rgba(0,229,255,0.06),transparent 70%);top:-100px;left:-100px;animation-delay:0s}
-.orb2{width:300px;height:300px;background:radial-gradient(circle,rgba(176,111,255,0.05),transparent 70%);bottom:-50px;right:-50px;animation-delay:-7s}
-.orb3{width:250px;height:250px;background:radial-gradient(circle,rgba(255,51,102,0.04),transparent 70%);top:40%;left:60%;animation-delay:-13s}
-@keyframes orbFloat{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(30px,-40px) scale(1.1)}66%{transform:translate(-20px,20px) scale(0.95)}}
-@keyframes hexFloat{0%{opacity:0.015;transform:translateY(0) rotate(0deg)}50%{opacity:0.04;transform:translateY(-20px) rotate(8deg)}100%{opacity:0.015;transform:translateY(0) rotate(0deg)}}
+/* ── Sidebar nav ── */
+.nav-section{
+  padding:14px 10px 4px;
+}
+.nav-label{
+  font-family:var(--mono);
+  font-size:9px;
+  color:var(--text3);
+  letter-spacing:2px;
+  padding:0 8px;
+  margin-bottom:4px;
+  font-weight:500;
+}
+.nav-item{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:7px 8px;
+  border-radius:var(--radius);
+  cursor:pointer;
+  font-size:13px;
+  color:var(--text2);
+  transition:background var(--transition),color var(--transition);
+  border:none;
+  background:none;
+  width:100%;
+  text-align:left;
+  font-family:var(--sans);
+}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:var(--accent);color:var(--accent-inv)}
+.nav-item .ni{font-size:14px;width:18px;text-align:center;flex-shrink:0}
 
-/* ── Cyber scan lines ── */
-.cyber-hline{position:absolute;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0;animation:cyberScanH 8s ease-in-out infinite}
-.cyber-vline{position:absolute;top:0;bottom:0;width:1px;background:linear-gradient(180deg,transparent,var(--accent),transparent);opacity:0;animation:cyberScanV 10s ease-in-out infinite}
-@keyframes cyberScanH{0%,100%{opacity:0;transform:scaleX(0)}10%{opacity:0.4}50%{opacity:0.1}90%{opacity:0.3}95%{opacity:0;transform:scaleX(1)}}
-@keyframes cyberScanV{0%,100%{opacity:0;transform:scaleY(0)}10%{opacity:0.3}50%{opacity:0.08}90%{opacity:0.25}95%{opacity:0;transform:scaleY(1)}}
+/* ── Sidebar footer ── */
+.sidebar-footer{
+  margin-top:auto;
+  padding:12px 10px;
+  border-top:1px solid var(--border);
+}
 
-/* ── Radar ring (home hero) ── */
-.radar-wrap{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:0}
-.radar-ring{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:50%;border:1px solid var(--accent);opacity:0;animation:radarPing 4s ease-out infinite}
-.radar-ring:nth-child(1){width:120px;height:120px;animation-delay:0s}
-.radar-ring:nth-child(2){width:200px;height:200px;animation-delay:1.2s}
-.radar-ring:nth-child(3){width:300px;height:300px;animation-delay:2.4s}
-@keyframes radarPing{0%{opacity:0.5;transform:translate(-50%,-50%) scale(0.3)}100%{opacity:0;transform:translate(-50%,-50%) scale(1)}}
+/* ── Topbar elements ── */
+.tb-title{font-size:14px;font-weight:500;color:var(--text);letter-spacing:-0.2px}
+.tb-right{display:flex;align-items:center;gap:10px}
 
-/* ── Home hero position ── */
-.home-hero{text-align:center;padding:60px 0 40px;position:relative}
+/* ── Theme toggle ── */
+.theme-toggle{
+  width:36px;height:20px;
+  background:var(--border2);
+  border-radius:10px;
+  position:relative;
+  cursor:pointer;
+  border:none;
+  transition:background var(--transition);
+  flex-shrink:0;
+}
+.theme-toggle::after{
+  content:'';
+  position:absolute;
+  top:3px;left:3px;
+  width:14px;height:14px;
+  background:var(--accent);
+  border-radius:50%;
+  transition:transform var(--transition),background var(--transition);
+}
+body.dark .theme-toggle::after{transform:translateX(16px)}
+body.dark .theme-toggle{background:var(--border2)}
 
-/* ── Floating digit rain (Matrix-style) rendered on canvas ── */
+/* ── User chip ── */
+.user-chip{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:5px 10px 5px 6px;
+  border:1px solid var(--border);
+  border-radius:20px;
+  cursor:pointer;
+  transition:border-color var(--transition),background var(--transition);
+  background:none;
+  font-family:var(--sans);
+}
+.user-chip:hover{border-color:var(--border2);background:var(--bg2)}
+.user-av{
+  width:22px;height:22px;
+  border-radius:50%;
+  background:var(--accent);
+  color:var(--accent-inv);
+  font-size:11px;
+  font-weight:600;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.user-name{font-size:12px;font-weight:500;color:var(--text)}
+.user-role{font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:1px}
 
-/* ── Notification badge on scan button ── */
-.scan-run-wrap{display:flex;align-items:center;gap:8px}
-.cancel-btn{padding:7px 12px;border:1px solid rgba(255,51,102,0.5);background:rgba(255,51,102,0.08);color:var(--red);border-radius:7px;cursor:pointer;font-family:var(--font-mono);font-size:10px;font-weight:700;letter-spacing:1px;transition:all 0.2s;display:none;align-items:center;gap:5px;white-space:nowrap}
-.cancel-btn:hover{background:rgba(255,51,102,0.18);border-color:var(--red)}
-.cancel-btn.visible{display:inline-flex}
-
-/* ── Auto-install progress banner ── */
-.install-banner{background:rgba(255,214,10,0.06);border:1px solid rgba(255,214,10,0.25);border-radius:9px;padding:12px 16px;margin:10px 0;display:none;align-items:center;gap:10px;font-family:var(--font-mono);font-size:12px;color:var(--yellow)}
-.install-banner.visible{display:flex}
-.install-banner .install-spinner{width:14px;height:14px;border:2px solid rgba(255,214,10,0.3);border-top-color:var(--yellow);border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0}
-@keyframes spin{to{transform:rotate(360deg)}}
-
-/* ── Scan complete notification (enhanced toast) ── */
-.toast.scan-done{border-left:3px solid var(--cyan);background:linear-gradient(135deg,var(--s1),rgba(0,229,255,0.04))}
-.toast.scan-done .toast-icon{color:var(--cyan)}
-
-/* ── Theme per-user tag ── */
-.theme-mine-badge{font-size:9px;background:rgba(0,229,255,0.1);color:var(--cyan);border:1px solid rgba(0,229,255,0.25);border-radius:4px;padding:1px 5px;font-family:var(--font-mono)}
-
-/* ── Particles canvas ── */
-#particles-canvas{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:0.6}
-
-/* ── Hexagon background pattern (additional layer) ── */
-.hex-bg{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:0.015;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50V17L28 0l28 17v33z' fill='none' stroke='%2300e5ff' stroke-width='0.5'/%3E%3C/svg%3E");background-size:56px 100px}
-
-/* ── Glitch ── */
-.brand-name{position:relative}
-.brand-name::before,.brand-name::after{content:attr(data-text);position:absolute;inset:0;background:linear-gradient(90deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.brand-name::before{animation:glitch1 7s infinite;clip-path:polygon(0 0,100% 0,100% 45%,0 45%)}
-.brand-name::after{animation:glitch2 7s infinite;clip-path:polygon(0 55%,100% 55%,100% 100%,0 100%)}
-@keyframes glitch1{0%,94%,100%{transform:none;opacity:0}95%{transform:translate(-2px,1px);opacity:0.7}96%{transform:translate(2px,-1px);opacity:0.5}97%{transform:none;opacity:0}}
-@keyframes glitch2{0%,92%,100%{transform:none;opacity:0}93%{transform:translate(2px,2px);opacity:0.6}94%{transform:translate(-1px,0);opacity:0.4}95%{transform:none;opacity:0}}
-
-/* ── Page transition ── */
-.page.active{animation:pageIn 0.32s cubic-bezier(0.16,1,0.3,1)}
-@keyframes pageIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-
-/* ── Header ── */
-header{position:sticky;top:0;z-index:100;background:rgba(4,4,10,0.88);backdrop-filter:blur(24px);border-bottom:1px solid var(--b);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:58px;flex-wrap:wrap;gap:8px;transition:box-shadow 0.3s,background 0.5s}
-header.scrolled{box-shadow:0 2px 40px rgba(0,0,0,0.7),0 0 1px var(--accent)}
-
-/* ── Card hover glow ── */
-.card{background:var(--s1);border:1px solid var(--b);border-radius:12px;padding:20px;margin-bottom:16px;transition:border-color 0.25s,box-shadow 0.25s}
-.card:hover{box-shadow:0 0 0 1px var(--accent),0 6px 30px rgba(0,0,0,0.5)}
-
-/* ── Home hero animated title ── */
-@keyframes shimmer{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
-.home-hero h1{background-size:200% auto;animation:shimmer 5s ease infinite}
-
-/* ── Tool card ── */
-.home-tool-card{background:var(--s1);border:1px solid var(--b);border-radius:12px;padding:18px;cursor:pointer;transition:all 0.28s cubic-bezier(0.34,1.56,0.64,1);position:relative;overflow:hidden}
-.home-tool-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,var(--tool-c,var(--cyan)),transparent 70%);opacity:0;transition:opacity 0.3s;pointer-events:none}
-.home-tool-card:hover{border-color:var(--tool-c,var(--cyan));transform:translateY(-5px) scale(1.01);box-shadow:0 12px 36px rgba(0,0,0,0.5),0 0 0 1px var(--tool-c,var(--cyan))}
-.home-tool-card:hover::before{opacity:0.055}
-.home-tool-icon{font-size:28px;margin-bottom:10px;display:inline-block;transition:transform 0.3s}
-.home-tool-card:hover .home-tool-icon{transform:scale(1.2) rotate(-6deg)}
-
-/* ── Stat cards ── */
-.home-stat{background:var(--s1);border:1px solid var(--b);border-radius:12px;padding:20px;text-align:center;transition:all 0.25s}
-.home-stat:hover{transform:translateY(-4px);box-shadow:0 10px 28px rgba(0,0,0,0.5),0 0 0 1px var(--accent)}
-
-/* ── Stagger animations ── */
-@keyframes cardIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
-.home-tool-card:nth-child(1){animation:cardIn 0.45s ease 0.05s both}
-.home-tool-card:nth-child(2){animation:cardIn 0.45s ease 0.1s both}
-.home-tool-card:nth-child(3){animation:cardIn 0.45s ease 0.15s both}
-.home-tool-card:nth-child(4){animation:cardIn 0.45s ease 0.2s both}
-.home-tool-card:nth-child(5){animation:cardIn 0.45s ease 0.25s both}
-.home-tool-card:nth-child(6){animation:cardIn 0.45s ease 0.3s both}
-@keyframes statIn{from{opacity:0;transform:scale(0.85)}to{opacity:1;transform:scale(1)}}
-.home-stat:nth-child(1){animation:statIn 0.4s ease 0.1s both}
-.home-stat:nth-child(2){animation:statIn 0.4s ease 0.18s both}
-.home-stat:nth-child(3){animation:statIn 0.4s ease 0.26s both}
-.home-stat:nth-child(4){animation:statIn 0.4s ease 0.34s both}
-
-/* ── Count-up ── */
-@keyframes numIn{from{opacity:0;transform:scale(0.6)}to{opacity:1;transform:scale(1)}}
-.home-stat-val.loaded{animation:numIn 0.5s cubic-bezier(0.34,1.56,0.64,1)}
-
-/* ── Button ── */
-.btn{padding:12px 22px;border:none;border-radius:9px;cursor:pointer;font-family:var(--font-mono);font-weight:700;font-size:12px;letter-spacing:1px;transition:all 0.2s;white-space:nowrap;position:relative;overflow:hidden}
-.btn-p{background:linear-gradient(135deg,var(--red),#b0102a);color:#fff;box-shadow:0 4px 18px rgba(255,51,102,0.28);width:100%}
-.btn-p::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.12),transparent);transform:translateX(-100%);transition:transform 0.5s}
-.btn-p:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(255,51,102,0.4)}
-.btn-p:hover::after{transform:translateX(100%)}
-.btn-p:disabled{background:var(--b);color:var(--m);cursor:not-allowed;transform:none;box-shadow:none}
-.btn-g{background:transparent;color:var(--m);border:1px solid var(--b2);padding:12px 18px}
-.btn-g:hover{border-color:var(--accent);color:var(--accent)}
-.btn-sm{padding:6px 12px;font-size:10px}
+/* ── Buttons ── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:8px 14px;
+  border-radius:var(--radius);
+  font-family:var(--sans);
+  font-size:13px;
+  font-weight:500;
+  cursor:pointer;
+  border:1px solid transparent;
+  transition:all var(--transition);
+  white-space:nowrap;
+  text-decoration:none;
+}
+.btn-primary{background:var(--accent);color:var(--accent-inv);border-color:var(--accent)}
+.btn-primary:hover{opacity:0.85}
+.btn-primary:disabled{opacity:0.4;cursor:not-allowed}
+.btn-outline{background:none;color:var(--text);border-color:var(--border2)}
+.btn-outline:hover{border-color:var(--text);background:var(--bg2)}
+.btn-ghost{background:none;color:var(--text2);border-color:transparent}
+.btn-ghost:hover{background:var(--bg3);color:var(--text)}
+.btn-danger{background:none;color:var(--red);border-color:rgba(192,57,43,0.3)}
+.btn-danger:hover{background:rgba(192,57,43,0.08)}
+.btn-sm{padding:5px 10px;font-size:12px}
 .btn-full{width:100%}
 
-/* ── Progress shimmer ── */
-#pb,[id$="-pb"]{position:relative;overflow:hidden}
-#pb::after,[id$="-pb"]::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.35),transparent);animation:pbShimmer 1.5s ease infinite}
-@keyframes pbShimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+/* ── Cards & containers ── */
+.card{
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:var(--radius-lg);
+  transition:border-color var(--transition),background var(--transition);
+}
+.card-p{padding:20px}
+.card-header{
+  padding:16px 20px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.card-title{
+  font-size:13px;
+  font-weight:600;
+  color:var(--text);
+  letter-spacing:-0.1px;
+}
+.card-sub{
+  font-family:var(--mono);
+  font-size:10px;
+  color:var(--text3);
+  letter-spacing:1px;
+  margin-top:3px;
+}
 
-/* ── Quick btn sweep ── */
-.home-quick-btn{position:relative;overflow:hidden}
-.home-quick-btn::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent 40%,rgba(255,255,255,0.07) 50%,transparent 60%);transform:translateX(-100%);transition:transform 0.5s}
-.home-quick-btn:hover::after{transform:translateX(100%)}
+/* ── Page header ── */
+.page-hd{margin-bottom:24px}
+.page-title{font-size:22px;font-weight:600;letter-spacing:-0.5px;color:var(--text);line-height:1.2}
+.page-desc{font-size:13px;color:var(--text3);margin-top:5px}
 
-/* ── Pulse dot ── */
-.pulse-dot{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;animation:pulseDot 2s ease infinite}
-@keyframes pulseDot{0%{box-shadow:0 0 0 0 rgba(0,255,157,0.7)}70%{box-shadow:0 0 0 8px rgba(0,255,157,0)}100%{box-shadow:0 0 0 0 rgba(0,255,157,0)}}
+/* ── Inputs ── */
+.inp{
+  width:100%;
+  background:var(--bg);
+  border:1px solid var(--border2);
+  border-radius:var(--radius);
+  color:var(--text);
+  padding:9px 12px;
+  font-size:13px;
+  font-family:var(--sans);
+  outline:none;
+  transition:border-color var(--transition),background var(--transition);
+}
+.inp:focus{border-color:var(--accent)}
+.inp::placeholder{color:var(--text3)}
+.inp-mono{font-family:var(--mono);font-size:13px}
+.fg{margin-bottom:14px}
+.fg label{
+  display:block;
+  font-size:11px;
+  font-weight:500;
+  color:var(--text3);
+  letter-spacing:0.5px;
+  margin-bottom:5px;
+}
+textarea.inp{resize:vertical;min-height:80px}
+select.inp{cursor:pointer}
 
-/* ── Toast notifications ── */
-.toast{background:var(--s1);border:1px solid var(--b2);border-radius:10px;padding:12px 16px;min-width:280px;max-width:380px;pointer-events:all;cursor:pointer;display:flex;align-items:flex-start;gap:10px;font-family:var(--font-mono);font-size:12px;box-shadow:0 8px 32px rgba(0,0,0,0.6);animation:toastIn 0.35s cubic-bezier(0.34,1.56,0.64,1)}
-.toast.leaving{animation:toastOut 0.3s ease forwards}
-@keyframes toastIn{from{opacity:0;transform:translateX(60px) scale(0.9)}to{opacity:1;transform:translateX(0) scale(1)}}
-@keyframes toastOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(60px)}}
-.toast-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+/* ── Scan input bar ── */
+.scan-bar{
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+.scan-bar .inp{font-family:var(--mono);flex:1}
+
+/* ── Module pills ── */
+.pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.pill{
+  padding:4px 12px;
+  border-radius:20px;
+  font-family:var(--mono);
+  font-size:11px;
+  border:1px solid var(--border2);
+  color:var(--text2);
+  background:none;
+  cursor:pointer;
+  transition:all var(--transition);
+}
+.pill.on{background:var(--accent);color:var(--accent-inv);border-color:var(--accent)}
+
+/* ── Progress ── */
+.progress-wrap{
+  height:2px;
+  background:var(--bg3);
+  border-radius:1px;
+  overflow:hidden;
+  margin:12px 0;
+  display:none;
+}
+.progress-bar{
+  height:100%;
+  background:var(--accent);
+  border-radius:1px;
+  transition:width 0.3s;
+}
+@keyframes pb-shimmer{
+  0%{transform:translateX(-100%)}
+  100%{transform:translateX(100%)}
+}
+.progress-wrap.active{display:block}
+.progress-bar{position:relative;overflow:hidden}
+.progress-bar::after{
+  content:'';
+  position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent);
+  animation:pb-shimmer 1.2s ease infinite;
+}
+
+/* ── Terminal ── */
+.terminal{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:12px 14px;
+  max-height:160px;
+  overflow-y:auto;
+  font-family:var(--mono);
+  font-size:12px;
+  line-height:1.8;
+  display:none;
+  margin:12px 0;
+}
+.terminal.visible{display:block}
+.tl-i{color:var(--text3)}
+.tl-s{color:var(--green)}
+.tl-w{color:var(--yellow)}
+.tl-e{color:var(--red)}
+.tl-prefix{font-weight:500}
+
+/* ── Error box ── */
+.err-box{
+  background:rgba(192,57,43,0.06);
+  border:1px solid rgba(192,57,43,0.2);
+  border-radius:var(--radius);
+  padding:10px 14px;
+  color:var(--red);
+  font-size:13px;
+  font-family:var(--mono);
+  display:none;
+  margin:10px 0;
+}
+.err-box.visible{display:block}
+
+/* ── Notice ── */
+.notice{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-left:3px solid var(--yellow);
+  border-radius:var(--radius);
+  padding:10px 14px;
+  font-size:12px;
+  color:var(--text2);
+  margin-bottom:16px;
+}
+
+/* ── Stats grid ── */
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-bottom:20px}
+.stat{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:14px 12px;
+  text-align:center;
+  transition:background var(--transition),border-color var(--transition);
+}
+.stat-val{
+  font-family:var(--mono);
+  font-size:26px;
+  font-weight:500;
+  color:var(--text);
+  line-height:1;
+  margin-bottom:4px;
+}
+.stat-lbl{
+  font-family:var(--mono);
+  font-size:9px;
+  color:var(--text3);
+  letter-spacing:1.5px;
+}
+
+/* ── Tabs ── */
+.tabs{
+  display:flex;
+  gap:2px;
+  border-bottom:1px solid var(--border);
+  margin-bottom:18px;
+  overflow-x:auto;
+}
+.tab{
+  padding:9px 16px;
+  font-size:12px;
+  font-family:var(--mono);
+  color:var(--text3);
+  background:none;
+  border:none;
+  cursor:pointer;
+  border-bottom:2px solid transparent;
+  margin-bottom:-1px;
+  white-space:nowrap;
+  transition:color var(--transition),border-color var(--transition);
+  letter-spacing:0.5px;
+}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--text);border-bottom-color:var(--accent)}
+.tc{display:none}
+.tc.active{display:block}
+
+/* ── Severity badges ── */
+.sev{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:2px 8px;
+  border-radius:3px;
+  font-family:var(--mono);
+  font-size:10px;
+  font-weight:500;
+  border:1px solid transparent;
+}
+.sev-critical{background:rgba(192,57,43,0.1);color:var(--red);border-color:rgba(192,57,43,0.2)}
+.sev-high{background:rgba(211,84,0,0.1);color:var(--orange);border-color:rgba(211,84,0,0.2)}
+.sev-medium{background:rgba(183,134,11,0.1);color:var(--yellow);border-color:rgba(183,134,11,0.2)}
+.sev-low{background:rgba(26,122,58,0.1);color:var(--green);border-color:rgba(26,122,58,0.2)}
+.sev-unknown{background:var(--bg2);color:var(--text3);border-color:var(--border)}
+
+/* ── Port panels ── */
+.port-panel{
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  overflow:hidden;
+  margin-bottom:8px;
+  transition:border-color var(--transition);
+}
+.port-panel:hover{border-color:var(--border2)}
+.port-hd{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:12px 14px;
+  cursor:pointer;
+  user-select:none;
+  flex-wrap:wrap;
+}
+.port-num{
+  font-family:var(--mono);
+  font-size:14px;
+  font-weight:500;
+  color:var(--text);
+  min-width:52px;
+}
+.port-svc{font-size:13px;font-weight:500;color:var(--text);flex:1}
+.port-ver{font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:2px}
+.port-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.port-body{
+  padding:0 14px 14px;
+  border-top:1px solid var(--border);
+  display:none;
+}
+.port-body.open{display:block}
+.chev{
+  color:var(--text3);
+  font-size:10px;
+  transition:transform var(--transition);
+  flex-shrink:0;
+}
+.chev.open{transform:rotate(180deg)}
+.port-score{
+  font-family:var(--mono);
+  font-size:13px;
+  font-weight:600;
+}
+
+/* ── CVE items ── */
+.cve-item{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:12px;
+  margin-bottom:6px;
+}
+.cve-hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.cve-id{
+  font-family:var(--mono);
+  font-size:12px;
+  font-weight:500;
+  color:var(--text);
+  text-decoration:none;
+}
+.cve-id:hover{text-decoration:underline}
+.cve-score{
+  font-family:var(--mono);
+  font-size:12px;
+  font-weight:600;
+}
+.cve-date{font-family:var(--mono);font-size:10px;color:var(--text3);margin-left:auto}
+.cve-desc{font-size:12px;color:var(--text2);line-height:1.7}
+
+/* ── Mitigation list ── */
+.mit-list{margin:0;padding:0;list-style:none}
+.mit-item{
+  display:flex;gap:8px;
+  padding:6px 0;
+  border-bottom:1px solid var(--border);
+  font-size:12px;
+  color:var(--text2);
+}
+.mit-item:last-child{border-bottom:none}
+.mit-bullet{color:var(--text3);flex-shrink:0;font-size:14px;line-height:1.5}
+.sec-label{
+  font-family:var(--mono);
+  font-size:10px;
+  color:var(--text3);
+  letter-spacing:2px;
+  margin:14px 0 8px;
+}
+
+/* ── SSL ── */
+.ssl-card{
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:16px;
+  margin-bottom:8px;
+  display:flex;align-items:flex-start;gap:16px;
+}
+.ssl-grade{
+  width:52px;height:52px;
+  border-radius:var(--radius);
+  border:2px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);
+  font-size:22px;
+  font-weight:700;
+  flex-shrink:0;
+  color:var(--text);
+}
+.ssl-info{flex:1}
+.ssl-host{font-size:14px;font-weight:500;color:var(--text)}
+.ssl-detail{font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:3px}
+.ssl-issue{
+  display:flex;align-items:center;gap:8px;
+  padding:5px 0;
+  border-bottom:1px solid var(--border);
+  font-size:12px;
+}
+.ssl-issue:last-child{border-bottom:none}
+
+/* ── DNS ── */
+.dns-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:14px}
+.dns-card{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:12px;
+}
+.dns-type{
+  font-family:var(--mono);font-size:10px;color:var(--text3);
+  letter-spacing:2px;margin-bottom:6px;
+}
+.dns-val{font-family:var(--mono);font-size:11px;color:var(--text2);line-height:1.8;word-break:break-all}
+.sub-item{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:7px 10px;
+  border-bottom:1px solid var(--border);
+  font-family:var(--mono);font-size:12px;
+}
+.sub-item:last-child{border-bottom:none}
+
+/* ── Headers ── */
+.hdr-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:6px 10px;border-bottom:1px solid var(--border);
+  font-family:var(--mono);font-size:11px;flex-wrap:wrap;gap:4px;
+}
+.hdr-row:last-child{border-bottom:none}
+.hdr-key{color:var(--text3);min-width:180px;flex-shrink:0}
+.hdr-val{color:var(--text);word-break:break-all;text-align:right;max-width:380px}
+.hdr-grade-big{font-family:var(--mono);font-size:42px;font-weight:700;color:var(--text);line-height:1}
+
+/* ── Tables ── */
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{
+  font-family:var(--mono);font-size:9px;letter-spacing:2px;
+  color:var(--text3);padding:9px 10px;text-align:left;
+  border-bottom:1px solid var(--border);font-weight:500;
+}
+.tbl td{
+  padding:9px 10px;border-bottom:1px solid var(--border);
+  color:var(--text);vertical-align:middle;
+}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:var(--bg2)}
+.tbl-wrap{overflow-x:auto}
+
+/* ── Small tag ── */
+.tag{
+  display:inline-block;
+  padding:2px 7px;
+  border-radius:3px;
+  font-family:var(--mono);
+  font-size:10px;
+  border:1px solid var(--border);
+  background:var(--bg2);
+  color:var(--text2);
+}
+
+/* ── Host chip ── */
+.host-chip{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:12px;
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:6px 12px;
+  margin-bottom:14px;
+}
+.host-ip{font-weight:500;color:var(--text)}
+.host-up{color:var(--green)}
+
+/* ── Profile ── */
+.profile-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.kv{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}
+.kv-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px}
+.kv-k{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1.5px;margin-bottom:4px}
+.kv-v{font-size:13px;font-weight:500;color:var(--text)}
+
+/* ── Role badges ── */
+.badge{
+  display:inline-block;
+  padding:2px 8px;
+  border-radius:3px;
+  font-family:var(--mono);
+  font-size:10px;
+  font-weight:500;
+}
+.badge-admin{background:var(--bg3);color:var(--text2);border:1px solid var(--border2)}
+.badge-user{background:var(--bg2);color:var(--text3);border:1px solid var(--border)}
+
+/* ── Theme section ── */
+.theme-options{display:flex;gap:10px;margin-top:12px}
+.theme-opt{
+  flex:1;
+  padding:14px;
+  border:2px solid var(--border);
+  border-radius:var(--radius-lg);
+  cursor:pointer;
+  background:none;
+  text-align:left;
+  transition:border-color var(--transition),background var(--transition);
+  font-family:var(--sans);
+}
+.theme-opt:hover{border-color:var(--border2)}
+.theme-opt.active{border-color:var(--accent)}
+.theme-swatch{
+  width:100%;height:40px;
+  border-radius:var(--radius);
+  margin-bottom:10px;
+  border:1px solid var(--border);
+}
+.theme-name{font-size:13px;font-weight:500;color:var(--text);margin-bottom:3px}
+.theme-desc{font-size:11px;color:var(--text3)}
+
+/* ── Auth overlay ── */
+.overlay{
+  position:fixed;inset:0;
+  background:var(--bg);
+  z-index:200;
+  display:flex;align-items:center;justify-content:center;
+  padding:16px;
+}
+.auth-box{
+  width:100%;max-width:380px;
+}
+.auth-logo{
+  display:flex;align-items:center;gap:10px;margin-bottom:28px;
+}
+.auth-logo-icon{
+  width:32px;height:32px;
+  background:var(--accent);
+  border-radius:var(--radius);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--accent-inv);
+  font-size:16px;
+}
+.auth-title{font-size:18px;font-weight:600;color:var(--text);letter-spacing:-0.3px}
+.auth-tabs{
+  display:flex;gap:0;
+  margin-bottom:20px;
+  border-bottom:1px solid var(--border);
+}
+.auth-tab{
+  padding:8px 14px;
+  font-size:12px;
+  font-family:var(--mono);
+  color:var(--text3);
+  background:none;
+  border:none;
+  cursor:pointer;
+  border-bottom:2px solid transparent;
+  margin-bottom:-1px;
+  transition:all var(--transition);
+  letter-spacing:0.5px;
+}
+.auth-tab.active{color:var(--text);border-bottom-color:var(--accent)}
+.auth-msg{
+  padding:9px 12px;
+  border-radius:var(--radius);
+  font-size:12px;
+  font-family:var(--mono);
+  margin-bottom:14px;
+  display:none;
+}
+.auth-msg.ok{background:rgba(26,122,58,0.08);border:1px solid rgba(26,122,58,0.2);color:var(--green)}
+.auth-msg.err{background:rgba(192,57,43,0.07);border:1px solid rgba(192,57,43,0.2);color:var(--red)}
+.auth-link{
+  background:none;border:none;
+  color:var(--text2);cursor:pointer;
+  font-size:12px;font-family:var(--mono);
+  text-decoration:underline;text-underline-offset:2px;
+  padding:0;
+}
+.auth-link:hover{color:var(--text)}
+.tos-box{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:10px 12px;
+  margin-bottom:14px;
+  display:flex;
+  align-items:flex-start;
+  gap:9px;
+}
+.tos-box input[type=checkbox]{
+  width:14px;height:14px;
+  margin-top:2px;
+  cursor:pointer;
+  flex-shrink:0;
+  accent-color:var(--accent);
+}
+.tos-box label{
+  font-size:11px;color:var(--text2);line-height:1.6;cursor:pointer;
+}
+
+/* ── Admin ── */
+.admin-tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:18px;overflow-x:auto}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:7px;font-size:12px}
+.bar-label{color:var(--text3);font-family:var(--mono);font-size:10px;width:90px;text-align:right;flex-shrink:0}
+.bar-track{flex:1;background:var(--bg3);border-radius:2px;height:6px;overflow:hidden}
+.bar-fill{height:100%;background:var(--accent);border-radius:2px;transition:width 1s ease}
+.bar-val{font-family:var(--mono);font-size:10px;color:var(--text3);width:24px}
+
+/* ── CLI ── */
+.cli-out{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:14px;
+  min-height:300px;
+  max-height:480px;
+  overflow-y:auto;
+  font-family:var(--mono);
+  font-size:12px;
+  line-height:1.8;
+  margin-bottom:10px;
+}
+.cli-cmd-line{color:var(--green);margin-top:6px}
+.cli-resp{color:var(--text2);white-space:pre-wrap;font-size:11px}
+.cli-err{color:var(--red);white-space:pre-wrap;font-size:11px}
+.cli-input-row{display:flex;align-items:center;gap:8px}
+.cli-prompt{font-family:var(--mono);font-size:12px;color:var(--text3);white-space:nowrap}
+.cli-quick{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.cli-quick-btn{
+  font-family:var(--mono);font-size:10px;
+  padding:4px 9px;
+  background:var(--bg2);
+  border:1px solid var(--border);
+  color:var(--text3);
+  border-radius:3px;
+  cursor:pointer;
+  transition:all var(--transition);
+}
+.cli-quick-btn:hover{border-color:var(--border2);color:var(--text)}
+.cli-status{
+  font-family:var(--mono);font-size:10px;color:var(--text3);
+  margin-top:6px;display:flex;align-items:center;gap:6px;
+}
+.pulse{
+  width:6px;height:6px;
+  border-radius:50%;
+  background:var(--green);
+  animation:pulse 2s ease infinite;
+  flex-shrink:0;
+}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+/* ── Server stats ── */
+.srv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:14px}
+.srv-card{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:14px;
+}
+.srv-label{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;margin-bottom:8px}
+.srv-val{font-family:var(--mono);font-size:22px;font-weight:500;color:var(--text);line-height:1;margin-bottom:4px}
+.srv-bar{height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-top:6px}
+.srv-bar-fill{height:100%;background:var(--accent);border-radius:2px;transition:width 0.5s ease}
+.srv-sub{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:4px}
+
+/* ── Grid row ── */
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+
+/* ── Disc hosts ── */
+.host-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.host-card{
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:12px;cursor:pointer;
+  transition:border-color var(--transition),background var(--transition);
+}
+.host-card:hover{border-color:var(--border2);background:var(--bg2)}
+.host-card-ip{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--text)}
+.host-card-hn{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:3px}
+
+/* ── Found badge ── */
+.found{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:4px 10px;
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:20px;
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--text2);
+}
+
+/* ── About modal ── */
+.modal-bg{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.5);
+  z-index:300;
+  display:none;
+  align-items:center;justify-content:center;
+  padding:16px;
+  backdrop-filter:blur(4px);
+}
+.modal-bg.open{display:flex}
+.modal{
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:var(--radius-lg);
+  padding:28px;
+  width:100%;max-width:500px;
+  position:relative;
+  max-height:90vh;overflow-y:auto;
+  box-shadow:var(--shadow-md);
+}
+.modal-close{
+  position:absolute;top:14px;right:14px;
+  background:none;border:none;
+  color:var(--text3);cursor:pointer;
+  font-size:18px;line-height:1;
+  transition:color var(--transition);
+}
+.modal-close:hover{color:var(--text)}
+
+/* ── ToS modal ── */
+.tos-modal-bg{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.6);
+  z-index:400;
+  display:none;
+  align-items:center;justify-content:center;
+  padding:16px;
+  backdrop-filter:blur(4px);
+}
+.tos-modal-bg.open{display:flex}
+.tos-modal{
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:var(--radius-lg);
+  padding:28px;
+  width:100%;max-width:560px;
+  max-height:88vh;overflow-y:auto;
+  box-shadow:var(--shadow-md);
+  position:relative;
+}
+.tos-section{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:14px;
+  margin-bottom:16px;
+  font-size:12px;
+  color:var(--text2);
+  line-height:1.8;
+}
+.tos-section strong{color:var(--text)}
+.tos-section h4{font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ── Spinner ── */
+.spin{
+  display:inline-block;
+  width:11px;height:11px;
+  border:1.5px solid var(--border2);
+  border-top-color:var(--text);
+  border-radius:50%;
+  animation:sp 0.7s linear infinite;
+  vertical-align:middle;
+}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ── Page fade ── */
+.page{display:none}
+.page.active{display:block;animation:fadeIn 0.2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Toast ── */
+#toast-container{
+  position:fixed;bottom:20px;right:20px;
+  z-index:999;
+  display:flex;flex-direction:column;gap:8px;
+  pointer-events:none;
+}
+.toast{
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:10px 14px;
+  font-size:12px;
+  font-family:var(--mono);
+  box-shadow:var(--shadow-md);
+  pointer-events:all;
+  display:flex;align-items:flex-start;gap:9px;
+  max-width:320px;
+  animation:toastIn 0.25s ease;
+}
+.toast.leaving{animation:toastOut 0.2s ease forwards}
+@keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes toastOut{to{opacity:0;transform:translateX(20px)}}
+.toast-icon{flex-shrink:0;font-size:14px;margin-top:1px}
 .toast-body{flex:1}
-.toast-title{font-weight:700;margin-bottom:2px;letter-spacing:0.5px}
-.toast-msg{color:var(--m);font-size:11px;line-height:1.5}
-.toast-close{background:none;border:none;color:var(--m);cursor:pointer;font-size:14px;padding:0;line-height:1;flex-shrink:0}
-.toast-close:hover{color:var(--t)}
+.toast-title{font-weight:500;color:var(--text);margin-bottom:2px}
+.toast-msg{color:var(--text3);font-size:11px;line-height:1.5}
+.toast-close{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;line-height:1;flex-shrink:0}
+.toast-close:hover{color:var(--text)}
 .toast.success{border-left:3px solid var(--green)}
-.toast.success .toast-icon{color:var(--green)}
 .toast.error{border-left:3px solid var(--red)}
-.toast.error .toast-icon{color:var(--red)}
-.toast.info{border-left:3px solid var(--cyan)}
-.toast.info .toast-icon{color:var(--cyan)}
+.toast.info{border-left:3px solid var(--blue)}
 .toast.warning{border-left:3px solid var(--yellow)}
-.toast.warning .toast-icon{color:var(--yellow)}
-.toast-progress{height:2px;background:var(--b2);border-radius:1px;margin-top:8px;overflow:hidden}
-.toast-progress-bar{height:100%;border-radius:1px;transition:width linear}
 
-/* ── CLI Console ── */
-.cli-line{line-height:1.9;font-size:12px;font-family:var(--font-mono)}
-.cli-cmd{color:var(--green)}
-.cli-out{color:var(--m)}
-.cli-err{color:var(--red)}
-.cli-system{color:var(--cyan)}
-
-/* ── Theme dropdown ── */
-.theme-dropdown-wrap{position:relative}
-.theme-dropdown-btn{width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:9px;color:var(--t);padding:11px 14px;font-size:13px;font-family:var(--font-mono);cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;transition:border-color 0.2s}
-.theme-dropdown-btn:hover{border-color:var(--accent)}
-.theme-dropdown-btn.open{border-color:var(--accent);border-radius:9px 9px 0 0}
-.theme-dropdown-list{position:absolute;left:0;right:0;top:100%;background:var(--s1);border:1px solid var(--accent);border-top:none;border-radius:0 0 9px 9px;z-index:50;display:none;max-height:360px;overflow-y:auto}
-.theme-dropdown-list.open{display:block;animation:ddFade 0.18s ease}
-.theme-option{display:flex;align-items:center;gap:12px;padding:11px 14px;cursor:pointer;transition:background 0.15s;border-bottom:1px solid var(--b)}
-.theme-option:last-child{border-bottom:none}
-.theme-option:hover,.theme-option.active{background:var(--b)}
-.theme-option.active{background:var(--b2)}
-.theme-preview{display:flex;gap:3px;width:52px;flex-shrink:0}
-.theme-preview-dot{width:10px;height:10px;border-radius:50%}
-.theme-option-name{font-family:var(--font-mono);font-size:12px;font-weight:700;letter-spacing:1px}
-.theme-option-desc{font-family:var(--font-mono);font-size:10px;color:var(--m);margin-top:1px}
-.theme-option.active .theme-option-name::after{content:' ✓';color:var(--accent)}
-
-/* ── Nav ── */
-nav{display:flex;gap:3px;flex-wrap:wrap;align-items:center}
-.nb{padding:6px 13px;border:none;background:transparent;color:var(--m);cursor:pointer;font-family:var(--font-mono);font-size:12px;letter-spacing:1px;border-radius:6px;transition:all 0.2s;white-space:nowrap}
-.nb:hover,.nb.active{background:var(--b);color:var(--accent)}
-.nav-dropdown{position:relative;display:inline-block}
-.nav-dropdown:hover .nav-dropdown-menu{display:block;animation:ddFade 0.18s cubic-bezier(0.34,1.56,0.64,1)}
-.nav-dropdown:hover .nav-dropdown-btn{background:var(--b);color:var(--accent)}
-.nav-dropdown:hover .nav-dropdown-btn .arrow{transform:rotate(180deg)}
-@keyframes ddFade{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
-.nav-dropdown-btn{padding:6px 13px;border:none;background:transparent;color:var(--m);cursor:pointer;font-family:var(--font-mono);font-size:12px;letter-spacing:1px;border-radius:6px;transition:all 0.2s;white-space:nowrap;display:flex;align-items:center;gap:5px}
-.nav-dropdown-btn:hover,.nav-dropdown-btn.active{background:var(--b);color:var(--accent)}
-.nav-dropdown-btn .arrow{font-size:8px;transition:transform 0.2s}
-.nav-dropdown-menu{position:absolute;top:calc(100% + 2px);left:0;background:var(--s1);border:1px solid var(--b2);border-radius:10px;min-width:220px;z-index:100;padding:6px;display:none;box-shadow:0 8px 40px rgba(0,0,0,0.7),0 0 0 1px rgba(255,255,255,0.03)}
-.nav-dropdown-section{font-size:9px;color:var(--m);letter-spacing:2px;font-family:var(--font-mono);padding:6px 10px 4px;margin-top:4px}
-.nav-dropdown-section:first-child{margin-top:0}
-.nav-dropdown-item{display:flex;align-items:center;gap:9px;padding:8px 12px;border:none;background:transparent;color:var(--t);cursor:pointer;font-family:var(--font-mono);font-size:11px;border-radius:7px;width:100%;text-align:left;transition:all 0.2s}
-.nav-dropdown-item:hover{background:var(--b);color:var(--accent)}
-.nav-dropdown-item.active{background:var(--b);color:var(--accent)}
-.nav-dropdown-item .item-icon{width:22px;text-align:center;font-size:13px}
-.nav-dropdown-item .item-label{flex:1}
-.nav-dropdown-item .item-badge{font-size:8px;background:var(--accent);color:var(--bg);padding:2px 5px;border-radius:4px;font-weight:700}
-.ver-badge{font-size:9px;font-family:var(--font-mono);background:rgba(0,229,255,0.08);color:var(--accent);border:1px solid rgba(0,229,255,0.2);border-radius:4px;padding:2px 7px;letter-spacing:1px;cursor:default}
-.brand-link{display:flex;align-items:center;gap:10px;cursor:pointer;text-decoration:none}
-.brand{display:flex;align-items:center;gap:10px}
-.brand-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--red),var(--orange));border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 0 var(--glow-strength) rgba(255,51,102,0.35);animation:iconPulse 4s ease-in-out infinite}
-@keyframes iconPulse{0%,100%{box-shadow:0 0 var(--glow-strength) rgba(255,51,102,0.35)}50%{box-shadow:0 0 28px rgba(255,51,102,0.6)}}
-.brand-name{font-size:17px;font-weight:800;background:linear-gradient(90deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.brand-tag{font-size:8px;color:var(--m);letter-spacing:3px;font-family:var(--font-mono)}
-
-/* ── Home ── */
-.home-hero{text-align:center;padding:48px 0 36px}
-.home-hero h1{font-size:42px;font-weight:800;background:linear-gradient(135deg,var(--cyan),var(--purple),var(--red));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:10px;line-height:1.1;background-size:200% auto;animation:shimmer 5s ease infinite}
-.home-hero p{color:var(--m);font-size:14px;font-family:var(--font-mono);max-width:540px;margin:0 auto 28px}
-.home-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:40px}
-.home-stat-val{font-size:32px;font-weight:800;font-family:var(--font-mono);background:linear-gradient(135deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.home-stat-lbl{color:var(--m);font-size:10px;letter-spacing:2px;margin-top:4px;font-family:var(--font-mono)}
-.home-cat{margin-bottom:36px}
-.home-cat-title{font-size:11px;color:var(--m);letter-spacing:3px;font-family:var(--font-mono);margin-bottom:14px;font-weight:700;display:flex;align-items:center;gap:10px}
-.home-cat-title::after{content:'';flex:1;height:1px;background:var(--b)}
-.home-tools-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
-.home-tool-name{font-size:15px;font-weight:700;margin-bottom:4px;color:var(--t)}
-.home-tool-desc{font-size:11px;color:var(--m);font-family:var(--font-mono);line-height:1.6}
-.home-tool-tags{display:flex;gap:5px;margin-top:10px;flex-wrap:wrap}
-.home-tool-tag{font-size:9px;font-family:var(--font-mono);padding:2px 7px;border-radius:3px;font-weight:700}
-.home-quick{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:40px}
-.home-quick-btn{padding:10px 20px;border:1px solid var(--b2);border-radius:8px;background:transparent;color:var(--t);cursor:pointer;font-family:var(--font-mono);font-size:12px;transition:all 0.2s;display:flex;align-items:center;gap:7px;position:relative;overflow:hidden}
-.home-quick-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(0,229,255,0.05)}
-
-/* ── Misc UI ── */
-.user-chip{display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--b2);border-radius:20px;padding:4px 12px 4px 8px;cursor:pointer;transition:all 0.2s}
-.user-chip:hover{border-color:var(--accent)}
-.user-avatar{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--purple));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--bg)}
-.user-name{font-size:12px;font-family:var(--font-mono);color:var(--t)}
-.user-role{font-size:9px;color:var(--m);font-family:var(--font-mono)}
-.overlay{position:fixed;inset:0;background:rgba(4,4,10,0.95);z-index:200;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px)}
-.auth-box{background:var(--s1);border:1px solid var(--b2);border-radius:16px;padding:36px;width:100%;max-width:420px;position:relative}
-.auth-box h2{font-size:22px;font-weight:800;margin-bottom:4px;background:linear-gradient(90deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.auth-box p{color:var(--m);font-size:12px;margin-bottom:24px;font-family:var(--font-mono)}
-.auth-tabs{display:flex;gap:0;margin-bottom:24px;background:var(--s2);border-radius:8px;padding:3px}
-.auth-tab{flex:1;padding:8px;border:none;background:transparent;color:var(--m);cursor:pointer;font-family:var(--font-mono);font-size:11px;border-radius:6px;transition:all 0.2s}
-.auth-tab.active{background:var(--b2);color:var(--accent)}
-.fg{margin-bottom:14px}
-.fg label{display:block;font-size:10px;color:var(--m);letter-spacing:2px;font-family:var(--font-mono);margin-bottom:5px}
-.inp{width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:9px;color:var(--t);padding:11px 14px;font-size:14px;font-family:var(--font-mono);outline:none;transition:border 0.2s}
-.inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,229,255,0.07)}
-.inp::placeholder{color:#252540}
-.btn-p:hover{transform:translateY(-1px)}
-.auth-msg{padding:10px 14px;border-radius:7px;font-size:12px;font-family:var(--font-mono);margin-bottom:14px;display:none}
-.auth-msg.ok{background:rgba(0,255,157,0.08);border:1px solid rgba(0,255,157,0.2);color:var(--green)}
-.auth-msg.err{background:rgba(255,51,102,0.08);border:1px solid rgba(255,51,102,0.2);color:var(--red)}
-.auth-link{background:none;border:none;color:var(--accent);cursor:pointer;font-size:11px;font-family:var(--font-mono);text-decoration:underline;padding:0}
-.container{max-width:1100px;margin:0 auto;padding:24px 16px;position:relative;z-index:1}
-.page{display:none}.page.active{display:block}
-.ctitle{font-size:11px;color:var(--m);letter-spacing:3px;font-family:var(--font-mono);margin-bottom:12px;font-weight:600}
-.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
-.hero{text-align:center;padding:32px 0 24px}
-.hero h2{font-size:28px;font-weight:800;background:linear-gradient(135deg,var(--cyan),var(--purple),var(--red));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}
-.hero p{color:var(--m);font-size:13px;font-family:var(--font-mono)}
-.scan-inp{flex:1;min-width:200px;background:var(--s2);border:1px solid var(--b2);border-radius:9px;color:var(--accent);padding:12px 16px;font-size:14px;font-family:var(--font-mono);outline:none;transition:border 0.2s}
-.scan-inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,229,255,0.07)}
-.scan-inp::placeholder{color:#252540}
-.mods{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;justify-content:center}
-.mt{padding:5px 13px;border:1px solid var(--b2);border-radius:18px;cursor:pointer;font-size:11px;font-family:var(--font-mono);color:var(--m);background:transparent;transition:all 0.2s}
-.mt.on{border-color:var(--accent);color:var(--accent);background:rgba(0,229,255,0.07)}
-#term{background:#020208;border:1px solid var(--b);border-radius:9px;padding:13px 15px;margin-bottom:16px;max-height:160px;overflow-y:auto;display:none;font-family:var(--font-mono);font-size:13px}
-.tl{line-height:1.9;color:#4a4a7a}
-.ti .p{color:var(--cyan)}.ts .p{color:var(--green)}.tw .p{color:var(--yellow)}.te .p{color:var(--red)}
-#prog{height:2px;background:var(--b);border-radius:1px;margin-bottom:16px;display:none;overflow:hidden}
-#pb{height:100%;width:0;background:linear-gradient(90deg,var(--red),var(--orange),var(--yellow));transition:width 0.3s}
-#err{background:rgba(255,51,102,0.07);border:1px solid rgba(255,51,102,0.22);border-radius:9px;padding:13px 16px;color:var(--red);font-size:13px;margin-bottom:16px;display:none;font-family:var(--font-mono)}
-#res{display:none}
-.sgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:18px}
-.sc{background:var(--s2);border:1px solid var(--b2);border-radius:9px;padding:14px;text-align:center}
-.sv{font-size:28px;font-weight:800;font-family:var(--font-mono);line-height:1}
-.sl{color:var(--m);font-size:10px;letter-spacing:2px;margin-top:5px;font-family:var(--font-mono)}
-.tabs{display:flex;gap:4px;margin-bottom:18px;border-bottom:1px solid var(--b);flex-wrap:wrap}
-.tab{padding:9px 16px;border:none;background:transparent;color:var(--m);cursor:pointer;font-family:var(--font-mono);font-size:11px;letter-spacing:1px;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all 0.2s}
-.tab:hover{color:var(--t)}.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
-.tc{display:none}.tc.active{display:block}
-.pc{border-radius:9px;background:rgba(255,255,255,0.015);margin-bottom:9px;overflow:hidden}
-.ph{padding:13px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;flex-wrap:wrap;user-select:none}
-.pn{padding:6px 12px;border-radius:7px;font-family:var(--font-mono);font-weight:800;font-size:15px;min-width:66px;text-align:center}
-.pi{flex:1;min-width:0}.pname{font-weight:700;font-size:14px}.psub{color:var(--m);font-size:12px;margin-top:2px;font-family:var(--font-mono)}
-.pm{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.bdg{border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:1px;font-family:var(--font-mono);border:1px solid transparent}
-.chev{color:var(--m);font-size:10px;transition:transform 0.25s;flex-shrink:0}
-.pb2{padding:0 16px 16px;border-top:1px solid var(--b);display:none}.pb2.open{display:block}
-.st{color:var(--m);font-size:11px;letter-spacing:3px;font-family:var(--font-mono);margin:14px 0 7px}
-.ci{background:var(--s2);border:1px solid var(--b2);border-radius:7px;padding:11px;margin-bottom:6px}
-.ct{display:flex;align-items:center;gap:7px;margin-bottom:6px;flex-wrap:wrap}
-.cid{color:var(--accent);font-family:var(--font-mono);font-weight:700;font-size:12px;text-decoration:none}
-.cid:hover{text-decoration:underline}
-.cdate{color:var(--m);font-size:10px;margin-left:auto;font-family:var(--font-mono)}
-.cdesc{color:#8e8e93;font-size:13px;line-height:1.7}
-.ml{background:var(--s2);border:1px solid var(--b2);border-radius:7px;padding:11px}
-.mi{display:flex;gap:9px;padding:5px 0;border-bottom:1px solid var(--b);font-size:13px;line-height:1.6;color:#c0c0d0}
-.mi:last-child{border-bottom:none}
-.ma{color:var(--green);font-family:var(--font-mono);flex-shrink:0}
-.ssl-card{background:var(--s2);border-radius:9px;padding:16px;margin-bottom:11px;border:1px solid var(--b2)}
-.gc2{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;font-family:var(--font-mono);flex-shrink:0}
-.ssl-hdr{display:flex;align-items:center;gap:16px;margin-bottom:12px}
-.iss-item{display:flex;gap:9px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--b);font-size:13px}
-.iss-item:last-child{border-bottom:none}
-.dns-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:9px;margin-bottom:12px}
-.dr{background:var(--s2);border:1px solid var(--b2);border-radius:7px;padding:11px}
-.dtype{font-family:var(--font-mono);font-size:11px;color:var(--accent);letter-spacing:2px;margin-bottom:5px}
-.dval{font-size:12px;color:#8e8e93;line-height:1.7;font-family:var(--font-mono);word-break:break-all}
-.sub-item{background:var(--s2);border:1px solid var(--b2);border-radius:5px;padding:7px 11px;font-family:var(--font-mono);font-size:12px;display:flex;justify-content:space-between;margin-bottom:4px}
-.hdr-grade{font-size:48px;font-weight:900;font-family:var(--font-mono);line-height:1}
-.hl{background:var(--s2);border-radius:7px;overflow:hidden;border:1px solid var(--b2)}
-.hi{display:flex;justify-content:space-between;align-items:center;padding:7px 13px;border-bottom:1px solid var(--b);font-size:12px;font-family:var(--font-mono);flex-wrap:wrap;gap:6px}
-.hi:last-child{border-bottom:none}
-.hk{color:var(--m);min-width:180px;flex-shrink:0}.hv{color:var(--t);word-break:break-all;text-align:right;max-width:380px}
-.hg{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:9px}
-.ht{background:var(--s2);border:1px solid var(--b2);border-radius:9px;padding:13px;cursor:pointer;transition:all 0.2s}
-.ht:hover{border-color:var(--accent)}
-.hip{font-family:var(--font-mono);font-size:15px;font-weight:700;color:var(--accent)}
-.tbl{width:100%;border-collapse:collapse;font-size:13px;font-family:var(--font-mono)}
-.tbl th{color:var(--m);font-size:10px;letter-spacing:2px;padding:9px 10px;text-align:left;border-bottom:1px solid var(--b)}
-.tbl td{padding:9px 10px;border-bottom:1px solid var(--b);color:var(--t);vertical-align:middle;word-break:break-word}
-.tbl tr:hover td{background:rgba(255,255,255,0.015)}
-.lbtn{background:transparent;border:1px solid var(--b2);color:var(--accent);padding:4px 9px;border-radius:4px;cursor:pointer;font-family:var(--font-mono);font-size:10px}
-.lbtn:hover{background:rgba(0,229,255,0.07)}
-.lbtn.red{color:var(--red);border-color:rgba(255,51,102,0.3)}.lbtn.red:hover{background:rgba(255,51,102,0.07)}
-.dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:18px}
-.bar-row{display:flex;align-items:center;gap:9px;font-size:11px;font-family:var(--font-mono);margin-bottom:6px}
-.bl{color:var(--m);width:75px;text-align:right;flex-shrink:0;font-size:10px}
-.bt{flex:1;background:var(--b);border-radius:2px;height:7px;overflow:hidden}
-.bf{height:100%;border-radius:2px;transition:width 1s ease}
-.bv{color:var(--t);width:25px;flex-shrink:0}
-.res-tbl{width:100%;border-collapse:collapse;font-size:12px;font-family:var(--font-mono);margin-top:8px}
-.res-tbl th{color:var(--m);font-size:10px;letter-spacing:2px;padding:8px 10px;text-align:left;border-bottom:1px solid var(--b);background:var(--s2)}
-.res-tbl td{padding:7px 10px;border-bottom:1px solid var(--b);vertical-align:middle;word-break:break-all}
-.res-tbl tr:hover td{background:rgba(255,255,255,0.015)}
-.tag{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;font-family:var(--font-mono);border:1px solid transparent}
-.bf-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
-.sel{background:var(--s2);border:1px solid var(--b2);border-radius:9px;color:var(--t);padding:10px 12px;font-size:13px;font-family:var(--font-mono);outline:none;width:100%}
-.sel:focus{border-color:var(--accent)}
-.profile-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
-.admin-badge{background:rgba(255,214,10,0.1);color:var(--yellow);border:1px solid rgba(255,214,10,0.2);border-radius:4px;padding:2px 8px;font-size:10px;font-family:var(--font-mono)}
-.user-badge{background:rgba(0,229,255,0.08);color:var(--accent);border:1px solid rgba(0,229,255,0.2);border-radius:4px;padding:2px 8px;font-size:10px;font-family:var(--font-mono)}
-.notice{background:rgba(255,214,10,0.06);border:1px solid rgba(255,214,10,0.2);border-radius:8px;padding:10px 14px;color:var(--yellow);font-size:12px;font-family:var(--font-mono);margin-bottom:14px}
-.found-badge{background:rgba(0,255,157,0.1);color:var(--green);border:1px solid rgba(0,255,157,0.25);border-radius:5px;padding:3px 9px;font-size:11px;font-weight:700;font-family:var(--font-mono)}
-.spin{display:inline-block;width:11px;height:11px;border:2px solid var(--b2);border-top-color:var(--accent);border-radius:50%;animation:sp 0.8s linear infinite;margin-right:7px;vertical-align:middle}
-@keyframes sp{to{transform:rotate(360deg)}}
-::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
-@media(max-width:600px){.bf-grid{grid-template-columns:1fr}.home-hero h1{font-size:22px}header{height:auto;padding:10px 16px}}
-
-header{position:sticky;top:0;z-index:100;background:rgba(4,4,10,0.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--b);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:58px;flex-wrap:wrap;gap:8px}
-.brand{display:flex;align-items:center;gap:10px}
-.brand-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--red),var(--orange));border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 0 18px rgba(255,51,102,0.35)}
-.brand-name{font-size:17px;font-weight:800;background:linear-gradient(90deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.brand-tag{font-size:8px;color:var(--m);letter-spacing:3px;font-family:'JetBrains Mono',monospace}
-nav{display:flex;gap:3px;flex-wrap:wrap;align-items:center}
-.nb{padding:6px 13px;border:none;background:transparent;color:var(--m);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:1px;border-radius:6px;transition:all 0.2s;white-space:nowrap}
-.nb:hover,.nb.active{background:var(--b);color:var(--cyan)}
-.nav-dropdown{position:relative;display:inline-block}
-.nav-dropdown:hover .nav-dropdown-menu{display:block;animation:ddFade 0.15s ease}
-.nav-dropdown:hover .nav-dropdown-btn{background:var(--b);color:var(--cyan)}
-.nav-dropdown:hover .nav-dropdown-btn .arrow{transform:rotate(180deg)}
-@keyframes ddFade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
-.nav-dropdown-btn{padding:6px 13px;border:none;background:transparent;color:var(--m);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:1px;border-radius:6px;transition:all 0.2s;white-space:nowrap;display:flex;align-items:center;gap:5px}
-.nav-dropdown-btn:hover,.nav-dropdown-btn.active{background:var(--b);color:var(--cyan)}
-.nav-dropdown-btn .arrow{font-size:8px;transition:transform 0.2s}
-.nav-dropdown-menu{position:absolute;top:calc(100% + 2px);left:0;background:var(--s1);border:1px solid var(--b2);border-radius:10px;min-width:220px;z-index:100;padding:6px;display:none;box-shadow:0 8px 32px rgba(0,0,0,0.6)}
-.nav-dropdown-section{font-size:9px;color:var(--m);letter-spacing:2px;font-family:'JetBrains Mono',monospace;padding:6px 10px 4px;margin-top:4px}
-.nav-dropdown-section:first-child{margin-top:0}
-.nav-dropdown-item{display:flex;align-items:center;gap:9px;padding:8px 12px;border:none;background:transparent;color:var(--t);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;border-radius:7px;width:100%;text-align:left;transition:all 0.2s}
-.nav-dropdown-item:hover{background:var(--b);color:var(--cyan)}
-.nav-dropdown-item.active{background:var(--b);color:var(--cyan)}
-.nav-dropdown-item .item-icon{width:22px;text-align:center;font-size:13px}
-.nav-dropdown-item .item-label{flex:1}
-.nav-dropdown-item .item-badge{font-size:8px;background:var(--cyan);color:var(--bg);padding:2px 5px;border-radius:4px;font-weight:700}
-.ver-badge{font-size:9px;font-family:'JetBrains Mono',monospace;background:rgba(0,229,255,0.08);color:var(--cyan);border:1px solid rgba(0,229,255,0.2);border-radius:4px;padding:2px 7px;letter-spacing:1px;cursor:default}
-.brand-link{display:flex;align-items:center;gap:10px;cursor:pointer;text-decoration:none}
-.home-hero{text-align:center;padding:48px 0 36px}
-.home-hero h1{font-size:42px;font-weight:800;background:linear-gradient(135deg,var(--cyan),var(--purple),var(--red));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:10px;line-height:1.1}
-.home-hero p{color:var(--m);font-size:14px;font-family:'JetBrains Mono',monospace;max-width:540px;margin:0 auto 28px}
-.home-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:40px}
-.home-stat{background:var(--s1);border:1px solid var(--b);border-radius:12px;padding:20px;text-align:center;transition:border-color 0.2s}
-.home-stat:hover{border-color:var(--cyan)}
-.home-stat-val{font-size:32px;font-weight:800;font-family:'JetBrains Mono',monospace;background:linear-gradient(135deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.home-stat-lbl{color:var(--m);font-size:10px;letter-spacing:2px;margin-top:4px;font-family:'JetBrains Mono',monospace}
-.home-cat{margin-bottom:36px}
-.home-cat-title{font-size:11px;color:var(--m);letter-spacing:3px;font-family:'JetBrains Mono',monospace;margin-bottom:14px;font-weight:700;display:flex;align-items:center;gap:10px}
-.home-cat-title::after{content:'';flex:1;height:1px;background:var(--b)}
-.home-tools-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
-.home-tool-card{background:var(--s1);border:1px solid var(--b);border-radius:12px;padding:18px;cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden}
-.home-tool-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,var(--tool-c,var(--cyan)),transparent);opacity:0;transition:opacity 0.3s;pointer-events:none}
-.home-tool-card:hover{border-color:var(--tool-c,var(--cyan));transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.4)}
-.home-tool-card:hover::before{opacity:0.04}
-.home-tool-icon{font-size:28px;margin-bottom:10px}
-.home-tool-name{font-size:15px;font-weight:700;margin-bottom:4px;color:var(--t)}
-.home-tool-desc{font-size:11px;color:var(--m);font-family:'JetBrains Mono',monospace;line-height:1.6}
-.home-tool-tags{display:flex;gap:5px;margin-top:10px;flex-wrap:wrap}
-.home-tool-tag{font-size:9px;font-family:'JetBrains Mono',monospace;padding:2px 7px;border-radius:3px;font-weight:700}
-.home-quick{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:40px}
-.home-quick-btn{padding:10px 20px;border:1px solid var(--b2);border-radius:8px;background:transparent;color:var(--t);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;transition:all 0.2s;display:flex;align-items:center;gap:7px}
-.home-quick-btn:hover{border-color:var(--cyan);color:var(--cyan);background:rgba(0,229,255,0.05)}
-.user-chip{display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--b2);border-radius:20px;padding:4px 12px 4px 8px;cursor:pointer;transition:all 0.2s}
-.user-chip:hover{border-color:var(--cyan)}
-.user-avatar{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--purple));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--bg)}
-.user-name{font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--t)}
-.user-role{font-size:9px;color:var(--m);font-family:'JetBrains Mono',monospace}
-.overlay{position:fixed;inset:0;background:rgba(4,4,10,0.95);z-index:200;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px)}
-.auth-box{background:var(--s1);border:1px solid var(--b2);border-radius:16px;padding:36px;width:100%;max-width:420px;position:relative}
-.auth-box h2{font-size:22px;font-weight:800;margin-bottom:4px;background:linear-gradient(90deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.auth-box p{color:var(--m);font-size:12px;margin-bottom:24px;font-family:'JetBrains Mono',monospace}
-.auth-tabs{display:flex;gap:0;margin-bottom:24px;background:var(--s2);border-radius:8px;padding:3px}
-.auth-tab{flex:1;padding:8px;border:none;background:transparent;color:var(--m);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;border-radius:6px;transition:all 0.2s}
-.auth-tab.active{background:var(--b2);color:var(--cyan)}
-.fg{margin-bottom:14px}
-.fg label{display:block;font-size:10px;color:var(--m);letter-spacing:2px;font-family:'JetBrains Mono',monospace;margin-bottom:5px}
-.inp{width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:9px;color:var(--t);padding:11px 14px;font-size:14px;font-family:'JetBrains Mono',monospace;outline:none;transition:border 0.2s}
-.inp:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,229,255,0.07)}
-.inp::placeholder{color:#252540}
-.btn{padding:12px 22px;border:none;border-radius:9px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;letter-spacing:1px;transition:all 0.2s;white-space:nowrap}
-.btn-p{background:linear-gradient(135deg,var(--red),#b0102a);color:#fff;box-shadow:0 4px 18px rgba(255,51,102,0.28);width:100%}
-.btn-p:hover{transform:translateY(-1px)}
-.btn-p:disabled{background:var(--b);color:var(--m);cursor:not-allowed;transform:none;box-shadow:none}
-.btn-g{background:transparent;color:var(--m);border:1px solid var(--b2);padding:12px 18px}
-.btn-g:hover{border-color:var(--cyan);color:var(--cyan)}
-.btn-sm{padding:6px 12px;font-size:10px}
-.btn-full{width:100%}
-.auth-msg{padding:10px 14px;border-radius:7px;font-size:12px;font-family:'JetBrains Mono',monospace;margin-bottom:14px;display:none}
-.auth-msg.ok{background:rgba(0,255,157,0.08);border:1px solid rgba(0,255,157,0.2);color:var(--green)}
-.auth-msg.err{background:rgba(255,51,102,0.08);border:1px solid rgba(255,51,102,0.2);color:var(--red)}
-.auth-link{background:none;border:none;color:var(--cyan);cursor:pointer;font-size:11px;font-family:'JetBrains Mono',monospace;text-decoration:underline;padding:0}
-.container{max-width:1100px;margin:0 auto;padding:24px 16px;position:relative;z-index:1}
-.page{display:none}.page.active{display:block}
-.card{background:var(--s1);border:1px solid var(--b);border-radius:12px;padding:20px;margin-bottom:16px}
-.ctitle{font-size:11px;color:var(--m);letter-spacing:3px;font-family:'JetBrains Mono',monospace;margin-bottom:12px;font-weight:600}
-.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
-.hero{text-align:center;padding:32px 0 24px}
-.hero h2{font-size:28px;font-weight:800;background:linear-gradient(135deg,var(--cyan),var(--purple),var(--red));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}
-.hero p{color:var(--m);font-size:13px;font-family:'JetBrains Mono',monospace}
-.scan-inp{flex:1;min-width:200px;background:var(--s2);border:1px solid var(--b2);border-radius:9px;color:var(--cyan);padding:12px 16px;font-size:14px;font-family:'JetBrains Mono',monospace;outline:none;transition:border 0.2s}
-.scan-inp:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,229,255,0.07)}
-.scan-inp::placeholder{color:#252540}
-.mods{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;justify-content:center}
-.mt{padding:5px 13px;border:1px solid var(--b2);border-radius:18px;cursor:pointer;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--m);background:transparent;transition:all 0.2s}
-.mt.on{border-color:var(--cyan);color:var(--cyan);background:rgba(0,229,255,0.07)}
-#term{background:#020208;border:1px solid var(--b);border-radius:9px;padding:13px 15px;margin-bottom:16px;max-height:160px;overflow-y:auto;display:none;font-family:'JetBrains Mono',monospace;font-size:13px}
-.tl{line-height:1.9;color:#4a4a7a}
-.ti .p{color:var(--cyan)}.ts .p{color:var(--green)}.tw .p{color:var(--yellow)}.te .p{color:var(--red)}
-#prog{height:2px;background:var(--b);border-radius:1px;margin-bottom:16px;display:none;overflow:hidden}
-#pb{height:100%;width:0;background:linear-gradient(90deg,var(--red),var(--orange),var(--yellow));transition:width 0.3s}
-#err{background:rgba(255,51,102,0.07);border:1px solid rgba(255,51,102,0.22);border-radius:9px;padding:13px 16px;color:var(--red);font-size:13px;margin-bottom:16px;display:none;font-family:'JetBrains Mono',monospace}
-#res{display:none}
-.sgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:18px}
-.sc{background:var(--s2);border:1px solid var(--b2);border-radius:9px;padding:14px;text-align:center}
-.sv{font-size:28px;font-weight:800;font-family:'JetBrains Mono',monospace;line-height:1}
-.sl{color:var(--m);font-size:10px;letter-spacing:2px;margin-top:5px;font-family:'JetBrains Mono',monospace}
-.tabs{display:flex;gap:4px;margin-bottom:18px;border-bottom:1px solid var(--b);flex-wrap:wrap}
-.tab{padding:9px 16px;border:none;background:transparent;color:var(--m);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all 0.2s}
-.tab:hover{color:var(--t)}.tab.active{color:var(--cyan);border-bottom-color:var(--cyan)}
-.tc{display:none}.tc.active{display:block}
-.pc{border-radius:9px;background:rgba(255,255,255,0.015);margin-bottom:9px;overflow:hidden}
-.ph{padding:13px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;flex-wrap:wrap;user-select:none}
-.pn{padding:6px 12px;border-radius:7px;font-family:'JetBrains Mono',monospace;font-weight:800;font-size:15px;min-width:66px;text-align:center}
-.pi{flex:1;min-width:0}
-.pname{font-weight:700;font-size:14px}
-.psub{color:var(--m);font-size:12px;margin-top:2px;font-family:'JetBrains Mono',monospace}
-.pm{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.bdg{border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:1px;font-family:'JetBrains Mono',monospace;border:1px solid transparent}
-.chev{color:var(--m);font-size:10px;transition:transform 0.25s;flex-shrink:0}
-.pb2{padding:0 16px 16px;border-top:1px solid var(--b);display:none}
-.pb2.open{display:block}
-.st{color:var(--m);font-size:11px;letter-spacing:3px;font-family:'JetBrains Mono',monospace;margin:14px 0 7px}
-.ci{background:var(--s2);border:1px solid var(--b2);border-radius:7px;padding:11px;margin-bottom:6px}
-.ct{display:flex;align-items:center;gap:7px;margin-bottom:6px;flex-wrap:wrap}
-.cid{color:var(--cyan);font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;text-decoration:none}
-.cid:hover{text-decoration:underline}
-.cdate{color:var(--m);font-size:10px;margin-left:auto;font-family:'JetBrains Mono',monospace}
-.cdesc{color:#8e8e93;font-size:13px;line-height:1.7}
-.ml{background:var(--s2);border:1px solid var(--b2);border-radius:7px;padding:11px}
-.mi{display:flex;gap:9px;padding:5px 0;border-bottom:1px solid var(--b);font-size:13px;line-height:1.6;color:#c0c0d0}
-.mi:last-child{border-bottom:none}
-.ma{color:var(--green);font-family:'JetBrains Mono',monospace;flex-shrink:0}
-.ssl-card{background:var(--s2);border-radius:9px;padding:16px;margin-bottom:11px;border:1px solid var(--b2)}
-.gc2{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;font-family:'JetBrains Mono',monospace;flex-shrink:0}
-.ssl-hdr{display:flex;align-items:center;gap:16px;margin-bottom:12px}
-.iss-item{display:flex;gap:9px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--b);font-size:13px}
-.iss-item:last-child{border-bottom:none}
-.dns-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:9px;margin-bottom:12px}
-.dr{background:var(--s2);border:1px solid var(--b2);border-radius:7px;padding:11px}
-.dtype{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--cyan);letter-spacing:2px;margin-bottom:5px}
-.dval{font-size:12px;color:#8e8e93;line-height:1.7;font-family:'JetBrains Mono',monospace;word-break:break-all}
-.sub-item{background:var(--s2);border:1px solid var(--b2);border-radius:5px;padding:7px 11px;font-family:'JetBrains Mono',monospace;font-size:12px;display:flex;justify-content:space-between;margin-bottom:4px}
-.hdr-grade{font-size:48px;font-weight:900;font-family:'JetBrains Mono',monospace;line-height:1}
-.hl{background:var(--s2);border-radius:7px;overflow:hidden;border:1px solid var(--b2)}
-.hi{display:flex;justify-content:space-between;align-items:center;padding:7px 13px;border-bottom:1px solid var(--b);font-size:12px;font-family:'JetBrains Mono',monospace;flex-wrap:wrap;gap:6px}
-.hi:last-child{border-bottom:none}
-.hk{color:var(--m);min-width:180px;flex-shrink:0}.hv{color:var(--t);word-break:break-all;text-align:right;max-width:380px}
-.hg{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:9px}
-.ht{background:var(--s2);border:1px solid var(--b2);border-radius:9px;padding:13px;cursor:pointer;transition:all 0.2s}
-.ht:hover{border-color:var(--cyan)}
-.hip{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:var(--cyan)}
-.tbl{width:100%;border-collapse:collapse;font-size:13px;font-family:'JetBrains Mono',monospace}
-.tbl th{color:var(--m);font-size:10px;letter-spacing:2px;padding:9px 10px;text-align:left;border-bottom:1px solid var(--b)}
-.tbl td{padding:9px 10px;border-bottom:1px solid var(--b);color:var(--t);vertical-align:middle;word-break:break-word}
-.tbl tr:hover td{background:rgba(255,255,255,0.015)}
-.lbtn{background:transparent;border:1px solid var(--b2);color:var(--cyan);padding:4px 9px;border-radius:4px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px}
-.lbtn:hover{background:rgba(0,229,255,0.07)}
-.lbtn.red{color:var(--red);border-color:rgba(255,51,102,0.3)}
-.lbtn.red:hover{background:rgba(255,51,102,0.07)}
-.dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:18px}
-.bar-row{display:flex;align-items:center;gap:9px;font-size:11px;font-family:'JetBrains Mono',monospace;margin-bottom:6px}
-.bl{color:var(--m);width:75px;text-align:right;flex-shrink:0;font-size:10px}
-.bt{flex:1;background:var(--b);border-radius:2px;height:7px;overflow:hidden}
-.bf{height:100%;border-radius:2px;transition:width 1s ease}
-.bv{color:var(--t);width:25px;flex-shrink:0}
-.res-tbl{width:100%;border-collapse:collapse;font-size:12px;font-family:'JetBrains Mono',monospace;margin-top:8px}
-.res-tbl th{color:var(--m);font-size:10px;letter-spacing:2px;padding:8px 10px;text-align:left;border-bottom:1px solid var(--b);background:var(--s2)}
-.res-tbl td{padding:7px 10px;border-bottom:1px solid var(--b);vertical-align:middle;word-break:break-all}
-.res-tbl tr:hover td{background:rgba(255,255,255,0.015)}
-.tag{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;border:1px solid transparent}
-.bf-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-textarea.scan-inp{resize:vertical;min-height:80px;font-size:13px}
-.sel{background:var(--s2);border:1px solid var(--b2);border-radius:9px;color:var(--t);padding:10px 12px;font-size:13px;font-family:'JetBrains Mono',monospace;outline:none;width:100%}
-.sel:focus{border-color:var(--cyan)}
-.profile-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
-.admin-badge{background:rgba(255,214,10,0.1);color:var(--yellow);border:1px solid rgba(255,214,10,0.2);border-radius:4px;padding:2px 8px;font-size:10px;font-family:'JetBrains Mono',monospace}
-.user-badge{background:rgba(0,229,255,0.08);color:var(--cyan);border:1px solid rgba(0,229,255,0.2);border-radius:4px;padding:2px 8px;font-size:10px;font-family:'JetBrains Mono',monospace}
-.notice{background:rgba(255,214,10,0.06);border:1px solid rgba(255,214,10,0.2);border-radius:8px;padding:10px 14px;color:var(--yellow);font-size:12px;font-family:'JetBrains Mono',monospace;margin-bottom:14px}
-.found-badge{background:rgba(0,255,157,0.1);color:var(--green);border:1px solid rgba(0,255,157,0.25);border-radius:5px;padding:3px 9px;font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace}
-.spin{display:inline-block;width:11px;height:11px;border:2px solid var(--b2);border-top-color:var(--cyan);border-radius:50%;animation:sp 0.8s linear infinite;margin-right:7px;vertical-align:middle}
-@keyframes sp{to{transform:rotate(360deg)}}
-::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
-@media(max-width:600px){.bf-grid{grid-template-columns:1fr}.hero h2{font-size:22px}header{height:auto;padding:10px 16px}}
+/* ── Responsive ── */
+@media(max-width:720px){
+  .sidebar{transform:translateX(-100%);transition:transform 0.25s ease}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0}
+  .row2,.row3{grid-template-columns:1fr}
+  .theme-options{flex-direction:column}
+}
+@media(max-width:480px){
+  .content{padding:16px}
+  .page-title{font-size:18px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+}
 </style>
 </head>
-<body>
-<canvas id="particles-canvas"></canvas>
-<canvas id="home-bg-canvas" style="position:fixed;inset:0;pointer-events:none;z-index:0;opacity:0;transition:opacity 0.6s" width="1920" height="1080"></canvas>
-<div class="orb orb1"></div>
-<div class="orb orb2"></div>
-<div class="orb orb3"></div>
-<div class="hex-bg"></div>
-<!-- Animated cyber scan lines (home page accent) -->
-<div id="cyber-lines" style="position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;opacity:0;transition:opacity 0.6s">
-  <div class="cyber-hline" style="top:20%;animation-delay:0s"></div>
-  <div class="cyber-hline" style="top:50%;animation-delay:2s"></div>
-  <div class="cyber-hline" style="top:75%;animation-delay:4s"></div>
-  <div class="cyber-vline" style="left:15%;animation-delay:1s"></div>
-  <div class="cyber-vline" style="left:80%;animation-delay:3s"></div>
-</div>
 
-<!-- ══ AUTH OVERLAY ══ -->
+<body class="light" id="body">
+<!-- ── Auth overlay ── -->
 <div class="overlay" id="auth-overlay">
   <div class="auth-box">
-    <h2>VulnScan Pro</h2>
-    <p id="auth-subtitle">Security Intelligence Platform</p>
+    <div class="auth-logo">
+      <div class="auth-logo-icon">&#9889;</div>
+      <div>
+        <div class="auth-title">VulnScan Pro</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:1.5px;margin-top:2px">SECURITY PLATFORM</div>
+      </div>
+    </div>
     <div class="auth-tabs">
       <button class="auth-tab active" onclick="authTab('login')">LOGIN</button>
       <button class="auth-tab" onclick="authTab('register')">REGISTER</button>
       <button class="auth-tab" onclick="authTab('forgot')">FORGOT</button>
     </div>
     <div id="auth-msg" class="auth-msg"></div>
+    <!-- Login -->
     <div id="form-login">
-      <div class="fg"><label>USERNAME</label><input class="inp" id="l-user" type="text" placeholder="your username" autocomplete="username"/></div>
-      <div class="fg"><label>PASSWORD</label><input class="inp" id="l-pass" type="password" placeholder="••••••••" autocomplete="current-password"/></div>
-      <button class="btn btn-p" id="l-btn" onclick="doLogin()" style="margin-top:4px">LOGIN</button>
-      <div style="text-align:center;margin-top:14px">
+      <div class="fg"><label>USERNAME</label><input class="inp inp-mono" id="l-user" type="text" placeholder="username" autocomplete="username"/></div>
+      <div class="fg"><label>PASSWORD</label><input class="inp inp-mono" id="l-pass" type="password" placeholder="••••••••" autocomplete="current-password"/></div>
+      <button class="btn btn-primary btn-full" id="l-btn" onclick="doLogin()" style="margin-top:4px">LOGIN</button>
+      <div style="text-align:center;margin-top:12px;font-size:12px;color:var(--text3)">
         <button class="auth-link" onclick="authTab('forgot')">Forgot password?</button>
         &nbsp;·&nbsp;
         <button class="auth-link" onclick="authTab('register')">Create account</button>
       </div>
     </div>
+    <!-- Register -->
     <div id="form-register" style="display:none">
       <div class="fg"><label>FULL NAME</label><input class="inp" id="r-name" type="text" placeholder="Your Name"/></div>
-      <div class="fg"><label>USERNAME</label><input class="inp" id="r-user" type="text" placeholder="username (letters, numbers, _ -)"/></div>
+      <div class="fg"><label>USERNAME</label><input class="inp inp-mono" id="r-user" type="text" placeholder="letters, numbers, _ -"/></div>
       <div class="fg"><label>EMAIL</label><input class="inp" id="r-email" type="email" placeholder="you@example.com"/></div>
-      <div class="fg"><label>PASSWORD</label><input class="inp" id="r-pass" type="password" placeholder="Min 8 chars, 1 uppercase, 1 number"/></div>
-      <!-- ToS checkbox -->
-<div style="background:rgba(255,214,10,0.05);border:1px solid rgba(255,214,10,0.2);border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:flex-start;gap:10px">
-  <input type="checkbox" id="r-tos-cb" onchange="updateRegisterBtn()" style="width:16px;height:16px;margin-top:2px;accent-color:var(--yellow);cursor:pointer;flex-shrink:0"/>
-  <label for="r-tos-cb" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#c0c0d0;line-height:1.7;cursor:pointer">
-    I have read and agree to the
-    <button type="button" onclick="showTos(event)" style="background:none;border:none;color:var(--yellow);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;text-decoration:underline;padding:0">Terms of Use &amp; Legal Disclaimer</button>.
-    I confirm that I <strong style="color:var(--red)">own or have written permission</strong> to scan any target I submit.
-    I accept full legal responsibility for my actions. The platform owner is
-    <strong style="color:var(--red)">not liable</strong> for any illegal or unauthorized activity I conduct.
-  </label>
-</div>
-<button class="btn btn-p" id="r-btn" onclick="doRegister()" style="margin-top:4px" disabled>CREATE ACCOUNT</button>
-      <div style="text-align:center;margin-top:14px">
-        <button class="auth-link" onclick="authTab('login')">Already have an account?</button>
+      <div class="fg"><label>PASSWORD</label><input class="inp inp-mono" id="r-pass" type="password" placeholder="Min 8 chars, 1 uppercase, 1 number"/></div>
+      <div class="tos-box">
+        <input type="checkbox" id="r-tos-cb" onchange="updateRegisterBtn()"/>
+        <label for="r-tos-cb">I have read and agree to the <button type="button" onclick="showTos(event)" style="background:none;border:none;color:var(--text);cursor:pointer;font-size:11px;text-decoration:underline;text-underline-offset:2px;padding:0">Terms of Use</button>. I confirm I <strong>own or have written permission</strong> to scan any target I submit.</label>
       </div>
+      <button class="btn btn-primary btn-full" id="r-btn" onclick="doRegister()" disabled style="opacity:0.4;cursor:not-allowed">CREATE ACCOUNT</button>
+      <div style="text-align:center;margin-top:12px"><button class="auth-link" onclick="authTab('login')">Already have an account?</button></div>
     </div>
+    <!-- Forgot -->
     <div id="form-forgot" style="display:none">
       <div class="fg"><label>EMAIL ADDRESS</label><input class="inp" id="f-email" type="email" placeholder="you@example.com"/></div>
-      <button class="btn btn-p" onclick="doForgot()" style="margin-top:4px">SEND RESET LINK</button>
-      <div style="text-align:center;margin-top:14px">
-        <button class="auth-link" onclick="authTab('login')">Back to login</button>
-      </div>
+      <button class="btn btn-primary btn-full" onclick="doForgot()">SEND RESET LINK</button>
+      <div style="text-align:center;margin-top:12px"><button class="auth-link" onclick="authTab('login')">Back to login</button></div>
     </div>
   </div>
 </div>
 
-<!-- ══ ABOUT MODAL ══ -->
-<div id="about-modal" style="display:none;position:fixed;inset:0;background:rgba(4,4,10,0.92);z-index:300;align-items:center;justify-content:center;backdrop-filter:blur(12px)" onclick="if(event.target===this)closeAbout()">
-  <div style="background:var(--s1);border:1px solid var(--b2);border-radius:18px;padding:40px;width:100%;max-width:560px;position:relative;margin:16px">
-    <!-- Close button -->
-    <button onclick="closeAbout()" style="position:absolute;top:16px;right:18px;background:transparent;border:none;color:var(--m);cursor:pointer;font-size:20px;line-height:1">&#10005;</button>
-
-    <!-- Logo + Title -->
-    <div style="display:flex;align-items:center;gap:14px;margin-bottom:24px">
-      <div style="width:48px;height:48px;background:linear-gradient(135deg,var(--red),var(--orange));border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;box-shadow:0 0 24px rgba(255,51,102,0.35)">&#9889;</div>
-      <div>
-        <div style="font-size:22px;font-weight:800;background:linear-gradient(90deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent">VulnScan Pro</div>
-        <div style="font-size:10px;color:var(--m);letter-spacing:3px;font-family:'JetBrains Mono',monospace;margin-top:2px">OPEN SOURCE SECURITY PLATFORM</div>
-      </div>
+<!-- ── About modal ── -->
+<div class="modal-bg" id="about-modal" onclick="if(event.target===this)closeAbout()">
+  <div class="modal">
+    <button class="modal-close" onclick="closeAbout()">&#10005;</button>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+      <div style="width:36px;height:36px;background:var(--accent);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;color:var(--accent-inv);font-size:18px;flex-shrink:0">&#9889;</div>
+      <div><div style="font-size:16px;font-weight:600;color:var(--text)">VulnScan Pro</div><div style="font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:2px;margin-top:2px">OPEN SOURCE &middot; v3.7</div></div>
     </div>
-
-    <!-- Divider -->
-    <div style="height:1px;background:linear-gradient(90deg,var(--red),var(--purple),transparent);margin-bottom:22px"></div>
-
-    <!-- Purpose -->
-    <div style="margin-bottom:20px">
-      <div style="font-size:10px;color:var(--m);letter-spacing:3px;font-family:'JetBrains Mono',monospace;margin-bottom:8px">PURPOSE</div>
-      <p style="color:#c0c0d0;font-size:14px;line-height:1.8;margin:0">
-        VulnScan Pro is a free, open-source vulnerability assessment platform designed for security professionals, penetration testers, and system administrators. It enables comprehensive scanning of networks, web servers, and infrastructure to identify security weaknesses before attackers do.
-      </p>
+    <div style="font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:16px">
+      VulnScan Pro is a free, open-source vulnerability assessment platform for security professionals, penetration testers, and system administrators.
     </div>
-
-    <!-- Features grid -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:22px">
-      <div style="background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:12px">
-        <div style="color:var(--cyan);font-size:18px;margin-bottom:5px">&#128268;</div>
-        <div style="font-size:12px;font-weight:700;color:var(--t);margin-bottom:3px">Port Scanner</div>
-        <div style="font-size:11px;color:var(--m)">Nmap-powered with CVE intelligence</div>
-      </div>
-      <div style="background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:12px">
-        <div style="color:var(--purple);font-size:18px;margin-bottom:5px">&#127760;</div>
-        <div style="font-size:12px;font-weight:700;color:var(--t);margin-bottom:3px">Subdomain Finder</div>
-        <div style="font-size:11px;color:var(--m)">crt.sh + HackerTarget + brute force</div>
-      </div>
-      <div style="background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:12px">
-        <div style="color:var(--orange);font-size:18px;margin-bottom:5px">&#128193;</div>
-        <div style="font-size:12px;font-weight:700;color:var(--t);margin-bottom:3px">Directory Buster</div>
-        <div style="font-size:11px;color:var(--m)">Hidden path & file enumeration</div>
-      </div>
-      <div style="background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:12px">
-        <div style="color:var(--green);font-size:18px;margin-bottom:5px">&#128274;</div>
-        <div style="font-size:12px;font-weight:700;color:var(--t);margin-bottom:3px">SSL/TLS Analyser</div>
-        <div style="font-size:11px;color:var(--m)">Certificate & cipher analysis</div>
-      </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">Creator</div>
+      <div style="font-size:13px;color:var(--text2)">Vijay Katariya &mdash; Motalund Organization</div>
+      <div style="margin-top:8px"><a href="https://github.com/labpnet33/vulnscan" target="_blank" style="font-family:var(--mono);font-size:11px;color:var(--text2);text-decoration:underline;text-underline-offset:2px">github.com/labpnet33/vulnscan</a></div>
     </div>
-
-    <!-- Divider -->
-    <div style="height:1px;background:var(--b2);margin-bottom:20px"></div>
-
-    <!-- Creator -->
-    <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
-      <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--purple));display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:var(--bg);flex-shrink:0">V</div>
-      <div>
-        <div style="font-size:14px;font-weight:700;color:var(--t)">Vijay Katariya</div>
-        <div style="font-size:11px;color:var(--m);font-family:'JetBrains Mono',monospace;margin-top:2px">Creator &amp; Lead Developer</div>
-        <div style="font-size:11px;color:var(--cyan);font-family:'JetBrains Mono',monospace;margin-top:1px">Motalund Organization</div>
-      </div>
-      <div style="margin-left:auto;text-align:right">
-        <div style="background:rgba(0,255,157,0.08);border:1px solid rgba(0,255,157,0.2);border-radius:20px;padding:4px 12px;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--green)">&#11044; OPEN SOURCE</div>
-      </div>
-    </div>
-
-    <!-- Disclaimer -->
-    <div style="background:rgba(255,214,10,0.05);border:1px solid rgba(255,214,10,0.15);border-radius:8px;padding:12px">
-      <div style="font-size:11px;color:var(--yellow);font-family:'JetBrains Mono',monospace;line-height:1.7">
-        &#9888; <strong>Legal Disclaimer:</strong> This tool is intended for authorized security testing only. Only scan systems you own or have explicit written permission to test. Unauthorized scanning is illegal.
-      </div>
-    </div>
-
-    <!-- GitHub link -->
-    <div style="text-align:center;margin-top:18px">
-      <a href="https://github.com/labpnet33/vulnscan" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:9px 18px;color:var(--t);text-decoration:none;font-family:'JetBrains Mono',monospace;font-size:12px;transition:border-color 0.2s" onmouseover="this.style.borderColor='var(--cyan)'" onmouseout="this.style.borderColor='var(--b2)'">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
-        github.com/labpnet33/vulnscan
-      </a>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--yellow);border-radius:var(--radius);padding:10px 12px;font-size:12px;color:var(--text2)">
+      &#9888; <strong>Legal:</strong> Authorized security testing only. Only scan systems you own or have explicit written permission to test.
     </div>
   </div>
 </div>
 
-<!-- ══ HEADER ══ -->
-<header>
-  <div class="brand brand-link" onclick="pg('home',null)" title="Go to Home">
-    <div class="brand-icon">&#9889;</div>
-    <div>
-      <div class="brand-name" data-text="VulnScan Pro">VulnScan Pro</div>
-      <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
-        <div class="brand-tag">SECURITY PLATFORM</div>
-        <span class="ver-badge">v3.7</span>
-      </div>
+<!-- ── ToS modal ── -->
+<div class="tos-modal-bg" id="tos-modal" onclick="if(event.target===this)closeTos()">
+  <div class="tos-modal">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+      <span style="font-size:20px">&#9888;&#65039;</span>
+      <div><div style="font-size:16px;font-weight:600;color:var(--text)">Terms of Use</div><div style="font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:2px;margin-top:2px">READ BEFORE REGISTERING</div></div>
     </div>
-  </div>
-  <nav id="main-nav">
-
-    <!-- ── 01 Information Gathering ── -->
-    <div class="nav-dropdown" id="dd-info">
-      <button class="nav-dropdown-btn" id="dd-info-btn">
-        &#128270; Info Gathering <span class="arrow">&#9660;</span>
-      </button>
-      <div class="nav-dropdown-menu" id="dd-info-menu">
-        <div class="nav-dropdown-section">&#9632; NETWORK</div>
-        <button class="nav-dropdown-item" id="dd-item-scan" onclick="pgFromDd('scan','info')">
-          <span class="item-icon">&#128268;</span><span class="item-label">Network Scanner</span><span class="item-badge">nmap</span>
-        </button>
-        <button class="nav-dropdown-item" id="dd-item-dnsrecon" onclick="pgFromDd('dnsrecon','info')">
-          <span class="item-icon">&#127760;</span><span class="item-label">DNSRecon</span><span class="item-badge">dns</span>
-        </button>
-        <button class="nav-dropdown-item" id="dd-item-disc" onclick="pgFromDd('disc','info')">
-          <span class="item-icon">&#128225;</span><span class="item-label">Network Discovery</span><span class="item-badge">subnet</span>
-        </button>
-        <button class="nav-dropdown-item" id="dd-item-legion" onclick="pgFromDd('legion','info')">
-          <span class="item-icon">&#9881;</span><span class="item-label">Legion</span><span class="item-badge">auto</span>
-        </button>
-        <div class="nav-dropdown-section">&#9632; OSINT</div>
-        <button class="nav-dropdown-item" id="dd-item-harvester" onclick="pgFromDd('harvester','info')">
-          <span class="item-icon">&#127919;</span><span class="item-label">theHarvester</span><span class="item-badge">recon</span>
-        </button>
-        <button class="nav-dropdown-item" id="dd-item-sub" onclick="pgFromDd('sub','info')">
-          <span class="item-icon">&#127758;</span><span class="item-label">Subdomain Finder</span><span class="item-badge">dns</span>
-        </button>
-      </div>
+    <div style="font-size:12px;line-height:1.9;color:var(--text2)">
+      <div class="tos-section"><strong>&#9888; Authorized Use Only</strong><br/>You are strictly prohibited from using this platform to scan any system you do not own or have explicit written authorization to test.</div>
+      <div class="tos-section"><h4>1. Sole Responsibility</h4>You are entirely responsible for all actions performed from your account. The platform owner bears zero liability for any damage or legal consequence.</div>
+      <div class="tos-section"><h4>2. No Illegal Activity</h4>You agree not to conduct unauthorized access, DoS attacks, data exfiltration, or any activity violating local, national, or international law (CFAA, Computer Misuse Act, EU Directive 2013/40/EU).</div>
+      <div class="tos-section"><h4>3. Indemnification</h4>You agree to indemnify and hold harmless the platform owner from all claims, damages, and costs arising from your use.</div>
+      <div class="tos-section"><h4>4. Audit Logging</h4>All scans are logged with timestamps, targets, and IPs. Logs may be provided to law enforcement upon valid legal request.</div>
+      <div class="tos-section"><h4>5. No Warranty</h4>Provided "as-is." Scan results are informational only and should be validated by a qualified security professional.</div>
     </div>
-
-    <!-- ── 02 Web Application Testing ── -->
-    <div class="nav-dropdown" id="dd-web">
-      <button class="nav-dropdown-btn" id="dd-web-btn">
-        &#127760; Web Testing <span class="arrow">&#9660;</span>
-      </button>
-      <div class="nav-dropdown-menu" id="dd-web-menu">
-        <div class="nav-dropdown-section">&#9632; SCANNERS</div>
-        <button class="nav-dropdown-item" id="dd-item-nikto" onclick="pgFromDd('nikto','web')">
-          <span class="item-icon">&#128200;</span><span class="item-label">Nikto</span><span class="item-badge">web vuln</span>
-        </button>
-        <button class="nav-dropdown-item" id="dd-item-wpscan" onclick="pgFromDd('wpscan','web')">
-          <span class="item-icon">&#128196;</span><span class="item-label">WPScan</span><span class="item-badge">wordpress</span>
-        </button>
-        <div class="nav-dropdown-section">&#9632; ENUMERATION</div>
-        <button class="nav-dropdown-item" id="dd-item-dir" onclick="pgFromDd('dir','web')">
-          <span class="item-icon">&#128193;</span><span class="item-label">Directory Buster</span><span class="item-badge">fuzzing</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- ── 03 Password Attacks ── -->
-    <div class="nav-dropdown" id="dd-pwd">
-      <button class="nav-dropdown-btn" id="dd-pwd-btn">
-        &#128272; Password Attacks <span class="arrow">&#9660;</span>
-      </button>
-      <div class="nav-dropdown-menu" id="dd-pwd-menu">
-        <div class="nav-dropdown-section">&#9632; BRUTE FORCE</div>
-        <button class="nav-dropdown-item" id="dd-item-brute" onclick="pgFromDd('brute','pwd')">
-          <span class="item-icon">&#128272;</span><span class="item-label">Brute Force</span><span class="item-badge">http/ssh</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- ── 04 System Auditing ── -->
-    <div class="nav-dropdown" id="dd-audit">
-      <button class="nav-dropdown-btn" id="dd-audit-btn">
-        &#128203; System Auditing <span class="arrow">&#9660;</span>
-      </button>
-      <div class="nav-dropdown-menu" id="dd-audit-menu">
-        <div class="nav-dropdown-section">&#9632; HOST SECURITY</div>
-        <button class="nav-dropdown-item" id="dd-item-lynis" onclick="pgFromDd('lynis','audit')">
-          <span class="item-icon">&#128203;</span><span class="item-label">Lynis</span><span class="item-badge">hardening</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- ── Utilities ── -->
-    <button class="nb" onclick="pg('hist',this)">&#128196; History</button>
-    <button class="nb" onclick="pg('dash',this)">&#128202; Dashboard</button>
-    <button class="nb admin-only" onclick="pg('admin',this)" style="display:none">&#9881; Admin</button>
-    <button class="nb" onclick="showAbout()" style="color:var(--cyan)">&#9432; About</button>
-    <div class="user-chip" onclick="pg('profile',this)" id="user-chip" style="display:none">
-      <div class="user-avatar" id="user-avatar">?</div>
-      <div><div class="user-name" id="user-name-disp">User</div><div class="user-role" id="user-role-disp">user</div></div>
-    </div>
-    <button class="nb" id="logout-btn" onclick="doLogout()" style="display:none;color:var(--red)">&#10005; Logout</button>
-  </nav>
-</header>
-
-<div class="container">
-
-<!-- ═══ HOME ═══ -->
-<div class="page active" id="page-home">
-  <div class="home-hero">
-    <div class="radar-wrap" aria-hidden="true">
-      <div class="radar-ring"></div>
-      <div class="radar-ring"></div>
-      <div class="radar-ring"></div>
-    </div>
-    <h1>VulnScan Pro</h1>
-    <p>Professional security reconnaissance &amp; vulnerability assessment platform. Built for pentesters, sysadmins, and security researchers.</p>
-    <div class="home-quick">
-      <button class="home-quick-btn" onclick="pgFromDd('scan','info')">&#128268; Quick Network Scan</button>
-      <button class="home-quick-btn" onclick="pgFromDd('harvester','info')">&#127919; OSINT Harvest</button>
-      <button class="home-quick-btn" onclick="pg('sub',null)">&#127760; Subdomain Finder</button>
-      <button class="home-quick-btn" onclick="pg('hist',null)">&#128196; View History</button>
-    </div>
-  </div>
-
-  <!-- Live Stats -->
-  <div class="home-stats" id="home-stats">
-    <div class="home-stat"><div class="home-stat-val" id="hs-scans">—</div><div class="home-stat-lbl">TOTAL SCANS</div></div>
-    <div class="home-stat"><div class="home-stat-val" id="hs-cves" style="background:linear-gradient(135deg,var(--red),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent">—</div><div class="home-stat-lbl">CVEs FOUND</div></div>
-    <div class="home-stat"><div class="home-stat-val" id="hs-ports" style="background:linear-gradient(135deg,var(--yellow),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent">—</div><div class="home-stat-lbl">OPEN PORTS</div></div>
-    <div class="home-stat"><div class="home-stat-val" id="hs-tools" style="background:linear-gradient(135deg,var(--green),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent">12</div><div class="home-stat-lbl">TOOLS AVAILABLE</div></div>
-  </div>
-
-  <!-- Category: Information Gathering -->
-  <div class="home-cat">
-    <div class="home-cat-title">&#128270; 01 — INFORMATION GATHERING</div>
-    <div class="home-tools-grid">
-      <div class="home-tool-card" style="--tool-c:var(--cyan)" onclick="pgFromDd('scan','info')">
-        <div class="home-tool-icon">&#128268;</div>
-        <div class="home-tool-name">Network Scanner</div>
-        <div class="home-tool-desc">Deep port scanning with nmap, CVE lookups via NVD, SSL analysis, DNS records, and HTTP header auditing in a single run.</div>
-        <div class="home-tool-tags">
-          <span class="home-tool-tag" style="background:rgba(0,229,255,0.1);color:var(--cyan)">nmap</span>
-          <span class="home-tool-tag" style="background:rgba(0,229,255,0.1);color:var(--cyan)">CVE</span>
-          <span class="home-tool-tag" style="background:rgba(0,229,255,0.1);color:var(--cyan)">SSL</span>
-        </div>
-      </div>
-      <div class="home-tool-card" style="--tool-c:var(--cyan)" onclick="pgFromDd('dnsrecon','info')">
-        <div class="home-tool-icon">&#127760;</div>
-        <div class="home-tool-name">DNSRecon</div>
-        <div class="home-tool-desc">Comprehensive DNS enumeration — zone transfers, record types (A, MX, NS, TXT, SRV), reverse lookups, and DNS cache snooping.</div>
-        <div class="home-tool-tags">
-          <span class="home-tool-tag" style="background:rgba(0,229,255,0.1);color:var(--cyan)">DNS</span>
-          <span class="home-tool-tag" style="background:rgba(0,229,255,0.1);color:var(--cyan)">zone transfer</span>
-          <span class="home-tool-tag" style="background:rgba(0,229,255,0.1);color:var(--cyan)">records</span>
-        </div>
-      </div>
-      <div class="home-tool-card" style="--tool-c:var(--yellow)" onclick="pgFromDd('disc','info')">
-        <div class="home-tool-icon">&#128225;</div>
-        <div class="home-tool-name">Network Discovery</div>
-        <div class="home-tool-desc">Sweep subnets to discover live hosts, identify OS fingerprints, and map your network topology automatically.</div>
-        <div class="home-tool-tags">
-          <span class="home-tool-tag" style="background:rgba(255,214,10,0.1);color:var(--yellow)">subnet</span>
-          <span class="home-tool-tag" style="background:rgba(255,214,10,0.1);color:var(--yellow)">host discovery</span>
-        </div>
-      </div>
-      <div class="home-tool-card" style="--tool-c:var(--red)" onclick="pgFromDd('legion','info')">
-        <div class="home-tool-icon">&#9881;</div>
-        <div class="home-tool-name">Legion</div>
-        <div class="home-tool-desc">Semi-automated network recon and vulnerability assessment framework. Orchestrates nmap, nikto, and other tools in a unified workflow.</div>
-        <div class="home-tool-tags">
-          <span class="home-tool-tag" style="background:rgba(255,51,102,0.1);color:var(--red)">auto-recon</span>
-          <span class="home-tool-tag" style="background:rgba(255,51,102,0.1);color:var(--red)">framework</span>
-        </div>
-      </div>
-      <div class="home-tool-card" style="--tool-c:var(--purple)" onclick="pgFromDd('harvester','info')">
-        <div class="home-tool-icon">&#127919;</div>
-        <div class="home-tool-name">theHarvester</div>
-        <div class="home-tool-desc">OSINT recon to harvest emails, subdomains, hosts, and IPs from public sources — Google, Bing, LinkedIn, crt.sh, and more.</div>
-        <div class="home-tool-tags">
-          <span class="home-tool-tag" style="background:rgba(176,111,255,0.1);color:var(--purple)">OSINT</span>
-          <span class="home-tool-tag" style="background:rgba(176,111,255,0.1);color:var(--purple)">emails</span>
-          <span class="home-tool-tag" style="background:rgba(176,111,255,0.1);color:var(--purple)">subdomains</span>
-        </div>
-      </div>
-      <div class="home-tool-card" style="--tool-c:var(--green)" onclick="pgFromDd('sub','info')">
-        <div class="home-tool-icon">&#127758;</div>
-        <div class="home-tool-name">Subdomain Finder</div>
-        <div class="home-tool-desc">Enumerate subdomains via DNS brute-force and passive sources. Map the full attack surface of any domain.</div>
-        <div class="home-tool-tags">
-          <span class="home-tool-tag" style="background:rgba(0,255,157,0.1);color:var(--green)">DNS</span>
-          <span class="home-tool-tag" style="background:rgba(0,255,157,0.1);color:var(--green)">brute-force</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Category: Web Application Testing -->
-  <div class="home-cat">
-    <div class="home-cat-title">&#127760; 02 — WEB APPLICATION TESTING</div>
-    <div class="home-tools-grid">
-      <div class="home-tool-card" style="--tool-c:var(--orange)" onclick="pgFromDd('nikto','web')">
-        <div class="home-tool-icon">&#128200;</div>
-        <div class="home-tool-name">Nikto</div>
-        <div class="home-tool-desc">Web server vulnerability scanner that checks for dangerous files, outdated software, misconfigurations, and over 6700 known issues.</div>
-        <div class="home-tool-tags">
-          <span class="home-tool-tag" style="background:rgba(255,107,53,0.1);color:var(--orange)">web vuln</span>
-          <span class="home-tool-tag" style="background:rgba(255,107,53,0.1);color:var(--orange)">CVE</span>
-          <span class="home-tool-tag" style="background:rgba(255,107,53,0.1);color:var(--orange)">headers</span>
-        </div>
-      </div>
-      <div class="home-tool-card" style="--tool-c:var(--purple)" onclick="pgFromDd('wpscan','web')">
-        <div class="home-tool-icon">&#128196;</div>
-        <div class="home-tool-name">WPScan</div>
-        <div class="home-tool-desc">WordPress security scanner — detects vulnerable plugins, themes, weak credentials, user enumeration, and config exposures.</div>
-        <div class="home-tool-tags">
-          <span class="home-tool-tag" style="background:rgba(176,111,255,0.1);color:var(--purple)">WordPress</span>
-          <span class="home-tool-tag" style="background:rgba(176,111,255,0.1);color:var(--purple)">plugins</span>
-          <span class="home-tool-tag" style="background:rgba(176,111,255,0.1);color:var(--purple)">users</span>
-        </div>
-      </div>
-      <div class="home-tool-card" style="--tool-c:var(--orange)" onclick="pgFromDd('dir','web')">
-        <div class="home-tool-icon">&#128193;</div>
-        <div class="home-tool-name">Directory Buster</div>
-        <div class="home-tool-desc">Brute-force hidden directories, admin panels, and sensitive files on web servers using wordlist-based enumeration.</div>
-        <div class="home-tool-tags">
-          <span class="home-tool-tag" style="background:rgba(255,107,53,0.1);color:var(--orange)">HTTP</span>
-          <span class="home-tool-tag" style="background:rgba(255,107,53,0.1);color:var(--orange)">fuzzing</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Category: Password Attacks -->
-  <div class="home-cat">
-    <div class="home-cat-title">&#128272; 03 — PASSWORD ATTACKS</div>
-    <div class="home-tools-grid">
-      <div class="home-tool-card" style="--tool-c:var(--red)" onclick="pgFromDd('brute','pwd')">
-        <div class="home-tool-icon">&#128272;</div>
-        <div class="home-tool-name">Brute Force</div>
-        <div class="home-tool-desc">Credential testing against HTTP login forms and SSH services using custom or built-in wordlists.</div>
-        <div class="home-tool-tags">
-          <span class="home-tool-tag" style="background:rgba(255,51,102,0.1);color:var(--red)">HTTP</span>
-          <span class="home-tool-tag" style="background:rgba(255,51,102,0.1);color:var(--red)">SSH</span>
-          <span class="home-tool-tag" style="background:rgba(255,51,102,0.1);color:var(--red)">credentials</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Category: System Auditing -->
-  <div class="home-cat">
-    <div class="home-cat-title">&#128203; 04 — SYSTEM AUDITING</div>
-    <div class="home-tools-grid">
-      <div class="home-tool-card" style="--tool-c:var(--green)" onclick="pgFromDd('lynis','audit')">
-        <div class="home-tool-icon">&#128203;</div>
-        <div class="home-tool-name">Lynis</div>
-        <div class="home-tool-desc">In-depth local system security audit — checks OS hardening, installed packages, file permissions, firewall rules, and compliance posture.</div>
-        <div class="home-tool-tags">
-          <span class="home-tool-tag" style="background:rgba(0,255,157,0.1);color:var(--green)">hardening</span>
-          <span class="home-tool-tag" style="background:rgba(0,255,157,0.1);color:var(--green)">compliance</span>
-          <span class="home-tool-tag" style="background:rgba(0,255,157,0.1);color:var(--green)">local</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Legal notice -->
-  <div style="background:rgba(255,214,10,0.04);border:1px solid rgba(255,214,10,0.12);border-radius:10px;padding:14px 18px;margin-bottom:24px;display:flex;gap:12px;align-items:flex-start">
-    <span style="font-size:16px">&#9888;</span>
-    <div style="font-size:11px;color:var(--m);font-family:'JetBrains Mono',monospace;line-height:1.8">
-      <strong style="color:var(--yellow)">Authorized Use Only.</strong> VulnScan Pro is designed exclusively for security testing on systems you own or have explicit written permission to assess. Unauthorized use is illegal and unethical. Always obtain proper authorization before scanning.
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap">
+      <button class="btn btn-outline" onclick="closeTos()">DECLINE</button>
+      <button class="btn btn-primary" onclick="acceptTos()">I ACCEPT</button>
     </div>
   </div>
 </div>
 
-<!-- ═══ SCANNER ═══ -->
-<div class="page" id="page-scan">
-  <div class="hero">
-    <h2>Vulnerability Intelligence</h2>
-    <p>Port scan &middot; CVE lookup &middot; SSL analysis &middot; DNS recon &middot; Header audit</p>
-    <div class="row">
-      <input class="scan-inp" id="tgt" type="text" placeholder="IP address or hostname  e.g. 192.168.1.1" onkeydown="if(event.key==='Enter')doScan()"/>
-      <button class="btn btn-p" id="sbtn" onclick="doScan()">SCAN</button>
-      <button class="btn btn-g btn-sm" id="sbtn-cancel" onclick="cancelScan('scan')" style="display:none;color:var(--red);border-color:rgba(255,51,102,0.4)">&#10005;</button>
+<!-- ── App layout ── -->
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-logo" onclick="pg('home',null)">
+        <div class="brand-icon">&#9889;</div>
+        <div><div class="brand-title">VulnScan Pro</div><div class="brand-sub">SECURITY PLATFORM</div></div>
+      </div>
     </div>
-    <div class="mods">
-      <button class="mt on" id="mod-ports" onclick="tmg('ports',this)">&#128268; Ports+CVE</button>
-      <button class="mt on" id="mod-ssl" onclick="tmg('ssl',this)">&#128274; SSL/TLS</button>
-      <button class="mt on" id="mod-dns" onclick="tmg('dns',this)">&#127758; DNS</button>
-      <button class="mt on" id="mod-headers" onclick="tmg('headers',this)">&#128196; Headers</button>
+    <nav>
+      <div class="nav-section">
+        <div class="nav-label">OVERVIEW</div>
+        <button class="nav-item" id="ni-home" onclick="pg('home',this)"><span class="ni">&#9700;</span> Home</button>
+        <button class="nav-item" id="ni-dash" onclick="pg('dash',this)"><span class="ni">&#9636;</span> Dashboard</button>
+        <button class="nav-item" id="ni-hist" onclick="pg('hist',this)"><span class="ni">&#9632;</span> History</button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">INFORMATION</div>
+        <button class="nav-item" id="ni-scan" onclick="pg('scan',this)"><span class="ni">&#9675;</span> Network Scanner</button>
+        <button class="nav-item" id="ni-dnsrecon" onclick="pg('dnsrecon',this)"><span class="ni">&#9675;</span> DNSRecon</button>
+        <button class="nav-item" id="ni-disc" onclick="pg('disc',this)"><span class="ni">&#9675;</span> Net Discovery</button>
+        <button class="nav-item" id="ni-harvester" onclick="pg('harvester',this)"><span class="ni">&#9675;</span> theHarvester</button>
+        <button class="nav-item" id="ni-sub" onclick="pg('sub',this)"><span class="ni">&#9675;</span> Subdomain Finder</button>
+        <button class="nav-item" id="ni-legion" onclick="pg('legion',this)"><span class="ni">&#9675;</span> Legion</button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">WEB TESTING</div>
+        <button class="nav-item" id="ni-nikto" onclick="pg('nikto',this)"><span class="ni">&#9675;</span> Nikto</button>
+        <button class="nav-item" id="ni-wpscan" onclick="pg('wpscan',this)"><span class="ni">&#9675;</span> WPScan</button>
+        <button class="nav-item" id="ni-dir" onclick="pg('dir',this)"><span class="ni">&#9675;</span> Dir Buster</button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">ATTACKS</div>
+        <button class="nav-item" id="ni-brute" onclick="pg('brute',this)"><span class="ni">&#9675;</span> Brute Force</button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">AUDITING</div>
+        <button class="nav-item" id="ni-lynis" onclick="pg('lynis',this)"><span class="ni">&#9675;</span> Lynis</button>
+      </div>
+      <div class="nav-section admin-only" style="display:none">
+        <div class="nav-label">ADMIN</div>
+        <button class="nav-item admin-only" id="ni-admin" onclick="pg('admin',this)" style="display:none"><span class="ni">&#9632;</span> Admin Console</button>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="nav-item" onclick="showAbout()"><span class="ni">&#9432;</span> About</button>
+      <button class="nav-item" id="logout-btn" onclick="doLogout()" style="display:none;color:var(--red)"><span class="ni">&#10005;</span> Logout</button>
     </div>
-    <!-- FIX: Added scan timeout info notice -->
-    <p style="color:var(--m);font-size:11px;margin-top:12px;font-family:'JetBrains Mono',monospace">&#9432; Scans may take 30–180 seconds. Please wait.</p>
-  </div>
-  <div id="prog"><div id="pb"></div></div>
-  <div id="term"></div>
-  <div id="err"></div>
-  <div id="res"></div>
-</div>
+  </aside>
 
-<!-- ═══ THE HARVESTER ═══ -->
-<div class="page" id="page-harvester">
-  <div class="card">
-    <div class="ctitle">&#127919; theHarvester — OSINT Recon</div>
-    <div class="notice">&#9888; Only perform reconnaissance on domains you own or have explicit written permission to test.</div>
-    <div class="hero" style="padding:16px 0 8px">
-      <p style="color:var(--m);font-size:12px;font-family:'JetBrains Mono',monospace;max-width:600px;margin:0 auto">
-        theHarvester gathers emails, subdomains, hosts, employee names, open ports, and banners from public sources (Google, Bing, LinkedIn, DNS, and more).
-      </p>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-      <div class="fg">
-        <label>TARGET DOMAIN</label>
-        <input class="inp" id="hv-target" type="text" placeholder="e.g. example.com" />
-      </div>
-      <div class="fg">
-        <label>DATA SOURCES</label>
-        <select class="inp" id="hv-sources" multiple style="height:90px;padding:6px">
-          <option value="google" selected>Google</option>
-          <option value="bing" selected>Bing</option>
-          <option value="linkedin">LinkedIn</option>
-          <option value="dnsdumpster" selected>DNSDumpster</option>
-          <option value="crtsh" selected>crt.sh</option>
-          <option value="hackertarget">HackerTarget</option>
-          <option value="baidu">Baidu</option>
-          <option value="yahoo">Yahoo</option>
-        </select>
-        <div style="font-size:9px;color:var(--m);margin-top:3px;font-family:'JetBrains Mono',monospace">Hold Ctrl/Cmd to select multiple</div>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
-      <div class="fg">
-        <label>RESULT LIMIT</label>
-        <input class="inp" id="hv-limit" type="number" value="500" min="50" max="2000" />
-      </div>
-      <div class="fg">
-        <label>DNS BRUTE-FORCE</label>
-        <select class="inp" id="hv-dns">
-          <option value="">Disabled</option>
-          <option value="-f /tmp/hv_out -b all --dns-brute">Enable</option>
-        </select>
-      </div>
-      <div class="fg">
-        <label>OUTPUT FORMAT</label>
-        <select class="inp" id="hv-fmt">
-          <option value="xml">XML (full)</option>
-          <option value="json">JSON</option>
-        </select>
-      </div>
-    </div>
-    <button class="btn btn-p" id="hv-btn" onclick="doHarvest()" style="width:auto;padding:10px 32px">&#127919; RUN HARVESTER</button>
-    <button class="btn btn-g btn-sm" id="hv-cancel" onclick="cancelScan('hv')" style="display:none;color:var(--red);border-color:rgba(255,51,102,0.4);margin-left:8px">&#10005; Cancel</button>
-    <div class="install-banner" id="hv-install-banner"><div class="install-spinner"></div><span id="hv-install-msg">Installing theHarvester...</span></div>
-    <p style="color:var(--m);font-size:11px;margin-top:12px;font-family:'JetBrains Mono',monospace">&#9432; Recon may take 30–120 seconds depending on sources selected.</p>
-    <div id="hv-prog" style="display:none;margin-top:14px"><div style="height:3px;background:var(--b2);border-radius:2px"><div id="hv-pb" style="height:100%;width:0%;background:linear-gradient(90deg,var(--cyan),var(--purple));border-radius:2px;transition:width 0.4s"></div></div></div>
-    <div id="hv-term" class="terminal" style="display:none;margin-top:14px"></div>
-    <div id="hv-err" class="err-box" style="display:none;margin-top:10px"></div>
-    <div id="hv-res" style="display:none;margin-top:16px"></div>
-  </div>
-</div>
-
-<!-- ═══ DNSRECON ═══ -->
-<div class="page" id="page-dnsrecon">
-  <div class="card">
-    <div class="ctitle">&#127760; DNSRecon — DNS Enumeration</div>
-    <div class="notice">&#9888; Only enumerate domains you own or have explicit written permission to test.</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-      <div class="fg">
-        <label>TARGET DOMAIN</label>
-        <input class="inp" id="dr-target" type="text" placeholder="e.g. example.com" />
-      </div>
-      <div class="fg">
-        <label>SCAN TYPE</label>
-        <select class="inp" id="dr-type">
-          <option value="std">Standard (all record types)</option>
-          <option value="axfr">Zone Transfer (AXFR)</option>
-          <option value="brt">Brute Force subdomains</option>
-          <option value="srv">SRV record enumeration</option>
-          <option value="rvl">Reverse lookup</option>
-        </select>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-      <div class="fg">
-        <label>NAMESERVER (optional)</label>
-        <input class="inp" id="dr-ns" type="text" placeholder="e.g. 8.8.8.8  (leave blank for default)" />
-      </div>
-      <div class="fg">
-        <label>RECORD FILTER</label>
-        <select class="inp" id="dr-filter">
-          <option value="">All records</option>
-          <option value="A">A records</option>
-          <option value="MX">MX records</option>
-          <option value="NS">NS records</option>
-          <option value="TXT">TXT records</option>
-          <option value="SOA">SOA records</option>
-          <option value="CNAME">CNAME records</option>
-        </select>
-      </div>
-    </div>
-    <button class="btn btn-p" id="dr-btn" onclick="doDnsRecon()" style="width:auto;padding:10px 32px">&#127760; RUN DNSRECON</button>
-    <button class="btn btn-g btn-sm" id="dr-cancel" onclick="cancelScan('dr')" style="display:none;color:var(--red);border-color:rgba(255,51,102,0.4);margin-left:8px">&#10005; Cancel</button>
-    <div class="install-banner" id="dr-install-banner"><div class="install-spinner"></div><span id="dr-install-msg">Installing dnsrecon...</span></div>
-    <p style="color:var(--m);font-size:11px;margin-top:12px;font-family:'JetBrains Mono',monospace">&#9432; Zone transfers and brute-force scans may take 30–90 seconds.</p>
-    <div id="dr-prog" style="display:none;margin-top:14px"><div style="height:3px;background:var(--b2);border-radius:2px"><div id="dr-pb" style="height:100%;width:0%;background:linear-gradient(90deg,var(--cyan),var(--purple));border-radius:2px;transition:width 0.4s"></div></div></div>
-    <div id="dr-term" class="terminal" style="display:none;margin-top:14px;background:#020208;border:1px solid var(--b);border-radius:9px;padding:13px 15px;max-height:160px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:13px"></div>
-    <div id="dr-err" style="display:none;margin-top:10px;background:rgba(255,51,102,0.07);border:1px solid rgba(255,51,102,0.22);border-radius:9px;padding:13px 16px;color:var(--red);font-size:13px;font-family:'JetBrains Mono',monospace"></div>
-    <div id="dr-res" style="display:none;margin-top:16px"></div>
-  </div>
-</div>
-
-<!-- ═══ NIKTO ═══ -->
-<div class="page" id="page-nikto">
-  <div class="card">
-    <div class="ctitle">&#128200; Nikto — Web Vulnerability Scanner</div>
-    <div class="notice">&#9888; Only scan web servers you own or have explicit written permission to test.</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-      <div class="fg">
-        <label>TARGET URL / HOST</label>
-        <input class="inp" id="nk-target" type="text" placeholder="e.g. http://192.168.1.1 or example.com" />
-      </div>
-      <div class="fg">
-        <label>PORT</label>
-        <input class="inp" id="nk-port" type="number" placeholder="80" value="80" min="1" max="65535" />
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-      <div class="fg">
-        <label>SSL</label>
-        <select class="inp" id="nk-ssl">
-          <option value="">Auto-detect</option>
-          <option value="-ssl">Force SSL</option>
-          <option value="-nossl">Disable SSL</option>
-        </select>
-      </div>
-      <div class="fg">
-        <label>TUNING (optional)</label>
-        <select class="inp" id="nk-tuning">
-          <option value="">All tests</option>
-          <option value="1">File upload</option>
-          <option value="2">Misconfiguration</option>
-          <option value="4">XSS</option>
-          <option value="8">Command injection</option>
-          <option value="9">SQL injection</option>
-          <option value="b">Software identification</option>
-        </select>
-      </div>
-    </div>
-    <button class="btn btn-p" id="nk-btn" onclick="doNikto()" style="width:auto;padding:10px 32px">&#128200; RUN NIKTO</button>
-    <button class="btn btn-g btn-sm" id="nk-cancel" onclick="cancelScan('nk')" style="display:none;color:var(--red);border-color:rgba(255,51,102,0.4);margin-left:8px">&#10005; Cancel</button>
-    <div class="install-banner" id="nk-install-banner"><div class="install-spinner"></div><span id="nk-install-msg">Installing nikto...</span></div>
-    <p style="color:var(--m);font-size:11px;margin-top:12px;font-family:'JetBrains Mono',monospace">&#9432; Nikto scans may take 2–10 minutes depending on server response time.</p>
-    <div id="nk-prog" style="display:none;margin-top:14px"><div style="height:3px;background:var(--b2);border-radius:2px"><div id="nk-pb" style="height:100%;width:0%;background:linear-gradient(90deg,var(--orange),var(--red));border-radius:2px;transition:width 0.4s"></div></div></div>
-    <div id="nk-term" style="display:none;margin-top:14px;background:#020208;border:1px solid var(--b);border-radius:9px;padding:13px 15px;max-height:180px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:12px"></div>
-    <div id="nk-err" style="display:none;margin-top:10px;background:rgba(255,51,102,0.07);border:1px solid rgba(255,51,102,0.22);border-radius:9px;padding:13px 16px;color:var(--red);font-size:13px;font-family:'JetBrains Mono',monospace"></div>
-    <div id="nk-res" style="display:none;margin-top:16px"></div>
-  </div>
-</div>
-
-<!-- ═══ WPSCAN ═══ -->
-<div class="page" id="page-wpscan">
-  <div class="card">
-    <div class="ctitle">&#128196; WPScan — WordPress Security Scanner</div>
-    <div class="notice">&#9888; Only scan WordPress sites you own or have explicit written permission to test.</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-      <div class="fg">
-        <label>TARGET URL</label>
-        <input class="inp" id="wp-target" type="text" placeholder="e.g. https://example.com" />
-      </div>
-      <div class="fg">
-        <label>ENUMERATION</label>
-        <select class="inp" id="wp-enum" multiple style="height:96px;padding:6px">
-          <option value="p" selected>Plugins (vulnerable)</option>
-          <option value="t">Themes</option>
-          <option value="u" selected>Users</option>
-          <option value="vp">Vulnerable plugins only</option>
-          <option value="ap">All plugins</option>
-          <option value="at">All themes</option>
-          <option value="tt">Timthumbs</option>
-          <option value="cb">Config backups</option>
-        </select>
-        <div style="font-size:9px;color:var(--m);margin-top:3px;font-family:'JetBrains Mono',monospace">Hold Ctrl/Cmd to select multiple</div>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-      <div class="fg">
-        <label>WPScan API TOKEN (optional)</label>
-        <input class="inp" id="wp-token" type="password" placeholder="Get free token at wpscan.com" />
-      </div>
-      <div class="fg">
-        <label>DETECTION MODE</label>
-        <select class="inp" id="wp-mode">
-          <option value="mixed">Mixed (default)</option>
-          <option value="passive">Passive (stealthy)</option>
-          <option value="aggressive">Aggressive</option>
-        </select>
-      </div>
-    </div>
-    <button class="btn btn-p" id="wp-btn" onclick="doWPScan()" style="width:auto;padding:10px 32px">&#128196; RUN WPSCAN</button>
-    <button class="btn btn-g btn-sm" id="wp-cancel" onclick="cancelScan('wp')" style="display:none;color:var(--red);border-color:rgba(255,51,102,0.4);margin-left:8px">&#10005; Cancel</button>
-    <p style="color:var(--m);font-size:11px;margin-top:12px;font-family:'JetBrains Mono',monospace">&#9432; WPScan may take 1–5 minutes. API token enables CVE data for plugins.</p>
-    <div id="wp-prog" style="display:none;margin-top:14px"><div style="height:3px;background:var(--b2);border-radius:2px"><div id="wp-pb" style="height:100%;width:0%;background:linear-gradient(90deg,var(--purple),var(--cyan));border-radius:2px;transition:width 0.4s"></div></div></div>
-    <div id="wp-term" style="display:none;margin-top:14px;background:#020208;border:1px solid var(--b);border-radius:9px;padding:13px 15px;max-height:180px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:12px"></div>
-    <div id="wp-err" style="display:none;margin-top:10px;background:rgba(255,51,102,0.07);border:1px solid rgba(255,51,102,0.22);border-radius:9px;padding:13px 16px;color:var(--red);font-size:13px;font-family:'JetBrains Mono',monospace"></div>
-    <div id="wp-res" style="display:none;margin-top:16px"></div>
-  </div>
-</div>
-
-<!-- ═══ LYNIS ═══ -->
-<div class="page" id="page-lynis">
-  <div class="card">
-    <div class="ctitle">&#128203; Lynis — System Security Audit</div>
-    <div class="notice">&#9432; Lynis audits the <strong>local server</strong> running VulnScan Pro. No target needed.</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-      <div class="fg">
-        <label>AUDIT PROFILE</label>
-        <select class="inp" id="ly-profile">
-          <option value="system">Full System Audit</option>
-          <option value="quick">Quick Scan</option>
-          <option value="forensics">Forensics Mode</option>
-        </select>
-      </div>
-      <div class="fg">
-        <label>FOCUS CATEGORY</label>
-        <select class="inp" id="ly-category">
-          <option value="">All categories</option>
-          <option value="authentication">Authentication</option>
-          <option value="networking">Networking</option>
-          <option value="storage">Storage &amp; Filesystems</option>
-          <option value="kernel">Kernel &amp; Memory</option>
-          <option value="software">Installed Software</option>
-          <option value="logging">Logging &amp; Auditing</option>
-        </select>
-      </div>
-    </div>
-    <div class="fg" style="margin-bottom:16px">
-      <label>COMPLIANCE STANDARD</label>
-      <select class="inp" id="ly-compliance">
-        <option value="">None</option>
-        <option value="ISO27001">ISO 27001</option>
-        <option value="PCI-DSS">PCI-DSS</option>
-        <option value="HIPAA">HIPAA</option>
-        <option value="CIS">CIS Benchmark</option>
-      </select>
-    </div>
-    <button class="btn btn-p" id="ly-btn" onclick="doLynis()" style="width:auto;padding:10px 32px">&#128203; RUN LYNIS AUDIT</button>
-    <button class="btn btn-g btn-sm" id="ly-cancel" onclick="cancelScan('ly')" style="display:none;color:var(--red);border-color:rgba(255,51,102,0.4);margin-left:8px">&#10005; Cancel</button>
-    <div class="install-banner" id="ly-install-banner"><div class="install-spinner"></div><span id="ly-install-msg">Installing lynis...</span></div>
-    <p style="color:var(--m);font-size:11px;margin-top:12px;font-family:'JetBrains Mono',monospace">&#9432; Full audit may take 2–5 minutes. Results include hardening index score.</p>
-    <div id="ly-prog" style="display:none;margin-top:14px"><div style="height:3px;background:var(--b2);border-radius:2px"><div id="ly-pb" style="height:100%;width:0%;background:linear-gradient(90deg,var(--green),var(--cyan));border-radius:2px;transition:width 0.4s"></div></div></div>
-    <div id="ly-term" style="display:none;margin-top:14px;background:#020208;border:1px solid var(--b);border-radius:9px;padding:13px 15px;max-height:200px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:12px"></div>
-    <div id="ly-err" style="display:none;margin-top:10px;background:rgba(255,51,102,0.07);border:1px solid rgba(255,51,102,0.22);border-radius:9px;padding:13px 16px;color:var(--red);font-size:13px;font-family:'JetBrains Mono',monospace"></div>
-    <div id="ly-res" style="display:none;margin-top:16px"></div>
-  </div>
-</div>
-
-<!-- ═══ LEGION ═══ -->
-<div class="page" id="page-legion">
-  <div class="card">
-    <div class="ctitle">&#9881; Legion — Auto-Recon Framework</div>
-    <div class="notice">&#9888; Only scan hosts you own or have explicit written permission to test. Legion runs multiple active tools.</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-      <div class="fg">
-        <label>TARGET HOST / IP</label>
-        <input class="inp" id="lg-target" type="text" placeholder="e.g. 192.168.1.1 or example.com" />
-      </div>
-      <div class="fg">
-        <label>SCAN INTENSITY</label>
-        <select class="inp" id="lg-intensity">
-          <option value="light">Light (fast, low noise)</option>
-          <option value="normal" selected>Normal</option>
-          <option value="aggressive">Aggressive (thorough)</option>
-        </select>
-      </div>
-    </div>
-    <div class="fg" style="margin-bottom:16px">
-      <label>MODULES TO RUN</label>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
-        <button class="mt on" id="lg-mod-nmap" onclick="lgMod('nmap',this)">&#128268; nmap</button>
-        <button class="mt on" id="lg-mod-nikto" onclick="lgMod('nikto',this)">&#128200; nikto</button>
-        <button class="mt on" id="lg-mod-smb" onclick="lgMod('smb',this)">&#128229; SMB</button>
-        <button class="mt on" id="lg-mod-snmp" onclick="lgMod('snmp',this)">&#128241; SNMP</button>
-        <button class="mt" id="lg-mod-hydra" onclick="lgMod('hydra',this)">&#128272; hydra</button>
-        <button class="mt" id="lg-mod-finger" onclick="lgMod('finger',this)">&#128100; finger</button>
-      </div>
-    </div>
-    <button class="btn btn-p" id="lg-btn" onclick="doLegion()" style="width:auto;padding:10px 32px">&#9881; RUN LEGION</button>
-    <button class="btn btn-g btn-sm" id="lg-cancel" onclick="cancelScan('lg')" style="display:none;color:var(--red);border-color:rgba(255,51,102,0.4);margin-left:8px">&#10005; Cancel</button>
-    <div class="install-banner" id="lg-install-banner"><div class="install-spinner"></div><span id="lg-install-msg">Installing legion...</span></div>
-    <p style="color:var(--m);font-size:11px;margin-top:12px;font-family:'JetBrains Mono',monospace">&#9432; Legion orchestrates multiple tools. Aggressive scans may take 5–15 minutes.</p>
-    <div id="lg-prog" style="display:none;margin-top:14px"><div style="height:3px;background:var(--b2);border-radius:2px"><div id="lg-pb" style="height:100%;width:0%;background:linear-gradient(90deg,var(--red),var(--orange));border-radius:2px;transition:width 0.4s"></div></div></div>
-    <div id="lg-term" style="display:none;margin-top:14px;background:#020208;border:1px solid var(--b);border-radius:9px;padding:13px 15px;max-height:200px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:12px"></div>
-    <div id="lg-err" style="display:none;margin-top:10px;background:rgba(255,51,102,0.07);border:1px solid rgba(255,51,102,0.22);border-radius:9px;padding:13px 16px;color:var(--red);font-size:13px;font-family:'JetBrains Mono',monospace"></div>
-    <div id="lg-res" style="display:none;margin-top:16px"></div>
-  </div>
-</div>
-
-<!-- ═══ SUBDOMAIN ═══ -->
-<div class="page" id="page-sub">
-  <div class="card">
-    <div class="ctitle">SUBDOMAIN FINDER</div>
-    <div class="notice">&#9888; Only enumerate domains you own or have written permission to test.</div>
-    <div class="fg"><label>DOMAIN</label><input class="scan-inp" id="sub-domain" placeholder="example.com" type="text" style="width:100%"/></div>
-    <div class="fg" style="margin-top:12px"><label>WORDLIST SIZE</label>
-      <select class="sel" id="sub-size"><option value="small">Small (~30 words, faster)</option><option value="medium" selected>Medium (~80 words + crt.sh + HackerTarget)</option></select></div>
-    <button class="btn btn-p btn-full" id="sub-btn" onclick="doSub()" style="margin-top:4px">FIND SUBDOMAINS</button>
-  </div>
-  <div id="sub-res"></div>
-</div>
-
-<!-- ═══ DIRBUSTER ═══ -->
-<div class="page" id="page-dir">
-  <div class="card">
-    <div class="ctitle">DIRECTORY ENUMERATOR</div>
-    <div class="notice">&#9888; Only scan web servers you own or have written permission to test.</div>
-    <div class="fg"><label>TARGET URL</label><input class="scan-inp" id="dir-url" placeholder="http://192.168.1.1 or https://example.com" type="text" style="width:100%"/></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
-      <div class="fg"><label>WORDLIST SIZE</label><select class="sel" id="dir-size"><option value="small" selected>Small (~60 paths)</option><option value="medium">Medium (~130 paths)</option></select></div>
-      <div class="fg"><label>EXTENSIONS</label><input class="scan-inp" id="dir-ext" value="php,html,txt,bak,zip,json,xml" type="text" style="width:100%"/></div>
-    </div>
-    <button class="btn btn-p btn-full" id="dir-btn" onclick="doDir()">START ENUMERATION</button>
-  </div>
-  <div id="dir-res"></div>
-</div>
-
-<!-- ═══ BRUTE FORCE ═══ -->
-<div class="page" id="page-brute">
-  <div class="card">
-    <div class="ctitle">LOGIN BRUTE FORCE TESTER</div>
-    <div class="notice">&#9888; ONLY use on systems you own or have explicit written permission. Unauthorized use is illegal.</div>
-    <div class="fg"><label>ATTACK TYPE</label><select class="sel" id="bf-type" onchange="bfTypeChange()"><option value="http">HTTP Form Login</option><option value="ssh">SSH Login</option></select></div>
-    <div id="bf-http-fields">
-      <div class="bf-grid">
-        <div class="fg"><label>LOGIN URL</label><input class="scan-inp" id="bf-url" placeholder="http://192.168.1.1/login" type="text" style="width:100%"/></div>
-        <div class="fg"><label>USERNAME FIELD</label><input class="scan-inp" id="bf-ufield" value="username" type="text" style="width:100%"/></div>
-        <div class="fg"><label>PASSWORD FIELD</label><input class="scan-inp" id="bf-pfield" value="password" type="text" style="width:100%"/></div>
-      </div>
-    </div>
-    <div id="bf-ssh-fields" style="display:none">
-      <div class="bf-grid">
-        <div class="fg"><label>HOST</label><input class="scan-inp" id="bf-ssh-host" placeholder="192.168.1.1" type="text" style="width:100%"/></div>
-        <div class="fg"><label>PORT</label><input class="scan-inp" id="bf-ssh-port" value="22" type="text" style="width:100%"/></div>
-      </div>
-    </div>
-    <div class="bf-grid" style="margin-top:12px">
-      <div class="fg"><label>USERNAMES (one per line)</label><textarea class="scan-inp" id="bf-users" placeholder="admin&#10;root&#10;user"></textarea></div>
-      <div class="fg"><label>PASSWORDS (one per line)</label><textarea class="scan-inp" id="bf-pwds" placeholder="admin&#10;password&#10;123456"></textarea></div>
-    </div>
-    <button class="btn btn-p btn-full" id="bf-btn" onclick="doBrute()">START BRUTE FORCE</button>
-  </div>
-  <div id="bf-res"></div>
-</div>
-
-<!-- ═══ DISCOVER ═══ -->
-<div class="page" id="page-disc">
-  <div class="card">
-    <div class="ctitle">NETWORK DISCOVERY</div>
-    <div class="row">
-      <input class="scan-inp" id="subnet" placeholder="192.168.1.0/24" type="text" onkeydown="if(event.key==='Enter')doDisc()" style="flex:1"/>
-      <button class="btn btn-p" id="disc-btn" onclick="doDisc()">DISCOVER</button>
-    </div>
-    <p style="color:var(--m);font-size:11px;margin-top:10px;font-family:'JetBrains Mono',monospace">&#9888; Only scan networks you own or have permission to scan</p>
-  </div>
-  <div id="disc-res"></div>
-</div>
-
-<!-- ═══ HISTORY ═══ -->
-<div class="page" id="page-hist">
-  <div class="card">
-    <div class="ctitle">SCAN HISTORY</div>
-    <div id="hist-content"><p style="color:var(--m);font-size:13px">Loading...</p></div>
-  </div>
-</div>
-
-<!-- ═══ DASHBOARD ═══ -->
-<div class="page" id="page-dash">
-  <div class="card">
-    <div class="ctitle">SECURITY DASHBOARD</div>
-    <div id="dash-content"><p style="color:var(--m);font-size:13px">Run some scans to see statistics.</p></div>
-  </div>
-</div>
-
-<!-- ═══ PROFILE ═══ -->
-<div class="page" id="page-profile">
-  <div class="profile-grid">
-    <div class="card">
-      <div class="ctitle">MY PROFILE</div>
-      <div id="profile-info"></div>
-      <div style="margin-top:16px">
-        <div class="fg"><label>FULL NAME</label><input class="scan-inp" id="p-name" type="text" placeholder="Your full name" style="width:100%"/></div>
-        <button class="btn btn-p btn-full" onclick="saveProfile()" style="margin-top:8px">SAVE PROFILE</button>
-      </div>
-    </div>
-    <div class="card">
-      <div class="ctitle">CHANGE PASSWORD</div>
-      <div class="fg"><label>CURRENT PASSWORD</label><input class="scan-inp" id="cp-old" type="password" placeholder="Current password" style="width:100%"/></div>
-      <div class="fg"><label>NEW PASSWORD</label><input class="scan-inp" id="cp-new" type="password" placeholder="New password" style="width:100%"/></div>
-      <div class="fg"><label>CONFIRM NEW PASSWORD</label><input class="scan-inp" id="cp-confirm" type="password" placeholder="Confirm new password" style="width:100%"/></div>
-      <button class="btn btn-p btn-full" onclick="changePassword()" style="margin-top:8px">CHANGE PASSWORD</button>
-      <div id="pwd-msg" class="auth-msg" style="margin-top:10px"></div>
-    </div>
-  </div>
-
-  <!-- Theme Section -->
-  <div class="card" style="margin-top:16px">
-    <div class="ctitle">&#127912; INTERFACE THEME</div>
-    <p style="color:var(--m);font-size:12px;font-family:'JetBrains Mono',monospace;margin-bottom:4px">Your personal theme. <span class="theme-mine-badge">PER USER</span> — saved to your account only. Other users keep their own themes.</p>
-    <div style="color:var(--red);font-size:10px;font-family:'JetBrains Mono',monospace;margin-bottom:16px">&#9888; Theme changes affect ALL users (server-wide setting)</div>
-    <div class="fg">
-      <label>ACTIVE THEME</label>
-      <div class="theme-dropdown-wrap">
-        <button class="theme-dropdown-btn" id="theme-dd-btn" onclick="toggleThemeDD()">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div id="theme-dd-preview" style="display:flex;gap:3px"></div>
-            <span id="theme-dd-label">Cyberpunk</span>
-          </div>
-          <span style="font-size:9px;color:var(--m)">&#9660;</span>
-        </button>
-        <div class="theme-dropdown-list" id="theme-dd-list">
-          <!-- populated by JS -->
-        </div>
-      </div>
-    </div>
-    <div style="margin-top:12px;padding:12px;background:var(--s2);border-radius:8px;border:1px solid var(--b2);font-size:11px;font-family:'JetBrains Mono',monospace;display:flex;align-items:center;gap:10px">
-      <span style="color:var(--m)">CURRENT:</span>
-      <span id="theme-current-name" style="color:var(--accent);font-weight:700">CYBERPUNK</span>
-      <span class="pulse-dot" style="margin-left:4px"></span>
-      <span id="theme-current-desc" style="color:var(--m);margin-left:auto;font-size:10px">Electric dark — default hacker aesthetic</span>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ ADMIN ═══ -->
-<div class="page" id="page-admin">
-  <div class="tabs" id="admin-tabs">
-    <button class="tab active" onclick="adminTab(event,'at-cli')">&#9654; Console</button>
-    <button class="tab" onclick="adminTab(event,'at-users')">&#128100; Users</button>
-    <button class="tab" onclick="adminTab(event,'at-stats')">&#128202; Stats</button>
-    <button class="tab" onclick="adminTab(event,'at-audit')">&#128196; Audit Log</button>
-    <button class="tab" onclick="adminTab(event,'at-scans')">&#128269; All Scans</button>
-  </div>
-  <div class="tc" id="at-users">
-    <div class="card"><div class="ctitle">USER MANAGEMENT</div><div id="admin-users"><p style="color:var(--m)">Loading...</p></div></div>
-  </div>
-  <div class="tc" id="at-stats">
-    <div class="card"><div class="ctitle">PLATFORM STATISTICS</div><div id="admin-stats"></div></div>
-  </div>
-  <div class="tc" id="at-audit">
-    <div class="card"><div class="ctitle">AUDIT LOG</div><div id="admin-audit" style="overflow-x:auto"></div></div>
-  </div>
-  <div class="tc" id="at-scans">
-    <div class="card"><div class="ctitle">ALL SCANS</div><div id="admin-scans" style="overflow-x:auto"></div></div>
-  </div>
-  <div class="tc active" id="at-cli">
-    <!-- ══ SERVER STATS PANEL ══ -->
-    <div class="card" style="margin-bottom:16px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-        <div class="ctitle" style="margin-bottom:0">&#128200; SERVER STATISTICS</div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span class="pulse-dot"></span>
-          <span style="font-size:10px;color:var(--m);font-family:'JetBrains Mono',monospace" id="stats-updated">LIVE</span>
-          <button class="lbtn" onclick="loadServerStats()" style="font-size:9px">&#8635; REFRESH</button>
-        </div>
-      </div>
-
-      <!-- Stats grid: 5 metric cards -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:14px" id="stats-grid">
-        <div class="sc" id="stat-cpu">
-          <div style="font-size:10px;color:var(--m);letter-spacing:2px;font-family:'JetBrains Mono',monospace;margin-bottom:8px">CPU USAGE</div>
-          <div style="position:relative;height:6px;background:var(--b2);border-radius:3px;margin-bottom:6px;overflow:hidden">
-            <div id="cpu-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--cyan),var(--green));border-radius:3px;transition:width 0.5s ease"></div>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:baseline">
-            <span id="cpu-val" style="font-size:22px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--cyan)">—</span>
-            <span id="cpu-cores" style="font-size:10px;color:var(--m)">— cores</span>
+  <!-- Main area -->
+  <div class="main">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="tb-title" id="topbar-title">Home</div>
+      <div class="tb-right">
+        <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle dark/light theme" aria-label="Toggle theme"></button>
+        <div class="user-chip" id="user-chip" onclick="pg('profile',null)" style="display:none">
+          <div class="user-av" id="user-avatar">?</div>
+          <div>
+            <div class="user-name" id="user-name-disp">User</div>
+            <div class="user-role" id="user-role-disp">user</div>
           </div>
         </div>
+      </div>
+    </header>
 
-        <div class="sc" id="stat-mem">
-          <div style="font-size:10px;color:var(--m);letter-spacing:2px;font-family:'JetBrains Mono',monospace;margin-bottom:8px">MEMORY</div>
-          <div style="position:relative;height:6px;background:var(--b2);border-radius:3px;margin-bottom:6px;overflow:hidden">
-            <div id="mem-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--purple),var(--cyan));border-radius:3px;transition:width 0.5s ease"></div>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:baseline">
-            <span id="mem-val" style="font-size:22px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--purple)">—</span>
-            <span id="mem-total" style="font-size:10px;color:var(--m)">of —</span>
-          </div>
+    <!-- Pages -->
+    <div class="content">
+
+      <!-- ═ HOME ═ -->
+      <div class="page active" id="page-home">
+        <div class="page-hd">
+          <div class="page-title">Welcome back</div>
+          <div class="page-desc">Professional security reconnaissance &amp; vulnerability assessment</div>
         </div>
-
-        <div class="sc" id="stat-swap">
-          <div style="font-size:10px;color:var(--m);letter-spacing:2px;font-family:'JetBrains Mono',monospace;margin-bottom:8px">SWAP</div>
-          <div style="position:relative;height:6px;background:var(--b2);border-radius:3px;margin-bottom:6px;overflow:hidden">
-            <div id="swap-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--yellow),var(--orange));border-radius:3px;transition:width 0.5s ease"></div>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:baseline">
-            <span id="swap-val" style="font-size:22px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--yellow)">—</span>
-            <span id="swap-total" style="font-size:10px;color:var(--m)">of —</span>
-          </div>
+        <div class="stats" id="home-stats">
+          <div class="stat"><div class="stat-val" id="hs-scans">—</div><div class="stat-lbl">TOTAL SCANS</div></div>
+          <div class="stat"><div class="stat-val" id="hs-cves">—</div><div class="stat-lbl">CVEs FOUND</div></div>
+          <div class="stat"><div class="stat-val" id="hs-ports">—</div><div class="stat-lbl">OPEN PORTS</div></div>
+          <div class="stat"><div class="stat-val">12</div><div class="stat-lbl">TOOLS</div></div>
         </div>
-
-        <div class="sc" id="stat-disk">
-          <div style="font-size:10px;color:var(--m);letter-spacing:2px;font-family:'JetBrains Mono',monospace;margin-bottom:8px">STORAGE (/)</div>
-          <div style="position:relative;height:6px;background:var(--b2);border-radius:3px;margin-bottom:6px;overflow:hidden">
-            <div id="disk-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--orange),var(--red));border-radius:3px;transition:width 0.5s ease"></div>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:baseline">
-            <span id="disk-val" style="font-size:22px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--orange)">—</span>
-            <span id="disk-total" style="font-size:10px;color:var(--m)">of —</span>
-          </div>
-        </div>
-
-        <div class="sc" id="stat-net">
-          <div style="font-size:10px;color:var(--m);letter-spacing:2px;font-family:'JetBrains Mono',monospace;margin-bottom:8px">NETWORK</div>
-          <div style="margin-top:4px">
-            <div style="display:flex;justify-content:space-between;font-size:11px;font-family:'JetBrains Mono',monospace;margin-bottom:4px">
-              <span style="color:var(--green)">&#8593; TX</span>
-              <span id="net-tx" style="color:var(--t)">—</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;font-size:11px;font-family:'JetBrains Mono',monospace">
-              <span style="color:var(--cyan)">&#8595; RX</span>
-              <span id="net-rx" style="color:var(--t)">—</span>
+        <!-- Tool grid -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
+          <div class="card" style="cursor:pointer;transition:border-color var(--transition)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'" onclick="pg('scan',null)">
+            <div class="card-p">
+              <div style="font-size:18px;margin-bottom:8px">&#9632;</div>
+              <div style="font-weight:600;margin-bottom:4px">Network Scanner</div>
+              <div style="font-size:12px;color:var(--text3)">Port scan · CVE lookup · SSL analysis · DNS · Headers</div>
+              <div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap">
+                <span class="tag">nmap</span><span class="tag">CVE</span><span class="tag">SSL</span>
+              </div>
             </div>
           </div>
-          <div id="net-iface" style="color:var(--m);font-size:9px;margin-top:6px;text-align:right"></div>
+          <div class="card" style="cursor:pointer;transition:border-color var(--transition)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'" onclick="pg('harvester',null)">
+            <div class="card-p">
+              <div style="font-size:18px;margin-bottom:8px">&#9632;</div>
+              <div style="font-weight:600;margin-bottom:4px">theHarvester</div>
+              <div style="font-size:12px;color:var(--text3)">OSINT emails, subdomains, IPs from public sources</div>
+              <div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">OSINT</span><span class="tag">emails</span></div>
+            </div>
+          </div>
+          <div class="card" style="cursor:pointer;transition:border-color var(--transition)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'" onclick="pg('sub',null)">
+            <div class="card-p">
+              <div style="font-size:18px;margin-bottom:8px">&#9632;</div>
+              <div style="font-weight:600;margin-bottom:4px">Subdomain Finder</div>
+              <div style="font-size:12px;color:var(--text3)">DNS brute-force + crt.sh + HackerTarget passive</div>
+              <div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">DNS</span><span class="tag">brute-force</span></div>
+            </div>
+          </div>
+          <div class="card" style="cursor:pointer;transition:border-color var(--transition)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'" onclick="pg('nikto',null)">
+            <div class="card-p">
+              <div style="font-size:18px;margin-bottom:8px">&#9632;</div>
+              <div style="font-weight:600;margin-bottom:4px">Nikto</div>
+              <div style="font-size:12px;color:var(--text3)">Web vulnerability scanner · 6700+ checks</div>
+              <div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">web</span><span class="tag">CVE</span></div>
+            </div>
+          </div>
+          <div class="card" style="cursor:pointer;transition:border-color var(--transition)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'" onclick="pg('dir',null)">
+            <div class="card-p">
+              <div style="font-size:18px;margin-bottom:8px">&#9632;</div>
+              <div style="font-weight:600;margin-bottom:4px">Directory Buster</div>
+              <div style="font-size:12px;color:var(--text3)">Hidden paths, admin panels, sensitive files</div>
+              <div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">HTTP</span><span class="tag">fuzzing</span></div>
+            </div>
+          </div>
+          <div class="card" style="cursor:pointer;transition:border-color var(--transition)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'" onclick="pg('lynis',null)">
+            <div class="card-p">
+              <div style="font-size:18px;margin-bottom:8px">&#9632;</div>
+              <div style="font-weight:600;margin-bottom:4px">Lynis</div>
+              <div style="font-size:12px;color:var(--text3)">System audit · hardening · compliance</div>
+              <div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">local</span><span class="tag">CIS</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="notice" style="margin-top:18px">
+          &#9888; <strong>Authorized use only.</strong> Only scan systems you own or have explicit written permission to assess.
         </div>
       </div>
 
-      <!-- Extra row: uptime, load, processes -->
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
-        <div style="background:var(--s2);border:1px solid var(--b2);border-radius:7px;padding:10px">
-          <div style="font-size:9px;color:var(--m);letter-spacing:2px;font-family:'JetBrains Mono',monospace;margin-bottom:4px">UPTIME</div>
-          <div id="sys-uptime" style="font-size:13px;font-family:'JetBrains Mono',monospace;color:var(--green)">—</div>
+      <!-- ═ SCANNER ═ -->
+      <div class="page" id="page-scan">
+        <div class="page-hd">
+          <div class="page-title">Network Scanner</div>
+          <div class="page-desc">Port scan &middot; CVE lookup &middot; SSL analysis &middot; DNS recon &middot; Header audit</div>
         </div>
-        <div style="background:var(--s2);border:1px solid var(--b2);border-radius:7px;padding:10px">
-          <div style="font-size:9px;color:var(--m);letter-spacing:2px;font-family:'JetBrains Mono',monospace;margin-bottom:4px">LOAD AVG</div>
-          <div id="sys-load" style="font-size:13px;font-family:'JetBrains Mono',monospace;color:var(--yellow)">—</div>
+        <div class="card card-p" style="margin-bottom:16px">
+          <div class="scan-bar">
+            <input class="inp inp-mono" id="tgt" type="text" placeholder="IP address or hostname" onkeydown="if(event.key==='Enter')doScan()"/>
+            <button class="btn btn-primary" id="sbtn" onclick="doScan()">SCAN</button>
+            <button class="btn btn-outline btn-sm" id="sbtn-cancel" onclick="cancelScan('scan')" style="display:none;color:var(--red);border-color:rgba(192,57,43,0.3)">CANCEL</button>
+          </div>
+          <div class="pills">
+            <button class="pill on" id="mod-ports" onclick="tmg('ports',this)">Ports + CVE</button>
+            <button class="pill on" id="mod-ssl" onclick="tmg('ssl',this)">SSL/TLS</button>
+            <button class="pill on" id="mod-dns" onclick="tmg('dns',this)">DNS</button>
+            <button class="pill on" id="mod-headers" onclick="tmg('headers',this)">Headers</button>
+          </div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:10px">&#9432; Scans may take 30–180 seconds depending on target and modules.</div>
         </div>
-        <div style="background:var(--s2);border:1px solid var(--b2);border-radius:7px;padding:10px">
-          <div style="font-size:9px;color:var(--m);letter-spacing:2px;font-family:'JetBrains Mono',monospace;margin-bottom:4px">PROCESSES</div>
-          <div id="sys-procs" style="font-size:13px;font-family:'JetBrains Mono',monospace;color:var(--cyan)">—</div>
-        </div>
+        <div class="progress-wrap" id="prog"><div class="progress-bar" id="pb" style="width:0%"></div></div>
+        <div class="terminal" id="term"></div>
+        <div class="err-box" id="err"></div>
+        <div id="res"></div>
       </div>
-    </div>
-    <!-- ══ END SERVER STATS ══ -->
 
-    <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-        <div class="ctitle" style="margin-bottom:0">&#9881; SERVER CLI CONSOLE</div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span class="pulse-dot"></span>
-          <span style="font-size:10px;color:var(--m);font-family:'JetBrains Mono',monospace">ADMIN ONLY — ALL COMMANDS LOGGED</span>
+      <!-- ═ HARVESTER ═ -->
+      <div class="page" id="page-harvester">
+        <div class="page-hd"><div class="page-title">theHarvester</div><div class="page-desc">OSINT email, subdomain, and IP reconnaissance</div></div>
+        <div class="notice">&#9888; Only perform reconnaissance on domains you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TARGET DOMAIN</label><input class="inp inp-mono" id="hv-target" type="text" placeholder="example.com"/></div>
+            <div class="fg"><label>RESULT LIMIT</label><input class="inp inp-mono" id="hv-limit" type="number" value="500" min="50" max="2000"/></div>
+          </div>
+          <div class="fg"><label>DATA SOURCES (hold Ctrl/Cmd for multiple)</label>
+            <select class="inp inp-mono" id="hv-sources" multiple style="height:90px;padding:6px">
+              <option value="google" selected>Google</option><option value="bing" selected>Bing</option>
+              <option value="linkedin">LinkedIn</option><option value="dnsdumpster" selected>DNSDumpster</option>
+              <option value="crtsh" selected>crt.sh</option><option value="hackertarget">HackerTarget</option>
+              <option value="baidu">Baidu</option><option value="yahoo">Yahoo</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="hv-btn" onclick="doHarvest()">RUN HARVESTER</button>
+          <button class="btn btn-outline btn-sm" id="hv-cancel" onclick="cancelScan('hv')" style="display:none;color:var(--red);margin-left:8px">CANCEL</button>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:10px">&#9432; May take 30–120s depending on sources.</div>
+        </div>
+        <div class="progress-wrap" id="hv-prog"><div class="progress-bar" id="hv-pb" style="width:0%"></div></div>
+        <div class="terminal" id="hv-term"></div>
+        <div class="err-box" id="hv-err"></div>
+        <div id="hv-res"></div>
+      </div>
+
+      <!-- ═ DNSRECON ═ -->
+      <div class="page" id="page-dnsrecon">
+        <div class="page-hd"><div class="page-title">DNSRecon</div><div class="page-desc">DNS enumeration and zone analysis</div></div>
+        <div class="notice">&#9888; Only enumerate domains you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TARGET DOMAIN</label><input class="inp inp-mono" id="dr-target" type="text" placeholder="example.com"/></div>
+            <div class="fg"><label>SCAN TYPE</label>
+              <select class="inp inp-mono" id="dr-type">
+                <option value="std">Standard (all record types)</option><option value="axfr">Zone Transfer (AXFR)</option>
+                <option value="brt">Brute Force subdomains</option><option value="srv">SRV records</option><option value="rvl">Reverse lookup</option>
+              </select>
+            </div>
+          </div>
+          <div class="row2" style="margin-bottom:16px">
+            <div class="fg"><label>NAMESERVER (optional)</label><input class="inp inp-mono" id="dr-ns" type="text" placeholder="8.8.8.8"/></div>
+            <div class="fg"><label>RECORD FILTER</label>
+              <select class="inp inp-mono" id="dr-filter">
+                <option value="">All records</option><option value="A">A</option><option value="MX">MX</option>
+                <option value="NS">NS</option><option value="TXT">TXT</option><option value="SOA">SOA</option><option value="CNAME">CNAME</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="dr-btn" onclick="doDnsRecon()">RUN DNSRECON</button>
+          <button class="btn btn-outline btn-sm" id="dr-cancel" onclick="cancelScan('dr')" style="display:none;color:var(--red);margin-left:8px">CANCEL</button>
+        </div>
+        <div class="progress-wrap" id="dr-prog"><div class="progress-bar" id="dr-pb" style="width:0%"></div></div>
+        <div class="terminal" id="dr-term"></div>
+        <div class="err-box" id="dr-err"></div>
+        <div id="dr-res"></div>
+      </div>
+
+      <!-- ═ NIKTO ═ -->
+      <div class="page" id="page-nikto">
+        <div class="page-hd"><div class="page-title">Nikto</div><div class="page-desc">Web server vulnerability scanner</div></div>
+        <div class="notice">&#9888; Only scan web servers you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TARGET URL / HOST</label><input class="inp inp-mono" id="nk-target" type="text" placeholder="http://192.168.1.1"/></div>
+            <div class="fg"><label>PORT</label><input class="inp inp-mono" id="nk-port" type="number" placeholder="80" value="80" min="1" max="65535"/></div>
+          </div>
+          <div class="row2" style="margin-bottom:16px">
+            <div class="fg"><label>SSL</label><select class="inp inp-mono" id="nk-ssl"><option value="">Auto-detect</option><option value="-ssl">Force SSL</option><option value="-nossl">Disable SSL</option></select></div>
+            <div class="fg"><label>TUNING</label><select class="inp inp-mono" id="nk-tuning"><option value="">All tests</option><option value="1">File upload</option><option value="2">Misconfiguration</option><option value="4">XSS</option><option value="8">Command injection</option><option value="9">SQL injection</option></select></div>
+          </div>
+          <button class="btn btn-primary" id="nk-btn" onclick="doNikto()">RUN NIKTO</button>
+          <button class="btn btn-outline btn-sm" id="nk-cancel" onclick="cancelScan('nk')" style="display:none;color:var(--red);margin-left:8px">CANCEL</button>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:10px">&#9432; Nikto scans may take 2–10 minutes.</div>
+        </div>
+        <div class="progress-wrap" id="nk-prog"><div class="progress-bar" id="nk-pb" style="width:0%"></div></div>
+        <div class="terminal" id="nk-term"></div>
+        <div class="err-box" id="nk-err"></div>
+        <div id="nk-res"></div>
+      </div>
+
+      <!-- ═ WPSCAN ═ -->
+      <div class="page" id="page-wpscan">
+        <div class="page-hd"><div class="page-title">WPScan</div><div class="page-desc">WordPress security scanner</div></div>
+        <div class="notice">&#9888; Only scan WordPress sites you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>TARGET URL</label><input class="inp inp-mono" id="wp-target" type="text" placeholder="https://example.com"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>ENUMERATION (hold Ctrl/Cmd)</label>
+              <select class="inp inp-mono" id="wp-enum" multiple style="height:90px;padding:6px">
+                <option value="p" selected>Plugins (vulnerable)</option><option value="t">Themes</option><option value="u" selected>Users</option>
+                <option value="vp">Vulnerable plugins only</option><option value="ap">All plugins</option>
+                <option value="at">All themes</option><option value="cb">Config backups</option>
+              </select>
+            </div>
+            <div class="fg"><label>DETECTION MODE</label>
+              <select class="inp inp-mono" id="wp-mode"><option value="mixed">Mixed (default)</option><option value="passive">Passive</option><option value="aggressive">Aggressive</option></select>
+            </div>
+          </div>
+          <div class="fg"><label>API TOKEN (optional)</label><input class="inp inp-mono" id="wp-token" type="password" placeholder="Get free token at wpscan.com"/></div>
+          <button class="btn btn-primary" id="wp-btn" onclick="doWPScan()">RUN WPSCAN</button>
+          <button class="btn btn-outline btn-sm" id="wp-cancel" onclick="cancelScan('wp')" style="display:none;color:var(--red);margin-left:8px">CANCEL</button>
+        </div>
+        <div class="progress-wrap" id="wp-prog"><div class="progress-bar" id="wp-pb" style="width:0%"></div></div>
+        <div class="terminal" id="wp-term"></div>
+        <div class="err-box" id="wp-err"></div>
+        <div id="wp-res"></div>
+      </div>
+
+      <!-- ═ LYNIS ═ -->
+      <div class="page" id="page-lynis">
+        <div class="page-hd"><div class="page-title">Lynis</div><div class="page-desc">Local system security audit</div></div>
+        <div class="notice">&#9432; Lynis audits the <strong>local server</strong> running VulnScan Pro. No target needed.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>AUDIT PROFILE</label><select class="inp inp-mono" id="ly-profile"><option value="system">Full System Audit</option><option value="quick">Quick Scan</option><option value="forensics">Forensics Mode</option></select></div>
+            <div class="fg"><label>COMPLIANCE</label><select class="inp inp-mono" id="ly-compliance"><option value="">None</option><option value="ISO27001">ISO 27001</option><option value="PCI-DSS">PCI-DSS</option><option value="HIPAA">HIPAA</option><option value="CIS">CIS Benchmark</option></select></div>
+          </div>
+          <div class="fg"><label>FOCUS CATEGORY</label><select class="inp inp-mono" id="ly-category"><option value="">All categories</option><option value="authentication">Authentication</option><option value="networking">Networking</option><option value="storage">Storage</option><option value="kernel">Kernel</option><option value="software">Software</option><option value="logging">Logging</option></select></div>
+          <button class="btn btn-primary" id="ly-btn" onclick="doLynis()">RUN LYNIS AUDIT</button>
+          <button class="btn btn-outline btn-sm" id="ly-cancel" onclick="cancelScan('ly')" style="display:none;color:var(--red);margin-left:8px">CANCEL</button>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:10px">&#9432; Full audit may take 2–5 minutes.</div>
+        </div>
+        <div class="progress-wrap" id="ly-prog"><div class="progress-bar" id="ly-pb" style="width:0%"></div></div>
+        <div class="terminal" id="ly-term"></div>
+        <div class="err-box" id="ly-err"></div>
+        <div id="ly-res"></div>
+      </div>
+
+      <!-- ═ LEGION ═ -->
+      <div class="page" id="page-legion">
+        <div class="page-hd"><div class="page-title">Legion</div><div class="page-desc">Auto-recon framework</div></div>
+        <div class="notice">&#9888; Legion runs multiple active tools. Only scan hosts you own or have written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TARGET HOST / IP</label><input class="inp inp-mono" id="lg-target" type="text" placeholder="192.168.1.1"/></div>
+            <div class="fg"><label>INTENSITY</label><select class="inp inp-mono" id="lg-intensity"><option value="light">Light (fast)</option><option value="normal" selected>Normal</option><option value="aggressive">Aggressive</option></select></div>
+          </div>
+          <div class="fg">
+            <label>MODULES</label>
+            <div class="pills" style="margin-top:6px">
+              <button class="pill on" id="lg-mod-nmap" onclick="lgMod('nmap',this)">nmap</button>
+              <button class="pill on" id="lg-mod-nikto" onclick="lgMod('nikto',this)">nikto</button>
+              <button class="pill on" id="lg-mod-smb" onclick="lgMod('smb',this)">SMB</button>
+              <button class="pill on" id="lg-mod-snmp" onclick="lgMod('snmp',this)">SNMP</button>
+              <button class="pill" id="lg-mod-hydra" onclick="lgMod('hydra',this)">hydra</button>
+              <button class="pill" id="lg-mod-finger" onclick="lgMod('finger',this)">finger</button>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="lg-btn" onclick="doLegion()" style="margin-top:12px">RUN LEGION</button>
+          <button class="btn btn-outline btn-sm" id="lg-cancel" onclick="cancelScan('lg')" style="display:none;color:var(--red);margin-left:8px">CANCEL</button>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:10px">&#9432; Aggressive scans may take 5–15 minutes.</div>
+        </div>
+        <div class="progress-wrap" id="lg-prog"><div class="progress-bar" id="lg-pb" style="width:0%"></div></div>
+        <div class="terminal" id="lg-term"></div>
+        <div class="err-box" id="lg-err"></div>
+        <div id="lg-res"></div>
+      </div>
+
+      <!-- ═ SUBDOMAIN ═ -->
+      <div class="page" id="page-sub">
+        <div class="page-hd"><div class="page-title">Subdomain Finder</div><div class="page-desc">DNS brute-force + passive enumeration</div></div>
+        <div class="notice">&#9888; Only enumerate domains you own or have written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>DOMAIN</label><input class="inp inp-mono" id="sub-domain" type="text" placeholder="example.com"/></div>
+          <div class="fg"><label>WORDLIST SIZE</label><select class="inp inp-mono" id="sub-size"><option value="small">Small (~30 words)</option><option value="medium" selected>Medium (~80 words + crt.sh + HackerTarget)</option></select></div>
+          <button class="btn btn-primary" id="sub-btn" onclick="doSub()">FIND SUBDOMAINS</button>
+        </div>
+        <div id="sub-res"></div>
+      </div>
+
+      <!-- ═ DIR BUSTER ═ -->
+      <div class="page" id="page-dir">
+        <div class="page-hd"><div class="page-title">Directory Buster</div><div class="page-desc">Hidden path and file enumeration</div></div>
+        <div class="notice">&#9888; Only scan web servers you own or have written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>TARGET URL</label><input class="inp inp-mono" id="dir-url" type="text" placeholder="http://192.168.1.1"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>WORDLIST SIZE</label><select class="inp inp-mono" id="dir-size"><option value="small" selected>Small (~60 paths)</option><option value="medium">Medium (~130 paths)</option></select></div>
+            <div class="fg"><label>EXTENSIONS</label><input class="inp inp-mono" id="dir-ext" type="text" value="php,html,txt,bak,zip,json,xml"/></div>
+          </div>
+          <button class="btn btn-primary" id="dir-btn" onclick="doDir()">START ENUMERATION</button>
+        </div>
+        <div id="dir-res"></div>
+      </div>
+
+      <!-- ═ BRUTE FORCE ═ -->
+      <div class="page" id="page-brute">
+        <div class="page-hd"><div class="page-title">Brute Force</div><div class="page-desc">Credential testing against HTTP and SSH services</div></div>
+        <div class="notice">&#9888; ONLY use on systems you own or have explicit written permission. Unauthorized use is illegal.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ATTACK TYPE</label><select class="inp inp-mono" id="bf-type" onchange="bfTypeChange()"><option value="http">HTTP Form Login</option><option value="ssh">SSH Login</option></select></div>
+          <div id="bf-http-fields">
+            <div class="row3" style="margin-bottom:8px">
+              <div class="fg"><label>LOGIN URL</label><input class="inp inp-mono" id="bf-url" type="text" placeholder="http://host/login"/></div>
+              <div class="fg"><label>USER FIELD</label><input class="inp inp-mono" id="bf-ufield" value="username" type="text"/></div>
+              <div class="fg"><label>PASS FIELD</label><input class="inp inp-mono" id="bf-pfield" value="password" type="text"/></div>
+            </div>
+          </div>
+          <div id="bf-ssh-fields" style="display:none">
+            <div class="row2" style="margin-bottom:8px">
+              <div class="fg"><label>HOST</label><input class="inp inp-mono" id="bf-ssh-host" type="text" placeholder="192.168.1.1"/></div>
+              <div class="fg"><label>PORT</label><input class="inp inp-mono" id="bf-ssh-port" value="22" type="text"/></div>
+            </div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>USERNAMES (one per line)</label><textarea class="inp inp-mono" id="bf-users" placeholder="admin&#10;root&#10;user"></textarea></div>
+            <div class="fg"><label>PASSWORDS (one per line)</label><textarea class="inp inp-mono" id="bf-pwds" placeholder="admin&#10;password&#10;123456"></textarea></div>
+          </div>
+          <button class="btn btn-primary btn-full" id="bf-btn" onclick="doBrute()">START BRUTE FORCE</button>
+        </div>
+        <div id="bf-res"></div>
+      </div>
+
+      <!-- ═ NETWORK DISCOVERY ═ -->
+      <div class="page" id="page-disc">
+        <div class="page-hd"><div class="page-title">Network Discovery</div><div class="page-desc">Discover live hosts on a subnet</div></div>
+        <div class="notice">&#9888; Only scan networks you own or have permission to scan.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="scan-bar">
+            <input class="inp inp-mono" id="subnet" type="text" placeholder="192.168.1.0/24" onkeydown="if(event.key==='Enter')doDisc()"/>
+            <button class="btn btn-primary" id="disc-btn" onclick="doDisc()">DISCOVER</button>
+          </div>
+        </div>
+        <div id="disc-res"></div>
+      </div>
+
+      <!-- ═ HISTORY ═ -->
+      <div class="page" id="page-hist">
+        <div class="page-hd"><div class="page-title">Scan History</div><div class="page-desc">Your previous vulnerability assessments</div></div>
+        <div class="card" id="hist-content"><div class="card-p" style="color:var(--text3)">Loading...</div></div>
+      </div>
+
+      <!-- ═ DASHBOARD ═ -->
+      <div class="page" id="page-dash">
+        <div class="page-hd"><div class="page-title">Dashboard</div><div class="page-desc">Security statistics and activity overview</div></div>
+        <div id="dash-content"><div style="color:var(--text3);font-size:13px">Run some scans to see statistics.</div></div>
+      </div>
+
+      <!-- ═ PROFILE ═ -->
+      <div class="page" id="page-profile">
+        <div class="page-hd"><div class="page-title">Profile</div><div class="page-desc">Account settings and preferences</div></div>
+        <div class="profile-grid">
+          <div class="card card-p">
+            <div class="card-title" style="margin-bottom:12px">My Account</div>
+            <div id="profile-info"></div>
+            <div style="margin-top:16px">
+              <div class="fg"><label>FULL NAME</label><input class="inp" id="p-name" type="text" placeholder="Your full name"/></div>
+              <button class="btn btn-primary btn-full" onclick="saveProfile()">SAVE CHANGES</button>
+            </div>
+          </div>
+          <div class="card card-p">
+            <div class="card-title" style="margin-bottom:12px">Change Password</div>
+            <div class="fg"><label>CURRENT PASSWORD</label><input class="inp inp-mono" id="cp-old" type="password"/></div>
+            <div class="fg"><label>NEW PASSWORD</label><input class="inp inp-mono" id="cp-new" type="password"/></div>
+            <div class="fg"><label>CONFIRM NEW PASSWORD</label><input class="inp inp-mono" id="cp-confirm" type="password"/></div>
+            <button class="btn btn-primary btn-full" onclick="changePassword()">UPDATE PASSWORD</button>
+            <div id="pwd-msg" class="auth-msg" style="margin-top:10px"></div>
+          </div>
+        </div>
+
+        <!-- Theme section -->
+        <div class="card card-p" style="margin-top:16px">
+          <div class="card-title" style="margin-bottom:6px">Interface Theme</div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:14px">Saved per-user to your account only.</div>
+          <div class="theme-options">
+            <button class="theme-opt active" id="theme-opt-light" onclick="applyTheme('light')">
+              <div class="theme-swatch" style="background:linear-gradient(135deg,#ffffff,#f5f5f5);border:1px solid #e0e0e0"></div>
+              <div class="theme-name">Light</div>
+              <div class="theme-desc">Clean white workspace</div>
+            </button>
+            <button class="theme-opt" id="theme-opt-dark" onclick="applyTheme('dark')">
+              <div class="theme-swatch" style="background:linear-gradient(135deg,#0a0a0a,#1a1a1a);border:1px solid #252525"></div>
+              <div class="theme-name">Dark</div>
+              <div class="theme-desc">Low-light environment</div>
+            </button>
+          </div>
         </div>
       </div>
-      <div class="notice" style="margin-bottom:14px">&#9888; Commands are allowlisted. Destructive operations are blocked. Type <span style="color:var(--cyan);font-family:'JetBrains Mono',monospace">help</span> to list available commands.</div>
-      <div id="cli-output" style="background:#000;border:1px solid var(--b);border-radius:9px;padding:14px 16px;min-height:360px;max-height:540px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:12px;margin-bottom:12px;position:relative">
-        <div style="color:var(--m);margin-bottom:4px">VulnScan Pro — Server Console v2.0</div>
-        <div style="color:var(--m);margin-bottom:14px;border-bottom:1px solid var(--b);padding-bottom:10px">Connected to: <span style="color:var(--green)" id="cli-hostname">loading...</span> | User: <span style="color:var(--yellow)" id="cli-user-label">admin</span></div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;position:relative">
-        <span style="color:var(--green);font-family:'JetBrains Mono',monospace;font-size:12px;flex-shrink:0;white-space:nowrap">root@vulnscan:~$</span>
-        <div style="position:relative;flex:1;display:flex">
-          <input class="inp" id="cli-input" type="text" placeholder="Enter command... (up/down history, Tab autocomplete)" onkeydown="cliKey(event)" oninput="cliInputHint(this.value)" autocomplete="off" spellcheck="false" style="font-family:'JetBrains Mono',monospace;font-size:12px;padding:8px 12px;width:100%"/>
-          <span id="cli-hint" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);color:var(--m);font-family:'JetBrains Mono',monospace;font-size:12px;pointer-events:none;opacity:0.5"></span>
+
+      <!-- ═ ADMIN ═ -->
+      <div class="page" id="page-admin">
+        <div class="page-hd"><div class="page-title">Admin Console</div><div class="page-desc">User management, server CLI, and platform statistics</div></div>
+        <div class="tabs admin-tabs" id="admin-tabs">
+          <button class="tab active" onclick="adminTab(event,'at-cli')">Console</button>
+          <button class="tab" onclick="adminTab(event,'at-users')">Users</button>
+          <button class="tab" onclick="adminTab(event,'at-stats')">Stats</button>
+          <button class="tab" onclick="adminTab(event,'at-audit')">Audit Log</button>
+          <button class="tab" onclick="adminTab(event,'at-scans')">All Scans</button>
         </div>
-        <button class="btn btn-g btn-sm" onclick="cliRun()" style="flex-shrink:0">&#9654; RUN</button>
-        <button class="btn btn-g btn-sm" onclick="cliClear()" style="flex-shrink:0;color:var(--m)">CLR</button>
+        <div class="tc active" id="at-cli">
+          <!-- Server stats -->
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-header">
+              <div><div class="card-title">Server Statistics</div></div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div class="pulse"></div>
+                <span style="font-family:var(--mono);font-size:10px;color:var(--text3)" id="stats-updated">LIVE</span>
+                <button class="btn btn-ghost btn-sm" onclick="loadServerStats()">Refresh</button>
+              </div>
+            </div>
+            <div class="card-p">
+              <div class="srv-grid">
+                <div class="srv-card">
+                  <div class="srv-label">CPU USAGE</div>
+                  <div class="srv-val" id="cpu-val">—</div>
+                  <div class="srv-bar"><div class="srv-bar-fill" id="cpu-bar" style="width:0%"></div></div>
+                  <div class="srv-sub" id="cpu-cores">— cores</div>
+                </div>
+                <div class="srv-card">
+                  <div class="srv-label">MEMORY</div>
+                  <div class="srv-val" id="mem-val">—</div>
+                  <div class="srv-bar"><div class="srv-bar-fill" id="mem-bar" style="width:0%"></div></div>
+                  <div class="srv-sub" id="mem-total">of —</div>
+                </div>
+                <div class="srv-card">
+                  <div class="srv-label">SWAP</div>
+                  <div class="srv-val" id="swap-val">—</div>
+                  <div class="srv-bar"><div class="srv-bar-fill" id="swap-bar" style="width:0%"></div></div>
+                  <div class="srv-sub" id="swap-total">of —</div>
+                </div>
+                <div class="srv-card">
+                  <div class="srv-label">STORAGE (/)</div>
+                  <div class="srv-val" id="disk-val">—</div>
+                  <div class="srv-bar"><div class="srv-bar-fill" id="disk-bar" style="width:0%"></div></div>
+                  <div class="srv-sub" id="disk-total">of —</div>
+                </div>
+                <div class="srv-card">
+                  <div class="srv-label">NETWORK</div>
+                  <div style="font-family:var(--mono);font-size:11px;color:var(--text2);margin-top:6px">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="color:var(--text3)">TX</span><span id="net-tx">—</span></div>
+                    <div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">RX</span><span id="net-rx">—</span></div>
+                  </div>
+                  <div class="srv-sub" id="net-iface"></div>
+                </div>
+              </div>
+              <div class="row3">
+                <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px">
+                  <div style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;margin-bottom:4px">UPTIME</div>
+                  <div id="sys-uptime" style="font-family:var(--mono);font-size:12px;color:var(--text)">—</div>
+                </div>
+                <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px">
+                  <div style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;margin-bottom:4px">LOAD AVG</div>
+                  <div id="sys-load" style="font-family:var(--mono);font-size:12px;color:var(--text)">—</div>
+                </div>
+                <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px">
+                  <div style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;margin-bottom:4px">PROCESSES</div>
+                  <div id="sys-procs" style="font-family:var(--mono);font-size:12px;color:var(--text)">—</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- CLI -->
+          <div class="card">
+            <div class="card-header">
+              <div><div class="card-title">Server CLI Console</div><div class="card-sub">ADMIN ONLY — ALL COMMANDS LOGGED</div></div>
+              <div style="display:flex;align-items:center;gap:6px"><div class="pulse"></div><span style="font-family:var(--mono);font-size:10px;color:var(--text3)" id="cli-hostname">loading...</span></div>
+            </div>
+            <div class="card-p">
+              <div class="notice" style="margin-bottom:12px">&#9888; Allowlisted commands only. Type <code style="font-family:var(--mono)">help</code> to list available commands.</div>
+              <div class="cli-out" id="cli-output">
+                <div style="color:var(--text3);margin-bottom:2px">VulnScan Pro — Server Console</div>
+                <div style="color:var(--text3);border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:10px">User: <span id="cli-user-label" style="color:var(--text)">admin</span></div>
+              </div>
+              <div class="cli-input-row">
+                <span class="cli-prompt">$</span>
+                <input class="inp inp-mono" id="cli-input" type="text" placeholder="Enter command... (↑↓ history, Tab autocomplete)" onkeydown="cliKey(event)" autocomplete="off" spellcheck="false" style="flex:1"/>
+                <button class="btn btn-outline btn-sm" onclick="cliRun()">RUN</button>
+                <button class="btn btn-ghost btn-sm" onclick="cliClear()">CLR</button>
+              </div>
+              <div class="cli-status" id="cli-statusbar"><div class="pulse"></div><span>Ready</span></div>
+              <div class="cli-quick" id="cli-quick-cmds">
+                <button class="cli-quick-btn" onclick="cliQuick('uptime')">uptime</button>
+                <button class="cli-quick-btn" onclick="cliQuick('df -h')">df -h</button>
+                <button class="cli-quick-btn" onclick="cliQuick('free -h')">free -h</button>
+                <button class="cli-quick-btn" onclick="cliQuick('ps aux | head -20')">ps aux</button>
+                <button class="cli-quick-btn" onclick="cliQuick('ss -tlnp')">ss -tlnp</button>
+                <button class="cli-quick-btn" onclick="cliQuick('uname -a')">uname</button>
+                <button class="cli-quick-btn" onclick="cliQuick('ip addr')">ip addr</button>
+                <button class="cli-quick-btn" onclick="cliQuick('which nmap nikto lynis dnsrecon theharvester wpscan')">check tools</button>
+                <button class="cli-quick-btn" onclick="cliQuick('journalctl -n 30 --no-pager')">recent logs</button>
+                <button class="cli-quick-btn" onclick="cliQuick('cat /etc/os-release')">OS info</button>
+                <button class="cli-quick-btn" onclick="cliQuick('last -n 10')">last logins</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tc" id="at-users"><div class="card"><div class="card-header"><div class="card-title">User Management</div></div><div class="card-p" id="admin-users" style="overflow-x:auto"><p style="color:var(--text3)">Loading...</p></div></div></div>
+        <div class="tc" id="at-stats"><div class="card"><div class="card-header"><div class="card-title">Platform Statistics</div></div><div class="card-p" id="admin-stats"></div></div></div>
+        <div class="tc" id="at-audit"><div class="card"><div class="card-header"><div class="card-title">Audit Log</div></div><div class="card-p" id="admin-audit" style="overflow-x:auto"></div></div></div>
+        <div class="tc" id="at-scans"><div class="card"><div class="card-header"><div class="card-title">All Scans</div></div><div class="card-p" id="admin-scans" style="overflow-x:auto"></div></div></div>
       </div>
-      <div id="cli-statusbar" style="margin-top:6px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--green);opacity:0.7">Ready | 0 in history</div>
-      <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px" id="cli-quick-cmds">
-        <button class="lbtn" onclick="cliQuick('uptime')">uptime</button>
-        <button class="lbtn" onclick="cliQuick('df -h')">df -h</button>
-        <button class="lbtn" onclick="cliQuick('free -h')">free -h</button>
-        <button class="lbtn" onclick="cliQuick('ps aux | head -20')">ps aux</button>
-        <button class="lbtn" onclick="cliQuick('ss -tlnp')">ss -tlnp</button>
-        <button class="lbtn" onclick="cliQuick('systemctl status vulnscan')">vulnscan status</button>
-        <button class="lbtn" onclick="cliQuick('which nmap nikto lynis dnsrecon theharvester wpscan')">check tools</button>
-        <button class="lbtn" onclick="cliQuick('uname -a')">uname</button>
-        <button class="lbtn" onclick="cliQuick('ip addr')">ip addr</button>
-        <button class="lbtn" onclick="cliQuick('journalctl -n 30 --no-pager')">recent logs</button>
-        <button class="lbtn" onclick="cliQuick('cat /etc/os-release')">OS info</button>
-        <button class="lbtn" onclick="cliQuick('ss -tlnp')">listening</button>
-        <button class="lbtn" onclick="cliQuick('ls /home')">home dirs</button>
-        <button class="lbtn" onclick="cliQuick('last -n 10')">last logins</button>
-        <button class="lbtn" onclick="cliQuick('echo Help: use arrow keys for history, Tab to autocomplete')">help</button>
-      </div>
-    </div>
-  </div>
-</div>
 
-<!-- ═══ CLI STANDALONE PAGE (kept for direct nav) ═══ -->
-<div class="page" id="page-cli" style="display:none">
-  <!-- redirects to admin > CLI tab -->
-</div>
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /layout -->
 
-</div><!-- /container -->
-
-<!-- ═══ NOTIFICATION TOAST CONTAINER ═══ -->
-<div id="toast-container" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none"></div>
+<!-- Toast container -->
+<div id="toast-container"></div>
 
 <script>
-// ══ PARTICLES ENGINE ══
-(function(){
-  const canvas=document.getElementById('particles-canvas');
-  if(!canvas)return;
-  const ctx=canvas.getContext('2d');
-  let W,H,particles=[];
-  function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;}
-  resize();window.addEventListener('resize',resize);
-  function getAccent(){
-    try{return getComputedStyle(document.body).getPropertyValue('--accent').trim()||'#00e5ff';}
-    catch(e){return '#00e5ff';}
-  }
-  function hexToRgb(hex){
-    if(!hex||typeof hex!=='string')return[0,229,255];
-    hex=hex.trim();
-    // Handle CSS variable references
-    if(hex.startsWith('var('))return[0,229,255];
-    // Handle rgb() format
-    const rgbMatch=hex.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-    if(rgbMatch)return[parseInt(rgbMatch[1]),parseInt(rgbMatch[2]),parseInt(rgbMatch[3])];
-    hex=hex.replace(/[^0-9a-f]/gi,'');
-    if(!hex.length)return[0,229,255];
-    if(hex.length===3)hex=hex.split('').map(c=>c+c).join('');
-    if(hex.length!==6)return[0,229,255];
-    const n=parseInt(hex,16);
-    return[(n>>16)&255,(n>>8)&255,n&255];
-  }
-  for(let i=0;i<60;i++)particles.push({x:Math.random()*window.innerWidth,y:Math.random()*window.innerHeight,vx:(Math.random()-0.5)*0.4,vy:(Math.random()-0.5)*0.4,r:Math.random()*1.8+0.3,life:Math.random()});
-  function draw(){
-    ctx.clearRect(0,0,W,H);
-    let rgb=[0,229,255];
-    try{rgb=hexToRgb(getAccent());}catch(e){}
-    particles.forEach(p=>{
-      p.x+=p.vx;p.y+=p.vy;p.life+=0.003;
-      if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;
-      const a=0.12+0.1*Math.sin(p.life*Math.PI*2);
-      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-      ctx.fillStyle=`rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`;ctx.fill();
-    });
-    for(let i=0;i<particles.length;i++){
-      for(let j=i+1;j<particles.length;j++){
-        const dx=particles[i].x-particles[j].x,dy=particles[i].y-particles[j].y;
-        const d=Math.sqrt(dx*dx+dy*dy);
-        if(d<130){ctx.beginPath();ctx.moveTo(particles[i].x,particles[i].y);ctx.lineTo(particles[j].x,particles[j].y);ctx.strokeStyle=`rgba(${rgb[0]},${rgb[1]},${rgb[2]},${(1-d/130)*0.07})`;ctx.lineWidth=0.5;ctx.stroke();}
-      }
-    }
-    requestAnimationFrame(draw);
-  }
-  draw();
-})();
+// ══ THEME ══════════════════════════════════════════════════════════════════
+let currentTheme='light';
+function _themeKey(){return currentUser?'vs2-theme-'+currentUser.username:'vs2-theme-anon';}
+function applyTheme(t,save=true){
+  currentTheme=t;
+  const body=document.getElementById('body');
+  body.className=t;
+  if(save){try{localStorage.setItem(_themeKey(),t);}catch(e){}}
+  document.getElementById('theme-opt-light')?.classList.toggle('active',t==='light');
+  document.getElementById('theme-opt-dark')?.classList.toggle('active',t==='dark');
+}
+function toggleTheme(){applyTheme(currentTheme==='light'?'dark':'light');}
+function loadUserTheme(){
+  try{const s=localStorage.getItem(_themeKey());applyTheme(s==='dark'?'dark':'light',false);}
+  catch(e){applyTheme('light',false);}
+}
+applyTheme('light',false);
 
-// ══ SCROLL HEADER ══
-window.addEventListener('scroll',()=>{document.querySelector('header').classList.toggle('scrolled',window.scrollY>10);});
-
-// ══ TOAST SYSTEM ══
-const toastIcons={success:'✅',error:'❌',info:'ℹ️',warning:'⚠️'};
+// ══ TOAST ═══════════════════════════════════════════════════════════════════
 function showToast(title,msg,type='info',duration=5000){
-  const container=document.getElementById('toast-container');
+  const icons={success:'✓',error:'✕',info:'·',warning:'!'};
+  const c=document.getElementById('toast-container');
   const t=document.createElement('div');
-  t.className=`toast ${type}`;
-  t.innerHTML=`
-    <div class="toast-icon">${toastIcons[type]||'ℹ️'}</div>
-    <div class="toast-body">
-      <div class="toast-title">${title}</div>
-      ${msg?`<div class="toast-msg">${msg}</div>`:''}
-      <div class="toast-progress"><div class="toast-progress-bar" style="background:${type==='success'?'var(--green)':type==='error'?'var(--red)':type==='warning'?'var(--yellow)':'var(--cyan)'};width:100%"></div></div>
-    </div>
-    <button class="toast-close" onclick="dismissToast(this.parentElement)">✕</button>`;
-  container.appendChild(t);
-  // animate progress bar
-  const bar=t.querySelector('.toast-progress-bar');
-  requestAnimationFrame(()=>{bar.style.transition=`width ${duration}ms linear`;bar.style.width='0%';});
+  t.className='toast '+type;
+  t.innerHTML='<div class="toast-icon">'+icons[type]+'</div><div class="toast-body"><div class="toast-title">'+title+'</div>'+(msg?'<div class="toast-msg">'+msg+'</div>':'')+'</div><button class="toast-close" onclick="dismissToast(this.parentElement)">&#10005;</button>';
+  c.appendChild(t);
   const timer=setTimeout(()=>dismissToast(t),duration);
   t._timer=timer;
   t.addEventListener('click',()=>{clearTimeout(t._timer);dismissToast(t);});
 }
 function dismissToast(el){
-  if(!el||el._dismissed)return;
-  el._dismissed=true;
-  el.classList.add('leaving');
-  setTimeout(()=>el.remove(),300);
+  if(!el||el._dismissed)return;el._dismissed=true;
+  el.classList.add('leaving');setTimeout(()=>el.remove(),200);
 }
-// Alias
-const toast=(title,msg,type,dur)=>showToast(title,msg,type,dur);
+const toast=showToast;
 
-// ══ BACKGROUND MATRIX RAIN ══
-(function(){
-  const chars='アイウエオカキクケコサシスセソタチツテトナニヌネノ01010101ABCDEF<>{}[]';
-  const container=document.getElementById('particles-canvas')?.parentElement||document.body;
-  for(let i=0;i<12;i++){
-    const col=document.createElement('div');
-    col.style.cssText=`position:fixed;top:-100px;left:${Math.random()*100}vw;width:18px;pointer-events:none;z-index:0;opacity:0;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent);white-space:pre;line-height:1.6;animation:matrixCol ${4+Math.random()*8}s linear ${Math.random()*6}s infinite`;
-    col.className='matrix-col';
-    const len=8+Math.floor(Math.random()*12);
-    col.textContent=Array.from({length:len},()=>chars[Math.floor(Math.random()*chars.length)]).join('\n');
-    document.body.appendChild(col);
-  }
-  const style=document.createElement('style');
-  style.textContent=`
-    @keyframes matrixCol{0%{opacity:0;transform:translateY(-120px)}5%{opacity:0.12}90%{opacity:0.06}100%{opacity:0;transform:translateY(110vh)}}
-    .scan-beam{position:fixed;top:0;left:0;width:1px;height:100vh;background:linear-gradient(180deg,transparent 0%,var(--accent) 50%,transparent 100%);opacity:0.08;pointer-events:none;z-index:0;animation:scanBeam 12s linear infinite}
-    @keyframes scanBeam{0%{left:-5px;opacity:0}5%{opacity:0.08}95%{opacity:0.04}100%{left:100vw;opacity:0}}
-  `;
-  document.head.appendChild(style);
-  const beam=document.createElement('div');beam.className='scan-beam';document.body.appendChild(beam);
-  // Hex grid floating symbols
-  for(let i=0;i<6;i++){
-    const h=document.createElement('div');
-    h.style.cssText=`position:fixed;left:${5+Math.random()*90}vw;top:${Math.random()*100}vh;font-size:${40+Math.random()*40}px;pointer-events:none;z-index:0;color:var(--accent);opacity:0.025;font-family:'JetBrains Mono',monospace;animation:hexFloat ${8+Math.random()*12}s ease-in-out ${Math.random()*8}s infinite alternate`;
-    h.textContent=['⬡','◈','⌘','⊕','⟁','◉','⬢','⌬'][Math.floor(Math.random()*8)];
-    document.body.appendChild(h);
-  }
-})();
-
-// ══ CANCEL SCAN SYSTEM ══
+// ══ SCAN CANCEL ═════════════════════════════════════════════════════════════
 const scanControllers={};
 function cancelScan(prefix){
-  if(scanControllers[prefix]){
-    scanControllers[prefix].abort();
-    delete scanControllers[prefix];
-    const cancelBtn=document.getElementById(prefix===('scan')?'sbtn-cancel':prefix+'-cancel');
-    if(cancelBtn)cancelBtn.style.display='none';
-    showToast('Scan Cancelled','The scan was stopped by user.','warning',3000);
-  }
+  if(scanControllers[prefix]){scanControllers[prefix].abort();delete scanControllers[prefix];}
+  const id=prefix==='scan'?'sbtn-cancel':prefix+'-cancel';
+  const b=document.getElementById(id);if(b)b.style.display='none';
+  showToast('Cancelled','Scan stopped by user.','warning',3000);
 }
 function setScanRunning(prefix,running){
-  const cancelId=prefix==='scan'?'sbtn-cancel':prefix+'-cancel';
-  const cancelBtn=document.getElementById(cancelId);
-  if(cancelBtn)cancelBtn.style.display=running?'inline-flex':'none';
+  const id=prefix==='scan'?'sbtn-cancel':prefix+'-cancel';
+  const b=document.getElementById(id);if(b)b.style.display=running?'inline-flex':'none';
 }
-
-// Patched fetchWithTimeout that uses cancel controllers
 async function fetchWithTimeout(url,options={},timeoutMs=300000,prefix=null){
   const controller=new AbortController();
   if(prefix)scanControllers[prefix]=controller;
   const timer=setTimeout(()=>controller.abort(),timeoutMs);
-  try{
-    const r=await fetch(url,{...options,signal:controller.signal});
-    clearTimeout(timer);
-    if(prefix)delete scanControllers[prefix];
-    return r;
-  }catch(e){
-    clearTimeout(timer);
-    if(prefix)delete scanControllers[prefix];
-    if(e.name==='AbortError')throw new Error('Scan cancelled or timed out.');
-    throw e;
-  }
+  try{const r=await fetch(url,{...options,signal:controller.signal});clearTimeout(timer);if(prefix)delete scanControllers[prefix];return r;}
+  catch(e){clearTimeout(timer);if(prefix)delete scanControllers[prefix];if(e.name==='AbortError')throw new Error('Cancelled or timed out.');throw e;}
 }
 
-// ══ THEME SYSTEM — 10 UNIQUE VISUAL IDENTITIES ══
-const THEMES=[
-  {id:'cyberpunk', name:'Cyberpunk',    desc:'Electric neon on deep black',       icon:'⚡', colors:['#04040a','#00e5ff','#b06fff','#ff3366','#ffd60a']},
-  {id:'midnight',  name:'Midnight Blue',desc:'Deep ocean cobalt stars',            icon:'🌊', colors:['#000510','#4d9fff','#a07fff','#3a5088','#c8d8ff']},
-  {id:'ghost',     name:'Ghost Protocol',desc:'Smoke and static, invisible ink',   icon:'👻', colors:['#0a0a0a','#e0e0e0','#808080','#404040','#c0c0c0']},
-  {id:'biohazard', name:'Biohazard',    desc:'Toxic lime on contaminated black',   icon:'☢',  colors:['#030802','#80ff00','#40ff80','#c0ff40','#c8ff90']},
-  {id:'redteam',   name:'Red Team',     desc:'Blood and fire, zero mercy',         icon:'🔴', colors:['#0a0202','#ff2040','#ff6030','#cc1020','#ff8060']},
-  {id:'matrix',    name:'Matrix',       desc:'Green rain, classic terminal',       icon:'🟩', colors:['#000300','#00ff41','#008f11','#003b00','#33ff66']},
-  {id:'aurora',    name:'Aurora',       desc:'Northern lights over arctic void',   icon:'🌌', colors:['#020414','#7b2fff','#00d4ff','#ff2d8e','#00ff88']},
-  {id:'blackout',  name:'Blackout',     desc:'Pure void, stark white cuts',        icon:'⬛', colors:['#000000','#ffffff','#222222','#444444','#888888']},
-  {id:'solar',     name:'Solar Flare',  desc:'Burning amber, molten gold',         icon:'☀',  colors:['#0c0800','#ffd700','#ff9500','#ff6500','#fff4c8']},
-  {id:'phantom',   name:'Phantom Rose', desc:'Dark luxury, deep crimson velvet',   icon:'🌹', colors:['#0d0408','#ff2060','#c0306a','#801840','#ffa0c0']},
-];
-const THEME_CSS={
-  cyberpunk:'body.theme-cyberpunk{--bg:#04040a;--s1:#080810;--s2:#0d0d18;--b:#16162a;--b2:#1e1e35;--t:#e8e8f0;--m:#5a5a8a;--cyan:#00e5ff;--green:#00ff9d;--red:#ff3366;--orange:#ff6b35;--yellow:#ffd60a;--purple:#b06fff;--accent:#00e5ff;--grid-color:rgba(0,229,255,0.025);}',
-  midnight: 'body.theme-midnight{--bg:#000510;--s1:#030920;--s2:#06112e;--b:#0a1a40;--b2:#0f2255;--t:#c8d8ff;--m:#3a5088;--cyan:#4d9fff;--green:#7bc8ff;--red:#ff6680;--orange:#ff8844;--yellow:#88ccff;--purple:#a07fff;--accent:#4d9fff;--grid-color:rgba(77,159,255,0.03);}',
-  ghost:    'body.theme-ghost{--bg:#080808;--s1:#0f0f0f;--s2:#141414;--b:#1e1e1e;--b2:#262626;--t:#e0e0e0;--m:#606060;--cyan:#d0d0d0;--green:#b0b0b0;--red:#ff4444;--orange:#aaaaaa;--yellow:#e0e0e0;--purple:#c0c0c0;--accent:#e0e0e0;--grid-color:rgba(255,255,255,0.015);}',
-  biohazard:'body.theme-biohazard{--bg:#020601;--s1:#040a02;--s2:#060e03;--b:#0a1605;--b2:#0f1f07;--t:#c8ff90;--m:#3a7020;--cyan:#80ff00;--green:#40ff80;--red:#ffcc00;--orange:#ff8800;--yellow:#c0ff40;--purple:#40ffaa;--accent:#80ff00;--grid-color:rgba(128,255,0,0.03);}',
-  redteam:  'body.theme-redteam{--bg:#090101;--s1:#110202;--s2:#180303;--b:#280406;--b2:#330508;--t:#ffd0d0;--m:#883040;--cyan:#ff4060;--green:#ff8060;--red:#ff1030;--orange:#ff6030;--yellow:#ffaa40;--purple:#ff60a0;--accent:#ff2040;--grid-color:rgba(255,32,64,0.025);}',
-  matrix:   'body.theme-matrix{--bg:#000300;--s1:#000500;--s2:#000800;--b:#001200;--b2:#001a00;--t:#00ff41;--m:#008f11;--cyan:#00ff41;--green:#33ff66;--red:#ff4400;--orange:#ff8800;--yellow:#aaff00;--purple:#00ff88;--accent:#00ff41;--grid-color:rgba(0,255,65,0.03);}',
-  aurora:   'body.theme-aurora{--bg:#020414;--s1:#040620;--s2:#060928;--b:#0d1240;--b2:#111850;--t:#d0e8ff;--m:#4050a0;--cyan:#00d4ff;--green:#00ff88;--red:#ff2d8e;--orange:#ff7040;--yellow:#b0ffff;--purple:#7b2fff;--accent:#7b2fff;--grid-color:rgba(123,47,255,0.025);}',
-  blackout: 'body.theme-blackout{--bg:#000000;--s1:#060606;--s2:#0a0a0a;--b:#141414;--b2:#1c1c1c;--t:#ffffff;--m:#505050;--cyan:#ffffff;--green:#cccccc;--red:#ff3333;--orange:#ff7700;--yellow:#ffee00;--purple:#cc88ff;--accent:#ffffff;--grid-color:rgba(255,255,255,0.015);}',
-  solar:    'body.theme-solar{--bg:#0c0800;--s1:#150f00;--s2:#1e1500;--b:#2e2000;--b2:#3d2c00;--t:#fff4c8;--m:#8a6820;--cyan:#ffd700;--yellow:#ffec40;--orange:#ff9500;--green:#d4ff40;--red:#ff4400;--purple:#ffaa00;--accent:#ffd700;--grid-color:rgba(255,215,0,0.025);}',
-  phantom:  'body.theme-phantom{--bg:#0a0308;--s1:#12040c;--s2:#180610;--b:#260a18;--b2:#300d20;--t:#ffd0e0;--m:#804060;--cyan:#ff80c0;--green:#ff40a0;--red:#ff2060;--orange:#ff6040;--yellow:#ffc0d0;--purple:#d060a0;--accent:#ff2060;--grid-color:rgba(255,32,96,0.025);}',
-};
-(function(){const s=document.createElement('style');s.id='dynamic-themes';s.textContent=Object.values(THEME_CSS).join('\n');document.head.appendChild(s);})();
-
-let currentTheme='cyberpunk';
-
-// ── Theme: per-user localStorage (NOT global) ──
-function _themeKey(){return currentUser?`vs-theme-${currentUser.username}`:'vs-theme-anon';}
-function loadUserTheme(){
-  try{
-    const saved=localStorage.getItem(_themeKey());
-    _applyTheme(saved&&THEMES.find(t=>t.id===saved)?saved:'cyberpunk',false);
-  }catch(e){_applyTheme('cyberpunk',false);}
-}
-function _applyTheme(id,save=true){
-  THEMES.forEach(t=>document.body.classList.remove('theme-'+t.id));
-  document.body.classList.add('theme-'+id);
-  currentTheme=id;
-  if(save){try{localStorage.setItem(_themeKey(),id);}catch(e){}}
-  const t=THEMES.find(x=>x.id===id);
-  const lbl=document.getElementById('theme-dd-label');const prev=document.getElementById('theme-dd-preview');
-  const nm=document.getElementById('theme-current-name');const ds=document.getElementById('theme-current-desc');
-  if(lbl)lbl.textContent=t?.name||id;if(nm)nm.textContent=(t?.name||id).toUpperCase();
-  if(ds)ds.textContent=t?.desc||'';
-  if(prev)prev.innerHTML=(t?.colors||[]).map(c=>`<div style="width:10px;height:10px;border-radius:50%;background:${c}"></div>`).join('');
-  document.querySelectorAll('.theme-option').forEach(el=>el.classList.toggle('active',el.dataset.theme===id));
-}
-function applyTheme(id){
-  _applyTheme(id,true);
-  document.getElementById('theme-dd-list')?.classList.remove('open');
-  document.getElementById('theme-dd-btn')?.classList.remove('open');
-  showToast('Theme Applied',`${THEMES.find(x=>x.id===id)?.name||id} — saved to your account only.`,'success',3000);
-}
-function toggleThemeDD(){
-  const list=document.getElementById('theme-dd-list');const btn=document.getElementById('theme-dd-btn');
-  if(!list)return;const open=list.classList.toggle('open');btn?.classList.toggle('open',open);
-  if(open)buildThemeList();
-}
-document.addEventListener('click',e=>{
-  if(!e.target.closest('.theme-dropdown-wrap')){
-    document.getElementById('theme-dd-list')?.classList.remove('open');
-    document.getElementById('theme-dd-btn')?.classList.remove('open');
-  }
-});
-function buildThemeList(){
-  const list=document.getElementById('theme-dd-list');if(!list)return;
-  list.innerHTML=THEMES.map(t=>`
-    <div class="theme-option${t.id===currentTheme?' active':''}" data-theme="${t.id}" onclick="applyTheme('${t.id}')">
-      <div class="theme-preview">${t.colors.map(c=>`<div class="theme-preview-dot" style="background:${c}"></div>`).join('')}</div>
-      <div><div class="theme-option-name">${t.icon} ${t.name}</div><div class="theme-option-desc">${t.desc}</div></div>
-    </div>`).join('');
-}
-function buildThemeGrid(){buildThemeList();}
-// Apply default theme on page load (before user logs in)
-_applyTheme('cyberpunk',false);
-
-// ── HOME BACKGROUND MATRIX CANVAS ──
-(function(){
-  const canvas=document.getElementById('home-bg-canvas');
-  if(!canvas)return;
-  const ctx=canvas.getContext('2d');
-  const chars='01アイウエオカキクケコサシスセソ∑∏∆∇⊕⊗░▒▓⌀⌁⌂⌃⌄⌅⌆⌇';
-  let cols,drops,W,H,active=false,rafId;
-  function init(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;cols=Math.floor(W/18);drops=Array.from({length:cols},()=>Math.random()*H/14|0);}
-  window.addEventListener('resize',init);init();
-  function getAccentRgb(){
-    try{const v=getComputedStyle(document.body).getPropertyValue('--accent').trim();const m=v.match(/#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i);return m?[parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)]:[0,229,255];}
-    catch(e){return[0,229,255];}
-  }
-  function draw(){
-    rafId=requestAnimationFrame(draw);
-    if(!active)return;
-    const[r,g,b]=getAccentRgb();
-    ctx.fillStyle='rgba(0,0,0,0.07)';ctx.fillRect(0,0,W,H);
-    ctx.font='13px "JetBrains Mono",monospace';
-    drops.forEach((y,i)=>{
-      const ch=chars[Math.random()*chars.length|0];
-      const bright=Math.random()>0.96;
-      ctx.fillStyle=bright?'rgba(255,255,255,0.85)':`rgba(${r},${g},${b},${0.1+Math.random()*0.3})`;
-      ctx.fillText(ch,i*18,y*14);
-      if(y*14>H&&Math.random()>0.975)drops[i]=0;
-      drops[i]++;
-    });
-  }
-  draw();
-  window.setHomeBgActive=function(on){
-    active=on;canvas.style.opacity=on?'0.4':'0';
-    const cl=document.getElementById('cyber-lines');if(cl)cl.style.opacity=on?'1':'0';
-    if(!on){ctx.clearRect(0,0,W,H);}
-  };
-})();
-
-// ── SCAN COMPLETE NOTIFICATIONS ──
-function requestNotifPermission(){
-  if(typeof Notification!=='undefined'&&Notification.permission==='default'){
-    Notification.requestPermission().catch(()=>{});
-  }
-}
-function notifyScanDone(toolName,summary,success=true){
-  if(typeof Notification!=='undefined'&&Notification.permission==='granted'){
-    try{new Notification('VulnScan Pro — '+toolName,{body:summary});}catch(e){}
-  }
-  showToast(toolName+' Complete',summary,success?'success':'warning',7000);
+// ══ PAGE NAV ════════════════════════════════════════════════════════════════
+const PAGE_TITLES={home:'Home',scan:'Network Scanner',harvester:'theHarvester',dnsrecon:'DNSRecon',nikto:'Nikto',wpscan:'WPScan',lynis:'Lynis',legion:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',brute:'Brute Force',disc:'Network Discovery',hist:'Scan History',dash:'Dashboard',profile:'Profile',admin:'Admin Console'};
+function saveCurrentPage(id){try{sessionStorage.setItem('vs-page',id);}catch(e){}}
+function loadSavedPage(){try{return sessionStorage.getItem('vs-page')||'home';}catch(e){return'home';}}
+function pg(id,el){
+  document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active'));
+  const page=document.getElementById('page-'+id);
+  if(!page)return;
+  page.classList.add('active');
+  const ni=document.getElementById('ni-'+id);
+  if(ni)ni.classList.add('active');
+  const tt=document.getElementById('topbar-title');
+  if(tt)tt.textContent=PAGE_TITLES[id]||id;
+  saveCurrentPage(id);
+  if(id==='hist')loadHist();
+  if(id==='dash')loadDash();
+  if(id==='admin'){loadAdmin();setTimeout(initCliHeader,400);}
+  if(id==='home')loadHomeStats();
+  if(id==='profile'&&currentUser)loadProfileInfo(currentUser);
 }
 
-// ── AUTO-INSTALL BANNER ──
-function showInstallBanner(prefix,toolName){
-  const b=document.getElementById(prefix+'-install-banner');
-  const m=document.getElementById(prefix+'-install-msg');
-  if(b)b.classList.add('visible');
-  if(m)m.textContent='Installing '+toolName+' via apt... please wait (30–90s)';
-  showToast('Auto-Install','Installing '+toolName+'...','warning',10000);
-}
-function hideInstallBanner(prefix){const b=document.getElementById(prefix+'-install-banner');if(b)b.classList.remove('visible');}
-async function tryAutoInstall(prefix,toolId,toolName){
-  showInstallBanner(prefix,toolName);
-  try{
-    const r=await fetch('/auto-install',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:toolId})});
-    const d=await r.json();hideInstallBanner(prefix);
-    if(d.ok){showToast('Installed!',toolName+' installed. Re-running...','success',4000);return true;}
-    else{showToast('Install Failed',d.message||'Manual install required.','error',8000);return false;}
-  }catch(e){hideInstallBanner(prefix);showToast('Install Error',e.message,'error',6000);return false;}
-}
-
-// ── CLI HELPERS ──
-function cliQuick(cmd){const inp=document.getElementById('cli-input');if(inp){inp.value=cmd;cliRun();}}
-function initCliHeader(){
-  try{
-    fetch('/api/exec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:'hostname'})})
-      .then(r=>r.json()).then(d=>{const el=document.getElementById('cli-hostname');if(el&&d.output)el.textContent=d.output.trim();}).catch(()=>{});
-  }catch(e){}
-  const ul=document.getElementById('cli-user-label');if(ul&&currentUser)ul.textContent=currentUser.username;
-}
-
-// ── CLI: full terminal implementation ──
-let _cliHistory=[],_cliHistIdx=-1;
-
-function cliInputHint(val){
-  const hint=document.getElementById('cli-hint');
-  if(!hint)return;
-  if(!val.trim()){hint.textContent='';return;}
-  const cmds=['uptime','df -h','free -h','ps aux','ss -tlnp','ip addr','uname -a','hostname','whoami','systemctl status vulnscan','journalctl -n 30 --no-pager','which nmap nikto lynis dnsrecon theHarvester wpscan','ls -la','pwd'];
-  const match=cmds.find(c=>c.startsWith(val)&&c!==val);
-  hint.textContent=match?match.slice(val.length):'';
-}
-
-async function cliRun(){
-  const inp=document.getElementById('cli-input');
-  const out=document.getElementById('cli-output');
-  const sb=document.getElementById('cli-statusbar');
-  if(!inp||!out)return;
-  const cmd=inp.value.trim();
-  if(!cmd)return;
-  // history
-  if(_cliHistory[0]!==cmd)_cliHistory.unshift(cmd);
-  if(_cliHistory.length>50)_cliHistory.pop();
-  _cliHistIdx=-1;
-  // show command in terminal
-  const ts=new Date().toLocaleTimeString();
-  out.innerHTML+=`<div style="color:var(--cyan);margin-top:6px"><span style="color:var(--m)">[${ts}]</span> <span style="color:var(--green)">$</span> ${cmd.replace(/</g,'&lt;')}</div>`;
-  inp.value='';
-  if(sb){sb.textContent='Running...';sb.style.color='var(--yellow)';}
-  try{
-    const r=await fetch('/api/exec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:cmd})});
-    const d=await r.json();
-    if(d.error){
-      out.innerHTML+=`<div style="color:var(--red);white-space:pre-wrap;font-size:11px">${d.error.replace(/</g,'&lt;')}</div>`;
-    }
-    if(d.output){
-      out.innerHTML+=`<div style="color:var(--t);white-space:pre-wrap;font-size:11px">${d.output.replace(/</g,'&lt;')}</div>`;
-    }
-    if(!d.output&&!d.error){
-      out.innerHTML+=`<div style="color:var(--m);font-size:11px">(no output)</div>`;
-    }
-    if(sb){sb.textContent=`Ready | ${_cliHistory.length} in history | Exit: ${d.exit_code??'?'}`;sb.style.color='var(--green)';}
-  }catch(e){
-    out.innerHTML+=`<div style="color:var(--red);font-size:11px">Network error: ${e.message}</div>`;
-    if(sb){sb.textContent='Error';sb.style.color='var(--red)';}
-  }
-  out.scrollTop=out.scrollHeight;
-}
-
-function cliKey(e){
-  const inp=document.getElementById('cli-input');
-  if(!inp)return;
-  if(e.key==='Enter'){e.preventDefault();cliRun();}
-  else if(e.key==='ArrowUp'){e.preventDefault();if(_cliHistIdx<_cliHistory.length-1){_cliHistIdx++;inp.value=_cliHistory[_cliHistIdx]||'';}}
-  else if(e.key==='ArrowDown'){e.preventDefault();if(_cliHistIdx>0){_cliHistIdx--;inp.value=_cliHistory[_cliHistIdx]||'';}else{_cliHistIdx=-1;inp.value='';}}
-  else if(e.key==='Tab'){e.preventDefault();const hint=document.getElementById('cli-hint');if(hint&&hint.textContent){inp.value+=hint.textContent;hint.textContent='';}}
-  cliInputHint(inp.value);
-}
-
-function cliClear(){
-  const out=document.getElementById('cli-output');
-  if(out)out.innerHTML='<div style="color:var(--m);font-size:11px">Terminal cleared. Type a command below.</div>';
-}
-
-// ══ STAT COUNTER ANIMATION ══
-function animateCount(el,target){
-  if(!el||isNaN(target))return;
-  let start=0,dur=1200,startT=null;
-  function step(ts){if(!startT)startT=ts;const p=Math.min((ts-startT)/dur,1);const ease=1-Math.pow(1-p,3);el.textContent=Math.floor(ease*target);el.classList.add('loaded');if(p<1)requestAnimationFrame(step);}
-  requestAnimationFrame(step);
-}
-
-// ══ PAGE PERSISTENCE (stay on same page after refresh) ══
-function saveCurrentPage(id){
-  try{sessionStorage.setItem('vs-page',id);}catch(e){}
-}
-function loadSavedPage(){
-  try{return sessionStorage.getItem('vs-page')||'home';}catch(e){return'home';}
-}
-
-const SEV={CRITICAL:{c:"#ff3366",b:"rgba(255,51,102,0.12)",i:"&#9762;"},HIGH:{c:"#ff6b35",b:"rgba(255,107,53,0.12)",i:"&#9888;"},MEDIUM:{c:"#ffd60a",b:"rgba(255,214,10,0.1)",i:"&#9889;"},LOW:{c:"#00ff9d",b:"rgba(0,255,157,0.08)",i:"&#10003;"},UNKNOWN:{c:"#5a5a8a",b:"rgba(90,90,138,0.1)",i:"?"}};
-const GC={"A+":"#00ff9d","A":"#00e5ff","B":"#ffd60a","C":"#ff6b35","D":"#ff6b35","F":"#ff3366"};
+// ══ AUTH ════════════════════════════════════════════════════════════════════
+let currentUser=null;
+let busy=false,logEl=null,progT=null,progV=0;
 const mods={ports:true,ssl:true,dns:true,headers:true};
-let busy=false,logEl=null,progT=null,progV=0,currentUser=null;
 
 function authTab(t){
-  document.querySelectorAll(".auth-tab").forEach(e=>e.classList.remove("active"));
-  document.querySelectorAll("[id^='form-']").forEach(e=>e.style.display="none");
-  event.currentTarget.classList.add("active");
-  document.getElementById("form-"+t).style.display="block";
-  document.getElementById("auth-msg").style.display="none";
+  document.querySelectorAll('.auth-tab').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('[id^="form-"]').forEach(e=>e.style.display='none');
+  const active=document.querySelector('.auth-tab:nth-child('+(t==='login'?1:t==='register'?2:3)+')');
+  if(active)active.classList.add('active');
+  else document.querySelectorAll('.auth-tab').forEach((e,i)=>{if((i===0&&t==='login')||(i===1&&t==='register')||(i===2&&t==='forgot'))e.classList.add('active');});
+  document.getElementById('form-'+t).style.display='block';
+  document.getElementById('auth-msg').style.display='none';
 }
-function authMsg(msg,type="err"){
-  const el=document.getElementById("auth-msg");
-  el.textContent=msg;el.className="auth-msg "+type;el.style.display="block";
-}
+function authMsg(msg,type='err'){const el=document.getElementById('auth-msg');el.textContent=msg;el.className='auth-msg '+type;el.style.display='block';}
 
 async function doLogin(){
-  const user=document.getElementById("l-user").value.trim();
-  const pass=document.getElementById("l-pass").value;
-  if(!user||!pass){authMsg("Enter username and password");return;}
-  const btn=document.getElementById("l-btn");
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span>LOGGING IN...';
+  const user=document.getElementById('l-user').value.trim();
+  const pass=document.getElementById('l-pass').value;
+  if(!user||!pass){authMsg('Enter username and password');return;}
+  const btn=document.getElementById('l-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Logging in...';
   try{
-    const r=await fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:user,password:pass})});
+    const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,password:pass})});
     const d=await r.json();
-    if(d.success){
-      authMsg("Welcome back, "+d.username+"!","ok");
-      setTimeout(()=>{document.getElementById("auth-overlay").style.display="none";loadUser();},800);
-    } else authMsg(d.error||"Login failed");
-  }catch(e){authMsg("Connection error: "+e.message);}
-  finally{btn.disabled=false;btn.innerHTML="LOGIN";}
+    if(d.success){authMsg('Welcome back, '+d.username+'!','ok');setTimeout(()=>{document.getElementById('auth-overlay').style.display='none';loadUser();},700);}
+    else authMsg(d.error||'Login failed');
+  }catch(e){authMsg('Connection error: '+e.message);}
+  finally{btn.disabled=false;btn.innerHTML='LOGIN';}
 }
 
 async function doRegister(){
-  const name=document.getElementById("r-name").value.trim();
-  const user=document.getElementById("r-user").value.trim();
-  const email=document.getElementById("r-email").value.trim();
-  const pass=document.getElementById("r-pass").value;
-  if(!user||!email||!pass){authMsg("All fields required");return;}
-  const btn=document.getElementById("r-btn");
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span>CREATING...';
+  const name=document.getElementById('r-name').value.trim();
+  const user=document.getElementById('r-user').value.trim();
+  const email=document.getElementById('r-email').value.trim();
+  const pass=document.getElementById('r-pass').value;
+  if(!user||!email||!pass){authMsg('All fields required');return;}
+  const btn=document.getElementById('r-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Creating...';
   try{
-    const tosAccepted = document.getElementById("r-tos-cb")?.checked || false;
-    const r=await fetch("/api/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:user,email,password:pass,full_name:name,tos_accepted:tosAccepted})});
+    const tosAccepted=document.getElementById('r-tos-cb')?.checked||false;
+    const r=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,email,password:pass,full_name:name,tos_accepted:tosAccepted})});
     const d=await r.json();
-    if(d.success){
-      authMsg(d.message,"ok");
-      if(d.verified) setTimeout(()=>{authTab('login');},2000);
-    } else authMsg(d.error||"Registration failed");
-  }catch(e){authMsg("Error: "+e.message);}
-  finally{btn.disabled=false;btn.innerHTML="CREATE ACCOUNT";}
+    if(d.success){authMsg(d.message,'ok');if(d.verified)setTimeout(()=>authTab('login'),2000);}
+    else authMsg(d.error||'Registration failed');
+  }catch(e){authMsg('Error: '+e.message);}
+  finally{btn.disabled=false;btn.innerHTML='CREATE ACCOUNT';}
 }
 
 async function doForgot(){
-  const email=document.getElementById("f-email").value.trim();
-  if(!email){authMsg("Enter your email");return;}
-  try{
-    const r=await fetch("/api/forgot-password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email})});
-    const d=await r.json();
-    authMsg(d.message||d.error,(d.success?"ok":"err"));
-  }catch(e){authMsg("Error: "+e.message);}
+  const email=document.getElementById('f-email').value.trim();
+  if(!email){authMsg('Enter your email');return;}
+  try{const r=await fetch('/api/forgot-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});const d=await r.json();authMsg(d.message||d.error,(d.success?'ok':'err'));}
+  catch(e){authMsg('Error: '+e.message);}
 }
 
 async function doLogout(){
-  await fetch("/api/logout",{method:"POST"});
+  await fetch('/api/logout',{method:'POST'});
   currentUser=null;
-  document.getElementById("auth-overlay").style.display="flex";
-  document.getElementById("user-chip").style.display="none";
-  document.getElementById("logout-btn").style.display="none";
-  document.querySelectorAll(".admin-only").forEach(e=>e.style.display="none");
-  document.getElementById("l-user").value="";
-  document.getElementById("l-pass").value="";
-  authTab("login");
+  document.getElementById('auth-overlay').style.display='flex';
+  document.getElementById('user-chip').style.display='none';
+  document.getElementById('logout-btn').style.display='none';
+  document.querySelectorAll('.admin-only').forEach(e=>e.style.display='none');
 }
 
 async function loadUser(){
   try{
-    const r=await fetch("/api/me");const d=await r.json();
+    const r=await fetch('/api/me');const d=await r.json();
     if(d.logged_in){
       currentUser=d;
-      document.getElementById("auth-overlay").style.display="none";
-      document.getElementById("user-chip").style.display="flex";
-      document.getElementById("logout-btn").style.display="block";
-      document.getElementById("user-avatar").textContent=d.username[0].toUpperCase();
-      document.getElementById("user-name-disp").textContent=d.username;
-      document.getElementById("user-role-disp").textContent=d.role==="admin"?"★ ADMIN":"USER";
-      if(d.role==="admin") document.querySelectorAll(".admin-only").forEach(e=>e.style.display="block");
-      loadProfileInfo(d);
-      loadHomeStats();
-      // Load this user's personal theme
-      loadUserTheme();
-      // Request browser notification permission
-      requestNotifPermission();
-      // Restore saved page
-      const savedPage=loadSavedPage();
-      if(savedPage&&document.getElementById("page-"+savedPage)){
-        pg(savedPage,null);
-      }else{
-        pg('home',null);
-      }
-    } else {
-      document.getElementById("auth-overlay").style.display="flex";
-    }
-  }catch(e){document.getElementById("auth-overlay").style.display="flex";}
+      document.getElementById('auth-overlay').style.display='none';
+      document.getElementById('user-chip').style.display='flex';
+      document.getElementById('logout-btn').style.display='flex';
+      document.getElementById('user-avatar').textContent=d.username[0].toUpperCase();
+      document.getElementById('user-name-disp').textContent=d.username;
+      document.getElementById('user-role-disp').textContent=d.role==='admin'?'admin':'user';
+      if(d.role==='admin')document.querySelectorAll('.admin-only').forEach(e=>e.style.display='flex');
+      loadProfileInfo(d);loadHomeStats();loadUserTheme();
+      const saved=loadSavedPage();
+      if(saved&&document.getElementById('page-'+saved))pg(saved,null);
+      else pg('home',null);
+    }else{document.getElementById('auth-overlay').style.display='flex';}
+  }catch(e){document.getElementById('auth-overlay').style.display='flex';}
 }
 
 function loadProfileInfo(u){
   if(!u)return;
-  document.getElementById("p-name").value=u.full_name||"";
-  document.getElementById("profile-info").innerHTML=`
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-family:'JetBrains Mono',monospace;font-size:12px">
-      <div style="background:var(--s2);border-radius:6px;padding:10px"><div style="color:var(--m);font-size:9px;letter-spacing:2px;margin-bottom:4px">USERNAME</div><div style="color:var(--cyan)">${u.username}</div></div>
-      <div style="background:var(--s2);border-radius:6px;padding:10px"><div style="color:var(--m);font-size:9px;letter-spacing:2px;margin-bottom:4px">ROLE</div><div style="color:${u.role==='admin'?'var(--yellow)':'var(--t)'}">${u.role==='admin'?'★ ADMIN':'USER'}</div></div>
-      <div style="background:var(--s2);border-radius:6px;padding:10px"><div style="color:var(--m);font-size:9px;letter-spacing:2px;margin-bottom:4px">EMAIL</div><div>${u.email}</div></div>
-      <div style="background:var(--s2);border-radius:6px;padding:10px"><div style="color:var(--m);font-size:9px;letter-spacing:2px;margin-bottom:4px">LOGINS</div><div>${u.login_count||0}</div></div>
-      <div style="background:var(--s2);border-radius:6px;padding:10px;grid-column:span 2"><div style="color:var(--m);font-size:9px;letter-spacing:2px;margin-bottom:4px">LAST LOGIN</div><div style="color:var(--m)">${u.last_login||'First login'}</div></div>
-    </div>`;
+  document.getElementById('p-name').value=u.full_name||'';
+  document.getElementById('profile-info').innerHTML='<div class="kv"><div class="kv-item"><div class="kv-k">USERNAME</div><div class="kv-v">'+u.username+'</div></div><div class="kv-item"><div class="kv-k">ROLE</div><div class="kv-v">'+u.role+'</div></div><div class="kv-item"><div class="kv-k">EMAIL</div><div class="kv-v" style="font-size:12px">'+u.email+'</div></div><div class="kv-item"><div class="kv-k">LOGINS</div><div class="kv-v">'+(u.login_count||0)+'</div></div></div>';
 }
 
 async function saveProfile(){
-  const name=document.getElementById("p-name").value.trim();
-  try{
-    const r=await fetch("/api/profile",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({full_name:name})});
-    const d=await r.json();
-    showPwdMsg(d.message||d.error,d.success?"ok":"err");
-  }catch(e){showPwdMsg("Error: "+e.message,"err");}
+  const name=document.getElementById('p-name').value.trim();
+  try{const r=await fetch('/api/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({full_name:name})});const d=await r.json();showPwdMsg(d.message||d.error,d.success?'ok':'err');}
+  catch(e){showPwdMsg('Error: '+e.message,'err');}
 }
-
 async function changePassword(){
-  const old=document.getElementById("cp-old").value;
-  const n=document.getElementById("cp-new").value;
-  const c=document.getElementById("cp-confirm").value;
-  if(n!==c){showPwdMsg("New passwords do not match","err");return;}
-  try{
-    const r=await fetch("/api/change-password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({old_password:old,new_password:n})});
-    const d=await r.json();
-    showPwdMsg(d.message||d.error,d.success?"ok":"err");
-    if(d.success){document.getElementById("cp-old").value="";document.getElementById("cp-new").value="";document.getElementById("cp-confirm").value="";}
-  }catch(e){showPwdMsg("Error: "+e.message,"err");}
+  const old=document.getElementById('cp-old').value;
+  const n=document.getElementById('cp-new').value;
+  const c=document.getElementById('cp-confirm').value;
+  if(n!==c){showPwdMsg('Passwords do not match','err');return;}
+  try{const r=await fetch('/api/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({old_password:old,new_password:n})});const d=await r.json();showPwdMsg(d.message||d.error,d.success?'ok':'err');if(d.success){document.getElementById('cp-old').value='';document.getElementById('cp-new').value='';document.getElementById('cp-confirm').value='';}}
+  catch(e){showPwdMsg('Error: '+e.message,'err');}
+}
+function showPwdMsg(msg,type){const el=document.getElementById('pwd-msg');el.textContent=msg;el.className='auth-msg '+type;el.style.display='block';}
+
+// ══ ToS ═══════════════════════════════════════════════════════════════════
+function showTos(e){e.preventDefault();document.getElementById('tos-modal').classList.add('open');}
+function closeTos(){document.getElementById('tos-modal').classList.remove('open');const cb=document.getElementById('r-tos-cb');if(cb)cb.checked=false;updateRegisterBtn();}
+function acceptTos(){document.getElementById('tos-modal').classList.remove('open');const cb=document.getElementById('r-tos-cb');if(cb){cb.checked=true;updateRegisterBtn();}}
+function updateRegisterBtn(){const cb=document.getElementById('r-tos-cb');const btn=document.getElementById('r-btn');if(!cb||!btn)return;btn.disabled=!cb.checked;btn.style.opacity=cb.checked?'1':'0.4';btn.style.cursor=cb.checked?'pointer':'not-allowed';}
+
+// ══ ABOUT ═════════════════════════════════════════════════════════════════
+function showAbout(){document.getElementById('about-modal').classList.add('open');}
+function closeAbout(){document.getElementById('about-modal').classList.remove('open');}
+
+// ══ HELPERS ════════════════════════════════════════════════════════════════
+function sev(level){const m={CRITICAL:'sev-critical',HIGH:'sev-high',MEDIUM:'sev-medium',LOW:'sev-low',UNKNOWN:'sev-unknown'};return'<span class="sev '+(m[level]||'sev-unknown')+'">'+level+'</span>';}
+function sevScore(score){if(!score)return'';const l=score>=9?'CRITICAL':score>=7?'HIGH':score>=4?'MEDIUM':'LOW';const c={CRITICAL:'var(--red)',HIGH:'var(--orange)',MEDIUM:'var(--yellow)',LOW:'var(--green)'};return'<span style="font-family:var(--mono);font-size:12px;font-weight:600;color:'+c[l]+'">'+score+'</span>';}
+
+function clrUI(){['term','err','res'].forEach(id=>{const e=document.getElementById(id);if(e){e.innerHTML='';e.className=id==='err'?'err-box':'terminal';if(id==='res')e.style.display='none';}});const prog=document.getElementById('prog');if(prog)prog.classList.remove('active');}
+function termLog(id,text,type){const el=document.getElementById(id);if(!el)return;const div=document.createElement('div');div.className='tl-'+type;const pf={i:'[*]',s:'[+]',w:'[!]',e:'[x]'}[type]||'[*]';div.innerHTML='<span class="tl-prefix">'+pf+'</span> '+text;el.appendChild(div);el.scrollTop=el.scrollHeight;}
+function showErr(id,msg){const e=document.getElementById(id);if(e){e.textContent=msg;e.classList.add('visible');}}
+function showTerminal(id){const e=document.getElementById(id);if(e)e.classList.add('visible');}
+
+let _progTimers={};
+function startProg(id='prog'){
+  const pw=document.getElementById(id);const pb=document.getElementById(id.replace('-prog','-pb').replace('prog','pb'));
+  if(pw)pw.classList.add('active');if(pb)pb.style.width='0%';
+  let v=0;_progTimers[id]=setInterval(()=>{v=Math.min(v+(100-v)*0.04,90);if(pb)pb.style.width=v+'%';},400);
+}
+function endProg(id='prog'){
+  clearInterval(_progTimers[id]);
+  const pw=document.getElementById(id);const pb=document.getElementById(id.replace('-prog','-pb').replace('prog','pb'));
+  if(pb)pb.style.width='100%';
+  setTimeout(()=>{if(pw)pw.classList.remove('active');},400);
 }
 
-function showPwdMsg(msg,type){const el=document.getElementById("pwd-msg");el.textContent=msg;el.className="auth-msg "+type;el.style.display="block";}
+function animateCount(el,target){if(!el||isNaN(target))return;let startT=null,dur=1000;function step(ts){if(!startT)startT=ts;const p=Math.min((ts-startT)/dur,1);const ease=1-Math.pow(1-p,3);el.textContent=Math.floor(ease*target);if(p<1)requestAnimationFrame(step);}requestAnimationFrame(step);}
 
-function pg(id,el){
-  document.querySelectorAll(".page").forEach(e=>e.classList.remove("active"));
-  document.querySelectorAll(".nb").forEach(e=>e.classList.remove("active"));
-  document.querySelectorAll(".nav-dropdown-item").forEach(e=>e.classList.remove("active"));
-  document.querySelectorAll(".nav-dropdown-btn").forEach(e=>e.classList.remove("active"));
-  document.getElementById("page-"+id).classList.add("active");
-  if(el)el.classList.add("active");
-  saveCurrentPage(id);
-  // Home bg canvas toggle
-  if(typeof setHomeBgActive==='function')setHomeBgActive(id==='home');
-  if(id==="hist")loadHist();
-  if(id==="dash")loadDash();
-  if(id==="admin"){loadAdmin();setTimeout(initCliHeader,400);}
-  if(id==="home")loadHomeStats();
-  if(id==="profile"&&currentUser){loadProfileInfo(currentUser);buildThemeGrid();}
-}
-function pgFromDd(id, ddId){
-  document.querySelectorAll(".page").forEach(e=>e.classList.remove("active"));
-  document.querySelectorAll(".nb").forEach(e=>e.classList.remove("active"));
-  document.querySelectorAll(".nav-dropdown-item").forEach(e=>e.classList.remove("active"));
-  document.querySelectorAll(".nav-dropdown-btn").forEach(e=>e.classList.remove("active"));
-  document.getElementById("page-"+id).classList.add("active");
-  const item=document.getElementById("dd-item-"+id);
-  if(item)item.classList.add("active");
-  const btn=document.getElementById("dd-"+ddId+"-btn");
-  if(btn)btn.classList.add("active");
-  saveCurrentPage(id);
-  if(typeof setHomeBgActive==='function')setHomeBgActive(false);
-  if(id==="hist")loadHist();
-  if(id==="dash")loadDash();
-}
 async function loadHomeStats(){
-  try{
-    const r=await fetch("/history");const d=await r.json();
-    const scans=Array.isArray(d)?d:(d.scans||[]);
-    let totalCves=0,totalPorts=0;
-    scans.forEach(s=>{totalCves+=(s.total_cves||0);totalPorts+=(s.open_ports||0);});
-    animateCount(document.getElementById("hs-scans"),scans.length);
-    animateCount(document.getElementById("hs-cves"),totalCves);
-    animateCount(document.getElementById("hs-ports"),totalPorts);
-  }catch(e){["hs-scans","hs-cves","hs-ports"].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent="0";});}
+  try{const r=await fetch('/history');const d=await r.json();const scans=Array.isArray(d)?d:(d.scans||[]);let c=0,p=0;scans.forEach(s=>{c+=(s.total_cves||0);p+=(s.open_ports||0);});animateCount(document.getElementById('hs-scans'),scans.length);animateCount(document.getElementById('hs-cves'),c);animateCount(document.getElementById('hs-ports'),p);}
+  catch(e){}
 }
 
-// ── theHarvester ──
-let hvLogEl=null,hvProgT=null,hvProgV=0;
-function hvLog(t,tp="i"){if(!hvLogEl)return;const p={i:"[*]",s:"[+]",w:"[!]",e:"[x]"}[tp]||"[*]";const d=document.createElement("div");d.className="tl t"+tp;d.innerHTML="<span class='p'>"+p+"</span> "+t;hvLogEl.appendChild(d);hvLogEl.scrollTop=hvLogEl.scrollHeight;}
-function hvStartProg(){hvProgV=0;document.getElementById("hv-prog").style.display="block";document.getElementById("hv-pb").style.width="0%";hvProgT=setInterval(()=>{hvProgV=Math.min(hvProgV+(100-hvProgV)*0.035,90);document.getElementById("hv-pb").style.width=hvProgV+"%";},500);}
-function hvEndProg(){clearInterval(hvProgT);document.getElementById("hv-pb").style.width="100%";setTimeout(()=>document.getElementById("hv-prog").style.display="none",400);}
-async function doHarvest(){
-  const target=document.getElementById("hv-target").value.trim();
-  if(!target){alert("Please enter a target domain");return;}
-  const srcEl=document.getElementById("hv-sources");
-  const sources=Array.from(srcEl.selectedOptions).map(o=>o.value).join(",");
-  const limit=document.getElementById("hv-limit").value||500;
-  const btn=document.getElementById("hv-btn");
-  btn.disabled=true;btn.textContent="Running...";
-  hvLogEl=document.getElementById("hv-term");hvLogEl.innerHTML="";hvLogEl.style.display="block";
-  document.getElementById("hv-err").style.display="none";
-  document.getElementById("hv-res").style.display="none";
-  hvStartProg();
-  hvLog("Target: "+target);hvLog("Sources: "+sources);hvLog("Limit: "+limit);hvLog("Launching theHarvester...","w");
-  try{
-    const r=await fetchWithTimeout("/harvester",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({target,sources,limit:parseInt(limit)})},180000);
-    const d=await r.json();
-    hvEndProg();
-    if(d.error){
-      hvLog(d.error,"e");
-      if(d.auto_install_attempted||d.error.includes('not installed')){
-        const ok=await tryAutoInstall('hv','theharvester','theHarvester');
-        if(ok){btn.disabled=false;btn.textContent="🎯 RUN HARVESTER";doHarvest();return;}
-      }
-      document.getElementById("hv-err").textContent="Error: "+d.error;document.getElementById("hv-err").style.display="block";
-    }
-    else{hvLog("Done — "+( d.emails?.length||0)+" emails, "+(d.hosts?.length||0)+" hosts, "+(d.subdomains?.length||0)+" subdomains","s");renderHarvest(d);notifyScanDone('theHarvester',`Found ${d.emails?.length||0} emails, ${d.subdomains?.length||0} subdomains`);}
-  }catch(e){hvEndProg();document.getElementById("hv-err").textContent="Error: "+e.message;document.getElementById("hv-err").style.display="block";hvLog(e.message,"e");}
-  finally{btn.disabled=false;btn.textContent="🎯 RUN HARVESTER";}
-}
-function renderHarvest(d){
-  const res=document.getElementById("hv-res");res.style.display="block";
-  const emails=d.emails||[];const hosts=d.hosts||[];const subs=d.subdomains||[];const ips=d.ips||[];
-  let html=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px">
-    <div class="sc"><div class="sv" style="color:var(--cyan)">${emails.length}</div><div class="sl">EMAILS</div></div>
-    <div class="sc"><div class="sv" style="color:var(--purple)">${hosts.length}</div><div class="sl">HOSTS</div></div>
-    <div class="sc"><div class="sv" style="color:var(--green)">${subs.length}</div><div class="sl">SUBDOMAINS</div></div>
-    <div class="sc"><div class="sv" style="color:var(--yellow)">${ips.length}</div><div class="sl">IPs FOUND</div></div>
-  </div>`;
-  if(emails.length){html+=`<div class="card" style="margin-bottom:12px"><div class="ctitle" style="font-size:11px">&#128231; EMAILS (${emails.length})</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${emails.map(e=>`<span class="tag" style="background:rgba(0,229,255,0.08);color:var(--cyan);border-color:rgba(0,229,255,0.2)">${e}</span>`).join("")}</div></div>`;}
-  if(subs.length){html+=`<div class="card" style="margin-bottom:12px"><div class="ctitle" style="font-size:11px">&#127760; SUBDOMAINS (${subs.length})</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${subs.map(s=>`<span class="tag" style="background:rgba(176,111,255,0.08);color:var(--purple);border-color:rgba(176,111,255,0.2)">${s}</span>`).join("")}</div></div>`;}
-  if(hosts.length){html+=`<div class="card" style="margin-bottom:12px"><div class="ctitle" style="font-size:11px">&#127968; HOSTS (${hosts.length})</div><div style="overflow-x:auto"><table class="res-tbl"><thead><tr><th>HOST</th><th>IP</th></tr></thead><tbody>${hosts.map(h=>`<tr><td>${h.host||h}</td><td>${h.ip||"—"}</td></tr>`).join("")}</tbody></table></div></div>`;}
-  if(ips.length){html+=`<div class="card"><div class="ctitle" style="font-size:11px">&#128205; IP ADDRESSES (${ips.length})</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${ips.map(ip=>`<span class="tag" style="background:rgba(57,255,20,0.08);color:var(--green);border-color:rgba(57,255,20,0.2)">${ip}</span>`).join("")}</div></div>`;}
-  res.innerHTML=html;
-}
-
-// ── Generic tool runner helper ──
-function mkToolRunner(prefix,color){
-  let logEl=null,progT=null,progV=0;
-  return{
-    log(t,tp="i"){if(!logEl)return;const p={i:"[*]",s:"[+]",w:"[!]",e:"[x]"}[tp]||"[*]";const d=document.createElement("div");d.className="tl t"+tp;d.style.color=tp==="s"?"var(--green)":tp==="e"?"var(--red)":tp==="w"?"var(--yellow)":"#4a4a7a";d.innerHTML=`<span style="color:var(--cyan)">${p}</span> `+t;logEl.appendChild(d);logEl.scrollTop=logEl.scrollHeight;},
-    start(){progV=0;logEl=document.getElementById(prefix+"-term");logEl.innerHTML="";logEl.style.display="block";document.getElementById(prefix+"-err").style.display="none";document.getElementById(prefix+"-res").style.display="none";document.getElementById(prefix+"-prog").style.display="block";document.getElementById(prefix+"-pb").style.width="0%";progT=setInterval(()=>{progV=Math.min(progV+(100-progV)*0.035,90);document.getElementById(prefix+"-pb").style.width=progV+"%";},500);},
-    end(){clearInterval(progT);document.getElementById(prefix+"-pb").style.width="100%";setTimeout(()=>document.getElementById(prefix+"-prog").style.display="none",400);},
-    err(msg){document.getElementById(prefix+"-err").textContent="Error: "+msg;document.getElementById(prefix+"-err").style.display="block";},
-    res(html){const el=document.getElementById(prefix+"-res");el.innerHTML=html;el.style.display="block";}
-  };
-}
-
-// ── DNSRecon ──
-const drTool=mkToolRunner("dr","--cyan");
-async function doDnsRecon(){
-  const target=document.getElementById("dr-target").value.trim();
-  if(!target){alert("Enter a target domain");return;}
-  const type=document.getElementById("dr-type").value;
-  const ns=document.getElementById("dr-ns").value.trim();
-  const filter=document.getElementById("dr-filter").value;
-  const btn=document.getElementById("dr-btn");btn.disabled=true;btn.textContent="Running...";
-  drTool.start();drTool.log("Target: "+target);drTool.log("Type: "+type);
-  try{
-    const r=await fetchWithTimeout("/dnsrecon",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({target,type,ns,filter})},120000);
-    const d=await r.json();drTool.end();
-    if(d.error){
-      drTool.log(d.error,"e");
-      if(d.auto_install_attempted||d.error.includes('not installed')){
-        const ok=await tryAutoInstall('dr','dnsrecon','dnsrecon');
-        if(ok){btn.disabled=false;btn.textContent="🌐 RUN DNSRECON";doDnsRecon();return;}
-      }
-      drTool.err(d.error);
-    }
-    else{drTool.log("Done — "+(d.records?.length||0)+" records found","s");renderDnsRecon(d);notifyScanDone('DNSRecon',`Found ${d.records?.length||0} DNS records for ${d.target||'target'}`);}
-  }catch(e){drTool.end();drTool.err(e.message);drTool.log(e.message,"e");}
-  finally{btn.disabled=false;btn.textContent="🌐 RUN DNSRECON";}
-}
-function renderDnsRecon(d){
-  const recs=d.records||[];
-  const byType={};recs.forEach(r=>{if(!byType[r.type])byType[r.type]=[];byType[r.type].push(r);});
-  let html=`<div class="sc" style="margin-bottom:16px"><div class="sv" style="color:var(--cyan)">${recs.length}</div><div class="sl">RECORDS FOUND</div></div>`;
-  Object.entries(byType).forEach(([type,items])=>{
-    html+=`<div class="card" style="margin-bottom:10px"><div class="ctitle" style="font-size:11px;color:var(--cyan)">${type} RECORDS (${items.length})</div><div style="overflow-x:auto"><table class="res-tbl"><thead><tr><th>NAME</th><th>VALUE</th><th>TTL</th></tr></thead><tbody>`;
-    items.forEach(r=>{html+=`<tr><td>${r.name||"—"}</td><td style="color:var(--t)">${r.address||r.value||r.data||"—"}</td><td style="color:var(--m)">${r.ttl||"—"}</td></tr>`;});
-    html+=`</tbody></table></div></div>`;
-  });
-  drTool.res(html);
-}
-
-// ── Nikto ──
-const nkTool=mkToolRunner("nk","--orange");
-async function doNikto(){
-  const target=document.getElementById("nk-target").value.trim();
-  if(!target){alert("Enter a target URL or host");return;}
-  const port=document.getElementById("nk-port").value||80;
-  const ssl=document.getElementById("nk-ssl").value;
-  const tuning=document.getElementById("nk-tuning").value;
-  const btn=document.getElementById("nk-btn");btn.disabled=true;btn.textContent="Scanning...";
-  nkTool.start();nkTool.log("Target: "+target+" port "+port);nkTool.log("Nikto scan started — this may take several minutes","w");
-  try{
-    const r=await fetchWithTimeout("/nikto",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({target,port:parseInt(port),ssl,tuning})},600000);
-    const d=await r.json();nkTool.end();
-    if(d.error){
-      nkTool.log(d.error,"e");
-      if(d.auto_install_attempted||d.error.includes('not installed')){
-        const ok=await tryAutoInstall('nk','nikto','Nikto');
-        if(ok){btn.disabled=false;btn.textContent="📈 RUN NIKTO";doNikto();return;}
-      }
-      nkTool.err(d.error);
-    }
-    else{nkTool.log("Done — "+(d.findings?.length||0)+" findings","s");renderNikto(d);notifyScanDone('Nikto',`Found ${d.findings?.length||0} findings on ${d.target||'target'}`,d.findings?.length===0);}
-  }catch(e){nkTool.end();nkTool.err(e.message);nkTool.log(e.message,"e");}
-  finally{btn.disabled=false;btn.textContent="📈 RUN NIKTO";}
-}
-function renderNikto(d){
-  const findings=d.findings||[];
-  const crit=findings.filter(f=>f.severity==="high").length;
-  let html=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
-    <div class="sc"><div class="sv" style="color:var(--orange)">${findings.length}</div><div class="sl">FINDINGS</div></div>
-    <div class="sc"><div class="sv" style="color:var(--red)">${crit}</div><div class="sl">HIGH SEVERITY</div></div>
-    <div class="sc"><div class="sv" style="color:var(--green)">${d.server||"—"}</div><div class="sl">SERVER</div></div>
-  </div>`;
-  if(findings.length){
-    html+=`<div class="card"><div class="ctitle" style="font-size:11px">FINDINGS</div><div style="overflow-x:auto"><table class="res-tbl"><thead><tr><th>ID</th><th>DESCRIPTION</th><th>URL</th></tr></thead><tbody>`;
-    findings.forEach(f=>{html+=`<tr><td style="color:var(--cyan);white-space:nowrap">${f.id||"—"}</td><td style="color:${f.severity==="high"?"var(--red)":f.severity==="medium"?"var(--orange)":"var(--t)"}">${f.description||f.msg||"—"}</td><td style="color:var(--m);font-size:10px">${f.url||""}</td></tr>`;});
-    html+=`</tbody></table></div></div>`;
-  }else{html+=`<div class="card"><p style="color:var(--green)">&#10003; No findings detected.</p></div>`;}
-  nkTool.res(html);
-}
-
-// ── WPScan ──
-const wpTool=mkToolRunner("wp","--purple");
-async function doWPScan(){
-  const target=document.getElementById("wp-target").value.trim();
-  if(!target){alert("Enter a target URL");return;}
-  const enumEl=document.getElementById("wp-enum");
-  const enumFlags=Array.from(enumEl.selectedOptions).map(o=>o.value).join(",");
-  const token=document.getElementById("wp-token").value.trim();
-  const mode=document.getElementById("wp-mode").value;
-  const btn=document.getElementById("wp-btn");btn.disabled=true;btn.textContent="Scanning...";
-  wpTool.start();wpTool.log("Target: "+target);wpTool.log("Enumerating: "+enumFlags);
-  try{
-    const r=await fetchWithTimeout("/wpscan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({target,enum_flags:enumFlags,token,mode})},300000);
-    const d=await r.json();wpTool.end();
-    if(d.error){wpTool.err(d.error);wpTool.log(d.error,"e");}
-    else{wpTool.log("Done — "+(d.vulnerabilities?.length||0)+" vulnerabilities, "+(d.users?.length||0)+" users","s");renderWPScan(d);notifyScanDone('WPScan',`${d.vulnerabilities?.length||0} vulns, ${d.users?.length||0} users, WP ${d.wp_version||'?'}`);}
-  }catch(e){wpTool.end();wpTool.err(e.message);wpTool.log(e.message,"e");}
-  finally{btn.disabled=false;btn.textContent="📄 RUN WPSCAN";}
-}
-function renderWPScan(d){
-  const vulns=d.vulnerabilities||[];const users=d.users||[];const plugins=d.plugins||[];
-  let html=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
-    <div class="sc"><div class="sv" style="color:var(--red)">${vulns.length}</div><div class="sl">VULNERABILITIES</div></div>
-    <div class="sc"><div class="sv" style="color:var(--purple)">${plugins.length}</div><div class="sl">PLUGINS</div></div>
-    <div class="sc"><div class="sv" style="color:var(--cyan)">${users.length}</div><div class="sl">USERS</div></div>
-    <div class="sc"><div class="sv" style="color:var(--yellow)">${d.wp_version||"?"}</div><div class="sl">WP VERSION</div></div>
-  </div>`;
-  if(vulns.length){html+=`<div class="card" style="margin-bottom:10px"><div class="ctitle" style="font-size:11px;color:var(--red)">VULNERABILITIES</div><div style="overflow-x:auto"><table class="res-tbl"><thead><tr><th>TITLE</th><th>TYPE</th><th>REF</th></tr></thead><tbody>${vulns.map(v=>`<tr><td style="color:var(--red)">${v.title||v.name||"—"}</td><td style="color:var(--orange)">${v.type||"—"}</td><td style="color:var(--cyan);font-size:10px">${v.references?.cve?.join(", ")||v.ref||"—"}</td></tr>`).join("")}</tbody></table></div></div>`;}
-  if(users.length){html+=`<div class="card" style="margin-bottom:10px"><div class="ctitle" style="font-size:11px;color:var(--cyan)">USERS FOUND</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${users.map(u=>`<span class="tag" style="background:rgba(0,229,255,0.08);color:var(--cyan);border-color:rgba(0,229,255,0.2)">${u}</span>`).join("")}</div></div>`;}
-  if(plugins.length){html+=`<div class="card"><div class="ctitle" style="font-size:11px">PLUGINS (${plugins.length})</div><div style="overflow-x:auto"><table class="res-tbl"><thead><tr><th>PLUGIN</th><th>VERSION</th><th>VULNS</th></tr></thead><tbody>${plugins.map(p=>`<tr><td style="color:var(--t)">${p.name||"—"}</td><td style="color:var(--m)">${p.version||"—"}</td><td style="color:${p.vulnerabilities?.length?"var(--red)":"var(--green)"}">${p.vulnerabilities?.length||0}</td></tr>`).join("")}</tbody></table></div></div>`;}
-  wpTool.res(html);
-}
-
-// ── Lynis ──
-const lyTool=mkToolRunner("ly","--green");
-async function doLynis(){
-  const profile=document.getElementById("ly-profile").value;
-  const category=document.getElementById("ly-category").value;
-  const compliance=document.getElementById("ly-compliance").value;
-  const btn=document.getElementById("ly-btn");btn.disabled=true;btn.textContent="Auditing...";
-  lyTool.start();lyTool.log("Lynis system audit starting...");lyTool.log("Profile: "+profile+(compliance?" | Compliance: "+compliance:""),"w");
-  try{
-    const r=await fetchWithTimeout("/lynis",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({profile,category,compliance})},300000);
-    const d=await r.json();lyTool.end();
-    if(d.error){
-      lyTool.log(d.error,"e");
-      if(d.auto_install_attempted){
-        lyTool.err("Auto-install attempted but failed. Trying frontend install...");
-        const ok=await tryAutoInstall('ly','lynis','Lynis');
-        if(ok){btn.disabled=false;btn.textContent="📋 RUN LYNIS AUDIT";doLynis();return;}
-      }else if(d.error&&d.error.includes('not installed')){
-        const ok=await tryAutoInstall('ly','lynis','Lynis');
-        if(ok){btn.disabled=false;btn.textContent="📋 RUN LYNIS AUDIT";doLynis();return;}
-      }
-      lyTool.err(d.error);
-    }
-    else{lyTool.log("Audit complete — Hardening Index: "+(d.hardening_index||"?"),d.hardening_index>=70?"s":"w");renderLynis(d);notifyScanDone('Lynis',`Hardening Index: ${d.hardening_index||'?'}/100 — ${d.warnings?.length||0} warnings`,d.hardening_index>=70);}
-  }catch(e){lyTool.end();lyTool.err(e.message);lyTool.log(e.message,"e");}
-  finally{btn.disabled=false;btn.textContent="📋 RUN LYNIS AUDIT";}
-}
-function renderLynis(d){
-  const warnings=d.warnings||[];const suggestions=d.suggestions||[];const score=d.hardening_index||0;
-  const scoreColor=score>=80?"var(--green)":score>=60?"var(--yellow)":score>=40?"var(--orange)":"var(--red)";
-  let html=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
-    <div class="sc"><div class="sv" style="color:${scoreColor}">${score}</div><div class="sl">HARDENING INDEX</div></div>
-    <div class="sc"><div class="sv" style="color:var(--red)">${warnings.length}</div><div class="sl">WARNINGS</div></div>
-    <div class="sc"><div class="sv" style="color:var(--yellow)">${suggestions.length}</div><div class="sl">SUGGESTIONS</div></div>
-    <div class="sc"><div class="sv" style="color:var(--cyan)">${d.tests_performed||"—"}</div><div class="sl">TESTS RUN</div></div>
-  </div>`;
-  if(warnings.length){html+=`<div class="card" style="margin-bottom:10px"><div class="ctitle" style="font-size:11px;color:var(--red)">&#9888; WARNINGS</div>${warnings.map(w=>`<div style="border-bottom:1px solid var(--b);padding:8px 0;font-size:12px;color:var(--orange);font-family:'JetBrains Mono',monospace">${w}</div>`).join("")}</div>`;}
-  if(suggestions.length){html+=`<div class="card"><div class="ctitle" style="font-size:11px;color:var(--yellow)">&#128161; SUGGESTIONS (${suggestions.length})</div>${suggestions.slice(0,30).map(s=>`<div style="border-bottom:1px solid var(--b);padding:7px 0;font-size:11px;color:var(--m);font-family:'JetBrains Mono',monospace">&#8250; ${s}</div>`).join("")}${suggestions.length>30?`<div style="color:var(--m);font-size:11px;padding-top:8px">...and ${suggestions.length-30} more</div>`:""}</div>`;}
-  lyTool.res(html);
-}
-
-// ── Legion ──
-const lgMods={"nmap":true,"nikto":true,"smb":true,"snmp":true,"hydra":false,"finger":false};
-function lgMod(m,el){lgMods[m]=!lgMods[m];el.classList.toggle("on",lgMods[m]);}
-const lgTool=mkToolRunner("lg","--red");
-async function doLegion(){
-  const target=document.getElementById("lg-target").value.trim();
-  if(!target){alert("Enter a target host or IP");return;}
-  const intensity=document.getElementById("lg-intensity").value;
-  const modules=Object.entries(lgMods).filter(([,v])=>v).map(([k])=>k);
-  const btn=document.getElementById("lg-btn");btn.disabled=true;btn.textContent="Running...";
-  lgTool.start();lgTool.log("Target: "+target);lgTool.log("Modules: "+modules.join(", "));lgTool.log("Intensity: "+intensity,"w");
-  try{
-    const r=await fetchWithTimeout("/legion",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({target,intensity,modules})},900000);
-    const d=await r.json();lgTool.end();
-    if(d.error){lgTool.err(d.error);lgTool.log(d.error,"e");}
-    else{lgTool.log("Legion scan complete","s");renderLegion(d);notifyScanDone('Legion',`${d.open_ports||0} open ports, ${d.total_issues||0} issues found`);}
-  }catch(e){lgTool.end();lgTool.err(e.message);lgTool.log(e.message,"e");}
-  finally{btn.disabled=false;btn.textContent="⚙ RUN LEGION";}
-}
-function renderLegion(d){
-  let html=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
-    <div class="sc"><div class="sv" style="color:var(--cyan)">${d.open_ports||0}</div><div class="sl">OPEN PORTS</div></div>
-    <div class="sc"><div class="sv" style="color:var(--red)">${d.total_issues||0}</div><div class="sl">ISSUES FOUND</div></div>
-    <div class="sc"><div class="sv" style="color:var(--green)">${d.modules_run||0}</div><div class="sl">MODULES RAN</div></div>
-  </div>`;
-  (d.results||[]).forEach(r=>{
-    html+=`<div class="card" style="margin-bottom:10px"><div class="ctitle" style="font-size:11px;color:var(--orange)">&#9881; ${r.module?.toUpperCase()||"MODULE"}</div>`;
-    if(r.findings?.length){html+=`<div style="overflow-x:auto"><table class="res-tbl"><thead><tr><th>FINDING</th><th>DETAIL</th></tr></thead><tbody>${r.findings.map(f=>`<tr><td style="color:var(--t)">${f.title||f}</td><td style="color:var(--m);font-size:10px">${f.detail||""}</td></tr>`).join("")}</tbody></table></div>`;}
-    else{html+=`<p style="color:var(--m);font-size:12px;font-family:'JetBrains Mono',monospace">${r.summary||"No findings"}</p>`;}
-    html+=`</div>`;
-  });
-  lgTool.res(html);
-}
-function tmg(m,el){mods[m]=!mods[m];el.classList.toggle("on",mods[m]);}
-
-function initLog(){logEl=document.getElementById("term");logEl.innerHTML="";logEl.style.display="block";}
-function lg(t,tp="i"){if(!logEl)return;const p={i:"[*]",s:"[+]",w:"[!]",e:"[x]"}[tp]||"[*]";const d=document.createElement("div");d.className="tl t"+tp;d.innerHTML="<span class='p'>"+p+"</span> "+t;logEl.appendChild(d);logEl.scrollTop=logEl.scrollHeight;}
-function clrUI(){["term","err","res"].forEach(id=>{const e=document.getElementById(id);if(e){e.innerHTML="";e.style.display="none";}});document.getElementById("prog").style.display="none";}
-function showErr(msg){const e=document.getElementById("err");e.textContent="Error: "+msg;e.style.display="block";}
-function startProg(){progV=0;document.getElementById("prog").style.display="block";document.getElementById("pb").style.width="0%";progT=setInterval(()=>{progV=Math.min(progV+(100-progV)*0.04,92);document.getElementById("pb").style.width=progV+"%";},400);}
-function endProg(){clearInterval(progT);document.getElementById("pb").style.width="100%";setTimeout(()=>document.getElementById("prog").style.display="none",400);}
-
-function bdg(lv,sm=false){const s=SEV[lv]||SEV.UNKNOWN;return`<span class="bdg${sm?" btn-sm":""}" style="background:${s.b};color:${s.c};border-color:${s.c}40">${s.i} ${lv}</span>`;}
-function tag(t,c){return`<span class="tag" style="background:${c}15;color:${c};border-color:${c}30">${t}</span>`;}
-function statusCol(s){return s===200?"var(--green)":s<400?"var(--yellow)":"var(--orange)";}
+// ══ SCAN ════════════════════════════════════════════════════════════════════
+function tmg(m,el){mods[m]=!mods[m];el.classList.toggle('on',mods[m]);}
 
 async function doScan(){
-  const target=document.getElementById("tgt").value.trim();
+  const target=document.getElementById('tgt').value.trim();
   if(!target||busy)return;
-  clrUI();busy=true;initLog();startProg();
-  const btn=document.getElementById("sbtn");
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span>SCANNING...';
+  clrUI();busy=true;
+  showTerminal('term');startProg('prog');
+  const btn=document.getElementById('sbtn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
   setScanRunning('scan',true);
-  const ml=Object.keys(mods).filter(m=>mods[m]).join(",");
-  lg("Target: "+target);lg("Modules: "+ml);
-  lg("Scanning — may take 60–180 seconds depending on open ports","w");
+  const ml=Object.keys(mods).filter(m=>mods[m]).join(',');
+  termLog('term','Target: '+target,'i');termLog('term','Modules: '+ml,'i');termLog('term','Scanning — may take 60–180s','w');
   try{
-    const r=await fetchWithTimeout("/scan?target="+encodeURIComponent(target)+"&modules="+encodeURIComponent(ml),{},300000,'scan');
-    const d=await r.json();endProg();
-    if(d.error){showErr(d.error);lg(d.error,"e");showToast('Scan Error',d.error,'error');}
-    else{
-      const ports=d.summary?.open_ports||0,cves=d.summary?.total_cves||0;
-      lg("Done — "+ports+" ports, "+cves+" CVEs","s");
-      renderScan(d);
-      showToast('Scan Complete',`${ports} open ports · ${cves} CVEs found on ${target}`,'success');
-      notifyScanDone('Network Scanner',`${ports} open ports, ${cves} CVEs on ${target}`,cves===0);
-    }
-  }catch(e){endProg();showErr(e.message);showToast('Scan Error',e.message,'error');}
-  finally{busy=false;btn.disabled=false;btn.innerHTML="SCAN";setScanRunning('scan',false);}
+    const r=await fetchWithTimeout('/scan?target='+encodeURIComponent(target)+'&modules='+encodeURIComponent(ml),{},300000,'scan');
+    const d=await r.json();endProg('prog');
+    if(d.error){showErr('err','Error: '+d.error);termLog('term',d.error,'e');}
+    else{const ports=d.summary?.open_ports||0,cves=d.summary?.total_cves||0;termLog('term','Done — '+ports+' ports, '+cves+' CVEs','s');renderScan(d);showToast('Scan Complete',ports+' open ports · '+cves+' CVEs','success');}
+  }catch(e){endProg('prog');showErr('err','Error: '+e.message);}
+  finally{busy=false;btn.disabled=false;btn.innerHTML='SCAN';setScanRunning('scan',false);}
 }
 
 function renderScan(data){
   const s=data.summary||{};
   const ports=(data.modules?.ports?.hosts||[]).flatMap(h=>h.ports||[]);
-  let html=`<div class="sgrid">
-    <div class="sc"><div class="sv" style="color:#00e5ff">${ports.length}</div><div class="sl">OPEN PORTS</div></div>
-    <div class="sc"><div class="sv" style="color:#ff3366">${s.critical_cves||0}</div><div class="sl">CRITICAL</div></div>
-    <div class="sc"><div class="sv" style="color:#ff6b35">${s.high_cves||0}</div><div class="sl">HIGH CVEs</div></div>
-    <div class="sc"><div class="sv" style="color:#ffd60a">${s.total_cves||0}</div><div class="sl">TOTAL CVEs</div></div>
-    <div class="sc"><div class="sv" style="color:#b06fff">${s.exploitable||0}</div><div class="sl">EXPLOITABLE</div></div>
-  </div>`;
-  html+=`<div class="tabs">
-    <button class="tab active" onclick="swt(event,'tp')">&#128268; Ports</button>
-    ${data.modules?.ssl?.length?'<button class="tab" onclick="swt(event,\'tssl\')">&#128274; SSL</button>':""}
-    ${data.modules?.dns?'<button class="tab" onclick="swt(event,\'tdns\')">&#127758; DNS</button>':""}
-    ${data.modules?.headers?'<button class="tab" onclick="swt(event,\'thdr\')">&#128196; Headers</button>':""}
-    <button class="tab" onclick="exportPDF()">&#128196; PDF Report</button>
-  </div>`;
-
-  html+=`<div class="tc active" id="tp">`;
-  const portsModule=data.modules?.ports;
-  if(portsModule?.error){
-    html+=`<div style="background:rgba(255,51,102,0.07);border:1px solid rgba(255,51,102,0.22);border-radius:9px;padding:13px 16px;color:var(--red);font-family:'JetBrains Mono',monospace;font-size:13px">
-      &#9888; Port scan error: ${portsModule.error}<br><br>
-      Make sure nmap is installed: <b>sudo apt-get install nmap dnsutils</b>
-    </div>`;
-  } else {
-    (portsModule?.hosts||[]).forEach(host=>{
-      html+=`<div style="display:flex;align-items:center;gap:9px;margin-bottom:12px;flex-wrap:wrap">
-        <span style="color:var(--cyan);background:rgba(0,229,255,0.07);padding:3px 11px;border-radius:4px;border:1px solid rgba(0,229,255,0.18);font-family:'JetBrains Mono',monospace;font-size:12px">${host.ip||""}</span>
-        ${host.hostnames?.[0]?`<span style="color:var(--m);font-size:12px;font-family:'JetBrains Mono',monospace">${host.hostnames[0]}</span>`:""}
-        <span style="color:var(--green);font-size:12px">&#9679; ${host.status||"up"}</span>
-        ${host.os?`<span style="color:var(--m);font-size:11px;font-family:'JetBrains Mono',monospace">OS: ${host.os}</span>`:""}
-      </div>`;
-      if(!host.ports||host.ports.length===0){
-        html+=`<p style="color:var(--m);font-size:13px;font-family:'JetBrains Mono',monospace">No open ports found in range 1-10000.</p>`;
-      }
-      host.ports.forEach(port=>{
-        const sv=SEV[port.risk_level]||SEV.UNKNOWN;
-        const hx=port.cves?.some(c=>c.has_exploit);
-        html+=`<div class="pc" style="border:1px solid ${sv.c}22;border-left:3px solid ${sv.c}">
-          <div class="ph" onclick="tp2(this)">
-            <div class="pn" style="background:${sv.b};color:${sv.c}">${port.port}</div>
-            <div class="pi"><div class="pname">${port.product||port.service||"unknown"}${port.version?` <span style="color:var(--m);font-size:12px;font-weight:400">v${port.version}</span>`:""}</div>
-            <div class="psub">${(port.protocol||"tcp").toUpperCase()} &middot; ${port.service||""}${port.extrainfo?" &middot; "+port.extrainfo:""}</div></div>
-            <div class="pm">
-              ${hx?'<span class="bdg" style="background:rgba(176,111,255,0.12);color:#b06fff;border-color:rgba(176,111,255,0.3);font-size:10px">&#9760; EXPLOIT</span>':""}
-              ${bdg(port.risk_level)}
-              ${port.risk_score?`<span style="color:${sv.c};font-weight:800;font-size:14px;font-family:'JetBrains Mono',monospace">${port.risk_score}</span>`:""}
-              <span class="chev">&#9660;</span>
-            </div>
-          </div>
-          <div class="pb2">
-            ${port.cves?.length?`<div class="st">VULNERABILITIES (${port.cves.length})</div>${port.cves.map(c=>{const cs=SEV[c.severity]||SEV.UNKNOWN;return`<div class="ci"><div class="ct"><a class="cid" href="${c.references?.[0]||"https://nvd.nist.gov/vuln/detail/"+c.id}" target="_blank">${c.id}</a>${bdg(c.severity,true)}${c.score?`<span style="color:${cs.c};font-weight:700;font-size:11px;font-family:'JetBrains Mono',monospace">CVSS ${c.score}</span>`:""}${c.has_exploit?'<span class="bdg btn-sm" style="background:rgba(176,111,255,0.1);color:#b06fff;border-color:rgba(176,111,255,0.25)">&#9760; PUBLIC EXPLOIT</span>':""}<span class="cdate">${c.published||""}</span></div><div class="cdesc">${c.description||""}</div></div>`;}).join("")}`:""}
-            ${port.mitigations?.length?`<div class="st">MITIGATIONS</div><div class="ml">${port.mitigations.map(m=>`<div class="mi"><span class="ma">&rsaquo;</span><span>${m}</span></div>`).join("")}</div>`:""}
-          </div>
-        </div>`;
+  let html='<div class="stats" style="margin-bottom:16px"><div class="stat"><div class="stat-val">'+ports.length+'</div><div class="stat-lbl">OPEN PORTS</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">'+(s.critical_cves||0)+'</div><div class="stat-lbl">CRITICAL</div></div><div class="stat"><div class="stat-val" style="color:var(--orange)">'+(s.high_cves||0)+'</div><div class="stat-lbl">HIGH CVEs</div></div><div class="stat"><div class="stat-val">'+(s.total_cves||0)+'</div><div class="stat-lbl">TOTAL CVEs</div></div><div class="stat"><div class="stat-val" style="color:var(--yellow)">'+(s.exploitable||0)+'</div><div class="stat-lbl">EXPLOITABLE</div></div></div>';
+  html+='<div class="tabs" style="margin-bottom:16px"><button class="tab active" onclick="swt(event,\'tp\')">Ports</button>'+(data.modules?.ssl?.length?'<button class="tab" onclick="swt(event,\'tssl\')">SSL</button>':'')+(data.modules?.dns?'<button class="tab" onclick="swt(event,\'tdns\')">DNS</button>':'')+(data.modules?.headers?'<button class="tab" onclick="swt(event,\'thdr\')">Headers</button>':'')+'<button class="tab" onclick="exportPDF()">PDF Report</button></div>';
+  // Ports tab
+  html+='<div class="tc active" id="tp">';
+  const pm=data.modules?.ports;
+  if(pm?.error){html+='<div class="err-box visible">'+pm.error+'</div>';}
+  else{
+    (pm?.hosts||[]).forEach(host=>{
+      html+='<div class="host-chip"><span class="host-ip">'+host.ip+'</span>'+(host.hostnames?.[0]?'<span style="color:var(--text3);font-size:11px">'+host.hostnames[0]+'</span>':'')+'<span class="host-up">&#9679; '+(host.status||'up')+'</span>'+(host.os?'<span style="color:var(--text3);font-family:var(--mono);font-size:11px">'+host.os+'</span>':'')+'</div>';
+      if(!host.ports||!host.ports.length)html+='<div style="color:var(--text3);font-size:13px;padding:12px">No open ports found.</div>';
+      host.ports?.forEach(port=>{
+        html+='<div class="port-panel"><div class="port-hd" onclick="tp2(this)"><div class="port-num">'+port.port+'</div><div style="flex:1;min-width:0"><div class="port-svc">'+(port.product||port.service||'unknown')+(port.version?' <span style="font-family:var(--mono);font-size:11px;color:var(--text3)">v'+port.version+'</span>':'')+'</div><div class="port-ver">'+(port.protocol||'tcp').toUpperCase()+' · '+(port.service||'')+(port.extrainfo?' · '+port.extrainfo:'')+'</div></div><div class="port-meta">'+sev(port.risk_level)+(port.risk_score?'<span class="port-score" style="font-family:var(--mono);color:var(--text2);font-size:12px">'+port.risk_score+'</span>':'')+'</div><span class="chev">&#9660;</span></div>';
+        html+='<div class="port-body">';
+        if(port.cves?.length){
+          html+='<div class="sec-label">VULNERABILITIES ('+port.cves.length+')</div>';
+          port.cves.forEach(c=>{html+='<div class="cve-item"><div class="cve-hd"><a class="cve-id" href="'+(c.references?.[0]||'https://nvd.nist.gov/vuln/detail/'+c.id)+'" target="_blank">'+c.id+'</a>'+sev(c.severity)+(c.score?sevScore(c.score):'')+( c.has_exploit?'<span class="sev sev-high">EXPLOIT</span>':'')+'<span class="cve-date">'+(c.published||'')+'</span></div><div class="cve-desc">'+(c.description||'')+'</div></div>';});
+        }
+        if(port.mitigations?.length){html+='<div class="sec-label">MITIGATIONS</div><ul class="mit-list">'+port.mitigations.map(m=>'<li class="mit-item"><span class="mit-bullet">›</span><span>'+m+'</span></li>').join('')+'</ul>';}
+        html+='</div></div>';
       });
     });
-    if(!portsModule?.hosts?.length){
-      html+=`<p style="color:var(--m);font-size:13px;font-family:'JetBrains Mono',monospace">&#9888; No hosts found. Target may be offline or blocking scans.</p>`;
-    }
+    if(!pm?.hosts?.length)html+='<div style="color:var(--text3);font-size:13px">No hosts found.</div>';
   }
-  html+=`</div>`;
-
+  html+='</div>';
+  // SSL
   if(data.modules?.ssl?.length){
-    html+=`<div class="tc" id="tssl">`;
+    html+='<div class="tc" id="tssl">';
+    const GC={"A+":"var(--green)","A":"var(--green)","B":"var(--yellow)","C":"var(--orange)","D":"var(--red)","F":"var(--red)","N/A":"var(--text3)"};
     data.modules.ssl.forEach(s=>{
-      const gc=GC[s.grade]||"#ff3366";const d=s.details||{};
-      if(s.grade==="N/A"){
-        html+=`<div class="ssl-card"><p style="color:var(--m);font-size:13px">SSL not available on ${s.host}:${s.port}</p></div>`;
-        return;
-      }
-      html+=`<div class="ssl-card"><div class="ssl-hdr"><div class="gc2" style="background:${gc}15;color:${gc};border:2px solid ${gc}35">${s.grade}</div>
-        <div><div style="font-weight:700;font-size:14px">${s.host}:${s.port}</div>
-        <div style="color:var(--m);font-size:12px;font-family:'JetBrains Mono',monospace;margin-top:3px">${d.protocol||"?"} &middot; ${d.cipher||"?"} ${d.cipher_bits?"("+d.cipher_bits+" bit)":""}</div>
-        ${d.days_until_expiry!=null?`<div style="color:${d.days_until_expiry<30?"var(--red)":"var(--green)"};font-size:11px;font-family:'JetBrains Mono',monospace;margin-top:3px">Expires: ${d.expires||""} (${d.days_until_expiry} days)</div>`:""}
-        </div></div>
-        ${s.issues?.filter(i=>i.severity!=="INFO").length?s.issues.filter(i=>i.severity!=="INFO").map(iss=>`<div class="iss-item">${bdg(iss.severity,true)}<span style="font-size:12px;color:#c0c0d0;margin-left:6px">${iss.msg}</span></div>`).join(""):"<p style='color:var(--green);font-size:12px'>&#10003; No SSL issues</p>"}
-      </div>`;
+      if(s.grade==='N/A'){html+='<div class="ssl-card"><div class="ssl-grade" style="color:var(--text3)">—</div><div class="ssl-info"><div class="ssl-host">'+s.host+':'+s.port+'</div><div class="ssl-detail">SSL not available</div></div></div>';return;}
+      const d2=s.details||{};
+      html+='<div class="ssl-card"><div class="ssl-grade" style="color:'+GC[s.grade]+';border-color:'+GC[s.grade]+'">'+s.grade+'</div><div class="ssl-info"><div class="ssl-host">'+s.host+':'+s.port+'</div><div class="ssl-detail">'+(d2.protocol||'?')+' · '+(d2.cipher||'?')+(d2.cipher_bits?' ('+d2.cipher_bits+' bit)':'')+'</div>'+(d2.days_until_expiry!=null?'<div class="ssl-detail" style="color:'+(d2.days_until_expiry<30?'var(--red)':'var(--green)')+'">Expires: '+(d2.expires||'')+' ('+d2.days_until_expiry+' days)</div>':'')+'<div style="margin-top:8px">';
+      (s.issues||[]).filter(i=>i.severity!=='INFO').forEach(iss=>{html+='<div class="ssl-issue">'+sev(iss.severity)+'<span style="font-size:12px;color:var(--text2)">'+iss.msg+'</span></div>';});
+      if(!(s.issues||[]).filter(i=>i.severity!=='INFO').length)html+='<div style="font-size:12px;color:var(--green)">&#10003; No SSL issues</div>';
+      html+='</div></div></div>';
     });
-    html+=`</div>`;
+    html+='</div>';
   }
-
+  // DNS
   if(data.modules?.dns){
     const dns=data.modules.dns;
-    html+=`<div class="tc" id="tdns">
-      <div class="dns-grid">${Object.entries(dns.records||{}).map(([t,v])=>`<div class="dr"><div class="dtype">${t}</div><div class="dval">${v.join("<br/>")}</div></div>`).join("")}</div>
-      <div class="card" style="padding:12px;margin-bottom:12px">
-        <div style="display:flex;gap:14px;flex-wrap:wrap">
-          <span style="font-size:13px">${dns.has_spf?"✅":"❌"} SPF ${dns.has_spf?"configured":"MISSING"}</span>
-          <span style="font-size:13px">${dns.has_dmarc?"✅":"❌"} DMARC ${dns.has_dmarc?"configured":"MISSING"}</span>
-        </div>
-      </div>
-      ${dns.subdomains?.length?`<div class="st" style="margin-bottom:8px">SUBDOMAINS (${dns.subdomains.length})</div>${dns.subdomains.map(s=>`<div class="sub-item"><span>${s.subdomain}</span><span style="color:var(--m)">${s.ip}</span></div>`).join("")}`:""}
-      ${dns.issues?.filter(i=>i.severity!=="INFO").length?`<div class="st" style="margin-top:12px;margin-bottom:8px">DNS ISSUES</div>${dns.issues.filter(i=>i.severity!=="INFO").map(i=>`<div class="iss-item">${bdg(i.severity,true)}<span style="margin-left:7px;font-size:12px">${i.msg}</span></div>`).join("")}`:""}
-    </div>`;
+    html+='<div class="tc" id="tdns"><div class="dns-grid">'+Object.entries(dns.records||{}).map(([t,v])=>'<div class="dns-card"><div class="dns-type">'+t+'</div><div class="dns-val">'+v.join('<br/>')+'</div></div>').join('')+'</div>';
+    html+='<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;font-size:13px"><span>'+(dns.has_spf?'✓':'✕')+' SPF '+(dns.has_spf?'configured':'MISSING')+'</span><span>'+(dns.has_dmarc?'✓':'✕')+' DMARC '+(dns.has_dmarc?'configured':'MISSING')+'</span></div>';
+    if(dns.subdomains?.length)html+='<div class="sec-label">SUBDOMAINS ('+dns.subdomains.length+')</div><div>'+dns.subdomains.map(s=>'<div class="sub-item"><span>'+s.subdomain+'</span><span style="color:var(--text3);font-family:var(--mono);font-size:11px">'+s.ip+'</span></div>').join('')+'</div>';
+    if(dns.issues?.filter(i=>i.severity!=='INFO').length){html+='<div class="sec-label" style="margin-top:12px">DNS ISSUES</div>'+dns.issues.filter(i=>i.severity!=='INFO').map(i=>'<div class="ssl-issue">'+sev(i.severity)+'<span style="font-size:12px;color:var(--text2)">'+i.msg+'</span></div>').join('');}
+    html+='</div>';
   }
-
+  // Headers
   if(data.modules?.headers){
-    const hd=data.modules.headers;const gc=GC[hd.grade]||"#ff3366";
-    html+=`<div class="tc" id="thdr">
-      <div style="display:flex;align-items:center;gap:20px;margin-bottom:16px;flex-wrap:wrap">
-        <div class="hdr-grade" style="color:${gc}">${hd.grade}</div>
-        <div><div style="font-size:14px;font-weight:600">${hd.url||""}</div>
-          <div style="color:var(--m);font-size:12px;font-family:'JetBrains Mono',monospace;margin-top:3px">HTTP ${hd.status_code||""} &middot; Score ${hd.score||0}/100${hd.server?" &middot; "+hd.server:""}</div>
-        </div>
-      </div>
-      ${hd.issues?.length?`<div class="st" style="margin-bottom:8px">ISSUES</div><div class="ml" style="margin-bottom:14px">${hd.issues.map(i=>`<div class="iss-item">${bdg(i.severity,true)}<span style="margin-left:7px;font-size:12px">${i.msg}</span></div>`).join("")}</div>`:""}
-      <div class="st" style="margin-bottom:8px">RESPONSE HEADERS</div>
-      <div class="hl">${Object.entries(hd.headers||{}).slice(0,25).map(([k,v])=>`<div class="hi"><span class="hk">${k}</span><span class="hv">${String(v).substring(0,100)}</span></div>`).join("")}</div>
-    </div>`;
+    const hd=data.modules.headers;const GC2={"A+":"var(--green)","A":"var(--green)","B":"var(--yellow)","C":"var(--orange)","D":"var(--red)","F":"var(--red)"};
+    html+='<div class="tc" id="thdr"><div style="display:flex;align-items:center;gap:20px;margin-bottom:16px;flex-wrap:wrap"><div class="hdr-grade-big" style="color:'+(GC2[hd.grade]||'var(--text)')+'">'+hd.grade+'</div><div><div style="font-size:14px;font-weight:500">'+(hd.url||'')+'</div><div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:3px">HTTP '+(hd.status_code||'')+' · Score '+(hd.score||0)+'/100'+(hd.server?' · '+hd.server:'')+'</div></div></div>';
+    if(hd.issues?.length){html+='<div class="sec-label">ISSUES</div>'+hd.issues.map(i=>'<div class="ssl-issue">'+sev(i.severity)+'<span style="font-size:12px;margin-left:6px">'+i.msg+'</span></div>').join('')+'<div style="margin-bottom:14px"></div>';}
+    html+='<div class="sec-label">RESPONSE HEADERS</div><div style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">'+Object.entries(hd.headers||{}).slice(0,25).map(([k,v])=>'<div class="hdr-row"><span class="hdr-key">'+k+'</span><span class="hdr-val">'+String(v).substring(0,100)+'</span></div>').join('')+'</div></div>';
   }
-
-  const r=document.getElementById("res");r.innerHTML=html;r.style.display="block";
+  const res=document.getElementById('res');res.innerHTML=html;res.style.display='block';
   window._sd=data;
 }
 
-function tp2(hdr){const b=hdr.nextElementSibling;const c=hdr.querySelector(".chev");b.classList.toggle("open");c.style.transform=b.classList.contains("open")?"rotate(180deg)":"none";}
-function swt(e,id){const p=document.getElementById("res");p.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));p.querySelectorAll(".tc").forEach(t=>t.classList.remove("active"));e.currentTarget.classList.add("active");const tc=document.getElementById(id);if(tc)tc.classList.add("active");}
+function tp2(hdr){const b=hdr.nextElementSibling;const c=hdr.querySelector('.chev');b.classList.toggle('open');c.classList.toggle('open');}
+function swt(e,id){const p=document.getElementById('res');p.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));p.querySelectorAll('.tc').forEach(t=>t.classList.remove('active'));e.currentTarget.classList.add('active');const tc=document.getElementById(id);if(tc)tc.classList.add('active');}
 
+// ══ GENERIC TOOL RUNNER ═══════════════════════════════════════════════════
+function mkTool(prefix){
+  let logEl=null,progT=null,progV=0;
+  return{
+    start(){logEl=document.getElementById(prefix+'-term');if(logEl){logEl.innerHTML='';logEl.classList.add('visible');}const e=document.getElementById(prefix+'-err');if(e){e.textContent='';e.classList.remove('visible');}const r=document.getElementById(prefix+'-res');if(r){r.innerHTML='';r.style.display='none';}startProg(prefix+'-prog');},
+    log(t,tp='i'){if(!logEl)return;const div=document.createElement('div');div.className='tl-'+tp;const pf={i:'[*]',s:'[+]',w:'[!]',e:'[x]'}[tp]||'[*]';div.innerHTML='<span class="tl-prefix">'+pf+'</span> '+t;logEl.appendChild(div);logEl.scrollTop=logEl.scrollHeight;},
+    end(){endProg(prefix+'-prog');},
+    err(m){const e=document.getElementById(prefix+'-err');if(e){e.textContent='Error: '+m;e.classList.add('visible');}},
+    res(html){const e=document.getElementById(prefix+'-res');if(e){e.innerHTML=html;e.style.display='block';}}
+  };
+}
+const hvTool=mkTool('hv'),drTool=mkTool('dr'),nkTool=mkTool('nk'),wpTool=mkTool('wp'),lyTool=mkTool('ly'),lgTool=mkTool('lg');
+
+// ══ HARVESTER ═════════════════════════════════════════════════════════════
+async function doHarvest(){
+  const target=document.getElementById('hv-target').value.trim();if(!target){alert('Enter a domain');return;}
+  const srcEl=document.getElementById('hv-sources');const sources=Array.from(srcEl.selectedOptions).map(o=>o.value).join(',');
+  const limit=document.getElementById('hv-limit').value||500;
+  const btn=document.getElementById('hv-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  hvTool.start();hvTool.log('Target: '+target);hvTool.log('Sources: '+sources);hvTool.log('Launching theHarvester...','w');
+  try{
+    const r=await fetchWithTimeout('/harvester',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target,sources,limit:parseInt(limit)})},180000,'hv');
+    const d=await r.json();hvTool.end();
+    if(d.error){hvTool.log(d.error,'e');hvTool.err(d.error);}
+    else{hvTool.log('Done — '+(d.emails?.length||0)+' emails, '+(d.hosts?.length||0)+' hosts, '+(d.subdomains?.length||0)+' subdomains','s');renderHarvest(d);showToast('theHarvester','Found '+(d.emails?.length||0)+' emails, '+(d.subdomains?.length||0)+' subdomains','success');}
+  }catch(e){hvTool.end();hvTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN HARVESTER';}
+}
+function renderHarvest(d){
+  const emails=d.emails||[],hosts=d.hosts||[],subs=d.subdomains||[],ips=d.ips||[];
+  let html='<div class="stats" style="margin-bottom:14px"><div class="stat"><div class="stat-val">'+emails.length+'</div><div class="stat-lbl">EMAILS</div></div><div class="stat"><div class="stat-val">'+hosts.length+'</div><div class="stat-lbl">HOSTS</div></div><div class="stat"><div class="stat-val">'+subs.length+'</div><div class="stat-lbl">SUBDOMAINS</div></div><div class="stat"><div class="stat-val">'+ips.length+'</div><div class="stat-lbl">IPs</div></div></div>';
+  if(emails.length)html+='<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">Emails ('+emails.length+')</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+emails.map(e=>'<span class="tag">'+e+'</span>').join('')+'</div></div>';
+  if(subs.length)html+='<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">Subdomains ('+subs.length+')</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+subs.map(s=>'<span class="tag">'+s+'</span>').join('')+'</div></div>';
+  if(hosts.length)html+='<div class="card" style="margin-bottom:10px"><div class="card-header"><div class="card-title">Hosts</div></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>HOST</th><th>IP</th></tr></thead><tbody>'+hosts.map(h=>'<tr><td>'+(h.host||h)+'</td><td style="color:var(--text3)">'+(h.ip||'—')+'</td></tr>').join('')+'</tbody></table></div></div>';
+  hvTool.res(html);
+}
+
+// ══ DNSRECON ══════════════════════════════════════════════════════════════
+async function doDnsRecon(){
+  const target=document.getElementById('dr-target').value.trim();if(!target){alert('Enter a domain');return;}
+  const type=document.getElementById('dr-type').value;const ns=document.getElementById('dr-ns').value.trim();const filter=document.getElementById('dr-filter').value;
+  const btn=document.getElementById('dr-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  drTool.start();drTool.log('Target: '+target);drTool.log('Type: '+type);
+  try{
+    const r=await fetchWithTimeout('/dnsrecon',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target,type,ns,filter})},120000,'dr');
+    const d=await r.json();drTool.end();
+    if(d.error){drTool.log(d.error,'e');drTool.err(d.error);}
+    else{drTool.log('Done — '+(d.records?.length||0)+' records','s');renderDnsRecon(d);}
+  }catch(e){drTool.end();drTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN DNSRECON';}
+}
+function renderDnsRecon(d){
+  const recs=d.records||[];const byType={};recs.forEach(r=>{if(!byType[r.type])byType[r.type]=[];byType[r.type].push(r);});
+  let html='<div class="stat" style="margin-bottom:14px;display:inline-block"><div class="stat-val">'+recs.length+'</div><div class="stat-lbl">RECORDS</div></div>';
+  Object.entries(byType).forEach(([type,items])=>{html+='<div class="card" style="margin-bottom:8px"><div class="card-header"><div class="card-title">'+type+' Records ('+items.length+')</div></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>NAME</th><th>VALUE</th><th>TTL</th></tr></thead><tbody>'+items.map(r=>'<tr><td>'+(r.name||'—')+'</td><td>'+(r.address||r.value||'—')+'</td><td style="color:var(--text3)">'+(r.ttl||'—')+'</td></tr>').join('')+'</tbody></table></div></div>';});
+  drTool.res(html);
+}
+
+// ══ NIKTO ════════════════════════════════════════════════════════════════
+async function doNikto(){
+  const target=document.getElementById('nk-target').value.trim();if(!target){alert('Enter a target');return;}
+  const port=document.getElementById('nk-port').value||80;const ssl_flag=document.getElementById('nk-ssl').value;const tuning=document.getElementById('nk-tuning').value;
+  const btn=document.getElementById('nk-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
+  nkTool.start();nkTool.log('Target: '+target+' port '+port);nkTool.log('This may take several minutes','w');
+  try{
+    const r=await fetchWithTimeout('/nikto',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target,port:parseInt(port),ssl:ssl_flag,tuning})},600000,'nk');
+    const d=await r.json();nkTool.end();
+    if(d.error){nkTool.log(d.error,'e');nkTool.err(d.error);}
+    else{nkTool.log('Done — '+(d.findings?.length||0)+' findings','s');renderNikto(d);}
+  }catch(e){nkTool.end();nkTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN NIKTO';}
+}
+function renderNikto(d){
+  const f=d.findings||[];const crit=f.filter(x=>x.severity==='high').length;
+  let html='<div class="stats" style="margin-bottom:14px"><div class="stat"><div class="stat-val">'+f.length+'</div><div class="stat-lbl">FINDINGS</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">'+crit+'</div><div class="stat-lbl">HIGH</div></div><div class="stat"><div class="stat-val">'+d.server+'</div><div class="stat-lbl">SERVER</div></div></div>';
+  if(f.length)html+='<div class="card"><div class="card-header"><div class="card-title">Findings</div></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>ID</th><th>DESCRIPTION</th><th>URL</th></tr></thead><tbody>'+f.map(x=>'<tr><td style="font-family:var(--mono);font-size:11px">'+(x.id||'—')+'</td><td style="color:'+(x.severity==='high'?'var(--red)':x.severity==='medium'?'var(--orange)':'var(--text)')+'">'+(x.description||'—')+'</td><td style="font-size:11px;color:var(--text3)">'+(x.url||'')+'</td></tr>').join('')+'</tbody></table></div></div>';
+  else html+='<div style="color:var(--green);font-size:13px">&#10003; No findings detected.</div>';
+  nkTool.res(html);
+}
+
+// ══ WPSCAN ═══════════════════════════════════════════════════════════════
+async function doWPScan(){
+  const target=document.getElementById('wp-target').value.trim();if(!target){alert('Enter a URL');return;}
+  const enumEl=document.getElementById('wp-enum');const flags=Array.from(enumEl.selectedOptions).map(o=>o.value).join(',');
+  const token=document.getElementById('wp-token').value.trim();const mode=document.getElementById('wp-mode').value;
+  const btn=document.getElementById('wp-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
+  wpTool.start();wpTool.log('Target: '+target);wpTool.log('Enumerating: '+flags);
+  try{
+    const r=await fetchWithTimeout('/wpscan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target,enum_flags:flags,token,mode})},300000,'wp');
+    const d=await r.json();wpTool.end();
+    if(d.error){wpTool.err(d.error);wpTool.log(d.error,'e');}
+    else{wpTool.log('Done — '+(d.vulnerabilities?.length||0)+' vulns, '+(d.users?.length||0)+' users','s');renderWPScan(d);}
+  }catch(e){wpTool.end();wpTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN WPSCAN';}
+}
+function renderWPScan(d){
+  const v=d.vulnerabilities||[],u=d.users||[],p=d.plugins||[];
+  let html='<div class="stats" style="margin-bottom:14px"><div class="stat"><div class="stat-val" style="color:var(--red)">'+v.length+'</div><div class="stat-lbl">VULNS</div></div><div class="stat"><div class="stat-val">'+p.length+'</div><div class="stat-lbl">PLUGINS</div></div><div class="stat"><div class="stat-val">'+u.length+'</div><div class="stat-lbl">USERS</div></div><div class="stat"><div class="stat-val">'+(d.wp_version||'?')+'</div><div class="stat-lbl">WP VERSION</div></div></div>';
+  if(v.length)html+='<div class="card" style="margin-bottom:8px"><div class="card-header"><div class="card-title">Vulnerabilities</div></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>TITLE</th><th>TYPE</th><th>REF</th></tr></thead><tbody>'+v.map(x=>'<tr><td style="color:var(--red)">'+(x.title||'—')+'</td><td style="color:var(--orange)">'+(x.type||'—')+'</td><td style="font-size:11px;color:var(--text3)">'+(x.references?.cve?.join(', ')||'—')+'</td></tr>').join('')+'</tbody></table></div></div>';
+  if(u.length)html+='<div class="card card-p" style="margin-bottom:8px"><div class="card-title" style="margin-bottom:8px">Users</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+u.map(x=>'<span class="tag">'+x+'</span>').join('')+'</div></div>';
+  if(p.length)html+='<div class="card"><div class="card-header"><div class="card-title">Plugins</div></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>PLUGIN</th><th>VERSION</th><th>VULNS</th></tr></thead><tbody>'+p.map(x=>'<tr><td>'+(x.name||'—')+'</td><td style="color:var(--text3)">'+(x.version||'—')+'</td><td style="color:'+(x.vulnerabilities?.length?'var(--red)':'var(--green)')+'">'+(x.vulnerabilities?.length||0)+'</td></tr>').join('')+'</tbody></table></div></div>';
+  wpTool.res(html);
+}
+
+// ══ LYNIS ════════════════════════════════════════════════════════════════
+async function doLynis(){
+  const profile=document.getElementById('ly-profile').value;const category=document.getElementById('ly-category').value;const compliance=document.getElementById('ly-compliance').value;
+  const btn=document.getElementById('ly-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Auditing...';
+  lyTool.start();lyTool.log('Lynis audit starting...');lyTool.log('Profile: '+profile+(compliance?' | Compliance: '+compliance:''),'w');
+  try{
+    const r=await fetchWithTimeout('/lynis',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile,category,compliance})},300000,'ly');
+    const d=await r.json();lyTool.end();
+    if(d.error){lyTool.log(d.error,'e');lyTool.err(d.error);}
+    else{lyTool.log('Audit complete — Hardening Index: '+(d.hardening_index||'?'),(d.hardening_index>=70?'s':'w'));renderLynis(d);}
+  }catch(e){lyTool.end();lyTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN LYNIS AUDIT';}
+}
+function renderLynis(d){
+  const w=d.warnings||[],sg=d.suggestions||[],sc=d.hardening_index||0;
+  const sc_col=sc>=80?'var(--green)':sc>=60?'var(--yellow)':sc>=40?'var(--orange)':'var(--red)';
+  let html='<div class="stats" style="margin-bottom:14px"><div class="stat"><div class="stat-val" style="color:'+sc_col+'">'+sc+'</div><div class="stat-lbl">HARDENING INDEX</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">'+w.length+'</div><div class="stat-lbl">WARNINGS</div></div><div class="stat"><div class="stat-val" style="color:var(--yellow)">'+sg.length+'</div><div class="stat-lbl">SUGGESTIONS</div></div><div class="stat"><div class="stat-val">'+(d.tests_performed||'—')+'</div><div class="stat-lbl">TESTS</div></div></div>';
+  if(w.length)html+='<div class="card card-p" style="margin-bottom:8px"><div class="card-title" style="margin-bottom:8px;color:var(--red)">Warnings</div>'+w.map(x=>'<div style="border-bottom:1px solid var(--border);padding:7px 0;font-family:var(--mono);font-size:11px;color:var(--orange)">'+x+'</div>').join('')+'</div>';
+  if(sg.length)html+='<div class="card card-p"><div class="card-title" style="margin-bottom:8px">Suggestions ('+sg.length+')</div>'+sg.slice(0,30).map(x=>'<div style="border-bottom:1px solid var(--border);padding:6px 0;font-family:var(--mono);font-size:11px;color:var(--text2)">› '+x+'</div>').join('')+(sg.length>30?'<div style="color:var(--text3);font-size:11px;padding-top:8px">...and '+(sg.length-30)+' more</div>':'')+'</div>';
+  lyTool.res(html);
+}
+
+// ══ LEGION ════════════════════════════════════════════════════════════════
+const lgMods={'nmap':true,'nikto':true,'smb':true,'snmp':true,'hydra':false,'finger':false};
+function lgMod(m,el){lgMods[m]=!lgMods[m];el.classList.toggle('on',lgMods[m]);}
+async function doLegion(){
+  const target=document.getElementById('lg-target').value.trim();if(!target){alert('Enter a target');return;}
+  const intensity=document.getElementById('lg-intensity').value;const modules=Object.entries(lgMods).filter(([,v])=>v).map(([k])=>k);
+  const btn=document.getElementById('lg-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  lgTool.start();lgTool.log('Target: '+target);lgTool.log('Modules: '+modules.join(', '));lgTool.log('Intensity: '+intensity,'w');
+  try{
+    const r=await fetchWithTimeout('/legion',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target,intensity,modules})},900000,'lg');
+    const d=await r.json();lgTool.end();
+    if(d.error){lgTool.err(d.error);}
+    else{lgTool.log('Legion complete','s');renderLegion(d);}
+  }catch(e){lgTool.end();lgTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN LEGION';}
+}
+function renderLegion(d){
+  let html='<div class="stats" style="margin-bottom:14px"><div class="stat"><div class="stat-val">'+(d.open_ports||0)+'</div><div class="stat-lbl">OPEN PORTS</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">'+(d.total_issues||0)+'</div><div class="stat-lbl">ISSUES</div></div><div class="stat"><div class="stat-val">'+(d.modules_run||0)+'</div><div class="stat-lbl">MODULES</div></div></div>';
+  (d.results||[]).forEach(r=>{html+='<div class="card" style="margin-bottom:8px"><div class="card-header"><div class="card-title">'+(r.module?.toUpperCase()||'MODULE')+'</div></div>';if(r.findings?.length)html+='<div class="tbl-wrap"><table class="tbl"><thead><tr><th>FINDING</th><th>DETAIL</th></tr></thead><tbody>'+r.findings.map(f=>'<tr><td>'+(f.title||f)+'</td><td style="color:var(--text3);font-size:11px">'+(f.detail||'')+'</td></tr>').join('')+'</tbody></table></div>';else html+='<div class="card-p" style="color:var(--text3);font-size:12px">'+(r.summary||'No findings')+'</div>';html+='</div>';});
+  lgTool.res(html);
+}
+
+// ══ SUBDOMAIN ════════════════════════════════════════════════════════════
 async function doSub(){
-  const domain=document.getElementById("sub-domain").value.trim();
-  const size=document.getElementById("sub-size").value;
+  const domain=document.getElementById('sub-domain').value.trim();const size=document.getElementById('sub-size').value;
   if(!domain)return;
-  const btn=document.getElementById("sub-btn");
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span>SCANNING...';
-  document.getElementById("sub-res").innerHTML=`<div class="card"><p style="color:var(--m);font-size:13px">Enumerating subdomains for <b style="color:var(--cyan)">${domain}</b>...</p></div>`;
+  const btn=document.getElementById('sub-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
+  document.getElementById('sub-res').innerHTML='<div style="color:var(--text3);font-size:13px">Enumerating subdomains for <strong>'+domain+'</strong>...</div>';
   try{
-    const r=await fetchWithTimeout("/subdomains?domain="+encodeURIComponent(domain)+"&size="+size,{},120000);
+    const r=await fetchWithTimeout('/subdomains?domain='+encodeURIComponent(domain)+'&size='+size,{},120000);
     const d=await r.json();
-    if(d.error){document.getElementById("sub-res").innerHTML=`<div class="card"><p style="color:var(--red)">${d.error}</p></div>`;return;}
-    let html=`<div class="card">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
-        <span class="found-badge">${d.total} SUBDOMAINS FOUND</span>
-        <span style="color:var(--m);font-size:11px;font-family:'JetBrains Mono',monospace">Sources: ${(d.sources||[]).join(", ")}</span>
-      </div>
-      <div style="overflow-x:auto"><table class="res-tbl">
-        <thead><tr><th>SUBDOMAIN</th><th>IP ADDRESS</th><th>SOURCE</th><th>ACTION</th></tr></thead><tbody>
-        ${(d.subdomains||[]).map(s=>`<tr>
-          <td style="color:var(--cyan)">${s.subdomain}</td>
-          <td>${s.ip}</td>
-          <td>${tag(s.source||"dns",s.source==="crt.sh"?"#b06fff":s.source==="hackertarget"?"#00e5ff":"#00ff9d")}</td>
-          <td><button class="lbtn" onclick="scanFromSub('${s.subdomain}')">SCAN</button></td>
-        </tr>`).join("")}
-        </tbody>
-      </table></div>
-    </div>`;
-    document.getElementById("sub-res").innerHTML=html;
-  }catch(e){document.getElementById("sub-res").innerHTML=`<div class="card"><p style="color:var(--red)">Error: ${e.message}</p></div>`;}
-  finally{btn.disabled=false;btn.innerHTML="FIND SUBDOMAINS";}
+    if(d.error){document.getElementById('sub-res').innerHTML='<div class="err-box visible">'+d.error+'</div>';return;}
+    let html='<div class="found" style="margin-bottom:12px">'+d.total+' subdomains found &nbsp;·&nbsp; '+((d.sources||[]).join(', '))+'</div>';
+    html+='<div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>SUBDOMAIN</th><th>IP</th><th>SOURCE</th><th></th></tr></thead><tbody>';
+    (d.subdomains||[]).forEach(s=>{html+='<tr><td style="font-family:var(--mono)">'+(s.subdomain||'')+'</td><td style="color:var(--text3)">'+(s.ip||'')+'</td><td><span class="tag">'+(s.source||'dns')+'</span></td><td><button class="btn btn-ghost btn-sm" onclick="scanFromSub(\''+s.subdomain+'\')">Scan</button></td></tr>';});
+    html+='</tbody></table></div></div>';
+    document.getElementById('sub-res').innerHTML=html;
+  }catch(e){document.getElementById('sub-res').innerHTML='<div class="err-box visible">'+e.message+'</div>';}
+  finally{btn.disabled=false;btn.innerHTML='FIND SUBDOMAINS';}
 }
-function scanFromSub(d){document.getElementById("tgt").value=d;pg("scan",document.querySelector(".nb"));doScan();}
+function scanFromSub(d){document.getElementById('tgt').value=d;pg('scan',null);doScan();}
 
+// ══ DIR BUSTER ════════════════════════════════════════════════════════════
 async function doDir(){
-  const url=document.getElementById("dir-url").value.trim();
-  const size=document.getElementById("dir-size").value;
-  const ext=document.getElementById("dir-ext").value.trim();
+  const url=document.getElementById('dir-url').value.trim();const size=document.getElementById('dir-size').value;const ext=document.getElementById('dir-ext').value.trim();
   if(!url)return;
-  const btn=document.getElementById("dir-btn");
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span>SCANNING...';
-  document.getElementById("dir-res").innerHTML=`<div class="card"><p style="color:var(--m);font-size:13px">Enumerating directories on <b style="color:var(--cyan)">${url}</b>...</p></div>`;
+  const btn=document.getElementById('dir-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
+  document.getElementById('dir-res').innerHTML='<div style="color:var(--text3);font-size:13px">Enumerating directories...</div>';
   try{
-    const r=await fetchWithTimeout("/dirbust?url="+encodeURIComponent(url)+"&size="+size+"&ext="+encodeURIComponent(ext),{},180000);
+    const r=await fetchWithTimeout('/dirbust?url='+encodeURIComponent(url)+'&size='+size+'&ext='+encodeURIComponent(ext),{},180000);
     const d=await r.json();
-    if(d.error){document.getElementById("dir-res").innerHTML=`<div class="card"><p style="color:var(--red)">${d.error}</p></div>`;return;}
-    let html=`<div class="card">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
-        <span class="found-badge">${d.total} PATHS FOUND</span>
-        <span style="color:var(--m);font-size:11px;font-family:'JetBrains Mono',monospace">${d.scanned} scanned &middot; ${d.errors} errors</span>
-      </div>
-      <div style="overflow-x:auto"><table class="res-tbl">
-        <thead><tr><th>URL</th><th>STATUS</th><th>SIZE</th><th>SEVERITY</th><th>NOTE</th></tr></thead><tbody>
-        ${(d.found||[]).map(f=>`<tr>
-          <td><a href="${f.url}" target="_blank" style="color:var(--cyan);text-decoration:none;font-size:11px">${f.url}</a></td>
-          <td style="color:${statusCol(f.status)};font-weight:700">${f.status}</td>
-          <td style="color:var(--m)">${f.size||"?"}</td>
-          <td>${bdg(f.severity,true)}</td>
-          <td style="color:#8e8e93;font-size:11px">${f.note||""}</td>
-        </tr>`).join("")}
-        </tbody>
-      </table></div>
-    </div>`;
-    document.getElementById("dir-res").innerHTML=html;
-  }catch(e){document.getElementById("dir-res").innerHTML=`<div class="card"><p style="color:var(--red)">Error: ${e.message}</p></div>`;}
-  finally{btn.disabled=false;btn.innerHTML="START ENUMERATION";}
+    if(d.error){document.getElementById('dir-res').innerHTML='<div class="err-box visible">'+d.error+'</div>';return;}
+    let html='<div class="found" style="margin-bottom:12px">'+d.total+' paths found &nbsp;·&nbsp; '+d.scanned+' scanned</div>';
+    html+='<div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>URL</th><th>STATUS</th><th>SIZE</th><th>SEVERITY</th><th>NOTE</th></tr></thead><tbody>';
+    (d.found||[]).forEach(f=>{const sc=f.status;const sc_col=sc===200?'var(--green)':sc<400?'var(--yellow)':'var(--orange)';html+='<tr><td><a href="'+f.url+'" target="_blank" style="font-family:var(--mono);font-size:11px;color:var(--text)">'+f.url+'</a></td><td style="font-family:var(--mono);font-weight:500;color:'+sc_col+'">'+sc+'</td><td style="color:var(--text3)">'+(f.size||'?')+'</td><td>'+sev(f.severity)+'</td><td style="color:var(--text3);font-size:11px">'+(f.note||'')+'</td></tr>';});
+    html+='</tbody></table></div></div>';
+    document.getElementById('dir-res').innerHTML=html;
+  }catch(e){document.getElementById('dir-res').innerHTML='<div class="err-box visible">'+e.message+'</div>';}
+  finally{btn.disabled=false;btn.innerHTML='START ENUMERATION';}
 }
 
-function bfTypeChange(){
-  const t=document.getElementById("bf-type").value;
-  document.getElementById("bf-http-fields").style.display=t==="http"?"block":"none";
-  document.getElementById("bf-ssh-fields").style.display=t==="ssh"?"block":"none";
-}
+// ══ BRUTE FORCE ══════════════════════════════════════════════════════════
+function bfTypeChange(){const t=document.getElementById('bf-type').value;document.getElementById('bf-http-fields').style.display=t==='http'?'block':'none';document.getElementById('bf-ssh-fields').style.display=t==='ssh'?'block':'none';}
 async function doBrute(){
-  const type=document.getElementById("bf-type").value;
-  const users=document.getElementById("bf-users").value.split("\n").map(s=>s.trim()).filter(Boolean);
-  const pwds=document.getElementById("bf-pwds").value.split("\n").map(s=>s.trim()).filter(Boolean);
-  if(!users.length||!pwds.length){alert("Enter at least one username and password");return;}
-  const btn=document.getElementById("bf-btn");
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span>ATTACKING...';
-  document.getElementById("bf-res").innerHTML=`<div class="card"><p style="color:var(--m);font-size:13px">Running — ${users.length} users × ${pwds.length} passwords...</p></div>`;
+  const type=document.getElementById('bf-type').value;
+  const users=document.getElementById('bf-users').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  const pwds=document.getElementById('bf-pwds').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  if(!users.length||!pwds.length){alert('Enter at least one username and password');return;}
+  const btn=document.getElementById('bf-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Attacking...';
+  document.getElementById('bf-res').innerHTML='<div style="color:var(--text3);font-size:13px">Running — '+users.length+' users × '+pwds.length+' passwords...</div>';
   try{
-    let url="/brute-http",body={users,passwords:pwds};
-    if(type==="http"){body.url=document.getElementById("bf-url").value.trim();body.user_field=document.getElementById("bf-ufield").value||"username";body.pass_field=document.getElementById("bf-pfield").value||"password";}
-    else{url="/brute-ssh";body.host=document.getElementById("bf-ssh-host").value.trim();body.port=document.getElementById("bf-ssh-port").value||"22";}
-    const r=await fetchWithTimeout(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)},120000);
+    let url='/brute-http',body={users,passwords:pwds};
+    if(type==='http'){body.url=document.getElementById('bf-url').value.trim();body.user_field=document.getElementById('bf-ufield').value||'username';body.pass_field=document.getElementById('bf-pfield').value||'password';}
+    else{url='/brute-ssh';body.host=document.getElementById('bf-ssh-host').value.trim();body.port=document.getElementById('bf-ssh-port').value||'22';}
+    const r=await fetchWithTimeout(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},120000);
     const d=await r.json();
     const found=d.found||[];
-    document.getElementById("bf-res").innerHTML=`<div class="card">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
-        <span class="found-badge">${found.length} CREDENTIALS FOUND</span>
-        <span style="color:var(--m);font-size:11px;font-family:'JetBrains Mono',monospace">${d.attempts||0} attempts &middot; ${d.status||""}</span>
-        ${d.note?`<span style="color:var(--yellow);font-size:11px">${d.note}</span>`:""}
-      </div>
-      ${found.length?`<table class="res-tbl"><thead><tr><th>USERNAME</th><th>PASSWORD</th><th>STATUS</th></tr></thead><tbody>
-        ${found.map(f=>`<tr><td style="color:var(--cyan)">${f.username}</td><td style="color:var(--red);font-weight:700">${f.password}</td><td style="color:var(--green)">&#10003; SUCCESS</td></tr>`).join("")}
-      </tbody></table>`:`<p style="color:var(--green);font-size:13px">&#10003; No valid credentials found.</p>`}
-    </div>`;
-  }catch(e){document.getElementById("bf-res").innerHTML=`<div class="card"><p style="color:var(--red)">Error: ${e.message}</p></div>`;}
-  finally{btn.disabled=false;btn.innerHTML="START BRUTE FORCE";}
+    document.getElementById('bf-res').innerHTML='<div class="found" style="margin-bottom:12px">'+found.length+' credentials found &nbsp;·&nbsp; '+(d.attempts||0)+' attempts</div>'+(found.length?'<div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>USERNAME</th><th>PASSWORD</th><th>STATUS</th></tr></thead><tbody>'+found.map(f=>'<tr><td style="font-family:var(--mono)">'+f.username+'</td><td style="font-family:var(--mono);color:var(--red);font-weight:500">'+f.password+'</td><td style="color:var(--green)">SUCCESS</td></tr>').join('')+'</tbody></table></div></div>':'<div style="color:var(--green);font-size:13px">No valid credentials found.</div>');
+  }catch(e){document.getElementById('bf-res').innerHTML='<div class="err-box visible">'+e.message+'</div>';}
+  finally{btn.disabled=false;btn.innerHTML='START BRUTE FORCE';}
 }
 
+// ══ DISCOVER ══════════════════════════════════════════════════════════════
 async function doDisc(){
-  const subnet=document.getElementById("subnet").value.trim();if(!subnet)return;
-  const btn=document.getElementById("disc-btn");
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span>SCANNING...';
-  document.getElementById("disc-res").innerHTML=`<div class="card"><p style="color:var(--m)">Scanning subnet...</p></div>`;
+  const subnet=document.getElementById('subnet').value.trim();if(!subnet)return;
+  const btn=document.getElementById('disc-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
+  document.getElementById('disc-res').innerHTML='<div style="color:var(--text3)">Scanning subnet...</div>';
   try{
-    const r=await fetchWithTimeout("/discover?subnet="+encodeURIComponent(subnet),{},120000);
+    const r=await fetchWithTimeout('/discover?subnet='+encodeURIComponent(subnet),{},120000);
     const d=await r.json();
-    if(d.error){document.getElementById("disc-res").innerHTML=`<div class="card"><p style="color:var(--red)">${d.error}</p></div>`;return;}
-    document.getElementById("disc-res").innerHTML=`<div class="card"><div class="ctitle">${d.total||0} HOSTS FOUND</div><div class="hg">
-      ${(d.hosts||[]).map(h=>`<div class="ht" onclick="scanDisc('${h.ip}')">
-        <div class="hip">${h.ip}</div>
-        ${h.hostnames?.[0]?`<div style="color:var(--m);font-size:11px;font-family:'JetBrains Mono',monospace;margin-top:3px">${h.hostnames[0]}</div>`:""}
-        ${h.vendor?`<div style="color:#636366;font-size:10px;margin-top:2px">${h.vendor}</div>`:""}
-        <div style="color:var(--m);font-size:10px;font-family:'JetBrains Mono',monospace;margin-top:7px">Click to scan &rsaquo;</div>
-      </div>`).join("")}
-    </div></div>`;
-  }catch(e){document.getElementById("disc-res").innerHTML=`<div class="card"><p style="color:var(--red)">${e.message}</p></div>`;}
-  finally{btn.disabled=false;btn.innerHTML="DISCOVER";}
+    if(d.error){document.getElementById('disc-res').innerHTML='<div class="err-box visible">'+d.error+'</div>';return;}
+    document.getElementById('disc-res').innerHTML='<div class="found" style="margin-bottom:12px">'+(d.total||0)+' hosts found</div><div class="host-grid">'+( d.hosts||[]).map(h=>'<div class="host-card" onclick="scanDisc(\''+h.ip+'\')"><div class="host-card-ip">'+h.ip+'</div>'+(h.hostnames?.[0]?'<div class="host-card-hn">'+h.hostnames[0]+'</div>':'')+(h.vendor?'<div style="font-size:10px;color:var(--text3);margin-top:2px">'+h.vendor+'</div>':'')+'<div style="font-size:10px;color:var(--text3);margin-top:6px">Click to scan ›</div></div>').join('')+'</div>';
+  }catch(e){document.getElementById('disc-res').innerHTML='<div class="err-box visible">'+e.message+'</div>';}
+  finally{btn.disabled=false;btn.innerHTML='DISCOVER';}
 }
-function scanDisc(ip){document.getElementById("tgt").value=ip;pg("scan",document.querySelector(".nb"));doScan();}
+function scanDisc(ip){document.getElementById('tgt').value=ip;pg('scan',null);doScan();}
 
+// ══ HISTORY ═══════════════════════════════════════════════════════════════
 async function loadHist(){
   try{
-    const r=await fetch("/history");const d=await r.json();
-    if(!Array.isArray(d)||!d.length){document.getElementById("hist-content").innerHTML=`<p style="color:var(--m);font-size:13px">No scans yet.</p>`;return;}
-    document.getElementById("hist-content").innerHTML=`<div style="overflow-x:auto"><table class="tbl">
-      <thead><tr><th>ID</th><th>TARGET</th><th>TIME</th><th>PORTS</th><th>CVEs</th><th>CRITICAL</th><th>ACTION</th></tr></thead><tbody>
-      ${d.map(s=>`<tr>
-        <td style="color:var(--m)">#${s.id}</td><td style="color:var(--cyan)">${s.target}</td>
-        <td style="color:var(--m)">${(s.scan_time||"").replace("T"," ").substring(0,19)}</td>
-        <td>${s.open_ports}</td><td>${s.total_cves}</td>
-        <td style="color:${s.critical_cves>0?"var(--red)":"var(--green)"}">${s.critical_cves}</td>
-        <td><button class="lbtn" onclick="loadScan(${s.id})">VIEW</button></td>
-      </tr>`).join("")}
-      </tbody></table></div>`;
-  }catch(e){document.getElementById("hist-content").innerHTML=`<p style="color:var(--red)">${e.message}</p>`;}
+    const r=await fetch('/history');const d=await r.json();
+    if(!Array.isArray(d)||!d.length){document.getElementById('hist-content').innerHTML='<div class="card-p" style="color:var(--text3)">No scans yet.</div>';return;}
+    document.getElementById('hist-content').innerHTML='<div class="tbl-wrap"><table class="tbl"><thead><tr><th>#</th><th>TARGET</th><th>TIME</th><th>PORTS</th><th>CVEs</th><th>CRITICAL</th><th></th></tr></thead><tbody>'+d.map(s=>'<tr><td style="color:var(--text3)">#'+s.id+'</td><td style="font-family:var(--mono)">'+s.target+'</td><td style="color:var(--text3);font-size:11px">'+((s.scan_time||'').replace('T',' ').substring(0,19))+'</td><td>'+s.open_ports+'</td><td>'+s.total_cves+'</td><td style="color:'+(s.critical_cves>0?'var(--red)':'var(--text3)')+'">'+s.critical_cves+'</td><td><button class="btn btn-ghost btn-sm" onclick="loadScan('+s.id+')">View</button></td></tr>').join('')+'</tbody></table></div>';
+  }catch(e){document.getElementById('hist-content').innerHTML='<div class="card-p" style="color:var(--red)">'+e.message+'</div>';}
 }
 async function loadScan(id){
-  pg("scan",document.querySelector(".nb"));clrUI();
-  try{const r=await fetch("/scan/"+id);const d=await r.json();document.getElementById("tgt").value=d.target||"";renderScan(d);initLog();lg("Loaded scan #"+id,"s");}
-  catch(e){showErr(e.message);}
+  pg('scan',null);clrUI();
+  try{const r=await fetch('/scan/'+id);const d=await r.json();document.getElementById('tgt').value=d.target||'';renderScan(d);}
+  catch(e){showErr('err','Error: '+e.message);}
 }
 
+// ══ DASHBOARD ════════════════════════════════════════════════════════════
 async function loadDash(){
   try{
-    const r=await fetch("/history?limit=100");const d=await r.json();
-    if(!d.length){document.getElementById("dash-content").innerHTML=`<p style="color:var(--m);font-size:13px">Run some scans first.</p>`;return;}
+    const r=await fetch('/history?limit=100');const d=await r.json();
+    if(!d.length){document.getElementById('dash-content').innerHTML='<div style="color:var(--text3)">Run some scans first.</div>';return;}
     const tc=d.reduce((a,s)=>a+s.total_cves,0),cr=d.reduce((a,s)=>a+s.critical_cves,0),tp=d.reduce((a,s)=>a+s.open_ports,0);
     const mx=Math.max(...d.map(s=>s.total_cves),1);
-    document.getElementById("dash-content").innerHTML=`
-      <div class="sgrid" style="margin-bottom:18px">
-        <div class="sc"><div class="sv" style="color:var(--cyan)">${d.length}</div><div class="sl">SCANS</div></div>
-        <div class="sc"><div class="sv" style="color:var(--yellow)">${tc}</div><div class="sl">TOTAL CVEs</div></div>
-        <div class="sc"><div class="sv" style="color:var(--red)">${cr}</div><div class="sl">CRITICAL</div></div>
-        <div class="sc"><div class="sv" style="color:var(--green)">${tp}</div><div class="sl">OPEN PORTS</div></div>
-      </div>
-      <div class="dash-grid">
-        <div class="card"><div class="ctitle">TOP TARGETS BY CVEs</div>
-          ${d.slice(0,6).map(s=>`<div class="bar-row"><span class="bl">${s.target.substring(0,12)}</span><div class="bt"><div class="bf" style="width:${s.total_cves/mx*100}%;background:linear-gradient(90deg,var(--red),var(--orange))"></div></div><span class="bv">${s.total_cves}</span></div>`).join("")}
-        </div>
-        <div class="card"><div class="ctitle">RECENT ACTIVITY</div>
-          ${d.slice(0,8).map(s=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--b);font-size:12px;font-family:'JetBrains Mono',monospace"><span style="color:var(--cyan)">${s.target}</span><span style="color:${s.critical_cves>0?"var(--red)":"var(--m)"}">${s.critical_cves>0?"&#9762; "+s.critical_cves+" crit":s.total_cves+" CVEs"}</span></div>`).join("")}
-        </div>
-      </div>`;
-  }catch(e){document.getElementById("dash-content").innerHTML=`<p style="color:var(--red)">${e.message}</p>`;}
+    document.getElementById('dash-content').innerHTML='<div class="stats" style="margin-bottom:18px"><div class="stat"><div class="stat-val">'+d.length+'</div><div class="stat-lbl">SCANS</div></div><div class="stat"><div class="stat-val">'+tc+'</div><div class="stat-lbl">TOTAL CVEs</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">'+cr+'</div><div class="stat-lbl">CRITICAL</div></div><div class="stat"><div class="stat-val">'+tp+'</div><div class="stat-lbl">OPEN PORTS</div></div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px"><div class="card card-p"><div class="card-title" style="margin-bottom:12px">Top Targets by CVEs</div>'+d.slice(0,6).map(s=>'<div class="bar-row"><span class="bar-label">'+s.target.substring(0,14)+'</span><div class="bar-track"><div class="bar-fill" style="width:'+((s.total_cves/mx)*100)+'%"></div></div><span class="bar-val" style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+s.total_cves+'</span></div>').join('')+'</div><div class="card card-p"><div class="card-title" style="margin-bottom:12px">Recent Activity</div>'+d.slice(0,8).map(s=>'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="font-family:var(--mono)">'+s.target+'</span><span style="color:'+(s.critical_cves>0?'var(--red)':'var(--text3)')+'">'+(s.critical_cves>0?s.critical_cves+' critical':s.total_cves+' CVEs')+'</span></div>').join('')+'</div></div>';
+  }catch(e){document.getElementById('dash-content').innerHTML='<div style="color:var(--red)">'+e.message+'</div>';}
 }
 
+// ══ ADMIN ════════════════════════════════════════════════════════════════
 function adminTab(e,id){
-  document.querySelectorAll("#admin-tabs .tab").forEach(t=>t.classList.remove("active"));
-  document.querySelectorAll("#page-admin .tc").forEach(t=>t.classList.remove("active"));
-  e.currentTarget.classList.add("active");
-  document.getElementById(id).classList.add("active");
-  if(id==="at-users")loadAdminUsers();
-  if(id==="at-stats")loadAdminStats();
-  if(id==="at-audit")loadAdminAudit();
-  if(id==="at-scans")loadAdminScans();
-  if(id==="at-cli"){loadServerStats();initCliHeader();}
-  // Clear auto-refresh when leaving CLI tab
-  if(id!=="at-cli"&&window._statsInterval){clearInterval(window._statsInterval);window._statsInterval=null;}
+  document.querySelectorAll('#admin-tabs .tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('#page-admin .tc').forEach(t=>t.classList.remove('active'));
+  e.currentTarget.classList.add('active');
+  document.getElementById(id).classList.add('active');
+  if(id==='at-users')loadAdminUsers();
+  if(id==='at-stats')loadAdminStats();
+  if(id==='at-audit')loadAdminAudit();
+  if(id==='at-scans')loadAdminScans();
+  if(id==='at-cli'){loadServerStats();initCliHeader();}
+  if(id!=='at-cli'&&window._statsInterval){clearInterval(window._statsInterval);window._statsInterval=null;}
 }
 async function loadAdmin(){loadServerStats();setTimeout(initCliHeader,400);}
 
-// ── Server Statistics ──────────────────────────────────────────────────────
 let _statsInterval=null;
-function fmtBytes(b){
-  if(b===null||b===undefined)return"—";
-  if(b>=1073741824)return(b/1073741824).toFixed(1)+"G";
-  if(b>=1048576)return(b/1048576).toFixed(1)+"M";
-  if(b>=1024)return(b/1024).toFixed(1)+"K";
-  return b+"B";
-}
-function setBar(id,pct){
-  const el=document.getElementById(id);
-  if(!el)return;
-  const color=pct>90?"var(--red)":pct>70?"var(--orange)":pct>50?"var(--yellow)":"";
-  el.style.width=Math.min(100,pct)+"%";
-  if(color)el.style.background=color;
-}
+function fmtBytes(b){if(b===null||b===undefined)return'—';if(b>=1073741824)return(b/1073741824).toFixed(1)+'G';if(b>=1048576)return(b/1048576).toFixed(1)+'M';if(b>=1024)return(b/1024).toFixed(1)+'K';return b+'B';}
+function setBar(id,pct){const el=document.getElementById(id);if(!el)return;el.style.width=Math.min(100,pct)+'%';}
 async function loadServerStats(){
   try{
-    const r=await fetch("/api/server-stats");
-    const d=await r.json();
-    if(d.error){console.warn("stats:",d.error);return;}
-
-    // CPU
-    const cpuEl=document.getElementById("cpu-val");
-    const cpuPct=d.cpu_percent??0;
-    if(cpuEl){cpuEl.textContent=cpuPct+"%";cpuEl.style.color=cpuPct>90?"var(--red)":cpuPct>70?"var(--orange)":"var(--cyan)";}
-    setBar("cpu-bar",cpuPct);
-    const coresEl=document.getElementById("cpu-cores");
-    if(coresEl)coresEl.textContent=(d.cpu_count||"?")+" cores";
-
-    // Memory
-    const memPct=d.memory?.percent??0;
-    const memEl=document.getElementById("mem-val");
-    if(memEl){memEl.textContent=memPct+"%";memEl.style.color=memPct>90?"var(--red)":memPct>70?"var(--orange)":"var(--purple)";}
-    setBar("mem-bar",memPct);
-    const memTot=document.getElementById("mem-total");
-    if(memTot)memTot.textContent="of "+fmtBytes(d.memory?.total);
-
-    // Swap
-    const swapPct=d.swap?.percent??0;
-    const swapEl=document.getElementById("swap-val");
-    if(swapEl){swapEl.textContent=swapPct+"%";swapEl.style.color=swapPct>80?"var(--red)":swapPct>50?"var(--orange)":"var(--yellow)";}
-    setBar("swap-bar",swapPct);
-    const swapTot=document.getElementById("swap-total");
-    if(swapTot)swapTot.textContent="of "+fmtBytes(d.swap?.total);
-
-    // Disk
-    const diskPct=d.disk?.percent??0;
-    const diskEl=document.getElementById("disk-val");
-    if(diskEl){diskEl.textContent=diskPct+"%";diskEl.style.color=diskPct>90?"var(--red)":diskPct>75?"var(--orange)":"var(--orange)";}
-    setBar("disk-bar",diskPct);
-    const diskTot=document.getElementById("disk-total");
-    if(diskTot)diskTot.textContent="of "+fmtBytes(d.disk?.total);
-
-    // Network
-    const txEl=document.getElementById("net-tx");
-    const rxEl=document.getElementById("net-rx");
-    if(txEl)txEl.textContent=fmtBytes(d.net?.bytes_sent);
-    if(rxEl)rxEl.textContent=fmtBytes(d.net?.bytes_recv);
-    const ifaceEl=document.getElementById("net-iface");
-    if(ifaceEl)ifaceEl.textContent=d.net?.iface||"";
-
-    // System info
-    const upEl=document.getElementById("sys-uptime");
-    if(upEl&&d.uptime)upEl.textContent=d.uptime;
-    const ldEl=document.getElementById("sys-load");
-    if(ldEl&&d.load_avg)ldEl.textContent=d.load_avg;
-    const prEl=document.getElementById("sys-procs");
-    if(prEl)prEl.textContent=(d.process_count||"?")+' procs';
-
-    const tsEl=document.getElementById("stats-updated");
-    if(tsEl)tsEl.textContent="UPDATED "+new Date().toLocaleTimeString();
-
-  }catch(e){console.warn("stats fetch:",e.message);}
-
-  // Auto-refresh every 3 seconds while CLI tab is active
-  if(!window._statsInterval){
-    window._statsInterval=setInterval(()=>{
-      const cliPane=document.getElementById("at-cli");
-      if(cliPane&&cliPane.classList.contains("active"))loadServerStats();
-      else{clearInterval(window._statsInterval);window._statsInterval=null;}
-    },3000);
-  }
+    const r=await fetch('/api/server-stats');const d=await r.json();if(d.error)return;
+    const cpuEl=document.getElementById('cpu-val');const cpuPct=d.cpu_percent??0;if(cpuEl)cpuEl.textContent=cpuPct+'%';setBar('cpu-bar',cpuPct);const coresEl=document.getElementById('cpu-cores');if(coresEl)coresEl.textContent=(d.cpu_count||'?')+' cores';
+    const memPct=d.memory?.percent??0;const memEl=document.getElementById('mem-val');if(memEl)memEl.textContent=memPct+'%';setBar('mem-bar',memPct);const memTot=document.getElementById('mem-total');if(memTot)memTot.textContent='of '+fmtBytes(d.memory?.total);
+    const swapPct=d.swap?.percent??0;const swapEl=document.getElementById('swap-val');if(swapEl)swapEl.textContent=swapPct+'%';setBar('swap-bar',swapPct);const swapTot=document.getElementById('swap-total');if(swapTot)swapTot.textContent='of '+fmtBytes(d.swap?.total);
+    const diskPct=d.disk?.percent??0;const diskEl=document.getElementById('disk-val');if(diskEl)diskEl.textContent=diskPct+'%';setBar('disk-bar',diskPct);const diskTot=document.getElementById('disk-total');if(diskTot)diskTot.textContent='of '+fmtBytes(d.disk?.total);
+    const txEl=document.getElementById('net-tx');const rxEl=document.getElementById('net-rx');if(txEl)txEl.textContent=fmtBytes(d.net?.bytes_sent);if(rxEl)rxEl.textContent=fmtBytes(d.net?.bytes_recv);const ifaceEl=document.getElementById('net-iface');if(ifaceEl)ifaceEl.textContent=d.net?.iface||'';
+    const upEl=document.getElementById('sys-uptime');if(upEl&&d.uptime)upEl.textContent=d.uptime;const ldEl=document.getElementById('sys-load');if(ldEl&&d.load_avg)ldEl.textContent=d.load_avg;const prEl=document.getElementById('sys-procs');if(prEl)prEl.textContent=(d.process_count||'?')+' procs';
+    const tsEl=document.getElementById('stats-updated');if(tsEl)tsEl.textContent='UPDATED '+new Date().toLocaleTimeString();
+  }catch(e){}
+  if(!window._statsInterval)window._statsInterval=setInterval(()=>{const cp=document.getElementById('at-cli');if(cp&&cp.classList.contains('active'))loadServerStats();else{clearInterval(window._statsInterval);window._statsInterval=null;}},3000);
 }
 
 async function loadAdminUsers(){
-  try{
-    const r=await fetch("/api/admin/users");const d=await r.json();
-    document.getElementById("admin-users").innerHTML=`<div style="overflow-x:auto"><table class="tbl">
-      <thead><tr><th>ID</th><th>USERNAME</th><th>EMAIL</th><th>ROLE</th><th>VERIFIED</th><th>ACTIVE</th><th>LOGINS</th><th>LAST LOGIN</th><th>ACTIONS</th></tr></thead><tbody>
-      ${d.map(u=>`<tr>
-        <td style="color:var(--m)">#${u.id}</td>
-        <td style="color:var(--cyan)">${u.username}</td>
-        <td style="color:var(--m);font-size:11px">${u.email}</td>
-        <td>${u.role==="admin"?`<span class="admin-badge">★ ADMIN</span>`:`<span class="user-badge">USER</span>`}</td>
-        <td style="color:${u.is_verified?"var(--green)":"var(--red)"}">${u.is_verified?"✅":"❌"}</td>
-        <td style="color:${u.is_active?"var(--green)":"var(--red)"}">${u.is_active?"ON":"OFF"}</td>
-        <td style="color:var(--m)">${u.login_count||0}</td>
-        <td style="color:var(--m);font-size:11px">${(u.last_login||"never").substring(0,16)}</td>
-        <td style="display:flex;gap:5px;flex-wrap:wrap">
-          <button class="lbtn" onclick="toggleUser(${u.id})">${u.is_active?"DISABLE":"ENABLE"}</button>
-          <button class="lbtn" onclick="setRole(${u.id},'${u.role==="admin"?"user":"admin"}')">${u.role==="admin"?"→USER":"→ADMIN"}</button>
-          <button class="lbtn red" onclick="deleteUser(${u.id})">DEL</button>
-        </td>
-      </tr>`).join("")}
-      </tbody></table></div>`;
-  }catch(e){document.getElementById("admin-users").innerHTML=`<p style="color:var(--red)">${e.message}</p>`;}
+  try{const r=await fetch('/api/admin/users');const d=await r.json();document.getElementById('admin-users').innerHTML='<table class="tbl"><thead><tr><th>#</th><th>USERNAME</th><th>EMAIL</th><th>ROLE</th><th>ACTIVE</th><th>LOGINS</th><th>LAST LOGIN</th><th>ACTIONS</th></tr></thead><tbody>'+d.map(u=>'<tr><td style="color:var(--text3)">#'+u.id+'</td><td style="font-family:var(--mono)">'+u.username+'</td><td style="font-size:11px;color:var(--text3)">'+u.email+'</td><td><span class="badge '+(u.role==='admin'?'badge-admin':'badge-user')+'">'+u.role+'</span></td><td style="color:'+(u.is_active?'var(--green)':'var(--red)')+'">'+( u.is_active?'Active':'Disabled')+'</td><td style="color:var(--text3)">'+(u.login_count||0)+'</td><td style="font-size:11px;color:var(--text3)">'+((u.last_login||'never').substring(0,16))+'</td><td style="display:flex;gap:4px;flex-wrap:wrap"><button class="btn btn-outline btn-sm" onclick="toggleUser('+u.id+')">'+(u.is_active?'Disable':'Enable')+'</button><button class="btn btn-outline btn-sm" onclick="setRole('+u.id+',\''+(u.role==='admin'?'user':'admin')+'\')">'+(u.role==='admin'?'→ User':'→ Admin')+'</button><button class="btn btn-danger btn-sm" onclick="deleteUser('+u.id+')">Del</button></td></tr>').join('')+'</tbody></table>';}
+  catch(e){}
 }
+async function toggleUser(id){await fetch('/api/admin/users/'+id+'/toggle',{method:'POST'});loadAdminUsers();}
+async function setRole(id,role){await fetch('/api/admin/users/'+id+'/role',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role})});loadAdminUsers();}
+async function deleteUser(id){if(!confirm('Delete this user?'))return;await fetch('/api/admin/users/'+id,{method:'DELETE'});loadAdminUsers();}
+async function loadAdminStats(){try{const r=await fetch('/api/admin/stats');const d=await r.json();document.getElementById('admin-stats').innerHTML='<div class="stats"><div class="stat"><div class="stat-val">'+(d.total_users||0)+'</div><div class="stat-lbl">USERS</div></div><div class="stat"><div class="stat-val">'+(d.verified_users||0)+'</div><div class="stat-lbl">VERIFIED</div></div><div class="stat"><div class="stat-val">'+(d.total_scans||0)+'</div><div class="stat-lbl">SCANS</div></div><div class="stat"><div class="stat-val">'+(d.scans_today||0)+'</div><div class="stat-lbl">TODAY</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">'+(d.critical_cves||0)+'</div><div class="stat-lbl">CRITICAL</div></div><div class="stat"><div class="stat-val">'+(d.total_cves||0)+'</div><div class="stat-lbl">TOTAL CVEs</div></div></div>';}catch(e){}}
+async function loadAdminAudit(){try{const r=await fetch('/api/admin/audit?limit=200');const d=await r.json();document.getElementById('admin-audit').innerHTML='<table class="tbl"><thead><tr><th>TIME</th><th>USER</th><th>ACTION</th><th>TARGET</th><th>IP</th></tr></thead><tbody>'+d.map(l=>'<tr><td style="font-size:11px;color:var(--text3)">'+((l.timestamp||'').substring(0,16))+'</td><td style="font-family:var(--mono)">'+( l.username||'—')+'</td><td><span class="tag">'+( l.action||'')+'</span></td><td style="font-size:11px;color:var(--text3)">'+(l.target||'—')+'</td><td style="font-size:11px;color:var(--text3)">'+(l.ip_address||'—')+'</td></tr>').join('')+'</tbody></table>';}catch(e){}}
+async function loadAdminScans(){try{const r=await fetch('/api/admin/scans');const d=await r.json();document.getElementById('admin-scans').innerHTML='<table class="tbl"><thead><tr><th>#</th><th>TARGET</th><th>TIME</th><th>PORTS</th><th>CVEs</th><th>CRITICAL</th><th></th></tr></thead><tbody>'+d.map(s=>'<tr><td style="color:var(--text3)">#'+s.id+'</td><td style="font-family:var(--mono)">'+s.target+'</td><td style="font-size:11px;color:var(--text3)">'+((s.scan_time||'').replace('T',' ').substring(0,19))+'</td><td>'+s.open_ports+'</td><td>'+s.total_cves+'</td><td style="color:'+(s.critical_cves>0?'var(--red)':'var(--text3)')+'">'+s.critical_cves+'</td><td><button class="btn btn-ghost btn-sm" onclick="loadScan('+s.id+')">View</button></td></tr>').join('')+'</tbody></table>';}catch(e){}}
 
-async function toggleUser(id){await fetch(`/api/admin/users/${id}/toggle`,{method:"POST"});loadAdminUsers();}
-async function setRole(id,role){await fetch(`/api/admin/users/${id}/role`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({role})});loadAdminUsers();}
-async function deleteUser(id){if(!confirm("Delete this user? This cannot be undone."))return;await fetch(`/api/admin/users/${id}`,{method:"DELETE"});loadAdminUsers();}
-
-async function loadAdminStats(){
+// ══ CLI ═══════════════════════════════════════════════════════════════════
+let _cliHistory=[],_cliHistIdx=-1;
+function initCliHeader(){try{fetch('/api/exec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:'hostname'})}).then(r=>r.json()).then(d=>{const el=document.getElementById('cli-hostname');if(el&&d.output)el.textContent=d.output.trim();}).catch(()=>{});}catch(e){}const ul=document.getElementById('cli-user-label');if(ul&&currentUser)ul.textContent=currentUser.username;}
+async function cliRun(){
+  const inp=document.getElementById('cli-input');const out=document.getElementById('cli-output');const sb=document.getElementById('cli-statusbar');if(!inp||!out)return;
+  const cmd=inp.value.trim();if(!cmd)return;
+  if(_cliHistory[0]!==cmd)_cliHistory.unshift(cmd);if(_cliHistory.length>50)_cliHistory.pop();_cliHistIdx=-1;
+  const ts=new Date().toLocaleTimeString();
+  out.innerHTML+='<div class="cli-cmd-line"><span style="color:var(--text3)">['+ts+']</span> $ '+cmd.replace(/</g,'&lt;')+'</div>';
+  inp.value='';if(sb)sb.innerHTML='<div class="pulse"></div><span>Running...</span>';
   try{
-    const r=await fetch("/api/admin/stats");const d=await r.json();
-    document.getElementById("admin-stats").innerHTML=`<div class="sgrid">
-      <div class="sc"><div class="sv" style="color:var(--cyan)">${d.total_users||0}</div><div class="sl">TOTAL USERS</div></div>
-      <div class="sc"><div class="sv" style="color:var(--green)">${d.verified_users||0}</div><div class="sl">VERIFIED</div></div>
-      <div class="sc"><div class="sv" style="color:var(--yellow)">${d.total_scans||0}</div><div class="sl">TOTAL SCANS</div></div>
-      <div class="sc"><div class="sv" style="color:var(--orange)">${d.scans_today||0}</div><div class="sl">TODAY</div></div>
-      <div class="sc"><div class="sv" style="color:var(--red)">${d.critical_cves||0}</div><div class="sl">CRITICAL CVEs</div></div>
-      <div class="sc"><div class="sv" style="color:var(--purple)">${d.total_cves||0}</div><div class="sl">TOTAL CVEs</div></div>
-    </div>`;
-  }catch(e){}
+    const r=await fetch('/api/exec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:cmd})});
+    const d=await r.json();
+    if(d.error)out.innerHTML+='<div class="cli-err">'+d.error.replace(/</g,'&lt;')+'</div>';
+    if(d.output)out.innerHTML+='<div class="cli-resp">'+d.output.replace(/</g,'&lt;')+'</div>';
+    if(!d.output&&!d.error)out.innerHTML+='<div style="color:var(--text3);font-size:11px">(no output)</div>';
+    if(sb)sb.innerHTML='<div class="pulse"></div><span>Ready | '+_cliHistory.length+' in history | Exit: '+(d.exit_code??'?')+'</span>';
+  }catch(e){out.innerHTML+='<div class="cli-err">Network error: '+e.message+'</div>';if(sb)sb.innerHTML='<div class="pulse" style="background:var(--red)"></div><span>Error</span>';}
+  out.scrollTop=out.scrollHeight;
 }
+function cliKey(e){const inp=document.getElementById('cli-input');if(!inp)return;if(e.key==='Enter'){e.preventDefault();cliRun();}else if(e.key==='ArrowUp'){e.preventDefault();if(_cliHistIdx<_cliHistory.length-1){_cliHistIdx++;inp.value=_cliHistory[_cliHistIdx]||'';}}else if(e.key==='ArrowDown'){e.preventDefault();if(_cliHistIdx>0){_cliHistIdx--;inp.value=_cliHistory[_cliHistIdx]||'';}else{_cliHistIdx=-1;inp.value='';}}else if(e.key==='Tab'){e.preventDefault();}}
+function cliClear(){const out=document.getElementById('cli-output');if(out)out.innerHTML='<div style="color:var(--text3);font-size:11px">Terminal cleared.</div>';}
+function cliQuick(cmd){const inp=document.getElementById('cli-input');if(inp){inp.value=cmd;cliRun();}}
 
-async function loadAdminAudit(){
-  try{
-    const r=await fetch("/api/admin/audit?limit=200");const d=await r.json();
-    document.getElementById("admin-audit").innerHTML=`<table class="tbl">
-      <thead><tr><th>TIME</th><th>USER</th><th>ACTION</th><th>TARGET</th><th>IP</th><th>DETAILS</th></tr></thead><tbody>
-      ${d.map(l=>`<tr>
-        <td style="color:var(--m);font-size:11px">${(l.timestamp||"").substring(0,16)}</td>
-        <td style="color:var(--cyan)">${l.username||"-"}</td>
-        <td><span class="tag" style="background:rgba(0,229,255,0.07);color:var(--cyan);border-color:rgba(0,229,255,0.2)">${l.action||""}</span></td>
-        <td style="color:var(--m);font-size:11px">${l.target||"-"}</td>
-        <td style="color:var(--m);font-size:11px">${l.ip_address||"-"}</td>
-        <td style="color:var(--m);font-size:11px">${l.details||""}</td>
-      </tr>`).join("")}
-      </tbody></table>`;
-  }catch(e){}
-}
-
-async function loadAdminScans(){
-  try{
-    const r=await fetch("/api/admin/scans");const d=await r.json();
-    document.getElementById("admin-scans").innerHTML=`<table class="tbl">
-      <thead><tr><th>ID</th><th>TARGET</th><th>TIME</th><th>PORTS</th><th>CVEs</th><th>CRITICAL</th><th>ACTION</th></tr></thead><tbody>
-      ${d.map(s=>`<tr>
-        <td style="color:var(--m)">#${s.id}</td>
-        <td style="color:var(--cyan)">${s.target}</td>
-        <td style="color:var(--m);font-size:11px">${(s.scan_time||"").replace("T"," ").substring(0,19)}</td>
-        <td>${s.open_ports}</td><td>${s.total_cves}</td>
-        <td style="color:${s.critical_cves>0?"var(--red)":"var(--green)"}">${s.critical_cves}</td>
-        <td><button class="lbtn" onclick="loadScan(${s.id})">VIEW</button></td>
-      </tr>`).join("")}
-      </tbody></table>`;
-  }catch(e){}
-}
-
+// ══ PDF REPORT ═══════════════════════════════════════════════════════════
 async function exportPDF(){
-  const data=window._sd;
-  if(!data){alert("Run a scan first");return;}
-  try{
-    const r=await fetchWithTimeout("/report",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)},60000);
-    if(!r.ok)throw new Error(await r.text());
-    const blob=await r.blob();
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement("a");
-    a.href=url;a.download=`vulnscan-${data.target||"report"}-${new Date().toISOString().slice(0,10)}.pdf`;
-    document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-  }catch(e){alert("PDF failed: "+e.message);}
+  const data=window._sd;if(!data){alert('Run a scan first');return;}
+  try{const r=await fetchWithTimeout('/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)},60000);if(!r.ok)throw new Error(await r.text());const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='vulnscan-'+( data.target||'report')+'-'+new Date().toISOString().slice(0,10)+'.pdf';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);}
+  catch(e){alert('PDF failed: '+e.message);}
 }
 
-const vt=new URLSearchParams(location.search).get("verify");
-if(vt){
-  fetch("/api/verify/"+vt).then(r=>r.json()).then(d=>{
-    if(d.success){authMsg(d.message+" You can now login.","ok");authTab("login");}
-    else authMsg(d.error||"Verification failed","err");
-  });
-}
+// ══ VERIFY EMAIL ════════════════════════════════════════════════════════
+const vt=new URLSearchParams(location.search).get('verify');
+if(vt){fetch('/api/verify/'+vt).then(r=>r.json()).then(d=>{if(d.success){authMsg(d.message+' You can now login.','ok');authTab('login');}else authMsg(d.error||'Verification failed','err');});}
 
-// ── About Modal ────────────────────────────────
-function showAbout(){
-  const m=document.getElementById("about-modal");
-  m.style.display="flex";
-  setTimeout(()=>m.style.opacity="1",10);
-}
-function closeAbout(){
-  document.getElementById("about-modal").style.display="none";
-}
-document.addEventListener("keydown",e=>{
-  if(e.key==="Escape") closeAbout();
-  if(e.key==="Enter"&&document.getElementById("l-pass")===document.activeElement)doLogin();
-});
-
-// ── ToS Modal ──────────────────────────────────────────────────────────────
-function showTos(e) {
-  e.preventDefault();
-  // Validate required fields first
-  const name  = document.getElementById("r-name").value.trim();
-  const user  = document.getElementById("r-user").value.trim();
-  const email = document.getElementById("r-email").value.trim();
-  const pass  = document.getElementById("r-pass").value;
-  if (!user || !email || !pass) {
-    authMsg("Please fill in all fields before reading the Terms of Use.");
-    return;
-  }
-  const m = document.getElementById("tos-modal");
-  m.style.display = "flex";
-  setTimeout(() => m.style.opacity = "1", 10);
-}
-function closeTos() {
-  const m = document.getElementById("tos-modal");
-  m.style.display = "none";
-  const cb = document.getElementById("r-tos-cb");
-  if (cb) cb.checked = false;
-  updateRegisterBtn();
-}
-function acceptTos() {
-  document.getElementById("tos-modal").style.display = "none";
-  const cb = document.getElementById("r-tos-cb");
-  if (cb) { cb.checked = true; updateRegisterBtn(); }
-}
-function updateRegisterBtn() {
-  const cb  = document.getElementById("r-tos-cb");
-  const btn = document.getElementById("r-btn");
-  if (!cb || !btn) return;
-  btn.disabled = !cb.checked;
-  btn.style.opacity = cb.checked ? "1" : "0.45";
-  btn.style.cursor  = cb.checked ? "pointer" : "not-allowed";
-}
+// ══ KEYBOARD SHORTCUTS ══════════════════════════════════════════════════
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeAbout();document.getElementById('tos-modal').classList.remove('open');}if(e.key==='Enter'&&document.getElementById('l-pass')===document.activeElement)doLogin();});
 
 loadUser();
 </script>
-
-<!-- ══ TERMS OF SERVICE MODAL ══ -->
-<div id="tos-modal" style="display:none;position:fixed;inset:0;background:rgba(4,4,10,0.97);z-index:500;align-items:center;justify-content:center;backdrop-filter:blur(14px)" onclick="if(event.target===this)closeTos()">
-  <div style="background:var(--s1);border:1px solid rgba(255,214,10,0.35);border-radius:18px;padding:36px;width:100%;max-width:620px;position:relative;margin:16px;max-height:90vh;overflow-y:auto">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
-      <span style="font-size:28px">⚠️</span>
-      <div>
-        <div style="font-size:20px;font-weight:800;color:var(--yellow);letter-spacing:-0.5px">Legal Disclaimer & Terms of Use</div>
-        <div style="font-size:11px;color:var(--m);font-family:'JetBrains Mono',monospace;letter-spacing:2px;margin-top:3px">READ CAREFULLY BEFORE REGISTERING</div>
-      </div>
-    </div>
-    <div style="height:1px;background:linear-gradient(90deg,var(--yellow),transparent);margin-bottom:20px"></div>
-    <div style="font-size:13px;line-height:1.9;color:#c0c0d0;font-family:'JetBrains Mono',monospace">
-
-      <div style="background:rgba(255,51,102,0.07);border:1px solid rgba(255,51,102,0.25);border-radius:8px;padding:14px;margin-bottom:16px">
-        <strong style="color:var(--red)">⚠ AUTHORIZED USE ONLY</strong><br/>
-        VulnScan Pro is a professional security assessment tool. You are <strong style="color:var(--red)">strictly prohibited</strong> from using this platform to scan, probe, attack, or enumerate any system, network, or web application that you do not own or have <strong>explicit written authorization</strong> to test.
-      </div>
-
-      <p><strong style="color:var(--yellow)">1. Sole Responsibility</strong><br/>
-      By registering you acknowledge that <em>you</em> are entirely and solely responsible for all scans, queries, and actions performed from your account. The platform owner, developers, and hosting providers bear <strong>zero liability</strong> for any damage, data loss, legal consequence, or harm resulting from your use of this tool.</p>
-
-      <p><strong style="color:var(--yellow)">2. No Illegal Activity</strong><br/>
-      You agree NOT to use VulnScan Pro to conduct unauthorized access, denial-of-service attacks, credential stuffing, data exfiltration, or any other activity that violates local, national, or international law — including but not limited to the <em>Computer Fraud and Abuse Act (CFAA)</em>, the <em>Computer Misuse Act (UK)</em>, <em>EU Directive 2013/40/EU</em>, and equivalent legislation worldwide.</p>
-
-      <p><strong style="color:var(--yellow)">3. Indemnification</strong><br/>
-      You agree to indemnify, defend, and hold harmless the platform owner and all affiliated parties from any claims, damages, losses, liabilities, and costs (including attorney fees) arising from your use or misuse of this platform.</p>
-
-      <p><strong style="color:var(--yellow)">4. Audit Logging</strong><br/>
-      All scans and administrative actions are logged with timestamps, targets, and IP addresses. These logs may be provided to law enforcement upon valid legal request.</p>
-
-      <p><strong style="color:var(--yellow)">5. No Warranty</strong><br/>
-      This platform is provided "as-is" without warranty of any kind. Scan results are for informational purposes only and should be validated by a qualified security professional before acting on them.</p>
-
-      <p><strong style="color:var(--yellow)">6. Account Termination</strong><br/>
-      Any account found to be in violation of these terms will be immediately disabled and relevant logs will be preserved for potential legal proceedings.</p>
-
-    </div>
-    <div style="height:1px;background:var(--b2);margin:20px 0"></div>
-    <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
-      <button onclick="closeTos()" style="padding:10px 22px;background:transparent;border:1px solid var(--b2);color:var(--m);border-radius:8px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px">DECLINE</button>
-      <button onclick="acceptTos()" style="padding:10px 22px;background:linear-gradient(135deg,var(--yellow),var(--orange));color:#000;border:none;border-radius:8px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700">I ACCEPT — CONTINUE</button>
-    </div>
-  </div>
-</div>
-
 </body>
 </html>"""
-
 # ── Auto-install helper ────────────────────────────────────────────────────────
 def auto_install(pkg, binary=None):
     """Try to install a package via apt. Returns (success, message)."""

@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """
-VulnScan Pro — Patch Script
-Adds Terms of Service / legal disclaimer checkbox to the registration form.
-Run from project root: python3 patch.py
+VulnScan Pro — UI Redesign Patch
+Replaces the cyberpunk HTML UI with a clean, minimalist design.
+Adds Black / White theme toggle under user profile.
+
+Usage:  python3 patch.py
 """
 
 import os
@@ -18,18 +20,16 @@ CYAN   = "\033[96m"
 RESET  = "\033[0m"
 BOLD   = "\033[1m"
 
-def ok(msg):  print(f"  {GREEN}✓{RESET} {msg}")
+def ok(msg):   print(f"  {GREEN}✓{RESET} {msg}")
 def fail(msg): print(f"  {RED}✗{RESET} {msg}")
 def info(msg): print(f"  {CYAN}→{RESET} {msg}")
 
-# ── Track changes ─────────────────────────────────────────────────────────────
 changes_applied = 0
 files_modified  = []
 restart_needed  = False
 
 
 def backup(path):
-    """Create a timestamped .bak file before patching."""
     ts  = datetime.now().strftime("%Y%m%d_%H%M%S")
     bak = f"{path}.{ts}.bak"
     shutil.copy2(path, bak)
@@ -37,10 +37,6 @@ def backup(path):
 
 
 def patch_file(path, patches):
-    """
-    Apply a list of (description, old_text, new_text) patches to a file.
-    Returns (applied_count, failed_count).
-    """
     global changes_applied, files_modified, restart_needed
 
     if not os.path.isfile(path):
@@ -52,14 +48,14 @@ def patch_file(path, patches):
 
     applied = 0
     failed  = 0
-    modified_content = content
+    modified = content
 
     for desc, old, new in patches:
-        if old in modified_content:
-            modified_content = modified_content.replace(old, new, 1)
+        if old in modified:
+            modified = modified.replace(old, new, 1)
             ok(desc)
             applied += 1
-        elif new in modified_content:
+        elif new in modified:
             ok(f"{desc}  (already applied — skipped)")
         else:
             fail(f"{desc}")
@@ -67,9 +63,9 @@ def patch_file(path, patches):
 
     if applied > 0:
         bak = backup(path)
-        info(f"Backup created: {bak}")
+        info(f"Backup → {bak}")
         with open(path, "w", encoding="utf-8") as f:
-            f.write(modified_content)
+            f.write(modified)
         changes_applied += applied
         if path not in files_modified:
             files_modified.append(path)
@@ -79,136 +75,2420 @@ def patch_file(path, patches):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  PATCH 1 — api_server.py  ·  Terms of Service checkbox in HTML
+#  NEW MINIMALIST HTML  (replaces the entire HTML = r"""...""" block)
 # ══════════════════════════════════════════════════════════════════════════════
 
-# The ToS modal HTML — injected right before the closing </body> tag of the
-# embedded HTML string inside api_server.py.
-TOS_MODAL = r"""
-<!-- ══ TERMS OF SERVICE MODAL ══ -->
-<div id="tos-modal" style="display:none;position:fixed;inset:0;background:rgba(4,4,10,0.97);z-index:500;align-items:center;justify-content:center;backdrop-filter:blur(14px)" onclick="if(event.target===this)closeTos()">
-  <div style="background:var(--s1);border:1px solid rgba(255,214,10,0.35);border-radius:18px;padding:36px;width:100%;max-width:620px;position:relative;margin:16px;max-height:90vh;overflow-y:auto">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
-      <span style="font-size:28px">⚠️</span>
+NEW_HTML = r'''HTML = r"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>VulnScan Pro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+/* ── Reset ── */
+*{box-sizing:border-box;margin:0;padding:0}
+
+/* ── Theme variables ── */
+:root{
+  --bg:#ffffff;
+  --bg2:#f5f5f5;
+  --bg3:#ebebeb;
+  --border:#e0e0e0;
+  --border2:#d0d0d0;
+  --text:#0a0a0a;
+  --text2:#444444;
+  --text3:#888888;
+  --accent:#0a0a0a;
+  --accent-inv:#ffffff;
+  --red:#c0392b;
+  --orange:#d35400;
+  --yellow:#b7860b;
+  --green:#1a7a3a;
+  --blue:#1a5fa8;
+  --mono:'DM Mono',monospace;
+  --sans:'DM Sans',sans-serif;
+  --radius:6px;
+  --radius-lg:10px;
+  --shadow:0 1px 3px rgba(0,0,0,0.08),0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md:0 4px 12px rgba(0,0,0,0.1);
+  --transition:0.15s ease;
+}
+
+body.dark{
+  --bg:#0a0a0a;
+  --bg2:#111111;
+  --bg3:#1a1a1a;
+  --border:#252525;
+  --border2:#333333;
+  --text:#f0f0f0;
+  --text2:#aaaaaa;
+  --text3:#666666;
+  --accent:#f0f0f0;
+  --accent-inv:#0a0a0a;
+  --red:#e05a4e;
+  --orange:#e07840;
+  --yellow:#d4a840;
+  --green:#3db870;
+  --blue:#5a9fe0;
+  --shadow:0 1px 3px rgba(0,0,0,0.4),0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md:0 4px 12px rgba(0,0,0,0.5);
+}
+
+/* ── Base ── */
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+  font-size:14px;
+  line-height:1.6;
+  min-height:100vh;
+  transition:background var(--transition),color var(--transition);
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ── Layout ── */
+.layout{display:flex;min-height:100vh}
+.sidebar{
+  width:220px;
+  flex-shrink:0;
+  background:var(--bg2);
+  border-right:1px solid var(--border);
+  display:flex;
+  flex-direction:column;
+  position:fixed;
+  top:0;left:0;bottom:0;
+  overflow-y:auto;
+  z-index:50;
+  transition:background var(--transition),border-color var(--transition);
+}
+.main{
+  margin-left:220px;
+  flex:1;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+}
+.topbar{
+  height:52px;
+  background:var(--bg);
+  border-bottom:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 24px;
+  position:sticky;
+  top:0;
+  z-index:40;
+  transition:background var(--transition),border-color var(--transition);
+}
+.content{padding:28px 28px;flex:1}
+
+/* ── Brand ── */
+.brand{
+  padding:20px 18px 16px;
+  border-bottom:1px solid var(--border);
+}
+.brand-logo{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  text-decoration:none;
+  cursor:pointer;
+}
+.brand-icon{
+  width:28px;height:28px;
+  background:var(--accent);
+  border-radius:var(--radius);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--accent-inv);
+  font-size:14px;
+  flex-shrink:0;
+}
+.brand-title{
+  font-size:15px;
+  font-weight:600;
+  color:var(--text);
+  letter-spacing:-0.3px;
+}
+.brand-sub{
+  font-family:var(--mono);
+  font-size:9px;
+  color:var(--text3);
+  letter-spacing:1.5px;
+  margin-top:1px;
+}
+
+/* ── Sidebar nav ── */
+.nav-section{
+  padding:14px 10px 4px;
+}
+.nav-label{
+  font-family:var(--mono);
+  font-size:9px;
+  color:var(--text3);
+  letter-spacing:2px;
+  padding:0 8px;
+  margin-bottom:4px;
+  font-weight:500;
+}
+.nav-item{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:7px 8px;
+  border-radius:var(--radius);
+  cursor:pointer;
+  font-size:13px;
+  color:var(--text2);
+  transition:background var(--transition),color var(--transition);
+  border:none;
+  background:none;
+  width:100%;
+  text-align:left;
+  font-family:var(--sans);
+}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:var(--accent);color:var(--accent-inv)}
+.nav-item .ni{font-size:14px;width:18px;text-align:center;flex-shrink:0}
+
+/* ── Sidebar footer ── */
+.sidebar-footer{
+  margin-top:auto;
+  padding:12px 10px;
+  border-top:1px solid var(--border);
+}
+
+/* ── Topbar elements ── */
+.tb-title{font-size:14px;font-weight:500;color:var(--text);letter-spacing:-0.2px}
+.tb-right{display:flex;align-items:center;gap:10px}
+
+/* ── Theme toggle ── */
+.theme-toggle{
+  width:36px;height:20px;
+  background:var(--border2);
+  border-radius:10px;
+  position:relative;
+  cursor:pointer;
+  border:none;
+  transition:background var(--transition);
+  flex-shrink:0;
+}
+.theme-toggle::after{
+  content:'';
+  position:absolute;
+  top:3px;left:3px;
+  width:14px;height:14px;
+  background:var(--accent);
+  border-radius:50%;
+  transition:transform var(--transition),background var(--transition);
+}
+body.dark .theme-toggle::after{transform:translateX(16px)}
+body.dark .theme-toggle{background:var(--border2)}
+
+/* ── User chip ── */
+.user-chip{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:5px 10px 5px 6px;
+  border:1px solid var(--border);
+  border-radius:20px;
+  cursor:pointer;
+  transition:border-color var(--transition),background var(--transition);
+  background:none;
+  font-family:var(--sans);
+}
+.user-chip:hover{border-color:var(--border2);background:var(--bg2)}
+.user-av{
+  width:22px;height:22px;
+  border-radius:50%;
+  background:var(--accent);
+  color:var(--accent-inv);
+  font-size:11px;
+  font-weight:600;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.user-name{font-size:12px;font-weight:500;color:var(--text)}
+.user-role{font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:1px}
+
+/* ── Buttons ── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:8px 14px;
+  border-radius:var(--radius);
+  font-family:var(--sans);
+  font-size:13px;
+  font-weight:500;
+  cursor:pointer;
+  border:1px solid transparent;
+  transition:all var(--transition);
+  white-space:nowrap;
+  text-decoration:none;
+}
+.btn-primary{background:var(--accent);color:var(--accent-inv);border-color:var(--accent)}
+.btn-primary:hover{opacity:0.85}
+.btn-primary:disabled{opacity:0.4;cursor:not-allowed}
+.btn-outline{background:none;color:var(--text);border-color:var(--border2)}
+.btn-outline:hover{border-color:var(--text);background:var(--bg2)}
+.btn-ghost{background:none;color:var(--text2);border-color:transparent}
+.btn-ghost:hover{background:var(--bg3);color:var(--text)}
+.btn-danger{background:none;color:var(--red);border-color:rgba(192,57,43,0.3)}
+.btn-danger:hover{background:rgba(192,57,43,0.08)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-full{width:100%}
+
+/* ── Cards & containers ── */
+.card{
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:var(--radius-lg);
+  transition:border-color var(--transition),background var(--transition);
+}
+.card-p{padding:20px}
+.card-header{
+  padding:16px 20px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.card-title{
+  font-size:13px;
+  font-weight:600;
+  color:var(--text);
+  letter-spacing:-0.1px;
+}
+.card-sub{
+  font-family:var(--mono);
+  font-size:10px;
+  color:var(--text3);
+  letter-spacing:1px;
+  margin-top:3px;
+}
+
+/* ── Page header ── */
+.page-hd{margin-bottom:24px}
+.page-title{font-size:22px;font-weight:600;letter-spacing:-0.5px;color:var(--text);line-height:1.2}
+.page-desc{font-size:13px;color:var(--text3);margin-top:5px}
+
+/* ── Inputs ── */
+.inp{
+  width:100%;
+  background:var(--bg);
+  border:1px solid var(--border2);
+  border-radius:var(--radius);
+  color:var(--text);
+  padding:9px 12px;
+  font-size:13px;
+  font-family:var(--sans);
+  outline:none;
+  transition:border-color var(--transition),background var(--transition);
+}
+.inp:focus{border-color:var(--accent)}
+.inp::placeholder{color:var(--text3)}
+.inp-mono{font-family:var(--mono);font-size:13px}
+.fg{margin-bottom:14px}
+.fg label{
+  display:block;
+  font-size:11px;
+  font-weight:500;
+  color:var(--text3);
+  letter-spacing:0.5px;
+  margin-bottom:5px;
+}
+textarea.inp{resize:vertical;min-height:80px}
+select.inp{cursor:pointer}
+
+/* ── Scan input bar ── */
+.scan-bar{
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+.scan-bar .inp{font-family:var(--mono);flex:1}
+
+/* ── Module pills ── */
+.pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.pill{
+  padding:4px 12px;
+  border-radius:20px;
+  font-family:var(--mono);
+  font-size:11px;
+  border:1px solid var(--border2);
+  color:var(--text2);
+  background:none;
+  cursor:pointer;
+  transition:all var(--transition);
+}
+.pill.on{background:var(--accent);color:var(--accent-inv);border-color:var(--accent)}
+
+/* ── Progress ── */
+.progress-wrap{
+  height:2px;
+  background:var(--bg3);
+  border-radius:1px;
+  overflow:hidden;
+  margin:12px 0;
+  display:none;
+}
+.progress-bar{
+  height:100%;
+  background:var(--accent);
+  border-radius:1px;
+  transition:width 0.3s;
+}
+@keyframes pb-shimmer{
+  0%{transform:translateX(-100%)}
+  100%{transform:translateX(100%)}
+}
+.progress-wrap.active{display:block}
+.progress-bar{position:relative;overflow:hidden}
+.progress-bar::after{
+  content:'';
+  position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent);
+  animation:pb-shimmer 1.2s ease infinite;
+}
+
+/* ── Terminal ── */
+.terminal{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:12px 14px;
+  max-height:160px;
+  overflow-y:auto;
+  font-family:var(--mono);
+  font-size:12px;
+  line-height:1.8;
+  display:none;
+  margin:12px 0;
+}
+.terminal.visible{display:block}
+.tl-i{color:var(--text3)}
+.tl-s{color:var(--green)}
+.tl-w{color:var(--yellow)}
+.tl-e{color:var(--red)}
+.tl-prefix{font-weight:500}
+
+/* ── Error box ── */
+.err-box{
+  background:rgba(192,57,43,0.06);
+  border:1px solid rgba(192,57,43,0.2);
+  border-radius:var(--radius);
+  padding:10px 14px;
+  color:var(--red);
+  font-size:13px;
+  font-family:var(--mono);
+  display:none;
+  margin:10px 0;
+}
+.err-box.visible{display:block}
+
+/* ── Notice ── */
+.notice{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-left:3px solid var(--yellow);
+  border-radius:var(--radius);
+  padding:10px 14px;
+  font-size:12px;
+  color:var(--text2);
+  margin-bottom:16px;
+}
+
+/* ── Stats grid ── */
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-bottom:20px}
+.stat{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:14px 12px;
+  text-align:center;
+  transition:background var(--transition),border-color var(--transition);
+}
+.stat-val{
+  font-family:var(--mono);
+  font-size:26px;
+  font-weight:500;
+  color:var(--text);
+  line-height:1;
+  margin-bottom:4px;
+}
+.stat-lbl{
+  font-family:var(--mono);
+  font-size:9px;
+  color:var(--text3);
+  letter-spacing:1.5px;
+}
+
+/* ── Tabs ── */
+.tabs{
+  display:flex;
+  gap:2px;
+  border-bottom:1px solid var(--border);
+  margin-bottom:18px;
+  overflow-x:auto;
+}
+.tab{
+  padding:9px 16px;
+  font-size:12px;
+  font-family:var(--mono);
+  color:var(--text3);
+  background:none;
+  border:none;
+  cursor:pointer;
+  border-bottom:2px solid transparent;
+  margin-bottom:-1px;
+  white-space:nowrap;
+  transition:color var(--transition),border-color var(--transition);
+  letter-spacing:0.5px;
+}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--text);border-bottom-color:var(--accent)}
+.tc{display:none}
+.tc.active{display:block}
+
+/* ── Severity badges ── */
+.sev{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:2px 8px;
+  border-radius:3px;
+  font-family:var(--mono);
+  font-size:10px;
+  font-weight:500;
+  border:1px solid transparent;
+}
+.sev-critical{background:rgba(192,57,43,0.1);color:var(--red);border-color:rgba(192,57,43,0.2)}
+.sev-high{background:rgba(211,84,0,0.1);color:var(--orange);border-color:rgba(211,84,0,0.2)}
+.sev-medium{background:rgba(183,134,11,0.1);color:var(--yellow);border-color:rgba(183,134,11,0.2)}
+.sev-low{background:rgba(26,122,58,0.1);color:var(--green);border-color:rgba(26,122,58,0.2)}
+.sev-unknown{background:var(--bg2);color:var(--text3);border-color:var(--border)}
+
+/* ── Port panels ── */
+.port-panel{
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  overflow:hidden;
+  margin-bottom:8px;
+  transition:border-color var(--transition);
+}
+.port-panel:hover{border-color:var(--border2)}
+.port-hd{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:12px 14px;
+  cursor:pointer;
+  user-select:none;
+  flex-wrap:wrap;
+}
+.port-num{
+  font-family:var(--mono);
+  font-size:14px;
+  font-weight:500;
+  color:var(--text);
+  min-width:52px;
+}
+.port-svc{font-size:13px;font-weight:500;color:var(--text);flex:1}
+.port-ver{font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:2px}
+.port-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.port-body{
+  padding:0 14px 14px;
+  border-top:1px solid var(--border);
+  display:none;
+}
+.port-body.open{display:block}
+.chev{
+  color:var(--text3);
+  font-size:10px;
+  transition:transform var(--transition);
+  flex-shrink:0;
+}
+.chev.open{transform:rotate(180deg)}
+.port-score{
+  font-family:var(--mono);
+  font-size:13px;
+  font-weight:600;
+}
+
+/* ── CVE items ── */
+.cve-item{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:12px;
+  margin-bottom:6px;
+}
+.cve-hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.cve-id{
+  font-family:var(--mono);
+  font-size:12px;
+  font-weight:500;
+  color:var(--text);
+  text-decoration:none;
+}
+.cve-id:hover{text-decoration:underline}
+.cve-score{
+  font-family:var(--mono);
+  font-size:12px;
+  font-weight:600;
+}
+.cve-date{font-family:var(--mono);font-size:10px;color:var(--text3);margin-left:auto}
+.cve-desc{font-size:12px;color:var(--text2);line-height:1.7}
+
+/* ── Mitigation list ── */
+.mit-list{margin:0;padding:0;list-style:none}
+.mit-item{
+  display:flex;gap:8px;
+  padding:6px 0;
+  border-bottom:1px solid var(--border);
+  font-size:12px;
+  color:var(--text2);
+}
+.mit-item:last-child{border-bottom:none}
+.mit-bullet{color:var(--text3);flex-shrink:0;font-size:14px;line-height:1.5}
+.sec-label{
+  font-family:var(--mono);
+  font-size:10px;
+  color:var(--text3);
+  letter-spacing:2px;
+  margin:14px 0 8px;
+}
+
+/* ── SSL ── */
+.ssl-card{
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:16px;
+  margin-bottom:8px;
+  display:flex;align-items:flex-start;gap:16px;
+}
+.ssl-grade{
+  width:52px;height:52px;
+  border-radius:var(--radius);
+  border:2px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);
+  font-size:22px;
+  font-weight:700;
+  flex-shrink:0;
+  color:var(--text);
+}
+.ssl-info{flex:1}
+.ssl-host{font-size:14px;font-weight:500;color:var(--text)}
+.ssl-detail{font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:3px}
+.ssl-issue{
+  display:flex;align-items:center;gap:8px;
+  padding:5px 0;
+  border-bottom:1px solid var(--border);
+  font-size:12px;
+}
+.ssl-issue:last-child{border-bottom:none}
+
+/* ── DNS ── */
+.dns-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:14px}
+.dns-card{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:12px;
+}
+.dns-type{
+  font-family:var(--mono);font-size:10px;color:var(--text3);
+  letter-spacing:2px;margin-bottom:6px;
+}
+.dns-val{font-family:var(--mono);font-size:11px;color:var(--text2);line-height:1.8;word-break:break-all}
+.sub-item{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:7px 10px;
+  border-bottom:1px solid var(--border);
+  font-family:var(--mono);font-size:12px;
+}
+.sub-item:last-child{border-bottom:none}
+
+/* ── Headers ── */
+.hdr-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:6px 10px;border-bottom:1px solid var(--border);
+  font-family:var(--mono);font-size:11px;flex-wrap:wrap;gap:4px;
+}
+.hdr-row:last-child{border-bottom:none}
+.hdr-key{color:var(--text3);min-width:180px;flex-shrink:0}
+.hdr-val{color:var(--text);word-break:break-all;text-align:right;max-width:380px}
+.hdr-grade-big{font-family:var(--mono);font-size:42px;font-weight:700;color:var(--text);line-height:1}
+
+/* ── Tables ── */
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{
+  font-family:var(--mono);font-size:9px;letter-spacing:2px;
+  color:var(--text3);padding:9px 10px;text-align:left;
+  border-bottom:1px solid var(--border);font-weight:500;
+}
+.tbl td{
+  padding:9px 10px;border-bottom:1px solid var(--border);
+  color:var(--text);vertical-align:middle;
+}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:var(--bg2)}
+.tbl-wrap{overflow-x:auto}
+
+/* ── Small tag ── */
+.tag{
+  display:inline-block;
+  padding:2px 7px;
+  border-radius:3px;
+  font-family:var(--mono);
+  font-size:10px;
+  border:1px solid var(--border);
+  background:var(--bg2);
+  color:var(--text2);
+}
+
+/* ── Host chip ── */
+.host-chip{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:12px;
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:6px 12px;
+  margin-bottom:14px;
+}
+.host-ip{font-weight:500;color:var(--text)}
+.host-up{color:var(--green)}
+
+/* ── Profile ── */
+.profile-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.kv{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}
+.kv-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px}
+.kv-k{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1.5px;margin-bottom:4px}
+.kv-v{font-size:13px;font-weight:500;color:var(--text)}
+
+/* ── Role badges ── */
+.badge{
+  display:inline-block;
+  padding:2px 8px;
+  border-radius:3px;
+  font-family:var(--mono);
+  font-size:10px;
+  font-weight:500;
+}
+.badge-admin{background:var(--bg3);color:var(--text2);border:1px solid var(--border2)}
+.badge-user{background:var(--bg2);color:var(--text3);border:1px solid var(--border)}
+
+/* ── Theme section ── */
+.theme-options{display:flex;gap:10px;margin-top:12px}
+.theme-opt{
+  flex:1;
+  padding:14px;
+  border:2px solid var(--border);
+  border-radius:var(--radius-lg);
+  cursor:pointer;
+  background:none;
+  text-align:left;
+  transition:border-color var(--transition),background var(--transition);
+  font-family:var(--sans);
+}
+.theme-opt:hover{border-color:var(--border2)}
+.theme-opt.active{border-color:var(--accent)}
+.theme-swatch{
+  width:100%;height:40px;
+  border-radius:var(--radius);
+  margin-bottom:10px;
+  border:1px solid var(--border);
+}
+.theme-name{font-size:13px;font-weight:500;color:var(--text);margin-bottom:3px}
+.theme-desc{font-size:11px;color:var(--text3)}
+
+/* ── Auth overlay ── */
+.overlay{
+  position:fixed;inset:0;
+  background:var(--bg);
+  z-index:200;
+  display:flex;align-items:center;justify-content:center;
+  padding:16px;
+}
+.auth-box{
+  width:100%;max-width:380px;
+}
+.auth-logo{
+  display:flex;align-items:center;gap:10px;margin-bottom:28px;
+}
+.auth-logo-icon{
+  width:32px;height:32px;
+  background:var(--accent);
+  border-radius:var(--radius);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--accent-inv);
+  font-size:16px;
+}
+.auth-title{font-size:18px;font-weight:600;color:var(--text);letter-spacing:-0.3px}
+.auth-tabs{
+  display:flex;gap:0;
+  margin-bottom:20px;
+  border-bottom:1px solid var(--border);
+}
+.auth-tab{
+  padding:8px 14px;
+  font-size:12px;
+  font-family:var(--mono);
+  color:var(--text3);
+  background:none;
+  border:none;
+  cursor:pointer;
+  border-bottom:2px solid transparent;
+  margin-bottom:-1px;
+  transition:all var(--transition);
+  letter-spacing:0.5px;
+}
+.auth-tab.active{color:var(--text);border-bottom-color:var(--accent)}
+.auth-msg{
+  padding:9px 12px;
+  border-radius:var(--radius);
+  font-size:12px;
+  font-family:var(--mono);
+  margin-bottom:14px;
+  display:none;
+}
+.auth-msg.ok{background:rgba(26,122,58,0.08);border:1px solid rgba(26,122,58,0.2);color:var(--green)}
+.auth-msg.err{background:rgba(192,57,43,0.07);border:1px solid rgba(192,57,43,0.2);color:var(--red)}
+.auth-link{
+  background:none;border:none;
+  color:var(--text2);cursor:pointer;
+  font-size:12px;font-family:var(--mono);
+  text-decoration:underline;text-underline-offset:2px;
+  padding:0;
+}
+.auth-link:hover{color:var(--text)}
+.tos-box{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:10px 12px;
+  margin-bottom:14px;
+  display:flex;
+  align-items:flex-start;
+  gap:9px;
+}
+.tos-box input[type=checkbox]{
+  width:14px;height:14px;
+  margin-top:2px;
+  cursor:pointer;
+  flex-shrink:0;
+  accent-color:var(--accent);
+}
+.tos-box label{
+  font-size:11px;color:var(--text2);line-height:1.6;cursor:pointer;
+}
+
+/* ── Admin ── */
+.admin-tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:18px;overflow-x:auto}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:7px;font-size:12px}
+.bar-label{color:var(--text3);font-family:var(--mono);font-size:10px;width:90px;text-align:right;flex-shrink:0}
+.bar-track{flex:1;background:var(--bg3);border-radius:2px;height:6px;overflow:hidden}
+.bar-fill{height:100%;background:var(--accent);border-radius:2px;transition:width 1s ease}
+.bar-val{font-family:var(--mono);font-size:10px;color:var(--text3);width:24px}
+
+/* ── CLI ── */
+.cli-out{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:14px;
+  min-height:300px;
+  max-height:480px;
+  overflow-y:auto;
+  font-family:var(--mono);
+  font-size:12px;
+  line-height:1.8;
+  margin-bottom:10px;
+}
+.cli-cmd-line{color:var(--green);margin-top:6px}
+.cli-resp{color:var(--text2);white-space:pre-wrap;font-size:11px}
+.cli-err{color:var(--red);white-space:pre-wrap;font-size:11px}
+.cli-input-row{display:flex;align-items:center;gap:8px}
+.cli-prompt{font-family:var(--mono);font-size:12px;color:var(--text3);white-space:nowrap}
+.cli-quick{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.cli-quick-btn{
+  font-family:var(--mono);font-size:10px;
+  padding:4px 9px;
+  background:var(--bg2);
+  border:1px solid var(--border);
+  color:var(--text3);
+  border-radius:3px;
+  cursor:pointer;
+  transition:all var(--transition);
+}
+.cli-quick-btn:hover{border-color:var(--border2);color:var(--text)}
+.cli-status{
+  font-family:var(--mono);font-size:10px;color:var(--text3);
+  margin-top:6px;display:flex;align-items:center;gap:6px;
+}
+.pulse{
+  width:6px;height:6px;
+  border-radius:50%;
+  background:var(--green);
+  animation:pulse 2s ease infinite;
+  flex-shrink:0;
+}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+/* ── Server stats ── */
+.srv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:14px}
+.srv-card{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:14px;
+}
+.srv-label{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;margin-bottom:8px}
+.srv-val{font-family:var(--mono);font-size:22px;font-weight:500;color:var(--text);line-height:1;margin-bottom:4px}
+.srv-bar{height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-top:6px}
+.srv-bar-fill{height:100%;background:var(--accent);border-radius:2px;transition:width 0.5s ease}
+.srv-sub{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:4px}
+
+/* ── Grid row ── */
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+
+/* ── Disc hosts ── */
+.host-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.host-card{
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:12px;cursor:pointer;
+  transition:border-color var(--transition),background var(--transition);
+}
+.host-card:hover{border-color:var(--border2);background:var(--bg2)}
+.host-card-ip{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--text)}
+.host-card-hn{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:3px}
+
+/* ── Found badge ── */
+.found{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:4px 10px;
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:20px;
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--text2);
+}
+
+/* ── About modal ── */
+.modal-bg{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.5);
+  z-index:300;
+  display:none;
+  align-items:center;justify-content:center;
+  padding:16px;
+  backdrop-filter:blur(4px);
+}
+.modal-bg.open{display:flex}
+.modal{
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:var(--radius-lg);
+  padding:28px;
+  width:100%;max-width:500px;
+  position:relative;
+  max-height:90vh;overflow-y:auto;
+  box-shadow:var(--shadow-md);
+}
+.modal-close{
+  position:absolute;top:14px;right:14px;
+  background:none;border:none;
+  color:var(--text3);cursor:pointer;
+  font-size:18px;line-height:1;
+  transition:color var(--transition);
+}
+.modal-close:hover{color:var(--text)}
+
+/* ── ToS modal ── */
+.tos-modal-bg{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.6);
+  z-index:400;
+  display:none;
+  align-items:center;justify-content:center;
+  padding:16px;
+  backdrop-filter:blur(4px);
+}
+.tos-modal-bg.open{display:flex}
+.tos-modal{
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:var(--radius-lg);
+  padding:28px;
+  width:100%;max-width:560px;
+  max-height:88vh;overflow-y:auto;
+  box-shadow:var(--shadow-md);
+  position:relative;
+}
+.tos-section{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:14px;
+  margin-bottom:16px;
+  font-size:12px;
+  color:var(--text2);
+  line-height:1.8;
+}
+.tos-section strong{color:var(--text)}
+.tos-section h4{font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ── Spinner ── */
+.spin{
+  display:inline-block;
+  width:11px;height:11px;
+  border:1.5px solid var(--border2);
+  border-top-color:var(--text);
+  border-radius:50%;
+  animation:sp 0.7s linear infinite;
+  vertical-align:middle;
+}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ── Page fade ── */
+.page{display:none}
+.page.active{display:block;animation:fadeIn 0.2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Toast ── */
+#toast-container{
+  position:fixed;bottom:20px;right:20px;
+  z-index:999;
+  display:flex;flex-direction:column;gap:8px;
+  pointer-events:none;
+}
+.toast{
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:10px 14px;
+  font-size:12px;
+  font-family:var(--mono);
+  box-shadow:var(--shadow-md);
+  pointer-events:all;
+  display:flex;align-items:flex-start;gap:9px;
+  max-width:320px;
+  animation:toastIn 0.25s ease;
+}
+.toast.leaving{animation:toastOut 0.2s ease forwards}
+@keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes toastOut{to{opacity:0;transform:translateX(20px)}}
+.toast-icon{flex-shrink:0;font-size:14px;margin-top:1px}
+.toast-body{flex:1}
+.toast-title{font-weight:500;color:var(--text);margin-bottom:2px}
+.toast-msg{color:var(--text3);font-size:11px;line-height:1.5}
+.toast-close{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;line-height:1;flex-shrink:0}
+.toast-close:hover{color:var(--text)}
+.toast.success{border-left:3px solid var(--green)}
+.toast.error{border-left:3px solid var(--red)}
+.toast.info{border-left:3px solid var(--blue)}
+.toast.warning{border-left:3px solid var(--yellow)}
+
+/* ── Responsive ── */
+@media(max-width:720px){
+  .sidebar{transform:translateX(-100%);transition:transform 0.25s ease}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0}
+  .row2,.row3{grid-template-columns:1fr}
+  .theme-options{flex-direction:column}
+}
+@media(max-width:480px){
+  .content{padding:16px}
+  .page-title{font-size:18px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+
+<body class="light" id="body">
+<!-- ── Auth overlay ── -->
+<div class="overlay" id="auth-overlay">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">&#9889;</div>
       <div>
-        <div style="font-size:20px;font-weight:800;color:var(--yellow);letter-spacing:-0.5px">Legal Disclaimer & Terms of Use</div>
-        <div style="font-size:11px;color:var(--m);font-family:'JetBrains Mono',monospace;letter-spacing:2px;margin-top:3px">READ CAREFULLY BEFORE REGISTERING</div>
+        <div class="auth-title">VulnScan Pro</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:1.5px;margin-top:2px">SECURITY PLATFORM</div>
       </div>
     </div>
-    <div style="height:1px;background:linear-gradient(90deg,var(--yellow),transparent);margin-bottom:20px"></div>
-    <div style="font-size:13px;line-height:1.9;color:#c0c0d0;font-family:'JetBrains Mono',monospace">
-
-      <div style="background:rgba(255,51,102,0.07);border:1px solid rgba(255,51,102,0.25);border-radius:8px;padding:14px;margin-bottom:16px">
-        <strong style="color:var(--red)">⚠ AUTHORIZED USE ONLY</strong><br/>
-        VulnScan Pro is a professional security assessment tool. You are <strong style="color:var(--red)">strictly prohibited</strong> from using this platform to scan, probe, attack, or enumerate any system, network, or web application that you do not own or have <strong>explicit written authorization</strong> to test.
-      </div>
-
-      <p><strong style="color:var(--yellow)">1. Sole Responsibility</strong><br/>
-      By registering you acknowledge that <em>you</em> are entirely and solely responsible for all scans, queries, and actions performed from your account. The platform owner, developers, and hosting providers bear <strong>zero liability</strong> for any damage, data loss, legal consequence, or harm resulting from your use of this tool.</p>
-
-      <p><strong style="color:var(--yellow)">2. No Illegal Activity</strong><br/>
-      You agree NOT to use VulnScan Pro to conduct unauthorized access, denial-of-service attacks, credential stuffing, data exfiltration, or any other activity that violates local, national, or international law — including but not limited to the <em>Computer Fraud and Abuse Act (CFAA)</em>, the <em>Computer Misuse Act (UK)</em>, <em>EU Directive 2013/40/EU</em>, and equivalent legislation worldwide.</p>
-
-      <p><strong style="color:var(--yellow)">3. Indemnification</strong><br/>
-      You agree to indemnify, defend, and hold harmless the platform owner and all affiliated parties from any claims, damages, losses, liabilities, and costs (including attorney fees) arising from your use or misuse of this platform.</p>
-
-      <p><strong style="color:var(--yellow)">4. Audit Logging</strong><br/>
-      All scans and administrative actions are logged with timestamps, targets, and IP addresses. These logs may be provided to law enforcement upon valid legal request.</p>
-
-      <p><strong style="color:var(--yellow)">5. No Warranty</strong><br/>
-      This platform is provided "as-is" without warranty of any kind. Scan results are for informational purposes only and should be validated by a qualified security professional before acting on them.</p>
-
-      <p><strong style="color:var(--yellow)">6. Account Termination</strong><br/>
-      Any account found to be in violation of these terms will be immediately disabled and relevant logs will be preserved for potential legal proceedings.</p>
-
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="authTab('login')">LOGIN</button>
+      <button class="auth-tab" onclick="authTab('register')">REGISTER</button>
+      <button class="auth-tab" onclick="authTab('forgot')">FORGOT</button>
     </div>
-    <div style="height:1px;background:var(--b2);margin:20px 0"></div>
-    <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
-      <button onclick="closeTos()" style="padding:10px 22px;background:transparent;border:1px solid var(--b2);color:var(--m);border-radius:8px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px">DECLINE</button>
-      <button onclick="acceptTos()" style="padding:10px 22px;background:linear-gradient(135deg,var(--yellow),var(--orange));color:#000;border:none;border-radius:8px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700">I ACCEPT — CONTINUE</button>
+    <div id="auth-msg" class="auth-msg"></div>
+    <!-- Login -->
+    <div id="form-login">
+      <div class="fg"><label>USERNAME</label><input class="inp inp-mono" id="l-user" type="text" placeholder="username" autocomplete="username"/></div>
+      <div class="fg"><label>PASSWORD</label><input class="inp inp-mono" id="l-pass" type="password" placeholder="••••••••" autocomplete="current-password"/></div>
+      <button class="btn btn-primary btn-full" id="l-btn" onclick="doLogin()" style="margin-top:4px">LOGIN</button>
+      <div style="text-align:center;margin-top:12px;font-size:12px;color:var(--text3)">
+        <button class="auth-link" onclick="authTab('forgot')">Forgot password?</button>
+        &nbsp;·&nbsp;
+        <button class="auth-link" onclick="authTab('register')">Create account</button>
+      </div>
+    </div>
+    <!-- Register -->
+    <div id="form-register" style="display:none">
+      <div class="fg"><label>FULL NAME</label><input class="inp" id="r-name" type="text" placeholder="Your Name"/></div>
+      <div class="fg"><label>USERNAME</label><input class="inp inp-mono" id="r-user" type="text" placeholder="letters, numbers, _ -"/></div>
+      <div class="fg"><label>EMAIL</label><input class="inp" id="r-email" type="email" placeholder="you@example.com"/></div>
+      <div class="fg"><label>PASSWORD</label><input class="inp inp-mono" id="r-pass" type="password" placeholder="Min 8 chars, 1 uppercase, 1 number"/></div>
+      <div class="tos-box">
+        <input type="checkbox" id="r-tos-cb" onchange="updateRegisterBtn()"/>
+        <label for="r-tos-cb">I have read and agree to the <button type="button" onclick="showTos(event)" style="background:none;border:none;color:var(--text);cursor:pointer;font-size:11px;text-decoration:underline;text-underline-offset:2px;padding:0">Terms of Use</button>. I confirm I <strong>own or have written permission</strong> to scan any target I submit.</label>
+      </div>
+      <button class="btn btn-primary btn-full" id="r-btn" onclick="doRegister()" disabled style="opacity:0.4;cursor:not-allowed">CREATE ACCOUNT</button>
+      <div style="text-align:center;margin-top:12px"><button class="auth-link" onclick="authTab('login')">Already have an account?</button></div>
+    </div>
+    <!-- Forgot -->
+    <div id="form-forgot" style="display:none">
+      <div class="fg"><label>EMAIL ADDRESS</label><input class="inp" id="f-email" type="email" placeholder="you@example.com"/></div>
+      <button class="btn btn-primary btn-full" onclick="doForgot()">SEND RESET LINK</button>
+      <div style="text-align:center;margin-top:12px"><button class="auth-link" onclick="authTab('login')">Back to login</button></div>
     </div>
   </div>
 </div>
-"""
 
-# JavaScript for the ToS modal (appended inside the existing <script> block,
-# just before loadUser(); at the very bottom).
-TOS_JS = r"""
-// ── ToS Modal ──────────────────────────────────────────────────────────────
-function showTos(e) {
-  e.preventDefault();
-  // Validate required fields first
-  const name  = document.getElementById("r-name").value.trim();
-  const user  = document.getElementById("r-user").value.trim();
-  const email = document.getElementById("r-email").value.trim();
-  const pass  = document.getElementById("r-pass").value;
-  if (!user || !email || !pass) {
-    authMsg("Please fill in all fields before reading the Terms of Use.");
-    return;
-  }
-  const m = document.getElementById("tos-modal");
-  m.style.display = "flex";
-  setTimeout(() => m.style.opacity = "1", 10);
-}
-function closeTos() {
-  const m = document.getElementById("tos-modal");
-  m.style.display = "none";
-  const cb = document.getElementById("r-tos-cb");
-  if (cb) cb.checked = false;
-  updateRegisterBtn();
-}
-function acceptTos() {
-  document.getElementById("tos-modal").style.display = "none";
-  const cb = document.getElementById("r-tos-cb");
-  if (cb) { cb.checked = true; updateRegisterBtn(); }
-}
-function updateRegisterBtn() {
-  const cb  = document.getElementById("r-tos-cb");
-  const btn = document.getElementById("r-btn");
-  if (!cb || !btn) return;
-  btn.disabled = !cb.checked;
-  btn.style.opacity = cb.checked ? "1" : "0.45";
-  btn.style.cursor  = cb.checked ? "pointer" : "not-allowed";
-}
-"""
-
-# ── ToS checkbox HTML — replaces the existing register button ─────────────────
-OLD_REGISTER_BTN = '<button class="btn btn-p" id="r-btn" onclick="doRegister()" style="margin-top:4px">CREATE ACCOUNT</button>'
-
-NEW_REGISTER_BTN = '''\
-<!-- ToS checkbox -->
-<div style="background:rgba(255,214,10,0.05);border:1px solid rgba(255,214,10,0.2);border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:flex-start;gap:10px">
-  <input type="checkbox" id="r-tos-cb" onchange="updateRegisterBtn()" style="width:16px;height:16px;margin-top:2px;accent-color:var(--yellow);cursor:pointer;flex-shrink:0"/>
-  <label for="r-tos-cb" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#c0c0d0;line-height:1.7;cursor:pointer">
-    I have read and agree to the
-    <button type="button" onclick="showTos(event)" style="background:none;border:none;color:var(--yellow);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;text-decoration:underline;padding:0">Terms of Use &amp; Legal Disclaimer</button>.
-    I confirm that I <strong style="color:var(--red)">own or have written permission</strong> to scan any target I submit.
-    I accept full legal responsibility for my actions. The platform owner is
-    <strong style="color:var(--red)">not liable</strong> for any illegal or unauthorized activity I conduct.
-  </label>
+<!-- ── About modal ── -->
+<div class="modal-bg" id="about-modal" onclick="if(event.target===this)closeAbout()">
+  <div class="modal">
+    <button class="modal-close" onclick="closeAbout()">&#10005;</button>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+      <div style="width:36px;height:36px;background:var(--accent);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;color:var(--accent-inv);font-size:18px;flex-shrink:0">&#9889;</div>
+      <div><div style="font-size:16px;font-weight:600;color:var(--text)">VulnScan Pro</div><div style="font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:2px;margin-top:2px">OPEN SOURCE &middot; v3.7</div></div>
+    </div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:16px">
+      VulnScan Pro is a free, open-source vulnerability assessment platform for security professionals, penetration testers, and system administrators.
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">Creator</div>
+      <div style="font-size:13px;color:var(--text2)">Vijay Katariya &mdash; Motalund Organization</div>
+      <div style="margin-top:8px"><a href="https://github.com/labpnet33/vulnscan" target="_blank" style="font-family:var(--mono);font-size:11px;color:var(--text2);text-decoration:underline;text-underline-offset:2px">github.com/labpnet33/vulnscan</a></div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--yellow);border-radius:var(--radius);padding:10px 12px;font-size:12px;color:var(--text2)">
+      &#9888; <strong>Legal:</strong> Authorized security testing only. Only scan systems you own or have explicit written permission to test.
+    </div>
+  </div>
 </div>
-<button class="btn btn-p" id="r-btn" onclick="doRegister()" style="margin-top:4px" disabled>CREATE ACCOUNT</button>'''
 
-# ── Inject ToS modal HTML before </body> ──────────────────────────────────────
-OLD_BODY_CLOSE = "</body>\n</html>"
-NEW_BODY_CLOSE = TOS_MODAL + "\n</body>\n</html>"
+<!-- ── ToS modal ── -->
+<div class="tos-modal-bg" id="tos-modal" onclick="if(event.target===this)closeTos()">
+  <div class="tos-modal">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+      <span style="font-size:20px">&#9888;&#65039;</span>
+      <div><div style="font-size:16px;font-weight:600;color:var(--text)">Terms of Use</div><div style="font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:2px;margin-top:2px">READ BEFORE REGISTERING</div></div>
+    </div>
+    <div style="font-size:12px;line-height:1.9;color:var(--text2)">
+      <div class="tos-section"><strong>&#9888; Authorized Use Only</strong><br/>You are strictly prohibited from using this platform to scan any system you do not own or have explicit written authorization to test.</div>
+      <div class="tos-section"><h4>1. Sole Responsibility</h4>You are entirely responsible for all actions performed from your account. The platform owner bears zero liability for any damage or legal consequence.</div>
+      <div class="tos-section"><h4>2. No Illegal Activity</h4>You agree not to conduct unauthorized access, DoS attacks, data exfiltration, or any activity violating local, national, or international law (CFAA, Computer Misuse Act, EU Directive 2013/40/EU).</div>
+      <div class="tos-section"><h4>3. Indemnification</h4>You agree to indemnify and hold harmless the platform owner from all claims, damages, and costs arising from your use.</div>
+      <div class="tos-section"><h4>4. Audit Logging</h4>All scans are logged with timestamps, targets, and IPs. Logs may be provided to law enforcement upon valid legal request.</div>
+      <div class="tos-section"><h4>5. No Warranty</h4>Provided "as-is." Scan results are informational only and should be validated by a qualified security professional.</div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap">
+      <button class="btn btn-outline" onclick="closeTos()">DECLINE</button>
+      <button class="btn btn-primary" onclick="acceptTos()">I ACCEPT</button>
+    </div>
+  </div>
+</div>
 
-# ── Inject ToS JS before loadUser(); ─────────────────────────────────────────
-OLD_LOAD_USER = "loadUser();\n</script>"
-NEW_LOAD_USER  = TOS_JS + "\nloadUser();\n</script>"
+<!-- ── App layout ── -->
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-logo" onclick="pg('home',null)">
+        <div class="brand-icon">&#9889;</div>
+        <div><div class="brand-title">VulnScan Pro</div><div class="brand-sub">SECURITY PLATFORM</div></div>
+      </div>
+    </div>
+    <nav>
+      <div class="nav-section">
+        <div class="nav-label">OVERVIEW</div>
+        <button class="nav-item" id="ni-home" onclick="pg('home',this)"><span class="ni">&#9700;</span> Home</button>
+        <button class="nav-item" id="ni-dash" onclick="pg('dash',this)"><span class="ni">&#9636;</span> Dashboard</button>
+        <button class="nav-item" id="ni-hist" onclick="pg('hist',this)"><span class="ni">&#9632;</span> History</button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">INFORMATION</div>
+        <button class="nav-item" id="ni-scan" onclick="pg('scan',this)"><span class="ni">&#9675;</span> Network Scanner</button>
+        <button class="nav-item" id="ni-dnsrecon" onclick="pg('dnsrecon',this)"><span class="ni">&#9675;</span> DNSRecon</button>
+        <button class="nav-item" id="ni-disc" onclick="pg('disc',this)"><span class="ni">&#9675;</span> Net Discovery</button>
+        <button class="nav-item" id="ni-harvester" onclick="pg('harvester',this)"><span class="ni">&#9675;</span> theHarvester</button>
+        <button class="nav-item" id="ni-sub" onclick="pg('sub',this)"><span class="ni">&#9675;</span> Subdomain Finder</button>
+        <button class="nav-item" id="ni-legion" onclick="pg('legion',this)"><span class="ni">&#9675;</span> Legion</button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">WEB TESTING</div>
+        <button class="nav-item" id="ni-nikto" onclick="pg('nikto',this)"><span class="ni">&#9675;</span> Nikto</button>
+        <button class="nav-item" id="ni-wpscan" onclick="pg('wpscan',this)"><span class="ni">&#9675;</span> WPScan</button>
+        <button class="nav-item" id="ni-dir" onclick="pg('dir',this)"><span class="ni">&#9675;</span> Dir Buster</button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">ATTACKS</div>
+        <button class="nav-item" id="ni-brute" onclick="pg('brute',this)"><span class="ni">&#9675;</span> Brute Force</button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">AUDITING</div>
+        <button class="nav-item" id="ni-lynis" onclick="pg('lynis',this)"><span class="ni">&#9675;</span> Lynis</button>
+      </div>
+      <div class="nav-section admin-only" style="display:none">
+        <div class="nav-label">ADMIN</div>
+        <button class="nav-item admin-only" id="ni-admin" onclick="pg('admin',this)" style="display:none"><span class="ni">&#9632;</span> Admin Console</button>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="nav-item" onclick="showAbout()"><span class="ni">&#9432;</span> About</button>
+      <button class="nav-item" id="logout-btn" onclick="doLogout()" style="display:none;color:var(--red)"><span class="ni">&#10005;</span> Logout</button>
+    </div>
+  </aside>
+
+  <!-- Main area -->
+  <div class="main">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="tb-title" id="topbar-title">Home</div>
+      <div class="tb-right">
+        <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle dark/light theme" aria-label="Toggle theme"></button>
+        <div class="user-chip" id="user-chip" onclick="pg('profile',null)" style="display:none">
+          <div class="user-av" id="user-avatar">?</div>
+          <div>
+            <div class="user-name" id="user-name-disp">User</div>
+            <div class="user-role" id="user-role-disp">user</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Pages -->
+    <div class="content">
+
+      <!-- ═ HOME ═ -->
+      <div class="page active" id="page-home">
+        <div class="page-hd">
+          <div class="page-title">Welcome back</div>
+          <div class="page-desc">Professional security reconnaissance &amp; vulnerability assessment</div>
+        </div>
+        <div class="stats" id="home-stats">
+          <div class="stat"><div class="stat-val" id="hs-scans">—</div><div class="stat-lbl">TOTAL SCANS</div></div>
+          <div class="stat"><div class="stat-val" id="hs-cves">—</div><div class="stat-lbl">CVEs FOUND</div></div>
+          <div class="stat"><div class="stat-val" id="hs-ports">—</div><div class="stat-lbl">OPEN PORTS</div></div>
+          <div class="stat"><div class="stat-val">12</div><div class="stat-lbl">TOOLS</div></div>
+        </div>
+        <!-- Tool grid -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
+          <div class="card" style="cursor:pointer;transition:border-color var(--transition)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'" onclick="pg('scan',null)">
+            <div class="card-p">
+              <div style="font-size:18px;margin-bottom:8px">&#9632;</div>
+              <div style="font-weight:600;margin-bottom:4px">Network Scanner</div>
+              <div style="font-size:12px;color:var(--text3)">Port scan · CVE lookup · SSL analysis · DNS · Headers</div>
+              <div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap">
+                <span class="tag">nmap</span><span class="tag">CVE</span><span class="tag">SSL</span>
+              </div>
+            </div>
+          </div>
+          <div class="card" style="cursor:pointer;transition:border-color var(--transition)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'" onclick="pg('harvester',null)">
+            <div class="card-p">
+              <div style="font-size:18px;margin-bottom:8px">&#9632;</div>
+              <div style="font-weight:600;margin-bottom:4px">theHarvester</div>
+              <div style="font-size:12px;color:var(--text3)">OSINT emails, subdomains, IPs from public sources</div>
+              <div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">OSINT</span><span class="tag">emails</span></div>
+            </div>
+          </div>
+          <div class="card" style="cursor:pointer;transition:border-color var(--transition)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'" onclick="pg('sub',null)">
+            <div class="card-p">
+              <div style="font-size:18px;margin-bottom:8px">&#9632;</div>
+              <div style="font-weight:600;margin-bottom:4px">Subdomain Finder</div>
+              <div style="font-size:12px;color:var(--text3)">DNS brute-force + crt.sh + HackerTarget passive</div>
+              <div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">DNS</span><span class="tag">brute-force</span></div>
+            </div>
+          </div>
+          <div class="card" style="cursor:pointer;transition:border-color var(--transition)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'" onclick="pg('nikto',null)">
+            <div class="card-p">
+              <div style="font-size:18px;margin-bottom:8px">&#9632;</div>
+              <div style="font-weight:600;margin-bottom:4px">Nikto</div>
+              <div style="font-size:12px;color:var(--text3)">Web vulnerability scanner · 6700+ checks</div>
+              <div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">web</span><span class="tag">CVE</span></div>
+            </div>
+          </div>
+          <div class="card" style="cursor:pointer;transition:border-color var(--transition)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'" onclick="pg('dir',null)">
+            <div class="card-p">
+              <div style="font-size:18px;margin-bottom:8px">&#9632;</div>
+              <div style="font-weight:600;margin-bottom:4px">Directory Buster</div>
+              <div style="font-size:12px;color:var(--text3)">Hidden paths, admin panels, sensitive files</div>
+              <div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">HTTP</span><span class="tag">fuzzing</span></div>
+            </div>
+          </div>
+          <div class="card" style="cursor:pointer;transition:border-color var(--transition)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'" onclick="pg('lynis',null)">
+            <div class="card-p">
+              <div style="font-size:18px;margin-bottom:8px">&#9632;</div>
+              <div style="font-weight:600;margin-bottom:4px">Lynis</div>
+              <div style="font-size:12px;color:var(--text3)">System audit · hardening · compliance</div>
+              <div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">local</span><span class="tag">CIS</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="notice" style="margin-top:18px">
+          &#9888; <strong>Authorized use only.</strong> Only scan systems you own or have explicit written permission to assess.
+        </div>
+      </div>
+
+      <!-- ═ SCANNER ═ -->
+      <div class="page" id="page-scan">
+        <div class="page-hd">
+          <div class="page-title">Network Scanner</div>
+          <div class="page-desc">Port scan &middot; CVE lookup &middot; SSL analysis &middot; DNS recon &middot; Header audit</div>
+        </div>
+        <div class="card card-p" style="margin-bottom:16px">
+          <div class="scan-bar">
+            <input class="inp inp-mono" id="tgt" type="text" placeholder="IP address or hostname" onkeydown="if(event.key==='Enter')doScan()"/>
+            <button class="btn btn-primary" id="sbtn" onclick="doScan()">SCAN</button>
+            <button class="btn btn-outline btn-sm" id="sbtn-cancel" onclick="cancelScan('scan')" style="display:none;color:var(--red);border-color:rgba(192,57,43,0.3)">CANCEL</button>
+          </div>
+          <div class="pills">
+            <button class="pill on" id="mod-ports" onclick="tmg('ports',this)">Ports + CVE</button>
+            <button class="pill on" id="mod-ssl" onclick="tmg('ssl',this)">SSL/TLS</button>
+            <button class="pill on" id="mod-dns" onclick="tmg('dns',this)">DNS</button>
+            <button class="pill on" id="mod-headers" onclick="tmg('headers',this)">Headers</button>
+          </div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:10px">&#9432; Scans may take 30–180 seconds depending on target and modules.</div>
+        </div>
+        <div class="progress-wrap" id="prog"><div class="progress-bar" id="pb" style="width:0%"></div></div>
+        <div class="terminal" id="term"></div>
+        <div class="err-box" id="err"></div>
+        <div id="res"></div>
+      </div>
+
+      <!-- ═ HARVESTER ═ -->
+      <div class="page" id="page-harvester">
+        <div class="page-hd"><div class="page-title">theHarvester</div><div class="page-desc">OSINT email, subdomain, and IP reconnaissance</div></div>
+        <div class="notice">&#9888; Only perform reconnaissance on domains you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TARGET DOMAIN</label><input class="inp inp-mono" id="hv-target" type="text" placeholder="example.com"/></div>
+            <div class="fg"><label>RESULT LIMIT</label><input class="inp inp-mono" id="hv-limit" type="number" value="500" min="50" max="2000"/></div>
+          </div>
+          <div class="fg"><label>DATA SOURCES (hold Ctrl/Cmd for multiple)</label>
+            <select class="inp inp-mono" id="hv-sources" multiple style="height:90px;padding:6px">
+              <option value="google" selected>Google</option><option value="bing" selected>Bing</option>
+              <option value="linkedin">LinkedIn</option><option value="dnsdumpster" selected>DNSDumpster</option>
+              <option value="crtsh" selected>crt.sh</option><option value="hackertarget">HackerTarget</option>
+              <option value="baidu">Baidu</option><option value="yahoo">Yahoo</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="hv-btn" onclick="doHarvest()">RUN HARVESTER</button>
+          <button class="btn btn-outline btn-sm" id="hv-cancel" onclick="cancelScan('hv')" style="display:none;color:var(--red);margin-left:8px">CANCEL</button>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:10px">&#9432; May take 30–120s depending on sources.</div>
+        </div>
+        <div class="progress-wrap" id="hv-prog"><div class="progress-bar" id="hv-pb" style="width:0%"></div></div>
+        <div class="terminal" id="hv-term"></div>
+        <div class="err-box" id="hv-err"></div>
+        <div id="hv-res"></div>
+      </div>
+
+      <!-- ═ DNSRECON ═ -->
+      <div class="page" id="page-dnsrecon">
+        <div class="page-hd"><div class="page-title">DNSRecon</div><div class="page-desc">DNS enumeration and zone analysis</div></div>
+        <div class="notice">&#9888; Only enumerate domains you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TARGET DOMAIN</label><input class="inp inp-mono" id="dr-target" type="text" placeholder="example.com"/></div>
+            <div class="fg"><label>SCAN TYPE</label>
+              <select class="inp inp-mono" id="dr-type">
+                <option value="std">Standard (all record types)</option><option value="axfr">Zone Transfer (AXFR)</option>
+                <option value="brt">Brute Force subdomains</option><option value="srv">SRV records</option><option value="rvl">Reverse lookup</option>
+              </select>
+            </div>
+          </div>
+          <div class="row2" style="margin-bottom:16px">
+            <div class="fg"><label>NAMESERVER (optional)</label><input class="inp inp-mono" id="dr-ns" type="text" placeholder="8.8.8.8"/></div>
+            <div class="fg"><label>RECORD FILTER</label>
+              <select class="inp inp-mono" id="dr-filter">
+                <option value="">All records</option><option value="A">A</option><option value="MX">MX</option>
+                <option value="NS">NS</option><option value="TXT">TXT</option><option value="SOA">SOA</option><option value="CNAME">CNAME</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="dr-btn" onclick="doDnsRecon()">RUN DNSRECON</button>
+          <button class="btn btn-outline btn-sm" id="dr-cancel" onclick="cancelScan('dr')" style="display:none;color:var(--red);margin-left:8px">CANCEL</button>
+        </div>
+        <div class="progress-wrap" id="dr-prog"><div class="progress-bar" id="dr-pb" style="width:0%"></div></div>
+        <div class="terminal" id="dr-term"></div>
+        <div class="err-box" id="dr-err"></div>
+        <div id="dr-res"></div>
+      </div>
+
+      <!-- ═ NIKTO ═ -->
+      <div class="page" id="page-nikto">
+        <div class="page-hd"><div class="page-title">Nikto</div><div class="page-desc">Web server vulnerability scanner</div></div>
+        <div class="notice">&#9888; Only scan web servers you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TARGET URL / HOST</label><input class="inp inp-mono" id="nk-target" type="text" placeholder="http://192.168.1.1"/></div>
+            <div class="fg"><label>PORT</label><input class="inp inp-mono" id="nk-port" type="number" placeholder="80" value="80" min="1" max="65535"/></div>
+          </div>
+          <div class="row2" style="margin-bottom:16px">
+            <div class="fg"><label>SSL</label><select class="inp inp-mono" id="nk-ssl"><option value="">Auto-detect</option><option value="-ssl">Force SSL</option><option value="-nossl">Disable SSL</option></select></div>
+            <div class="fg"><label>TUNING</label><select class="inp inp-mono" id="nk-tuning"><option value="">All tests</option><option value="1">File upload</option><option value="2">Misconfiguration</option><option value="4">XSS</option><option value="8">Command injection</option><option value="9">SQL injection</option></select></div>
+          </div>
+          <button class="btn btn-primary" id="nk-btn" onclick="doNikto()">RUN NIKTO</button>
+          <button class="btn btn-outline btn-sm" id="nk-cancel" onclick="cancelScan('nk')" style="display:none;color:var(--red);margin-left:8px">CANCEL</button>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:10px">&#9432; Nikto scans may take 2–10 minutes.</div>
+        </div>
+        <div class="progress-wrap" id="nk-prog"><div class="progress-bar" id="nk-pb" style="width:0%"></div></div>
+        <div class="terminal" id="nk-term"></div>
+        <div class="err-box" id="nk-err"></div>
+        <div id="nk-res"></div>
+      </div>
+
+      <!-- ═ WPSCAN ═ -->
+      <div class="page" id="page-wpscan">
+        <div class="page-hd"><div class="page-title">WPScan</div><div class="page-desc">WordPress security scanner</div></div>
+        <div class="notice">&#9888; Only scan WordPress sites you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>TARGET URL</label><input class="inp inp-mono" id="wp-target" type="text" placeholder="https://example.com"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>ENUMERATION (hold Ctrl/Cmd)</label>
+              <select class="inp inp-mono" id="wp-enum" multiple style="height:90px;padding:6px">
+                <option value="p" selected>Plugins (vulnerable)</option><option value="t">Themes</option><option value="u" selected>Users</option>
+                <option value="vp">Vulnerable plugins only</option><option value="ap">All plugins</option>
+                <option value="at">All themes</option><option value="cb">Config backups</option>
+              </select>
+            </div>
+            <div class="fg"><label>DETECTION MODE</label>
+              <select class="inp inp-mono" id="wp-mode"><option value="mixed">Mixed (default)</option><option value="passive">Passive</option><option value="aggressive">Aggressive</option></select>
+            </div>
+          </div>
+          <div class="fg"><label>API TOKEN (optional)</label><input class="inp inp-mono" id="wp-token" type="password" placeholder="Get free token at wpscan.com"/></div>
+          <button class="btn btn-primary" id="wp-btn" onclick="doWPScan()">RUN WPSCAN</button>
+          <button class="btn btn-outline btn-sm" id="wp-cancel" onclick="cancelScan('wp')" style="display:none;color:var(--red);margin-left:8px">CANCEL</button>
+        </div>
+        <div class="progress-wrap" id="wp-prog"><div class="progress-bar" id="wp-pb" style="width:0%"></div></div>
+        <div class="terminal" id="wp-term"></div>
+        <div class="err-box" id="wp-err"></div>
+        <div id="wp-res"></div>
+      </div>
+
+      <!-- ═ LYNIS ═ -->
+      <div class="page" id="page-lynis">
+        <div class="page-hd"><div class="page-title">Lynis</div><div class="page-desc">Local system security audit</div></div>
+        <div class="notice">&#9432; Lynis audits the <strong>local server</strong> running VulnScan Pro. No target needed.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>AUDIT PROFILE</label><select class="inp inp-mono" id="ly-profile"><option value="system">Full System Audit</option><option value="quick">Quick Scan</option><option value="forensics">Forensics Mode</option></select></div>
+            <div class="fg"><label>COMPLIANCE</label><select class="inp inp-mono" id="ly-compliance"><option value="">None</option><option value="ISO27001">ISO 27001</option><option value="PCI-DSS">PCI-DSS</option><option value="HIPAA">HIPAA</option><option value="CIS">CIS Benchmark</option></select></div>
+          </div>
+          <div class="fg"><label>FOCUS CATEGORY</label><select class="inp inp-mono" id="ly-category"><option value="">All categories</option><option value="authentication">Authentication</option><option value="networking">Networking</option><option value="storage">Storage</option><option value="kernel">Kernel</option><option value="software">Software</option><option value="logging">Logging</option></select></div>
+          <button class="btn btn-primary" id="ly-btn" onclick="doLynis()">RUN LYNIS AUDIT</button>
+          <button class="btn btn-outline btn-sm" id="ly-cancel" onclick="cancelScan('ly')" style="display:none;color:var(--red);margin-left:8px">CANCEL</button>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:10px">&#9432; Full audit may take 2–5 minutes.</div>
+        </div>
+        <div class="progress-wrap" id="ly-prog"><div class="progress-bar" id="ly-pb" style="width:0%"></div></div>
+        <div class="terminal" id="ly-term"></div>
+        <div class="err-box" id="ly-err"></div>
+        <div id="ly-res"></div>
+      </div>
+
+      <!-- ═ LEGION ═ -->
+      <div class="page" id="page-legion">
+        <div class="page-hd"><div class="page-title">Legion</div><div class="page-desc">Auto-recon framework</div></div>
+        <div class="notice">&#9888; Legion runs multiple active tools. Only scan hosts you own or have written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TARGET HOST / IP</label><input class="inp inp-mono" id="lg-target" type="text" placeholder="192.168.1.1"/></div>
+            <div class="fg"><label>INTENSITY</label><select class="inp inp-mono" id="lg-intensity"><option value="light">Light (fast)</option><option value="normal" selected>Normal</option><option value="aggressive">Aggressive</option></select></div>
+          </div>
+          <div class="fg">
+            <label>MODULES</label>
+            <div class="pills" style="margin-top:6px">
+              <button class="pill on" id="lg-mod-nmap" onclick="lgMod('nmap',this)">nmap</button>
+              <button class="pill on" id="lg-mod-nikto" onclick="lgMod('nikto',this)">nikto</button>
+              <button class="pill on" id="lg-mod-smb" onclick="lgMod('smb',this)">SMB</button>
+              <button class="pill on" id="lg-mod-snmp" onclick="lgMod('snmp',this)">SNMP</button>
+              <button class="pill" id="lg-mod-hydra" onclick="lgMod('hydra',this)">hydra</button>
+              <button class="pill" id="lg-mod-finger" onclick="lgMod('finger',this)">finger</button>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="lg-btn" onclick="doLegion()" style="margin-top:12px">RUN LEGION</button>
+          <button class="btn btn-outline btn-sm" id="lg-cancel" onclick="cancelScan('lg')" style="display:none;color:var(--red);margin-left:8px">CANCEL</button>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:10px">&#9432; Aggressive scans may take 5–15 minutes.</div>
+        </div>
+        <div class="progress-wrap" id="lg-prog"><div class="progress-bar" id="lg-pb" style="width:0%"></div></div>
+        <div class="terminal" id="lg-term"></div>
+        <div class="err-box" id="lg-err"></div>
+        <div id="lg-res"></div>
+      </div>
+
+      <!-- ═ SUBDOMAIN ═ -->
+      <div class="page" id="page-sub">
+        <div class="page-hd"><div class="page-title">Subdomain Finder</div><div class="page-desc">DNS brute-force + passive enumeration</div></div>
+        <div class="notice">&#9888; Only enumerate domains you own or have written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>DOMAIN</label><input class="inp inp-mono" id="sub-domain" type="text" placeholder="example.com"/></div>
+          <div class="fg"><label>WORDLIST SIZE</label><select class="inp inp-mono" id="sub-size"><option value="small">Small (~30 words)</option><option value="medium" selected>Medium (~80 words + crt.sh + HackerTarget)</option></select></div>
+          <button class="btn btn-primary" id="sub-btn" onclick="doSub()">FIND SUBDOMAINS</button>
+        </div>
+        <div id="sub-res"></div>
+      </div>
+
+      <!-- ═ DIR BUSTER ═ -->
+      <div class="page" id="page-dir">
+        <div class="page-hd"><div class="page-title">Directory Buster</div><div class="page-desc">Hidden path and file enumeration</div></div>
+        <div class="notice">&#9888; Only scan web servers you own or have written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>TARGET URL</label><input class="inp inp-mono" id="dir-url" type="text" placeholder="http://192.168.1.1"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>WORDLIST SIZE</label><select class="inp inp-mono" id="dir-size"><option value="small" selected>Small (~60 paths)</option><option value="medium">Medium (~130 paths)</option></select></div>
+            <div class="fg"><label>EXTENSIONS</label><input class="inp inp-mono" id="dir-ext" type="text" value="php,html,txt,bak,zip,json,xml"/></div>
+          </div>
+          <button class="btn btn-primary" id="dir-btn" onclick="doDir()">START ENUMERATION</button>
+        </div>
+        <div id="dir-res"></div>
+      </div>
+
+      <!-- ═ BRUTE FORCE ═ -->
+      <div class="page" id="page-brute">
+        <div class="page-hd"><div class="page-title">Brute Force</div><div class="page-desc">Credential testing against HTTP and SSH services</div></div>
+        <div class="notice">&#9888; ONLY use on systems you own or have explicit written permission. Unauthorized use is illegal.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ATTACK TYPE</label><select class="inp inp-mono" id="bf-type" onchange="bfTypeChange()"><option value="http">HTTP Form Login</option><option value="ssh">SSH Login</option></select></div>
+          <div id="bf-http-fields">
+            <div class="row3" style="margin-bottom:8px">
+              <div class="fg"><label>LOGIN URL</label><input class="inp inp-mono" id="bf-url" type="text" placeholder="http://host/login"/></div>
+              <div class="fg"><label>USER FIELD</label><input class="inp inp-mono" id="bf-ufield" value="username" type="text"/></div>
+              <div class="fg"><label>PASS FIELD</label><input class="inp inp-mono" id="bf-pfield" value="password" type="text"/></div>
+            </div>
+          </div>
+          <div id="bf-ssh-fields" style="display:none">
+            <div class="row2" style="margin-bottom:8px">
+              <div class="fg"><label>HOST</label><input class="inp inp-mono" id="bf-ssh-host" type="text" placeholder="192.168.1.1"/></div>
+              <div class="fg"><label>PORT</label><input class="inp inp-mono" id="bf-ssh-port" value="22" type="text"/></div>
+            </div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>USERNAMES (one per line)</label><textarea class="inp inp-mono" id="bf-users" placeholder="admin&#10;root&#10;user"></textarea></div>
+            <div class="fg"><label>PASSWORDS (one per line)</label><textarea class="inp inp-mono" id="bf-pwds" placeholder="admin&#10;password&#10;123456"></textarea></div>
+          </div>
+          <button class="btn btn-primary btn-full" id="bf-btn" onclick="doBrute()">START BRUTE FORCE</button>
+        </div>
+        <div id="bf-res"></div>
+      </div>
+
+      <!-- ═ NETWORK DISCOVERY ═ -->
+      <div class="page" id="page-disc">
+        <div class="page-hd"><div class="page-title">Network Discovery</div><div class="page-desc">Discover live hosts on a subnet</div></div>
+        <div class="notice">&#9888; Only scan networks you own or have permission to scan.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="scan-bar">
+            <input class="inp inp-mono" id="subnet" type="text" placeholder="192.168.1.0/24" onkeydown="if(event.key==='Enter')doDisc()"/>
+            <button class="btn btn-primary" id="disc-btn" onclick="doDisc()">DISCOVER</button>
+          </div>
+        </div>
+        <div id="disc-res"></div>
+      </div>
+
+      <!-- ═ HISTORY ═ -->
+      <div class="page" id="page-hist">
+        <div class="page-hd"><div class="page-title">Scan History</div><div class="page-desc">Your previous vulnerability assessments</div></div>
+        <div class="card" id="hist-content"><div class="card-p" style="color:var(--text3)">Loading...</div></div>
+      </div>
+
+      <!-- ═ DASHBOARD ═ -->
+      <div class="page" id="page-dash">
+        <div class="page-hd"><div class="page-title">Dashboard</div><div class="page-desc">Security statistics and activity overview</div></div>
+        <div id="dash-content"><div style="color:var(--text3);font-size:13px">Run some scans to see statistics.</div></div>
+      </div>
+
+      <!-- ═ PROFILE ═ -->
+      <div class="page" id="page-profile">
+        <div class="page-hd"><div class="page-title">Profile</div><div class="page-desc">Account settings and preferences</div></div>
+        <div class="profile-grid">
+          <div class="card card-p">
+            <div class="card-title" style="margin-bottom:12px">My Account</div>
+            <div id="profile-info"></div>
+            <div style="margin-top:16px">
+              <div class="fg"><label>FULL NAME</label><input class="inp" id="p-name" type="text" placeholder="Your full name"/></div>
+              <button class="btn btn-primary btn-full" onclick="saveProfile()">SAVE CHANGES</button>
+            </div>
+          </div>
+          <div class="card card-p">
+            <div class="card-title" style="margin-bottom:12px">Change Password</div>
+            <div class="fg"><label>CURRENT PASSWORD</label><input class="inp inp-mono" id="cp-old" type="password"/></div>
+            <div class="fg"><label>NEW PASSWORD</label><input class="inp inp-mono" id="cp-new" type="password"/></div>
+            <div class="fg"><label>CONFIRM NEW PASSWORD</label><input class="inp inp-mono" id="cp-confirm" type="password"/></div>
+            <button class="btn btn-primary btn-full" onclick="changePassword()">UPDATE PASSWORD</button>
+            <div id="pwd-msg" class="auth-msg" style="margin-top:10px"></div>
+          </div>
+        </div>
+
+        <!-- Theme section -->
+        <div class="card card-p" style="margin-top:16px">
+          <div class="card-title" style="margin-bottom:6px">Interface Theme</div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:14px">Saved per-user to your account only.</div>
+          <div class="theme-options">
+            <button class="theme-opt active" id="theme-opt-light" onclick="applyTheme('light')">
+              <div class="theme-swatch" style="background:linear-gradient(135deg,#ffffff,#f5f5f5);border:1px solid #e0e0e0"></div>
+              <div class="theme-name">Light</div>
+              <div class="theme-desc">Clean white workspace</div>
+            </button>
+            <button class="theme-opt" id="theme-opt-dark" onclick="applyTheme('dark')">
+              <div class="theme-swatch" style="background:linear-gradient(135deg,#0a0a0a,#1a1a1a);border:1px solid #252525"></div>
+              <div class="theme-name">Dark</div>
+              <div class="theme-desc">Low-light environment</div>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═ ADMIN ═ -->
+      <div class="page" id="page-admin">
+        <div class="page-hd"><div class="page-title">Admin Console</div><div class="page-desc">User management, server CLI, and platform statistics</div></div>
+        <div class="tabs admin-tabs" id="admin-tabs">
+          <button class="tab active" onclick="adminTab(event,'at-cli')">Console</button>
+          <button class="tab" onclick="adminTab(event,'at-users')">Users</button>
+          <button class="tab" onclick="adminTab(event,'at-stats')">Stats</button>
+          <button class="tab" onclick="adminTab(event,'at-audit')">Audit Log</button>
+          <button class="tab" onclick="adminTab(event,'at-scans')">All Scans</button>
+        </div>
+        <div class="tc active" id="at-cli">
+          <!-- Server stats -->
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-header">
+              <div><div class="card-title">Server Statistics</div></div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div class="pulse"></div>
+                <span style="font-family:var(--mono);font-size:10px;color:var(--text3)" id="stats-updated">LIVE</span>
+                <button class="btn btn-ghost btn-sm" onclick="loadServerStats()">Refresh</button>
+              </div>
+            </div>
+            <div class="card-p">
+              <div class="srv-grid">
+                <div class="srv-card">
+                  <div class="srv-label">CPU USAGE</div>
+                  <div class="srv-val" id="cpu-val">—</div>
+                  <div class="srv-bar"><div class="srv-bar-fill" id="cpu-bar" style="width:0%"></div></div>
+                  <div class="srv-sub" id="cpu-cores">— cores</div>
+                </div>
+                <div class="srv-card">
+                  <div class="srv-label">MEMORY</div>
+                  <div class="srv-val" id="mem-val">—</div>
+                  <div class="srv-bar"><div class="srv-bar-fill" id="mem-bar" style="width:0%"></div></div>
+                  <div class="srv-sub" id="mem-total">of —</div>
+                </div>
+                <div class="srv-card">
+                  <div class="srv-label">SWAP</div>
+                  <div class="srv-val" id="swap-val">—</div>
+                  <div class="srv-bar"><div class="srv-bar-fill" id="swap-bar" style="width:0%"></div></div>
+                  <div class="srv-sub" id="swap-total">of —</div>
+                </div>
+                <div class="srv-card">
+                  <div class="srv-label">STORAGE (/)</div>
+                  <div class="srv-val" id="disk-val">—</div>
+                  <div class="srv-bar"><div class="srv-bar-fill" id="disk-bar" style="width:0%"></div></div>
+                  <div class="srv-sub" id="disk-total">of —</div>
+                </div>
+                <div class="srv-card">
+                  <div class="srv-label">NETWORK</div>
+                  <div style="font-family:var(--mono);font-size:11px;color:var(--text2);margin-top:6px">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="color:var(--text3)">TX</span><span id="net-tx">—</span></div>
+                    <div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">RX</span><span id="net-rx">—</span></div>
+                  </div>
+                  <div class="srv-sub" id="net-iface"></div>
+                </div>
+              </div>
+              <div class="row3">
+                <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px">
+                  <div style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;margin-bottom:4px">UPTIME</div>
+                  <div id="sys-uptime" style="font-family:var(--mono);font-size:12px;color:var(--text)">—</div>
+                </div>
+                <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px">
+                  <div style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;margin-bottom:4px">LOAD AVG</div>
+                  <div id="sys-load" style="font-family:var(--mono);font-size:12px;color:var(--text)">—</div>
+                </div>
+                <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px">
+                  <div style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;margin-bottom:4px">PROCESSES</div>
+                  <div id="sys-procs" style="font-family:var(--mono);font-size:12px;color:var(--text)">—</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- CLI -->
+          <div class="card">
+            <div class="card-header">
+              <div><div class="card-title">Server CLI Console</div><div class="card-sub">ADMIN ONLY — ALL COMMANDS LOGGED</div></div>
+              <div style="display:flex;align-items:center;gap:6px"><div class="pulse"></div><span style="font-family:var(--mono);font-size:10px;color:var(--text3)" id="cli-hostname">loading...</span></div>
+            </div>
+            <div class="card-p">
+              <div class="notice" style="margin-bottom:12px">&#9888; Allowlisted commands only. Type <code style="font-family:var(--mono)">help</code> to list available commands.</div>
+              <div class="cli-out" id="cli-output">
+                <div style="color:var(--text3);margin-bottom:2px">VulnScan Pro — Server Console</div>
+                <div style="color:var(--text3);border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:10px">User: <span id="cli-user-label" style="color:var(--text)">admin</span></div>
+              </div>
+              <div class="cli-input-row">
+                <span class="cli-prompt">$</span>
+                <input class="inp inp-mono" id="cli-input" type="text" placeholder="Enter command... (↑↓ history, Tab autocomplete)" onkeydown="cliKey(event)" autocomplete="off" spellcheck="false" style="flex:1"/>
+                <button class="btn btn-outline btn-sm" onclick="cliRun()">RUN</button>
+                <button class="btn btn-ghost btn-sm" onclick="cliClear()">CLR</button>
+              </div>
+              <div class="cli-status" id="cli-statusbar"><div class="pulse"></div><span>Ready</span></div>
+              <div class="cli-quick" id="cli-quick-cmds">
+                <button class="cli-quick-btn" onclick="cliQuick('uptime')">uptime</button>
+                <button class="cli-quick-btn" onclick="cliQuick('df -h')">df -h</button>
+                <button class="cli-quick-btn" onclick="cliQuick('free -h')">free -h</button>
+                <button class="cli-quick-btn" onclick="cliQuick('ps aux | head -20')">ps aux</button>
+                <button class="cli-quick-btn" onclick="cliQuick('ss -tlnp')">ss -tlnp</button>
+                <button class="cli-quick-btn" onclick="cliQuick('uname -a')">uname</button>
+                <button class="cli-quick-btn" onclick="cliQuick('ip addr')">ip addr</button>
+                <button class="cli-quick-btn" onclick="cliQuick('which nmap nikto lynis dnsrecon theharvester wpscan')">check tools</button>
+                <button class="cli-quick-btn" onclick="cliQuick('journalctl -n 30 --no-pager')">recent logs</button>
+                <button class="cli-quick-btn" onclick="cliQuick('cat /etc/os-release')">OS info</button>
+                <button class="cli-quick-btn" onclick="cliQuick('last -n 10')">last logins</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tc" id="at-users"><div class="card"><div class="card-header"><div class="card-title">User Management</div></div><div class="card-p" id="admin-users" style="overflow-x:auto"><p style="color:var(--text3)">Loading...</p></div></div></div>
+        <div class="tc" id="at-stats"><div class="card"><div class="card-header"><div class="card-title">Platform Statistics</div></div><div class="card-p" id="admin-stats"></div></div></div>
+        <div class="tc" id="at-audit"><div class="card"><div class="card-header"><div class="card-title">Audit Log</div></div><div class="card-p" id="admin-audit" style="overflow-x:auto"></div></div></div>
+        <div class="tc" id="at-scans"><div class="card"><div class="card-header"><div class="card-title">All Scans</div></div><div class="card-p" id="admin-scans" style="overflow-x:auto"></div></div></div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<script>
+// ══ THEME ══════════════════════════════════════════════════════════════════
+let currentTheme='light';
+function _themeKey(){return currentUser?'vs2-theme-'+currentUser.username:'vs2-theme-anon';}
+function applyTheme(t,save=true){
+  currentTheme=t;
+  const body=document.getElementById('body');
+  body.className=t;
+  if(save){try{localStorage.setItem(_themeKey(),t);}catch(e){}}
+  document.getElementById('theme-opt-light')?.classList.toggle('active',t==='light');
+  document.getElementById('theme-opt-dark')?.classList.toggle('active',t==='dark');
+}
+function toggleTheme(){applyTheme(currentTheme==='light'?'dark':'light');}
+function loadUserTheme(){
+  try{const s=localStorage.getItem(_themeKey());applyTheme(s==='dark'?'dark':'light',false);}
+  catch(e){applyTheme('light',false);}
+}
+applyTheme('light',false);
+
+// ══ TOAST ═══════════════════════════════════════════════════════════════════
+function showToast(title,msg,type='info',duration=5000){
+  const icons={success:'✓',error:'✕',info:'·',warning:'!'};
+  const c=document.getElementById('toast-container');
+  const t=document.createElement('div');
+  t.className='toast '+type;
+  t.innerHTML='<div class="toast-icon">'+icons[type]+'</div><div class="toast-body"><div class="toast-title">'+title+'</div>'+(msg?'<div class="toast-msg">'+msg+'</div>':'')+'</div><button class="toast-close" onclick="dismissToast(this.parentElement)">&#10005;</button>';
+  c.appendChild(t);
+  const timer=setTimeout(()=>dismissToast(t),duration);
+  t._timer=timer;
+  t.addEventListener('click',()=>{clearTimeout(t._timer);dismissToast(t);});
+}
+function dismissToast(el){
+  if(!el||el._dismissed)return;el._dismissed=true;
+  el.classList.add('leaving');setTimeout(()=>el.remove(),200);
+}
+const toast=showToast;
+
+// ══ SCAN CANCEL ═════════════════════════════════════════════════════════════
+const scanControllers={};
+function cancelScan(prefix){
+  if(scanControllers[prefix]){scanControllers[prefix].abort();delete scanControllers[prefix];}
+  const id=prefix==='scan'?'sbtn-cancel':prefix+'-cancel';
+  const b=document.getElementById(id);if(b)b.style.display='none';
+  showToast('Cancelled','Scan stopped by user.','warning',3000);
+}
+function setScanRunning(prefix,running){
+  const id=prefix==='scan'?'sbtn-cancel':prefix+'-cancel';
+  const b=document.getElementById(id);if(b)b.style.display=running?'inline-flex':'none';
+}
+async function fetchWithTimeout(url,options={},timeoutMs=300000,prefix=null){
+  const controller=new AbortController();
+  if(prefix)scanControllers[prefix]=controller;
+  const timer=setTimeout(()=>controller.abort(),timeoutMs);
+  try{const r=await fetch(url,{...options,signal:controller.signal});clearTimeout(timer);if(prefix)delete scanControllers[prefix];return r;}
+  catch(e){clearTimeout(timer);if(prefix)delete scanControllers[prefix];if(e.name==='AbortError')throw new Error('Cancelled or timed out.');throw e;}
+}
+
+// ══ PAGE NAV ════════════════════════════════════════════════════════════════
+const PAGE_TITLES={home:'Home',scan:'Network Scanner',harvester:'theHarvester',dnsrecon:'DNSRecon',nikto:'Nikto',wpscan:'WPScan',lynis:'Lynis',legion:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',brute:'Brute Force',disc:'Network Discovery',hist:'Scan History',dash:'Dashboard',profile:'Profile',admin:'Admin Console'};
+function saveCurrentPage(id){try{sessionStorage.setItem('vs-page',id);}catch(e){}}
+function loadSavedPage(){try{return sessionStorage.getItem('vs-page')||'home';}catch(e){return'home';}}
+function pg(id,el){
+  document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active'));
+  const page=document.getElementById('page-'+id);
+  if(!page)return;
+  page.classList.add('active');
+  const ni=document.getElementById('ni-'+id);
+  if(ni)ni.classList.add('active');
+  const tt=document.getElementById('topbar-title');
+  if(tt)tt.textContent=PAGE_TITLES[id]||id;
+  saveCurrentPage(id);
+  if(id==='hist')loadHist();
+  if(id==='dash')loadDash();
+  if(id==='admin'){loadAdmin();setTimeout(initCliHeader,400);}
+  if(id==='home')loadHomeStats();
+  if(id==='profile'&&currentUser)loadProfileInfo(currentUser);
+}
+
+// ══ AUTH ════════════════════════════════════════════════════════════════════
+let currentUser=null;
+let busy=false,logEl=null,progT=null,progV=0;
+const mods={ports:true,ssl:true,dns:true,headers:true};
+
+function authTab(t){
+  document.querySelectorAll('.auth-tab').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('[id^="form-"]').forEach(e=>e.style.display='none');
+  const active=document.querySelector('.auth-tab:nth-child('+(t==='login'?1:t==='register'?2:3)+')');
+  if(active)active.classList.add('active');
+  else document.querySelectorAll('.auth-tab').forEach((e,i)=>{if((i===0&&t==='login')||(i===1&&t==='register')||(i===2&&t==='forgot'))e.classList.add('active');});
+  document.getElementById('form-'+t).style.display='block';
+  document.getElementById('auth-msg').style.display='none';
+}
+function authMsg(msg,type='err'){const el=document.getElementById('auth-msg');el.textContent=msg;el.className='auth-msg '+type;el.style.display='block';}
+
+async function doLogin(){
+  const user=document.getElementById('l-user').value.trim();
+  const pass=document.getElementById('l-pass').value;
+  if(!user||!pass){authMsg('Enter username and password');return;}
+  const btn=document.getElementById('l-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Logging in...';
+  try{
+    const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,password:pass})});
+    const d=await r.json();
+    if(d.success){authMsg('Welcome back, '+d.username+'!','ok');setTimeout(()=>{document.getElementById('auth-overlay').style.display='none';loadUser();},700);}
+    else authMsg(d.error||'Login failed');
+  }catch(e){authMsg('Connection error: '+e.message);}
+  finally{btn.disabled=false;btn.innerHTML='LOGIN';}
+}
+
+async function doRegister(){
+  const name=document.getElementById('r-name').value.trim();
+  const user=document.getElementById('r-user').value.trim();
+  const email=document.getElementById('r-email').value.trim();
+  const pass=document.getElementById('r-pass').value;
+  if(!user||!email||!pass){authMsg('All fields required');return;}
+  const btn=document.getElementById('r-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Creating...';
+  try{
+    const tosAccepted=document.getElementById('r-tos-cb')?.checked||false;
+    const r=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,email,password:pass,full_name:name,tos_accepted:tosAccepted})});
+    const d=await r.json();
+    if(d.success){authMsg(d.message,'ok');if(d.verified)setTimeout(()=>authTab('login'),2000);}
+    else authMsg(d.error||'Registration failed');
+  }catch(e){authMsg('Error: '+e.message);}
+  finally{btn.disabled=false;btn.innerHTML='CREATE ACCOUNT';}
+}
+
+async function doForgot(){
+  const email=document.getElementById('f-email').value.trim();
+  if(!email){authMsg('Enter your email');return;}
+  try{const r=await fetch('/api/forgot-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});const d=await r.json();authMsg(d.message||d.error,(d.success?'ok':'err'));}
+  catch(e){authMsg('Error: '+e.message);}
+}
+
+async function doLogout(){
+  await fetch('/api/logout',{method:'POST'});
+  currentUser=null;
+  document.getElementById('auth-overlay').style.display='flex';
+  document.getElementById('user-chip').style.display='none';
+  document.getElementById('logout-btn').style.display='none';
+  document.querySelectorAll('.admin-only').forEach(e=>e.style.display='none');
+}
+
+async function loadUser(){
+  try{
+    const r=await fetch('/api/me');const d=await r.json();
+    if(d.logged_in){
+      currentUser=d;
+      document.getElementById('auth-overlay').style.display='none';
+      document.getElementById('user-chip').style.display='flex';
+      document.getElementById('logout-btn').style.display='flex';
+      document.getElementById('user-avatar').textContent=d.username[0].toUpperCase();
+      document.getElementById('user-name-disp').textContent=d.username;
+      document.getElementById('user-role-disp').textContent=d.role==='admin'?'admin':'user';
+      if(d.role==='admin')document.querySelectorAll('.admin-only').forEach(e=>e.style.display='flex');
+      loadProfileInfo(d);loadHomeStats();loadUserTheme();
+      const saved=loadSavedPage();
+      if(saved&&document.getElementById('page-'+saved))pg(saved,null);
+      else pg('home',null);
+    }else{document.getElementById('auth-overlay').style.display='flex';}
+  }catch(e){document.getElementById('auth-overlay').style.display='flex';}
+}
+
+function loadProfileInfo(u){
+  if(!u)return;
+  document.getElementById('p-name').value=u.full_name||'';
+  document.getElementById('profile-info').innerHTML='<div class="kv"><div class="kv-item"><div class="kv-k">USERNAME</div><div class="kv-v">'+u.username+'</div></div><div class="kv-item"><div class="kv-k">ROLE</div><div class="kv-v">'+u.role+'</div></div><div class="kv-item"><div class="kv-k">EMAIL</div><div class="kv-v" style="font-size:12px">'+u.email+'</div></div><div class="kv-item"><div class="kv-k">LOGINS</div><div class="kv-v">'+(u.login_count||0)+'</div></div></div>';
+}
+
+async function saveProfile(){
+  const name=document.getElementById('p-name').value.trim();
+  try{const r=await fetch('/api/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({full_name:name})});const d=await r.json();showPwdMsg(d.message||d.error,d.success?'ok':'err');}
+  catch(e){showPwdMsg('Error: '+e.message,'err');}
+}
+async function changePassword(){
+  const old=document.getElementById('cp-old').value;
+  const n=document.getElementById('cp-new').value;
+  const c=document.getElementById('cp-confirm').value;
+  if(n!==c){showPwdMsg('Passwords do not match','err');return;}
+  try{const r=await fetch('/api/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({old_password:old,new_password:n})});const d=await r.json();showPwdMsg(d.message||d.error,d.success?'ok':'err');if(d.success){document.getElementById('cp-old').value='';document.getElementById('cp-new').value='';document.getElementById('cp-confirm').value='';}}
+  catch(e){showPwdMsg('Error: '+e.message,'err');}
+}
+function showPwdMsg(msg,type){const el=document.getElementById('pwd-msg');el.textContent=msg;el.className='auth-msg '+type;el.style.display='block';}
+
+// ══ ToS ═══════════════════════════════════════════════════════════════════
+function showTos(e){e.preventDefault();document.getElementById('tos-modal').classList.add('open');}
+function closeTos(){document.getElementById('tos-modal').classList.remove('open');const cb=document.getElementById('r-tos-cb');if(cb)cb.checked=false;updateRegisterBtn();}
+function acceptTos(){document.getElementById('tos-modal').classList.remove('open');const cb=document.getElementById('r-tos-cb');if(cb){cb.checked=true;updateRegisterBtn();}}
+function updateRegisterBtn(){const cb=document.getElementById('r-tos-cb');const btn=document.getElementById('r-btn');if(!cb||!btn)return;btn.disabled=!cb.checked;btn.style.opacity=cb.checked?'1':'0.4';btn.style.cursor=cb.checked?'pointer':'not-allowed';}
+
+// ══ ABOUT ═════════════════════════════════════════════════════════════════
+function showAbout(){document.getElementById('about-modal').classList.add('open');}
+function closeAbout(){document.getElementById('about-modal').classList.remove('open');}
+
+// ══ HELPERS ════════════════════════════════════════════════════════════════
+function sev(level){const m={CRITICAL:'sev-critical',HIGH:'sev-high',MEDIUM:'sev-medium',LOW:'sev-low',UNKNOWN:'sev-unknown'};return'<span class="sev '+(m[level]||'sev-unknown')+'">'+level+'</span>';}
+function sevScore(score){if(!score)return'';const l=score>=9?'CRITICAL':score>=7?'HIGH':score>=4?'MEDIUM':'LOW';const c={CRITICAL:'var(--red)',HIGH:'var(--orange)',MEDIUM:'var(--yellow)',LOW:'var(--green)'};return'<span style="font-family:var(--mono);font-size:12px;font-weight:600;color:'+c[l]+'">'+score+'</span>';}
+
+function clrUI(){['term','err','res'].forEach(id=>{const e=document.getElementById(id);if(e){e.innerHTML='';e.className=id==='err'?'err-box':'terminal';if(id==='res')e.style.display='none';}});const prog=document.getElementById('prog');if(prog)prog.classList.remove('active');}
+function termLog(id,text,type){const el=document.getElementById(id);if(!el)return;const div=document.createElement('div');div.className='tl-'+type;const pf={i:'[*]',s:'[+]',w:'[!]',e:'[x]'}[type]||'[*]';div.innerHTML='<span class="tl-prefix">'+pf+'</span> '+text;el.appendChild(div);el.scrollTop=el.scrollHeight;}
+function showErr(id,msg){const e=document.getElementById(id);if(e){e.textContent=msg;e.classList.add('visible');}}
+function showTerminal(id){const e=document.getElementById(id);if(e)e.classList.add('visible');}
+
+let _progTimers={};
+function startProg(id='prog'){
+  const pw=document.getElementById(id);const pb=document.getElementById(id.replace('-prog','-pb').replace('prog','pb'));
+  if(pw)pw.classList.add('active');if(pb)pb.style.width='0%';
+  let v=0;_progTimers[id]=setInterval(()=>{v=Math.min(v+(100-v)*0.04,90);if(pb)pb.style.width=v+'%';},400);
+}
+function endProg(id='prog'){
+  clearInterval(_progTimers[id]);
+  const pw=document.getElementById(id);const pb=document.getElementById(id.replace('-prog','-pb').replace('prog','pb'));
+  if(pb)pb.style.width='100%';
+  setTimeout(()=>{if(pw)pw.classList.remove('active');},400);
+}
+
+function animateCount(el,target){if(!el||isNaN(target))return;let startT=null,dur=1000;function step(ts){if(!startT)startT=ts;const p=Math.min((ts-startT)/dur,1);const ease=1-Math.pow(1-p,3);el.textContent=Math.floor(ease*target);if(p<1)requestAnimationFrame(step);}requestAnimationFrame(step);}
+
+async function loadHomeStats(){
+  try{const r=await fetch('/history');const d=await r.json();const scans=Array.isArray(d)?d:(d.scans||[]);let c=0,p=0;scans.forEach(s=>{c+=(s.total_cves||0);p+=(s.open_ports||0);});animateCount(document.getElementById('hs-scans'),scans.length);animateCount(document.getElementById('hs-cves'),c);animateCount(document.getElementById('hs-ports'),p);}
+  catch(e){}
+}
+
+// ══ SCAN ════════════════════════════════════════════════════════════════════
+function tmg(m,el){mods[m]=!mods[m];el.classList.toggle('on',mods[m]);}
+
+async function doScan(){
+  const target=document.getElementById('tgt').value.trim();
+  if(!target||busy)return;
+  clrUI();busy=true;
+  showTerminal('term');startProg('prog');
+  const btn=document.getElementById('sbtn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
+  setScanRunning('scan',true);
+  const ml=Object.keys(mods).filter(m=>mods[m]).join(',');
+  termLog('term','Target: '+target,'i');termLog('term','Modules: '+ml,'i');termLog('term','Scanning — may take 60–180s','w');
+  try{
+    const r=await fetchWithTimeout('/scan?target='+encodeURIComponent(target)+'&modules='+encodeURIComponent(ml),{},300000,'scan');
+    const d=await r.json();endProg('prog');
+    if(d.error){showErr('err','Error: '+d.error);termLog('term',d.error,'e');}
+    else{const ports=d.summary?.open_ports||0,cves=d.summary?.total_cves||0;termLog('term','Done — '+ports+' ports, '+cves+' CVEs','s');renderScan(d);showToast('Scan Complete',ports+' open ports · '+cves+' CVEs','success');}
+  }catch(e){endProg('prog');showErr('err','Error: '+e.message);}
+  finally{busy=false;btn.disabled=false;btn.innerHTML='SCAN';setScanRunning('scan',false);}
+}
+
+function renderScan(data){
+  const s=data.summary||{};
+  const ports=(data.modules?.ports?.hosts||[]).flatMap(h=>h.ports||[]);
+  let html='<div class="stats" style="margin-bottom:16px"><div class="stat"><div class="stat-val">'+ports.length+'</div><div class="stat-lbl">OPEN PORTS</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">'+(s.critical_cves||0)+'</div><div class="stat-lbl">CRITICAL</div></div><div class="stat"><div class="stat-val" style="color:var(--orange)">'+(s.high_cves||0)+'</div><div class="stat-lbl">HIGH CVEs</div></div><div class="stat"><div class="stat-val">'+(s.total_cves||0)+'</div><div class="stat-lbl">TOTAL CVEs</div></div><div class="stat"><div class="stat-val" style="color:var(--yellow)">'+(s.exploitable||0)+'</div><div class="stat-lbl">EXPLOITABLE</div></div></div>';
+  html+='<div class="tabs" style="margin-bottom:16px"><button class="tab active" onclick="swt(event,\'tp\')">Ports</button>'+(data.modules?.ssl?.length?'<button class="tab" onclick="swt(event,\'tssl\')">SSL</button>':'')+(data.modules?.dns?'<button class="tab" onclick="swt(event,\'tdns\')">DNS</button>':'')+(data.modules?.headers?'<button class="tab" onclick="swt(event,\'thdr\')">Headers</button>':'')+'<button class="tab" onclick="exportPDF()">PDF Report</button></div>';
+  // Ports tab
+  html+='<div class="tc active" id="tp">';
+  const pm=data.modules?.ports;
+  if(pm?.error){html+='<div class="err-box visible">'+pm.error+'</div>';}
+  else{
+    (pm?.hosts||[]).forEach(host=>{
+      html+='<div class="host-chip"><span class="host-ip">'+host.ip+'</span>'+(host.hostnames?.[0]?'<span style="color:var(--text3);font-size:11px">'+host.hostnames[0]+'</span>':'')+'<span class="host-up">&#9679; '+(host.status||'up')+'</span>'+(host.os?'<span style="color:var(--text3);font-family:var(--mono);font-size:11px">'+host.os+'</span>':'')+'</div>';
+      if(!host.ports||!host.ports.length)html+='<div style="color:var(--text3);font-size:13px;padding:12px">No open ports found.</div>';
+      host.ports?.forEach(port=>{
+        html+='<div class="port-panel"><div class="port-hd" onclick="tp2(this)"><div class="port-num">'+port.port+'</div><div style="flex:1;min-width:0"><div class="port-svc">'+(port.product||port.service||'unknown')+(port.version?' <span style="font-family:var(--mono);font-size:11px;color:var(--text3)">v'+port.version+'</span>':'')+'</div><div class="port-ver">'+(port.protocol||'tcp').toUpperCase()+' · '+(port.service||'')+(port.extrainfo?' · '+port.extrainfo:'')+'</div></div><div class="port-meta">'+sev(port.risk_level)+(port.risk_score?'<span class="port-score" style="font-family:var(--mono);color:var(--text2);font-size:12px">'+port.risk_score+'</span>':'')+'</div><span class="chev">&#9660;</span></div>';
+        html+='<div class="port-body">';
+        if(port.cves?.length){
+          html+='<div class="sec-label">VULNERABILITIES ('+port.cves.length+')</div>';
+          port.cves.forEach(c=>{html+='<div class="cve-item"><div class="cve-hd"><a class="cve-id" href="'+(c.references?.[0]||'https://nvd.nist.gov/vuln/detail/'+c.id)+'" target="_blank">'+c.id+'</a>'+sev(c.severity)+(c.score?sevScore(c.score):'')+( c.has_exploit?'<span class="sev sev-high">EXPLOIT</span>':'')+'<span class="cve-date">'+(c.published||'')+'</span></div><div class="cve-desc">'+(c.description||'')+'</div></div>';});
+        }
+        if(port.mitigations?.length){html+='<div class="sec-label">MITIGATIONS</div><ul class="mit-list">'+port.mitigations.map(m=>'<li class="mit-item"><span class="mit-bullet">›</span><span>'+m+'</span></li>').join('')+'</ul>';}
+        html+='</div></div>';
+      });
+    });
+    if(!pm?.hosts?.length)html+='<div style="color:var(--text3);font-size:13px">No hosts found.</div>';
+  }
+  html+='</div>';
+  // SSL
+  if(data.modules?.ssl?.length){
+    html+='<div class="tc" id="tssl">';
+    const GC={"A+":"var(--green)","A":"var(--green)","B":"var(--yellow)","C":"var(--orange)","D":"var(--red)","F":"var(--red)","N/A":"var(--text3)"};
+    data.modules.ssl.forEach(s=>{
+      if(s.grade==='N/A'){html+='<div class="ssl-card"><div class="ssl-grade" style="color:var(--text3)">—</div><div class="ssl-info"><div class="ssl-host">'+s.host+':'+s.port+'</div><div class="ssl-detail">SSL not available</div></div></div>';return;}
+      const d2=s.details||{};
+      html+='<div class="ssl-card"><div class="ssl-grade" style="color:'+GC[s.grade]+';border-color:'+GC[s.grade]+'">'+s.grade+'</div><div class="ssl-info"><div class="ssl-host">'+s.host+':'+s.port+'</div><div class="ssl-detail">'+(d2.protocol||'?')+' · '+(d2.cipher||'?')+(d2.cipher_bits?' ('+d2.cipher_bits+' bit)':'')+'</div>'+(d2.days_until_expiry!=null?'<div class="ssl-detail" style="color:'+(d2.days_until_expiry<30?'var(--red)':'var(--green)')+'">Expires: '+(d2.expires||'')+' ('+d2.days_until_expiry+' days)</div>':'')+'<div style="margin-top:8px">';
+      (s.issues||[]).filter(i=>i.severity!=='INFO').forEach(iss=>{html+='<div class="ssl-issue">'+sev(iss.severity)+'<span style="font-size:12px;color:var(--text2)">'+iss.msg+'</span></div>';});
+      if(!(s.issues||[]).filter(i=>i.severity!=='INFO').length)html+='<div style="font-size:12px;color:var(--green)">&#10003; No SSL issues</div>';
+      html+='</div></div></div>';
+    });
+    html+='</div>';
+  }
+  // DNS
+  if(data.modules?.dns){
+    const dns=data.modules.dns;
+    html+='<div class="tc" id="tdns"><div class="dns-grid">'+Object.entries(dns.records||{}).map(([t,v])=>'<div class="dns-card"><div class="dns-type">'+t+'</div><div class="dns-val">'+v.join('<br/>')+'</div></div>').join('')+'</div>';
+    html+='<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;font-size:13px"><span>'+(dns.has_spf?'✓':'✕')+' SPF '+(dns.has_spf?'configured':'MISSING')+'</span><span>'+(dns.has_dmarc?'✓':'✕')+' DMARC '+(dns.has_dmarc?'configured':'MISSING')+'</span></div>';
+    if(dns.subdomains?.length)html+='<div class="sec-label">SUBDOMAINS ('+dns.subdomains.length+')</div><div>'+dns.subdomains.map(s=>'<div class="sub-item"><span>'+s.subdomain+'</span><span style="color:var(--text3);font-family:var(--mono);font-size:11px">'+s.ip+'</span></div>').join('')+'</div>';
+    if(dns.issues?.filter(i=>i.severity!=='INFO').length){html+='<div class="sec-label" style="margin-top:12px">DNS ISSUES</div>'+dns.issues.filter(i=>i.severity!=='INFO').map(i=>'<div class="ssl-issue">'+sev(i.severity)+'<span style="font-size:12px;color:var(--text2)">'+i.msg+'</span></div>').join('');}
+    html+='</div>';
+  }
+  // Headers
+  if(data.modules?.headers){
+    const hd=data.modules.headers;const GC2={"A+":"var(--green)","A":"var(--green)","B":"var(--yellow)","C":"var(--orange)","D":"var(--red)","F":"var(--red)"};
+    html+='<div class="tc" id="thdr"><div style="display:flex;align-items:center;gap:20px;margin-bottom:16px;flex-wrap:wrap"><div class="hdr-grade-big" style="color:'+(GC2[hd.grade]||'var(--text)')+'">'+hd.grade+'</div><div><div style="font-size:14px;font-weight:500">'+(hd.url||'')+'</div><div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:3px">HTTP '+(hd.status_code||'')+' · Score '+(hd.score||0)+'/100'+(hd.server?' · '+hd.server:'')+'</div></div></div>';
+    if(hd.issues?.length){html+='<div class="sec-label">ISSUES</div>'+hd.issues.map(i=>'<div class="ssl-issue">'+sev(i.severity)+'<span style="font-size:12px;margin-left:6px">'+i.msg+'</span></div>').join('')+'<div style="margin-bottom:14px"></div>';}
+    html+='<div class="sec-label">RESPONSE HEADERS</div><div style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">'+Object.entries(hd.headers||{}).slice(0,25).map(([k,v])=>'<div class="hdr-row"><span class="hdr-key">'+k+'</span><span class="hdr-val">'+String(v).substring(0,100)+'</span></div>').join('')+'</div></div>';
+  }
+  const res=document.getElementById('res');res.innerHTML=html;res.style.display='block';
+  window._sd=data;
+}
+
+function tp2(hdr){const b=hdr.nextElementSibling;const c=hdr.querySelector('.chev');b.classList.toggle('open');c.classList.toggle('open');}
+function swt(e,id){const p=document.getElementById('res');p.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));p.querySelectorAll('.tc').forEach(t=>t.classList.remove('active'));e.currentTarget.classList.add('active');const tc=document.getElementById(id);if(tc)tc.classList.add('active');}
+
+// ══ GENERIC TOOL RUNNER ═══════════════════════════════════════════════════
+function mkTool(prefix){
+  let logEl=null,progT=null,progV=0;
+  return{
+    start(){logEl=document.getElementById(prefix+'-term');if(logEl){logEl.innerHTML='';logEl.classList.add('visible');}const e=document.getElementById(prefix+'-err');if(e){e.textContent='';e.classList.remove('visible');}const r=document.getElementById(prefix+'-res');if(r){r.innerHTML='';r.style.display='none';}startProg(prefix+'-prog');},
+    log(t,tp='i'){if(!logEl)return;const div=document.createElement('div');div.className='tl-'+tp;const pf={i:'[*]',s:'[+]',w:'[!]',e:'[x]'}[tp]||'[*]';div.innerHTML='<span class="tl-prefix">'+pf+'</span> '+t;logEl.appendChild(div);logEl.scrollTop=logEl.scrollHeight;},
+    end(){endProg(prefix+'-prog');},
+    err(m){const e=document.getElementById(prefix+'-err');if(e){e.textContent='Error: '+m;e.classList.add('visible');}},
+    res(html){const e=document.getElementById(prefix+'-res');if(e){e.innerHTML=html;e.style.display='block';}}
+  };
+}
+const hvTool=mkTool('hv'),drTool=mkTool('dr'),nkTool=mkTool('nk'),wpTool=mkTool('wp'),lyTool=mkTool('ly'),lgTool=mkTool('lg');
+
+// ══ HARVESTER ═════════════════════════════════════════════════════════════
+async function doHarvest(){
+  const target=document.getElementById('hv-target').value.trim();if(!target){alert('Enter a domain');return;}
+  const srcEl=document.getElementById('hv-sources');const sources=Array.from(srcEl.selectedOptions).map(o=>o.value).join(',');
+  const limit=document.getElementById('hv-limit').value||500;
+  const btn=document.getElementById('hv-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  hvTool.start();hvTool.log('Target: '+target);hvTool.log('Sources: '+sources);hvTool.log('Launching theHarvester...','w');
+  try{
+    const r=await fetchWithTimeout('/harvester',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target,sources,limit:parseInt(limit)})},180000,'hv');
+    const d=await r.json();hvTool.end();
+    if(d.error){hvTool.log(d.error,'e');hvTool.err(d.error);}
+    else{hvTool.log('Done — '+(d.emails?.length||0)+' emails, '+(d.hosts?.length||0)+' hosts, '+(d.subdomains?.length||0)+' subdomains','s');renderHarvest(d);showToast('theHarvester','Found '+(d.emails?.length||0)+' emails, '+(d.subdomains?.length||0)+' subdomains','success');}
+  }catch(e){hvTool.end();hvTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN HARVESTER';}
+}
+function renderHarvest(d){
+  const emails=d.emails||[],hosts=d.hosts||[],subs=d.subdomains||[],ips=d.ips||[];
+  let html='<div class="stats" style="margin-bottom:14px"><div class="stat"><div class="stat-val">'+emails.length+'</div><div class="stat-lbl">EMAILS</div></div><div class="stat"><div class="stat-val">'+hosts.length+'</div><div class="stat-lbl">HOSTS</div></div><div class="stat"><div class="stat-val">'+subs.length+'</div><div class="stat-lbl">SUBDOMAINS</div></div><div class="stat"><div class="stat-val">'+ips.length+'</div><div class="stat-lbl">IPs</div></div></div>';
+  if(emails.length)html+='<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">Emails ('+emails.length+')</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+emails.map(e=>'<span class="tag">'+e+'</span>').join('')+'</div></div>';
+  if(subs.length)html+='<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">Subdomains ('+subs.length+')</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+subs.map(s=>'<span class="tag">'+s+'</span>').join('')+'</div></div>';
+  if(hosts.length)html+='<div class="card" style="margin-bottom:10px"><div class="card-header"><div class="card-title">Hosts</div></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>HOST</th><th>IP</th></tr></thead><tbody>'+hosts.map(h=>'<tr><td>'+(h.host||h)+'</td><td style="color:var(--text3)">'+(h.ip||'—')+'</td></tr>').join('')+'</tbody></table></div></div>';
+  hvTool.res(html);
+}
+
+// ══ DNSRECON ══════════════════════════════════════════════════════════════
+async function doDnsRecon(){
+  const target=document.getElementById('dr-target').value.trim();if(!target){alert('Enter a domain');return;}
+  const type=document.getElementById('dr-type').value;const ns=document.getElementById('dr-ns').value.trim();const filter=document.getElementById('dr-filter').value;
+  const btn=document.getElementById('dr-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  drTool.start();drTool.log('Target: '+target);drTool.log('Type: '+type);
+  try{
+    const r=await fetchWithTimeout('/dnsrecon',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target,type,ns,filter})},120000,'dr');
+    const d=await r.json();drTool.end();
+    if(d.error){drTool.log(d.error,'e');drTool.err(d.error);}
+    else{drTool.log('Done — '+(d.records?.length||0)+' records','s');renderDnsRecon(d);}
+  }catch(e){drTool.end();drTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN DNSRECON';}
+}
+function renderDnsRecon(d){
+  const recs=d.records||[];const byType={};recs.forEach(r=>{if(!byType[r.type])byType[r.type]=[];byType[r.type].push(r);});
+  let html='<div class="stat" style="margin-bottom:14px;display:inline-block"><div class="stat-val">'+recs.length+'</div><div class="stat-lbl">RECORDS</div></div>';
+  Object.entries(byType).forEach(([type,items])=>{html+='<div class="card" style="margin-bottom:8px"><div class="card-header"><div class="card-title">'+type+' Records ('+items.length+')</div></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>NAME</th><th>VALUE</th><th>TTL</th></tr></thead><tbody>'+items.map(r=>'<tr><td>'+(r.name||'—')+'</td><td>'+(r.address||r.value||'—')+'</td><td style="color:var(--text3)">'+(r.ttl||'—')+'</td></tr>').join('')+'</tbody></table></div></div>';});
+  drTool.res(html);
+}
+
+// ══ NIKTO ════════════════════════════════════════════════════════════════
+async function doNikto(){
+  const target=document.getElementById('nk-target').value.trim();if(!target){alert('Enter a target');return;}
+  const port=document.getElementById('nk-port').value||80;const ssl_flag=document.getElementById('nk-ssl').value;const tuning=document.getElementById('nk-tuning').value;
+  const btn=document.getElementById('nk-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
+  nkTool.start();nkTool.log('Target: '+target+' port '+port);nkTool.log('This may take several minutes','w');
+  try{
+    const r=await fetchWithTimeout('/nikto',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target,port:parseInt(port),ssl:ssl_flag,tuning})},600000,'nk');
+    const d=await r.json();nkTool.end();
+    if(d.error){nkTool.log(d.error,'e');nkTool.err(d.error);}
+    else{nkTool.log('Done — '+(d.findings?.length||0)+' findings','s');renderNikto(d);}
+  }catch(e){nkTool.end();nkTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN NIKTO';}
+}
+function renderNikto(d){
+  const f=d.findings||[];const crit=f.filter(x=>x.severity==='high').length;
+  let html='<div class="stats" style="margin-bottom:14px"><div class="stat"><div class="stat-val">'+f.length+'</div><div class="stat-lbl">FINDINGS</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">'+crit+'</div><div class="stat-lbl">HIGH</div></div><div class="stat"><div class="stat-val">'+d.server+'</div><div class="stat-lbl">SERVER</div></div></div>';
+  if(f.length)html+='<div class="card"><div class="card-header"><div class="card-title">Findings</div></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>ID</th><th>DESCRIPTION</th><th>URL</th></tr></thead><tbody>'+f.map(x=>'<tr><td style="font-family:var(--mono);font-size:11px">'+(x.id||'—')+'</td><td style="color:'+(x.severity==='high'?'var(--red)':x.severity==='medium'?'var(--orange)':'var(--text)')+'">'+(x.description||'—')+'</td><td style="font-size:11px;color:var(--text3)">'+(x.url||'')+'</td></tr>').join('')+'</tbody></table></div></div>';
+  else html+='<div style="color:var(--green);font-size:13px">&#10003; No findings detected.</div>';
+  nkTool.res(html);
+}
+
+// ══ WPSCAN ═══════════════════════════════════════════════════════════════
+async function doWPScan(){
+  const target=document.getElementById('wp-target').value.trim();if(!target){alert('Enter a URL');return;}
+  const enumEl=document.getElementById('wp-enum');const flags=Array.from(enumEl.selectedOptions).map(o=>o.value).join(',');
+  const token=document.getElementById('wp-token').value.trim();const mode=document.getElementById('wp-mode').value;
+  const btn=document.getElementById('wp-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
+  wpTool.start();wpTool.log('Target: '+target);wpTool.log('Enumerating: '+flags);
+  try{
+    const r=await fetchWithTimeout('/wpscan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target,enum_flags:flags,token,mode})},300000,'wp');
+    const d=await r.json();wpTool.end();
+    if(d.error){wpTool.err(d.error);wpTool.log(d.error,'e');}
+    else{wpTool.log('Done — '+(d.vulnerabilities?.length||0)+' vulns, '+(d.users?.length||0)+' users','s');renderWPScan(d);}
+  }catch(e){wpTool.end();wpTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN WPSCAN';}
+}
+function renderWPScan(d){
+  const v=d.vulnerabilities||[],u=d.users||[],p=d.plugins||[];
+  let html='<div class="stats" style="margin-bottom:14px"><div class="stat"><div class="stat-val" style="color:var(--red)">'+v.length+'</div><div class="stat-lbl">VULNS</div></div><div class="stat"><div class="stat-val">'+p.length+'</div><div class="stat-lbl">PLUGINS</div></div><div class="stat"><div class="stat-val">'+u.length+'</div><div class="stat-lbl">USERS</div></div><div class="stat"><div class="stat-val">'+(d.wp_version||'?')+'</div><div class="stat-lbl">WP VERSION</div></div></div>';
+  if(v.length)html+='<div class="card" style="margin-bottom:8px"><div class="card-header"><div class="card-title">Vulnerabilities</div></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>TITLE</th><th>TYPE</th><th>REF</th></tr></thead><tbody>'+v.map(x=>'<tr><td style="color:var(--red)">'+(x.title||'—')+'</td><td style="color:var(--orange)">'+(x.type||'—')+'</td><td style="font-size:11px;color:var(--text3)">'+(x.references?.cve?.join(', ')||'—')+'</td></tr>').join('')+'</tbody></table></div></div>';
+  if(u.length)html+='<div class="card card-p" style="margin-bottom:8px"><div class="card-title" style="margin-bottom:8px">Users</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+u.map(x=>'<span class="tag">'+x+'</span>').join('')+'</div></div>';
+  if(p.length)html+='<div class="card"><div class="card-header"><div class="card-title">Plugins</div></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>PLUGIN</th><th>VERSION</th><th>VULNS</th></tr></thead><tbody>'+p.map(x=>'<tr><td>'+(x.name||'—')+'</td><td style="color:var(--text3)">'+(x.version||'—')+'</td><td style="color:'+(x.vulnerabilities?.length?'var(--red)':'var(--green)')+'">'+(x.vulnerabilities?.length||0)+'</td></tr>').join('')+'</tbody></table></div></div>';
+  wpTool.res(html);
+}
+
+// ══ LYNIS ════════════════════════════════════════════════════════════════
+async function doLynis(){
+  const profile=document.getElementById('ly-profile').value;const category=document.getElementById('ly-category').value;const compliance=document.getElementById('ly-compliance').value;
+  const btn=document.getElementById('ly-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Auditing...';
+  lyTool.start();lyTool.log('Lynis audit starting...');lyTool.log('Profile: '+profile+(compliance?' | Compliance: '+compliance:''),'w');
+  try{
+    const r=await fetchWithTimeout('/lynis',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile,category,compliance})},300000,'ly');
+    const d=await r.json();lyTool.end();
+    if(d.error){lyTool.log(d.error,'e');lyTool.err(d.error);}
+    else{lyTool.log('Audit complete — Hardening Index: '+(d.hardening_index||'?'),(d.hardening_index>=70?'s':'w'));renderLynis(d);}
+  }catch(e){lyTool.end();lyTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN LYNIS AUDIT';}
+}
+function renderLynis(d){
+  const w=d.warnings||[],sg=d.suggestions||[],sc=d.hardening_index||0;
+  const sc_col=sc>=80?'var(--green)':sc>=60?'var(--yellow)':sc>=40?'var(--orange)':'var(--red)';
+  let html='<div class="stats" style="margin-bottom:14px"><div class="stat"><div class="stat-val" style="color:'+sc_col+'">'+sc+'</div><div class="stat-lbl">HARDENING INDEX</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">'+w.length+'</div><div class="stat-lbl">WARNINGS</div></div><div class="stat"><div class="stat-val" style="color:var(--yellow)">'+sg.length+'</div><div class="stat-lbl">SUGGESTIONS</div></div><div class="stat"><div class="stat-val">'+(d.tests_performed||'—')+'</div><div class="stat-lbl">TESTS</div></div></div>';
+  if(w.length)html+='<div class="card card-p" style="margin-bottom:8px"><div class="card-title" style="margin-bottom:8px;color:var(--red)">Warnings</div>'+w.map(x=>'<div style="border-bottom:1px solid var(--border);padding:7px 0;font-family:var(--mono);font-size:11px;color:var(--orange)">'+x+'</div>').join('')+'</div>';
+  if(sg.length)html+='<div class="card card-p"><div class="card-title" style="margin-bottom:8px">Suggestions ('+sg.length+')</div>'+sg.slice(0,30).map(x=>'<div style="border-bottom:1px solid var(--border);padding:6px 0;font-family:var(--mono);font-size:11px;color:var(--text2)">› '+x+'</div>').join('')+(sg.length>30?'<div style="color:var(--text3);font-size:11px;padding-top:8px">...and '+(sg.length-30)+' more</div>':'')+'</div>';
+  lyTool.res(html);
+}
+
+// ══ LEGION ════════════════════════════════════════════════════════════════
+const lgMods={'nmap':true,'nikto':true,'smb':true,'snmp':true,'hydra':false,'finger':false};
+function lgMod(m,el){lgMods[m]=!lgMods[m];el.classList.toggle('on',lgMods[m]);}
+async function doLegion(){
+  const target=document.getElementById('lg-target').value.trim();if(!target){alert('Enter a target');return;}
+  const intensity=document.getElementById('lg-intensity').value;const modules=Object.entries(lgMods).filter(([,v])=>v).map(([k])=>k);
+  const btn=document.getElementById('lg-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  lgTool.start();lgTool.log('Target: '+target);lgTool.log('Modules: '+modules.join(', '));lgTool.log('Intensity: '+intensity,'w');
+  try{
+    const r=await fetchWithTimeout('/legion',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target,intensity,modules})},900000,'lg');
+    const d=await r.json();lgTool.end();
+    if(d.error){lgTool.err(d.error);}
+    else{lgTool.log('Legion complete','s');renderLegion(d);}
+  }catch(e){lgTool.end();lgTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN LEGION';}
+}
+function renderLegion(d){
+  let html='<div class="stats" style="margin-bottom:14px"><div class="stat"><div class="stat-val">'+(d.open_ports||0)+'</div><div class="stat-lbl">OPEN PORTS</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">'+(d.total_issues||0)+'</div><div class="stat-lbl">ISSUES</div></div><div class="stat"><div class="stat-val">'+(d.modules_run||0)+'</div><div class="stat-lbl">MODULES</div></div></div>';
+  (d.results||[]).forEach(r=>{html+='<div class="card" style="margin-bottom:8px"><div class="card-header"><div class="card-title">'+(r.module?.toUpperCase()||'MODULE')+'</div></div>';if(r.findings?.length)html+='<div class="tbl-wrap"><table class="tbl"><thead><tr><th>FINDING</th><th>DETAIL</th></tr></thead><tbody>'+r.findings.map(f=>'<tr><td>'+(f.title||f)+'</td><td style="color:var(--text3);font-size:11px">'+(f.detail||'')+'</td></tr>').join('')+'</tbody></table></div>';else html+='<div class="card-p" style="color:var(--text3);font-size:12px">'+(r.summary||'No findings')+'</div>';html+='</div>';});
+  lgTool.res(html);
+}
+
+// ══ SUBDOMAIN ════════════════════════════════════════════════════════════
+async function doSub(){
+  const domain=document.getElementById('sub-domain').value.trim();const size=document.getElementById('sub-size').value;
+  if(!domain)return;
+  const btn=document.getElementById('sub-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
+  document.getElementById('sub-res').innerHTML='<div style="color:var(--text3);font-size:13px">Enumerating subdomains for <strong>'+domain+'</strong>...</div>';
+  try{
+    const r=await fetchWithTimeout('/subdomains?domain='+encodeURIComponent(domain)+'&size='+size,{},120000);
+    const d=await r.json();
+    if(d.error){document.getElementById('sub-res').innerHTML='<div class="err-box visible">'+d.error+'</div>';return;}
+    let html='<div class="found" style="margin-bottom:12px">'+d.total+' subdomains found &nbsp;·&nbsp; '+((d.sources||[]).join(', '))+'</div>';
+    html+='<div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>SUBDOMAIN</th><th>IP</th><th>SOURCE</th><th></th></tr></thead><tbody>';
+    (d.subdomains||[]).forEach(s=>{html+='<tr><td style="font-family:var(--mono)">'+(s.subdomain||'')+'</td><td style="color:var(--text3)">'+(s.ip||'')+'</td><td><span class="tag">'+(s.source||'dns')+'</span></td><td><button class="btn btn-ghost btn-sm" onclick="scanFromSub(\''+s.subdomain+'\')">Scan</button></td></tr>';});
+    html+='</tbody></table></div></div>';
+    document.getElementById('sub-res').innerHTML=html;
+  }catch(e){document.getElementById('sub-res').innerHTML='<div class="err-box visible">'+e.message+'</div>';}
+  finally{btn.disabled=false;btn.innerHTML='FIND SUBDOMAINS';}
+}
+function scanFromSub(d){document.getElementById('tgt').value=d;pg('scan',null);doScan();}
+
+// ══ DIR BUSTER ════════════════════════════════════════════════════════════
+async function doDir(){
+  const url=document.getElementById('dir-url').value.trim();const size=document.getElementById('dir-size').value;const ext=document.getElementById('dir-ext').value.trim();
+  if(!url)return;
+  const btn=document.getElementById('dir-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
+  document.getElementById('dir-res').innerHTML='<div style="color:var(--text3);font-size:13px">Enumerating directories...</div>';
+  try{
+    const r=await fetchWithTimeout('/dirbust?url='+encodeURIComponent(url)+'&size='+size+'&ext='+encodeURIComponent(ext),{},180000);
+    const d=await r.json();
+    if(d.error){document.getElementById('dir-res').innerHTML='<div class="err-box visible">'+d.error+'</div>';return;}
+    let html='<div class="found" style="margin-bottom:12px">'+d.total+' paths found &nbsp;·&nbsp; '+d.scanned+' scanned</div>';
+    html+='<div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>URL</th><th>STATUS</th><th>SIZE</th><th>SEVERITY</th><th>NOTE</th></tr></thead><tbody>';
+    (d.found||[]).forEach(f=>{const sc=f.status;const sc_col=sc===200?'var(--green)':sc<400?'var(--yellow)':'var(--orange)';html+='<tr><td><a href="'+f.url+'" target="_blank" style="font-family:var(--mono);font-size:11px;color:var(--text)">'+f.url+'</a></td><td style="font-family:var(--mono);font-weight:500;color:'+sc_col+'">'+sc+'</td><td style="color:var(--text3)">'+(f.size||'?')+'</td><td>'+sev(f.severity)+'</td><td style="color:var(--text3);font-size:11px">'+(f.note||'')+'</td></tr>';});
+    html+='</tbody></table></div></div>';
+    document.getElementById('dir-res').innerHTML=html;
+  }catch(e){document.getElementById('dir-res').innerHTML='<div class="err-box visible">'+e.message+'</div>';}
+  finally{btn.disabled=false;btn.innerHTML='START ENUMERATION';}
+}
+
+// ══ BRUTE FORCE ══════════════════════════════════════════════════════════
+function bfTypeChange(){const t=document.getElementById('bf-type').value;document.getElementById('bf-http-fields').style.display=t==='http'?'block':'none';document.getElementById('bf-ssh-fields').style.display=t==='ssh'?'block':'none';}
+async function doBrute(){
+  const type=document.getElementById('bf-type').value;
+  const users=document.getElementById('bf-users').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  const pwds=document.getElementById('bf-pwds').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  if(!users.length||!pwds.length){alert('Enter at least one username and password');return;}
+  const btn=document.getElementById('bf-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Attacking...';
+  document.getElementById('bf-res').innerHTML='<div style="color:var(--text3);font-size:13px">Running — '+users.length+' users × '+pwds.length+' passwords...</div>';
+  try{
+    let url='/brute-http',body={users,passwords:pwds};
+    if(type==='http'){body.url=document.getElementById('bf-url').value.trim();body.user_field=document.getElementById('bf-ufield').value||'username';body.pass_field=document.getElementById('bf-pfield').value||'password';}
+    else{url='/brute-ssh';body.host=document.getElementById('bf-ssh-host').value.trim();body.port=document.getElementById('bf-ssh-port').value||'22';}
+    const r=await fetchWithTimeout(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},120000);
+    const d=await r.json();
+    const found=d.found||[];
+    document.getElementById('bf-res').innerHTML='<div class="found" style="margin-bottom:12px">'+found.length+' credentials found &nbsp;·&nbsp; '+(d.attempts||0)+' attempts</div>'+(found.length?'<div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>USERNAME</th><th>PASSWORD</th><th>STATUS</th></tr></thead><tbody>'+found.map(f=>'<tr><td style="font-family:var(--mono)">'+f.username+'</td><td style="font-family:var(--mono);color:var(--red);font-weight:500">'+f.password+'</td><td style="color:var(--green)">SUCCESS</td></tr>').join('')+'</tbody></table></div></div>':'<div style="color:var(--green);font-size:13px">No valid credentials found.</div>');
+  }catch(e){document.getElementById('bf-res').innerHTML='<div class="err-box visible">'+e.message+'</div>';}
+  finally{btn.disabled=false;btn.innerHTML='START BRUTE FORCE';}
+}
+
+// ══ DISCOVER ══════════════════════════════════════════════════════════════
+async function doDisc(){
+  const subnet=document.getElementById('subnet').value.trim();if(!subnet)return;
+  const btn=document.getElementById('disc-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
+  document.getElementById('disc-res').innerHTML='<div style="color:var(--text3)">Scanning subnet...</div>';
+  try{
+    const r=await fetchWithTimeout('/discover?subnet='+encodeURIComponent(subnet),{},120000);
+    const d=await r.json();
+    if(d.error){document.getElementById('disc-res').innerHTML='<div class="err-box visible">'+d.error+'</div>';return;}
+    document.getElementById('disc-res').innerHTML='<div class="found" style="margin-bottom:12px">'+(d.total||0)+' hosts found</div><div class="host-grid">'+( d.hosts||[]).map(h=>'<div class="host-card" onclick="scanDisc(\''+h.ip+'\')"><div class="host-card-ip">'+h.ip+'</div>'+(h.hostnames?.[0]?'<div class="host-card-hn">'+h.hostnames[0]+'</div>':'')+(h.vendor?'<div style="font-size:10px;color:var(--text3);margin-top:2px">'+h.vendor+'</div>':'')+'<div style="font-size:10px;color:var(--text3);margin-top:6px">Click to scan ›</div></div>').join('')+'</div>';
+  }catch(e){document.getElementById('disc-res').innerHTML='<div class="err-box visible">'+e.message+'</div>';}
+  finally{btn.disabled=false;btn.innerHTML='DISCOVER';}
+}
+function scanDisc(ip){document.getElementById('tgt').value=ip;pg('scan',null);doScan();}
+
+// ══ HISTORY ═══════════════════════════════════════════════════════════════
+async function loadHist(){
+  try{
+    const r=await fetch('/history');const d=await r.json();
+    if(!Array.isArray(d)||!d.length){document.getElementById('hist-content').innerHTML='<div class="card-p" style="color:var(--text3)">No scans yet.</div>';return;}
+    document.getElementById('hist-content').innerHTML='<div class="tbl-wrap"><table class="tbl"><thead><tr><th>#</th><th>TARGET</th><th>TIME</th><th>PORTS</th><th>CVEs</th><th>CRITICAL</th><th></th></tr></thead><tbody>'+d.map(s=>'<tr><td style="color:var(--text3)">#'+s.id+'</td><td style="font-family:var(--mono)">'+s.target+'</td><td style="color:var(--text3);font-size:11px">'+((s.scan_time||'').replace('T',' ').substring(0,19))+'</td><td>'+s.open_ports+'</td><td>'+s.total_cves+'</td><td style="color:'+(s.critical_cves>0?'var(--red)':'var(--text3)')+'">'+s.critical_cves+'</td><td><button class="btn btn-ghost btn-sm" onclick="loadScan('+s.id+')">View</button></td></tr>').join('')+'</tbody></table></div>';
+  }catch(e){document.getElementById('hist-content').innerHTML='<div class="card-p" style="color:var(--red)">'+e.message+'</div>';}
+}
+async function loadScan(id){
+  pg('scan',null);clrUI();
+  try{const r=await fetch('/scan/'+id);const d=await r.json();document.getElementById('tgt').value=d.target||'';renderScan(d);}
+  catch(e){showErr('err','Error: '+e.message);}
+}
+
+// ══ DASHBOARD ════════════════════════════════════════════════════════════
+async function loadDash(){
+  try{
+    const r=await fetch('/history?limit=100');const d=await r.json();
+    if(!d.length){document.getElementById('dash-content').innerHTML='<div style="color:var(--text3)">Run some scans first.</div>';return;}
+    const tc=d.reduce((a,s)=>a+s.total_cves,0),cr=d.reduce((a,s)=>a+s.critical_cves,0),tp=d.reduce((a,s)=>a+s.open_ports,0);
+    const mx=Math.max(...d.map(s=>s.total_cves),1);
+    document.getElementById('dash-content').innerHTML='<div class="stats" style="margin-bottom:18px"><div class="stat"><div class="stat-val">'+d.length+'</div><div class="stat-lbl">SCANS</div></div><div class="stat"><div class="stat-val">'+tc+'</div><div class="stat-lbl">TOTAL CVEs</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">'+cr+'</div><div class="stat-lbl">CRITICAL</div></div><div class="stat"><div class="stat-val">'+tp+'</div><div class="stat-lbl">OPEN PORTS</div></div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px"><div class="card card-p"><div class="card-title" style="margin-bottom:12px">Top Targets by CVEs</div>'+d.slice(0,6).map(s=>'<div class="bar-row"><span class="bar-label">'+s.target.substring(0,14)+'</span><div class="bar-track"><div class="bar-fill" style="width:'+((s.total_cves/mx)*100)+'%"></div></div><span class="bar-val" style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+s.total_cves+'</span></div>').join('')+'</div><div class="card card-p"><div class="card-title" style="margin-bottom:12px">Recent Activity</div>'+d.slice(0,8).map(s=>'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="font-family:var(--mono)">'+s.target+'</span><span style="color:'+(s.critical_cves>0?'var(--red)':'var(--text3)')+'">'+(s.critical_cves>0?s.critical_cves+' critical':s.total_cves+' CVEs')+'</span></div>').join('')+'</div></div>';
+  }catch(e){document.getElementById('dash-content').innerHTML='<div style="color:var(--red)">'+e.message+'</div>';}
+}
+
+// ══ ADMIN ════════════════════════════════════════════════════════════════
+function adminTab(e,id){
+  document.querySelectorAll('#admin-tabs .tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('#page-admin .tc').forEach(t=>t.classList.remove('active'));
+  e.currentTarget.classList.add('active');
+  document.getElementById(id).classList.add('active');
+  if(id==='at-users')loadAdminUsers();
+  if(id==='at-stats')loadAdminStats();
+  if(id==='at-audit')loadAdminAudit();
+  if(id==='at-scans')loadAdminScans();
+  if(id==='at-cli'){loadServerStats();initCliHeader();}
+  if(id!=='at-cli'&&window._statsInterval){clearInterval(window._statsInterval);window._statsInterval=null;}
+}
+async function loadAdmin(){loadServerStats();setTimeout(initCliHeader,400);}
+
+let _statsInterval=null;
+function fmtBytes(b){if(b===null||b===undefined)return'—';if(b>=1073741824)return(b/1073741824).toFixed(1)+'G';if(b>=1048576)return(b/1048576).toFixed(1)+'M';if(b>=1024)return(b/1024).toFixed(1)+'K';return b+'B';}
+function setBar(id,pct){const el=document.getElementById(id);if(!el)return;el.style.width=Math.min(100,pct)+'%';}
+async function loadServerStats(){
+  try{
+    const r=await fetch('/api/server-stats');const d=await r.json();if(d.error)return;
+    const cpuEl=document.getElementById('cpu-val');const cpuPct=d.cpu_percent??0;if(cpuEl)cpuEl.textContent=cpuPct+'%';setBar('cpu-bar',cpuPct);const coresEl=document.getElementById('cpu-cores');if(coresEl)coresEl.textContent=(d.cpu_count||'?')+' cores';
+    const memPct=d.memory?.percent??0;const memEl=document.getElementById('mem-val');if(memEl)memEl.textContent=memPct+'%';setBar('mem-bar',memPct);const memTot=document.getElementById('mem-total');if(memTot)memTot.textContent='of '+fmtBytes(d.memory?.total);
+    const swapPct=d.swap?.percent??0;const swapEl=document.getElementById('swap-val');if(swapEl)swapEl.textContent=swapPct+'%';setBar('swap-bar',swapPct);const swapTot=document.getElementById('swap-total');if(swapTot)swapTot.textContent='of '+fmtBytes(d.swap?.total);
+    const diskPct=d.disk?.percent??0;const diskEl=document.getElementById('disk-val');if(diskEl)diskEl.textContent=diskPct+'%';setBar('disk-bar',diskPct);const diskTot=document.getElementById('disk-total');if(diskTot)diskTot.textContent='of '+fmtBytes(d.disk?.total);
+    const txEl=document.getElementById('net-tx');const rxEl=document.getElementById('net-rx');if(txEl)txEl.textContent=fmtBytes(d.net?.bytes_sent);if(rxEl)rxEl.textContent=fmtBytes(d.net?.bytes_recv);const ifaceEl=document.getElementById('net-iface');if(ifaceEl)ifaceEl.textContent=d.net?.iface||'';
+    const upEl=document.getElementById('sys-uptime');if(upEl&&d.uptime)upEl.textContent=d.uptime;const ldEl=document.getElementById('sys-load');if(ldEl&&d.load_avg)ldEl.textContent=d.load_avg;const prEl=document.getElementById('sys-procs');if(prEl)prEl.textContent=(d.process_count||'?')+' procs';
+    const tsEl=document.getElementById('stats-updated');if(tsEl)tsEl.textContent='UPDATED '+new Date().toLocaleTimeString();
+  }catch(e){}
+  if(!window._statsInterval)window._statsInterval=setInterval(()=>{const cp=document.getElementById('at-cli');if(cp&&cp.classList.contains('active'))loadServerStats();else{clearInterval(window._statsInterval);window._statsInterval=null;}},3000);
+}
+
+async function loadAdminUsers(){
+  try{const r=await fetch('/api/admin/users');const d=await r.json();document.getElementById('admin-users').innerHTML='<table class="tbl"><thead><tr><th>#</th><th>USERNAME</th><th>EMAIL</th><th>ROLE</th><th>ACTIVE</th><th>LOGINS</th><th>LAST LOGIN</th><th>ACTIONS</th></tr></thead><tbody>'+d.map(u=>'<tr><td style="color:var(--text3)">#'+u.id+'</td><td style="font-family:var(--mono)">'+u.username+'</td><td style="font-size:11px;color:var(--text3)">'+u.email+'</td><td><span class="badge '+(u.role==='admin'?'badge-admin':'badge-user')+'">'+u.role+'</span></td><td style="color:'+(u.is_active?'var(--green)':'var(--red)')+'">'+( u.is_active?'Active':'Disabled')+'</td><td style="color:var(--text3)">'+(u.login_count||0)+'</td><td style="font-size:11px;color:var(--text3)">'+((u.last_login||'never').substring(0,16))+'</td><td style="display:flex;gap:4px;flex-wrap:wrap"><button class="btn btn-outline btn-sm" onclick="toggleUser('+u.id+')">'+(u.is_active?'Disable':'Enable')+'</button><button class="btn btn-outline btn-sm" onclick="setRole('+u.id+',\''+(u.role==='admin'?'user':'admin')+'\')">'+(u.role==='admin'?'→ User':'→ Admin')+'</button><button class="btn btn-danger btn-sm" onclick="deleteUser('+u.id+')">Del</button></td></tr>').join('')+'</tbody></table>';}
+  catch(e){}
+}
+async function toggleUser(id){await fetch('/api/admin/users/'+id+'/toggle',{method:'POST'});loadAdminUsers();}
+async function setRole(id,role){await fetch('/api/admin/users/'+id+'/role',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role})});loadAdminUsers();}
+async function deleteUser(id){if(!confirm('Delete this user?'))return;await fetch('/api/admin/users/'+id,{method:'DELETE'});loadAdminUsers();}
+async function loadAdminStats(){try{const r=await fetch('/api/admin/stats');const d=await r.json();document.getElementById('admin-stats').innerHTML='<div class="stats"><div class="stat"><div class="stat-val">'+(d.total_users||0)+'</div><div class="stat-lbl">USERS</div></div><div class="stat"><div class="stat-val">'+(d.verified_users||0)+'</div><div class="stat-lbl">VERIFIED</div></div><div class="stat"><div class="stat-val">'+(d.total_scans||0)+'</div><div class="stat-lbl">SCANS</div></div><div class="stat"><div class="stat-val">'+(d.scans_today||0)+'</div><div class="stat-lbl">TODAY</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">'+(d.critical_cves||0)+'</div><div class="stat-lbl">CRITICAL</div></div><div class="stat"><div class="stat-val">'+(d.total_cves||0)+'</div><div class="stat-lbl">TOTAL CVEs</div></div></div>';}catch(e){}}
+async function loadAdminAudit(){try{const r=await fetch('/api/admin/audit?limit=200');const d=await r.json();document.getElementById('admin-audit').innerHTML='<table class="tbl"><thead><tr><th>TIME</th><th>USER</th><th>ACTION</th><th>TARGET</th><th>IP</th></tr></thead><tbody>'+d.map(l=>'<tr><td style="font-size:11px;color:var(--text3)">'+((l.timestamp||'').substring(0,16))+'</td><td style="font-family:var(--mono)">'+( l.username||'—')+'</td><td><span class="tag">'+( l.action||'')+'</span></td><td style="font-size:11px;color:var(--text3)">'+(l.target||'—')+'</td><td style="font-size:11px;color:var(--text3)">'+(l.ip_address||'—')+'</td></tr>').join('')+'</tbody></table>';}catch(e){}}
+async function loadAdminScans(){try{const r=await fetch('/api/admin/scans');const d=await r.json();document.getElementById('admin-scans').innerHTML='<table class="tbl"><thead><tr><th>#</th><th>TARGET</th><th>TIME</th><th>PORTS</th><th>CVEs</th><th>CRITICAL</th><th></th></tr></thead><tbody>'+d.map(s=>'<tr><td style="color:var(--text3)">#'+s.id+'</td><td style="font-family:var(--mono)">'+s.target+'</td><td style="font-size:11px;color:var(--text3)">'+((s.scan_time||'').replace('T',' ').substring(0,19))+'</td><td>'+s.open_ports+'</td><td>'+s.total_cves+'</td><td style="color:'+(s.critical_cves>0?'var(--red)':'var(--text3)')+'">'+s.critical_cves+'</td><td><button class="btn btn-ghost btn-sm" onclick="loadScan('+s.id+')">View</button></td></tr>').join('')+'</tbody></table>';}catch(e){}}
+
+// ══ CLI ═══════════════════════════════════════════════════════════════════
+let _cliHistory=[],_cliHistIdx=-1;
+function initCliHeader(){try{fetch('/api/exec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:'hostname'})}).then(r=>r.json()).then(d=>{const el=document.getElementById('cli-hostname');if(el&&d.output)el.textContent=d.output.trim();}).catch(()=>{});}catch(e){}const ul=document.getElementById('cli-user-label');if(ul&&currentUser)ul.textContent=currentUser.username;}
+async function cliRun(){
+  const inp=document.getElementById('cli-input');const out=document.getElementById('cli-output');const sb=document.getElementById('cli-statusbar');if(!inp||!out)return;
+  const cmd=inp.value.trim();if(!cmd)return;
+  if(_cliHistory[0]!==cmd)_cliHistory.unshift(cmd);if(_cliHistory.length>50)_cliHistory.pop();_cliHistIdx=-1;
+  const ts=new Date().toLocaleTimeString();
+  out.innerHTML+='<div class="cli-cmd-line"><span style="color:var(--text3)">['+ts+']</span> $ '+cmd.replace(/</g,'&lt;')+'</div>';
+  inp.value='';if(sb)sb.innerHTML='<div class="pulse"></div><span>Running...</span>';
+  try{
+    const r=await fetch('/api/exec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:cmd})});
+    const d=await r.json();
+    if(d.error)out.innerHTML+='<div class="cli-err">'+d.error.replace(/</g,'&lt;')+'</div>';
+    if(d.output)out.innerHTML+='<div class="cli-resp">'+d.output.replace(/</g,'&lt;')+'</div>';
+    if(!d.output&&!d.error)out.innerHTML+='<div style="color:var(--text3);font-size:11px">(no output)</div>';
+    if(sb)sb.innerHTML='<div class="pulse"></div><span>Ready | '+_cliHistory.length+' in history | Exit: '+(d.exit_code??'?')+'</span>';
+  }catch(e){out.innerHTML+='<div class="cli-err">Network error: '+e.message+'</div>';if(sb)sb.innerHTML='<div class="pulse" style="background:var(--red)"></div><span>Error</span>';}
+  out.scrollTop=out.scrollHeight;
+}
+function cliKey(e){const inp=document.getElementById('cli-input');if(!inp)return;if(e.key==='Enter'){e.preventDefault();cliRun();}else if(e.key==='ArrowUp'){e.preventDefault();if(_cliHistIdx<_cliHistory.length-1){_cliHistIdx++;inp.value=_cliHistory[_cliHistIdx]||'';}}else if(e.key==='ArrowDown'){e.preventDefault();if(_cliHistIdx>0){_cliHistIdx--;inp.value=_cliHistory[_cliHistIdx]||'';}else{_cliHistIdx=-1;inp.value='';}}else if(e.key==='Tab'){e.preventDefault();}}
+function cliClear(){const out=document.getElementById('cli-output');if(out)out.innerHTML='<div style="color:var(--text3);font-size:11px">Terminal cleared.</div>';}
+function cliQuick(cmd){const inp=document.getElementById('cli-input');if(inp){inp.value=cmd;cliRun();}}
+
+// ══ PDF REPORT ═══════════════════════════════════════════════════════════
+async function exportPDF(){
+  const data=window._sd;if(!data){alert('Run a scan first');return;}
+  try{const r=await fetchWithTimeout('/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)},60000);if(!r.ok)throw new Error(await r.text());const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='vulnscan-'+( data.target||'report')+'-'+new Date().toISOString().slice(0,10)+'.pdf';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);}
+  catch(e){alert('PDF failed: '+e.message);}
+}
+
+// ══ VERIFY EMAIL ════════════════════════════════════════════════════════
+const vt=new URLSearchParams(location.search).get('verify');
+if(vt){fetch('/api/verify/'+vt).then(r=>r.json()).then(d=>{if(d.success){authMsg(d.message+' You can now login.','ok');authTab('login');}else authMsg(d.error||'Verification failed','err');});}
+
+// ══ KEYBOARD SHORTCUTS ══════════════════════════════════════════════════
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeAbout();document.getElementById('tos-modal').classList.remove('open');}if(e.key==='Enter'&&document.getElementById('l-pass')===document.activeElement)doLogin();});
+
+loadUser();
+</script>
+</body>
+</html>"""'''
+
+# ── Identify old HTML block boundaries ────────────────────────────────────────
+OLD_HTML_START = 'HTML = r"""<!DOCTYPE html>'
+OLD_HTML_END   = '# ── Auto-install helper ─'
+
+# Build the full old block signature to find and replace
+OLD_HTML_SIGNATURE = 'HTML = r"""<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>\n<title>VulnScan Pro</title>'
+
+
+def do_html_redesign(path):
+    """Special handler: replace the entire HTML = r\"\"\"...\"\"\" block."""
+    global changes_applied, files_modified, restart_needed
+
+    if not os.path.isfile(path):
+        fail(f"File not found: {path}")
+        return
+
+    with open(path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    # Locate start
+    start_marker = 'HTML = r"""<!DOCTYPE html>'
+    # Locate end — the line AFTER the triple-quote close followed by the auto-install comment
+    end_marker   = '\n# ── Auto-install helper'
+
+    start_idx = content.find(start_marker)
+    if start_idx == -1:
+        # Try the already-patched minimalist version
+        alt_start = 'HTML = r"""<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8"/>\n<meta name="viewport"'
+        start_idx = content.find(alt_start)
+        if start_idx == -1:
+            fail("HTML block start not found in api_server.py")
+            return
+
+    end_idx = content.find(end_marker, start_idx)
+    if end_idx == -1:
+        fail("HTML block end marker not found in api_server.py")
+        return
+
+    old_block = content[start_idx:end_idx]
+    new_block  = NEW_HTML
+
+    if old_block == new_block:
+        ok("HTML redesign (already applied — skipped)")
+        return
+
+    bak = backup(path)
+    info(f"Backup → {bak}")
+    modified = content[:start_idx] + new_block + content[end_idx:]
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(modified)
+
+    ok("Replaced full HTML block with minimalist black/white redesign")
+    changes_applied += 1
+    if path not in files_modified:
+        files_modified.append(path)
+    restart_needed = True
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  PATCH 2 — auth.py  ·  server-side: reject registrations without ToS flag
+#  auth.py — ensure server-side ToS check exists
 # ══════════════════════════════════════════════════════════════════════════════
 
-OLD_AUTH_VALIDATE = """\
+OLD_AUTH = """\
         ok, msg = validate_password(password)
         if not ok: return jsonify({"error": msg}), 400
 
         if get_user_by_username(username): return jsonify({"error": "Username already taken"}), 409"""
 
-NEW_AUTH_VALIDATE = """\
+NEW_AUTH = """\
         ok, msg = validate_password(password)
         if not ok: return jsonify({"error": msg}), 400
 
@@ -220,58 +2500,25 @@ NEW_AUTH_VALIDATE = """\
         if get_user_by_username(username): return jsonify({"error": "Username already taken"}), 409"""
 
 
-# ── Patch the doRegister() JS to send tos_accepted ───────────────────────────
-OLD_DO_REGISTER_BODY = """\
-    const r=await fetch("/api/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:user,email,password:pass,full_name:name})});"""
-
-NEW_DO_REGISTER_BODY = """\
-    const tosAccepted = document.getElementById("r-tos-cb")?.checked || false;
-    const r=await fetch("/api/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:user,email,password:pass,full_name:name,tos_accepted:tosAccepted})});"""
-
-
 # ══════════════════════════════════════════════════════════════════════════════
-#  Run all patches
+#  MAIN
 # ══════════════════════════════════════════════════════════════════════════════
 
 def main():
-    global changes_applied, files_modified, restart_needed
-
-    print(f"\n{BOLD}{CYAN}VulnScan Pro — Patch: Terms of Service Checkbox{RESET}")
+    print(f"\n{BOLD}{CYAN}VulnScan Pro — Minimalist UI Redesign Patch{RESET}")
     print("=" * 58)
+    print(f"  Replaces cyberpunk UI with clean black/white design")
+    print(f"  Adds sidebar nav, light/dark theme toggle, DM Sans font")
+    print()
 
     # ── api_server.py ─────────────────────────────────────────
-    print(f"\n{BOLD}[1/2] Patching api_server.py{RESET}")
-    patch_file("api_server.py", [
-        (
-            "Inject ToS modal HTML before </body>",
-            OLD_BODY_CLOSE,
-            NEW_BODY_CLOSE,
-        ),
-        (
-            "Replace register button with ToS checkbox + button",
-            OLD_REGISTER_BTN,
-            NEW_REGISTER_BTN,
-        ),
-        (
-            "Inject ToS JavaScript before loadUser()",
-            OLD_LOAD_USER,
-            NEW_LOAD_USER,
-        ),
-        (
-            "Send tos_accepted flag in doRegister() fetch call",
-            OLD_DO_REGISTER_BODY,
-            NEW_DO_REGISTER_BODY,
-        ),
-    ])
+    print(f"{BOLD}[1/2] Patching api_server.py — UI redesign{RESET}")
+    do_html_redesign("api_server.py")
 
     # ── auth.py ───────────────────────────────────────────────
-    print(f"\n{BOLD}[2/2] Patching auth.py{RESET}")
+    print(f"\n{BOLD}[2/2] Patching auth.py — ToS server-side check{RESET}")
     patch_file("auth.py", [
-        (
-            "Server-side: reject registration if ToS not accepted",
-            OLD_AUTH_VALIDATE,
-            NEW_AUTH_VALIDATE,
-        ),
+        ("Server-side ToS acceptance check in /api/register", OLD_AUTH, NEW_AUTH),
     ])
 
     # ── Summary ───────────────────────────────────────────────
@@ -283,16 +2530,20 @@ def main():
         print(f"    • {f}")
     if restart_needed:
         print(f"\n  {YELLOW}⚡ Restart required:{RESET}")
-        print(f"     sudo systemctl restart vulnscan")
-        print(f"     — or —")
         print(f"     python3 api_server.py")
+        print(f"     — or —")
+        print(f"     sudo systemctl restart vulnscan")
     else:
-        print(f"\n  {GREEN}No restart needed.{RESET}")
+        print(f"\n  {GREEN}No changes were needed.{RESET}")
 
     if changes_applied == 0:
-        print(f"\n  {YELLOW}No changes were made. The patch may already be applied,")
-        print(f"  or the source strings did not match. Check .bak files if needed.{RESET}")
-
+        print(f"\n  {YELLOW}Tip: If the patch was already applied, no changes are made.")
+        print(f"  To re-apply, restore from a .bak file and run again.{RESET}")
+    else:
+        print(f"\n  {GREEN}✓ UI redesign complete!{RESET}")
+        print(f"  Open http://localhost:5000 after restarting.")
+        print(f"  Theme toggle is in the top-right corner &")
+        print(f"  under Profile → Interface Theme.")
     print()
 
 
