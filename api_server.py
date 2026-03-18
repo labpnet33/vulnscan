@@ -363,19 +363,19 @@ select.inp{cursor:pointer}
 .theme-desc{font-size:11px;color:var(--text3)}
 /* Login overlay -- semi-transparent so hacker bg shows through */
 .overlay{
-  position:fixed;inset:0;background:rgba(255,255,255,0.88)!important;
+  position:fixed;inset:0;background: var(--bg) !important;
   z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;
-  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
-}
-body.dark .overlay{background:rgba(8,8,12,0.88)!important}
-.auth-box{
-  width:100%;max-width:380px;position:relative;z-index:1;
-  background:var(--bg)!important;border:1px solid var(--border)!important;
+  }
+body.dark .overlay{background: var(--bg) !important;max-width:380px;position:relative;z-index:1;
+  background: var(--bg) !important;border:1px solid var(--border)!important;
   border-radius:14px!important;padding:32px!important;
   box-shadow:0 4px 28px rgba(0,0,0,0.1)!important;
 }
-body.dark .auth-box{box-shadow:0 4px 36px rgba(0,220,100,0.06),0 2px 16px rgba(0,0,0,0.6)!important}
-.auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:28px}
+body.dark .auth-box{box-shadow:0 4px 36px rgba(0,220,100,0.06),0 2px 16px rgba(0,0,0,0.6)!important
+  background: var(--bg) !important;
+  border-color: rgba(0,180,60,0.3) !important;}
+.auth-logo{display:flex;
+  border-color: rgba(0,180,60,0.25) !important;align-items:center;gap:10px;margin-bottom:28px}
 .auth-logo-icon{width:32px;height:32px;background:var(--accent);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;color:var(--accent-inv);font-size:16px}
 .auth-title{font-size:18px;font-weight:600;color:var(--text);letter-spacing:-0.3px}
 .auth-tabs{display:flex;gap:0;margin-bottom:20px;border-bottom:1px solid var(--border)}
@@ -404,7 +404,8 @@ body.dark .auth-box{box-shadow:0 4px 36px rgba(0,220,100,0.06),0 2px 16px rgba(0
 @keyframes vs-overlay-in{from{opacity:0}to{opacity:1}}
 .overlay{animation:vs-overlay-in 0.35s ease both}
 @keyframes vs-box-rise{from{opacity:0;transform:translateY(24px) scale(0.97)}to{opacity:1;transform:translateY(0) scale(1)}}
-.auth-box{animation:vs-box-rise 0.5s var(--ease-spring) 0.08s both}
+.auth-box{animation:vs-box-rise 0.5s var(--ease-spring) 0.08s both
+  background: var(--bg) !important;}
 @keyframes vs-logo-spin{0%{opacity:0;transform:rotate(-18deg) scale(0.7)}65%{transform:rotate(5deg) scale(1.07)}100%{opacity:1;transform:rotate(0deg) scale(1)}}
 .auth-logo-icon{animation:vs-logo-spin 0.55s var(--ease-spring) 0.22s both}
 @keyframes vs-fade-up{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
@@ -1733,14 +1734,14 @@ function vsGreetUser(username){
     return b && b.classList.contains('dark');
   }
   /* head of each column -- brightest char */
-  function headRGB()  { return isDark() ? [140,255,140] : [0, 80, 20]; }
+  function headRGB()  { return isDark() ? [60, 120, 60]  : [40, 40, 40]; }
   /* trail colour */
-  function trailRGB() { return isDark() ? [0, 180, 60]  : [0, 60, 10]; }
+  function trailRGB() { return isDark() ? [0,  90, 30]  : [30, 30, 30]; }
   /* fade rect colour matches the page background */
   function fadeFill() {
     return isDark()
-      ? 'rgba(10,10,10,0.15)'
-      : 'rgba(255,255,255,0.18)';
+      ? 'rgba(10,10,10,0.25)'
+      : 'rgba(255,255,255,0.30)';
   }
 
   /* ---- character set ---- */
@@ -1748,7 +1749,7 @@ function vsGreetUser(username){
   function rndChar() { return CHARS[Math.floor(Math.random() * CHARS.length)]; }
 
   /* ---- columns ---- */
-  var COL_W = 18, FONT_SZ = 11, columns = [];
+  var COL_W = 20, FONT_SZ = 9, columns = [];
 
   function initColumns() {
     columns = [];
@@ -1772,7 +1773,7 @@ function vsGreetUser(username){
     var HEAD  = headRGB();
     var TRAIL = trailRGB();
     /* base opacity: subtle on both themes */
-    var baseAlpha = isDark() ? 0.45 : 0.28;
+    var baseAlpha = isDark() ? 0.18 : 0.12;
 
     cx.font = FONT_SZ + 'px "DM Mono","Courier New",monospace';
     cx.textAlign = 'center';
