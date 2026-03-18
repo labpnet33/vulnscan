@@ -198,7 +198,7 @@ body{
   z-index:40;
   transition:background var(--transition),border-color var(--transition);
 }
-.content{padding:28px 28px;flex:1}
+.content{padding:24px 28px 40px;flex:1;min-width:0;overflow-x:hidden;width:100%}
 
 /* ── Brand ── */
 .brand{
@@ -514,7 +514,7 @@ select.inp{cursor:pointer}
 }
 
 /* ── Stats grid ── */
-.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-bottom:20px}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:20px;width:100%;}
 .stat{
   background:var(--bg2);
   border:1px solid var(--border);
@@ -747,7 +747,14 @@ select.inp{cursor:pointer}
 }
 .tbl tr:last-child td{border-bottom:none}
 .tbl tr:hover td{background:var(--bg2)}
-.tbl-wrap{overflow-x:auto}
+.tbl-wrap{overflow-x:auto;width:100%}
+#res,#hv-res,#nk-res,#wp-res,#ly-res,#lg-res,#dr-res,#sub-res,#dir-res,#bf-res,#disc-res{
+  width:100%;max-width:100%;overflow-x:auto;
+}
+.port-panel{width:100%}
+.port-hd{min-height:52px}
+.tbl-wrap{overflow-x:auto;width:100%}
+#res,#hv-res,#nk-res,#wp-res,#ly-res,#lg-res,#dr-res,#sub-res,#dir-res,#bf-res,#disc-res{width:100%;max-width:100%;overflow-x:auto}
 
 /* ── Small tag ── */
 .tag{
@@ -1262,9 +1269,9 @@ select.inp{cursor:pointer}
         <div class="nav-label">AUDITING</div>
         <button class="nav-item" id="ni-lynis" onclick="pg('lynis',this)"><span class="ni">&#9675;</span> Lynis</button>
       </div>
-      <div class="nav-section admin-only" style="display:none">
+      <div class="nav-section" id="admin-nav-section" style="display:none">
         <div class="nav-label">ADMIN</div>
-        <button class="nav-item admin-only" id="ni-admin" onclick="pg('admin',this)" style="display:none"><span class="ni">&#9632;</span> Admin Console</button>
+        <button class="nav-item" id="ni-admin" onclick="pg('admin',this)"><span class="ni">&#9632;</span> Admin Console</button>
       </div>
     </nav>
     <div class="sidebar-footer">
@@ -1945,11 +1952,14 @@ async function loadUser(){
       document.getElementById('user-avatar').textContent=d.username[0].toUpperCase();
       document.getElementById('user-name-disp').textContent=d.username;
       document.getElementById('user-role-disp').textContent=d.role==='admin'?'admin':'user';
-      if(d.role==='admin')document.querySelectorAll('.admin-only').forEach(e=>e.style.display='flex');
+      if(d.role==='admin'){
+        var adminSec=document.getElementById('admin-nav-section');
+        if(adminSec)adminSec.style.display='block';
+      }
       loadProfileInfo(d);loadHomeStats();loadUserTheme();
-      const saved=loadSavedPage();
-      if(saved&&document.getElementById('page-'+saved))pg(saved,null);
-      else pg('home',null);
+      pg('home',null);
+      var _suf=document.getElementById('home-username-suffix');
+      if(_suf) typeWriter(_suf,', '+d.username,'_');
     }else{document.getElementById('auth-overlay').style.display='flex';}
   }catch(e){document.getElementById('auth-overlay').style.display='flex';}
 }
@@ -2007,7 +2017,7 @@ function endProg(id='prog'){
   setTimeout(()=>{if(pw)pw.classList.remove('active');},400);
 }
 
-function animateCount(el,target){if(!el||isNaN(target))return;let startT=null,dur=1000;function step(ts){if(!startT)startT=ts;const p=Math.min((ts-startT)/dur,1);const ease=1-Math.pow(1-p,3);el.textContent=Math.floor(ease*target);if(p<1)requestAnimationFrame(step);}requestAnimationFrame(step);}
+function animateCount(el,target){if(!el||isNaN(target))return;el.classList.add('vs-counting');var startT=null,dur=1000;function step(ts){if(!startT)startT=ts;var p=Math.min((ts-startT)/dur,1);var ease=1-Math.pow(1-p,3);el.textContent=Math.floor(ease*target);if(p<1)requestAnimationFrame(step);else el.classList.remove('vs-counting');}requestAnimationFrame(step);}
 
 async function loadHomeStats(){
   try{const r=await fetch('/history');const d=await r.json();const scans=Array.isArray(d)?d:(d.scans||[]);let c=0,p=0;scans.forEach(s=>{c+=(s.total_cves||0);p+=(s.open_ports||0);});animateCount(document.getElementById('hs-scans'),scans.length);animateCount(document.getElementById('hs-cves'),c);animateCount(document.getElementById('hs-ports'),p);}
@@ -2428,6 +2438,69 @@ if(vt){fetch('/api/verify/'+vt).then(r=>r.json()).then(d=>{if(d.success){authMsg
 
 // ══ KEYBOARD SHORTCUTS ══════════════════════════════════════════════════
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeAbout();document.getElementById('tos-modal').classList.remove('open');}if(e.key==='Enter'&&document.getElementById('l-pass')===document.activeElement)doLogin();});
+
+// Typewriter
+/* ---- VulnScan animation helpers ---- */
+
+/* Typewriter for greeting */
+function typeWriter(el, text, cursor) {
+  cursor = cursor || '';
+  el.textContent = '';
+  var i = 0;
+  function tick() {
+    if (i <= text.length) {
+      el.textContent = text.slice(0, i) + (i < text.length ? cursor : '');
+      i++;
+      setTimeout(tick, i === 1 ? 320 : 52);
+    }
+  }
+  tick();
+}
+
+/* Greet user on home page */
+function vsGreetUser(username) {
+  var suf = document.getElementById('home-username-suffix');
+  if (suf && !suf.textContent) typeWriter(suf, ', ' + username, '_');
+}
+
+/* Re-play home animations when navigating to home */
+function vsHomeAnimations() {
+  setTimeout(loadHomeStats, 80);
+  if (currentUser) vsGreetUser(currentUser.username);
+  var home = document.getElementById('page-home');
+  if (!home) return;
+  var cards = home.querySelectorAll('.card[onclick]');
+  for (var ci = 0; ci < cards.length; ci++) {
+    (function (c) {
+      c.style.animation = 'none';
+      requestAnimationFrame(function () { c.style.animation = ''; });
+    })(cards[ci]);
+  }
+}
+
+/* Patch pg() AFTER it is defined so login is never broken */
+document.addEventListener('DOMContentLoaded', function () {
+  var _origPg = pg;
+  pg = function (id, el) {
+    _origPg(id, el);
+    /* topbar title fade */
+    var tt = document.getElementById('topbar-title');
+    if (tt) {
+      tt.style.animation = 'none';
+      requestAnimationFrame(function () { tt.style.animation = ''; });
+    }
+    if (id === 'home') vsHomeAnimations();
+  };
+
+  /* Inject floating orbs into body */
+  var orbClasses = ['vs-orb vs-orb-a', 'vs-orb vs-orb-b', 'vs-orb vs-orb-c'];
+  orbClasses.forEach(function (cls) {
+    var d = document.createElement('div');
+    d.className = cls;
+    document.body.appendChild(d);
+    setTimeout(function () { d.classList.add('show'); }, 150);
+  });
+});
 
 loadUser();
 </script>
