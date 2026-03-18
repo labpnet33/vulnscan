@@ -294,11 +294,12 @@ function ScanResults({ results }) {
   const highCount = allPorts.filter(p => p.risk_level === "HIGH").length;
 
   return (
-    <div style={{ marginTop: 32 }}>
+    <div style={{ marginTop: 32, width: "100%", flex: 1 }}>
       {/* Summary bar */}
       <div style={{
         display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 24,
         padding: 18, background: "#0a0a0c", borderRadius: 10, border: "1px solid #1c1c1e",
+        overflowX: "auto",
       }}>
         {[
           { label: "Open Ports", value: allPorts.length, color: "#00d4ff" },
@@ -437,6 +438,7 @@ export default function VulnScanner() {
       color: "#e5e5ea",
       fontFamily: "'IBM Plex Mono', 'Courier New', monospace",
       padding: "0",
+      overflow: "auto",
     }}>
       {/* Header */}
       <div style={{
@@ -465,7 +467,7 @@ export default function VulnScanner() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 900, margin: "0 auto", padding: "32px 24px" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: "32px 24px", minHeight: "calc(100vh - 120px)", display: "flex", flexDirection: "column" }}>
         {/* Input */}
         <div style={{
           background: "#0a0a0c",
@@ -536,7 +538,8 @@ export default function VulnScanner() {
             borderRadius: 10,
             padding: "14px 16px",
             marginBottom: 24,
-            maxHeight: 180,
+            maxHeight: "auto",
+            minHeight: 180,
             overflowY: "auto",
           }}>
             {logs.map((log, i) => (
