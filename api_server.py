@@ -577,7 +577,7 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
     <div style="font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:16px">VulnScan Pro is a free, open-source vulnerability assessment platform for security professionals, penetration testers, and system administrators.</div>
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:14px">
       <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">Creator</div>
-      <div style="font-size:13px;color:var(--text2)">Vijay Katariya &mdash; Motalund Organization</div>
+      <div style="font-size:13px;color:var(--text2)">Vijay Katariya &mdash; Using Vibe Coding</div>
       <div style="margin-top:8px"><a href="https://github.com/labpnet33/vulnscan" target="_blank" style="font-family:var(--mono);font-size:11px;color:var(--text2);text-decoration:underline;text-underline-offset:2px">github.com/labpnet33/vulnscan</a></div>
     </div>
     <div style="background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--yellow);border-radius:var(--radius);padding:10px 12px;font-size:12px;color:var(--text2)">&#9888; <strong>Legal:</strong> Authorized security testing only. Only scan systems you own or have explicit written permission to test.</div>
