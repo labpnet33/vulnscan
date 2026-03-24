@@ -720,6 +720,17 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
             <button class="pill on" id="mod-dns" onclick="tmg('dns',this)">DNS</button>
             <button class="pill on" id="mod-headers" onclick="tmg('headers',this)">Headers</button>
           </div>
+          <div class="row2" style="margin-top:10px">
+            <div class="fg" style="margin-bottom:0">
+              <label>NMAP PROFILE</label>
+              <select class="inp inp-mono" id="scan-profile">
+                <option value="fast">Fast (quick ports)</option>
+                <option value="balanced" selected>Balanced (recommended)</option>
+                <option value="deep">Deep (all TCP ports)</option>
+                <option value="very_deep">Very Deep (all ports + safe scripts)</option>
+              </select>
+            </div>
+          </div>
           <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:10px">&#9432; Scans may take 30--180 seconds depending on target and modules.</div>
         </div>
         <div class="progress-wrap" id="prog"><div class="progress-bar" id="pb" style="width:0%"></div></div>
@@ -1168,6 +1179,7 @@ function pg(id,el){
 var currentUser=null;
 var busy=false;
 var mods={ports:true,ssl:true,dns:true,headers:true};
+var nmapProfile='balanced';
 
 function authTab(t){
   document.querySelectorAll('.auth-tab').forEach(function(e,i){
@@ -1315,14 +1327,16 @@ function tmg(m,el){mods[m]=!mods[m];el.classList.toggle('on',mods[m]);}
 async function doScan(){
   var target=document.getElementById('tgt').value.trim();
   if(!target||busy)return;
+  var profileSel=document.getElementById('scan-profile');
+  nmapProfile=(profileSel&&profileSel.value?profileSel.value:'balanced');
   clrUI();busy=true;
   showTerminal('term');startProg('prog');
   var btn=document.getElementById('sbtn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
   setScanRunning('scan',true);
   var ml=Object.keys(mods).filter(function(m){return mods[m];}).join(',');
-  termLog('term','Target: '+target,'i');termLog('term','Modules: '+ml,'i');termLog('term','Scanning -- may take 60-180s','w');
+  termLog('term','Target: '+target,'i');termLog('term','Modules: '+ml,'i');termLog('term','Profile: '+nmapProfile,'i');termLog('term','Scanning -- may take 60-180s','w');
   try{
-    var r=await fetchWithTimeout('/scan?target='+encodeURIComponent(target)+'&modules='+encodeURIComponent(ml),{},300000,'scan');
+    var r=await fetchWithTimeout('/scan?target='+encodeURIComponent(target)+'&modules='+encodeURIComponent(ml)+'&profile='+encodeURIComponent(nmapProfile),{},300000,'scan');
     var d=await r.json();endProg('prog');
     if(d.error){showErr('err','Error: '+d.error);termLog('term',d.error,'e');}
     else{var ports=d.summary?d.summary.open_ports:0,cves=d.summary?d.summary.total_cves:0;termLog('term','Done -- '+ports+' ports, '+cves+' CVEs','s');renderScan(d);showToast('Scan Complete',ports+' open ports - '+cves+' CVEs','success');}
@@ -1940,6 +1954,9 @@ def scan():
     target = (request.args.get("target", "") if request.method == "GET"
               else (request.get_json() or {}).get("target", "")).strip()
     modules = request.args.get("modules", "ports,ssl,dns,headers")
+    profile = request.args.get("profile", "balanced").strip().lower()
+    if profile not in {"fast", "balanced", "deep", "very_deep"}:
+        profile = "balanced"
     if not target:
         return jsonify({"error": "No target specified"}), 400
     if not re.match(r'^[a-zA-Z0-9.\-_:/\[\]]+$', target):
@@ -1950,11 +1967,11 @@ def scan():
     uname = user["username"] if user else "anonymous"
 
     try:
-        data = run_backend("--modules", modules, target, timeout=TIMEOUT_SCAN)
+        data = run_backend("--modules", modules, "--nmap-profile", profile, target, timeout=TIMEOUT_SCAN)
         if "error" not in data:
             data["scan_id"] = save_scan(target, data, user_id=uid, modules=modules)
             audit(uid, uname, "SCAN", target=target, ip=request.remote_addr,
-                  details=f"modules={modules}")
+                  details=f"modules={modules};profile={profile}")
         return jsonify(data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
