@@ -1071,7 +1071,15 @@ def full_scan(target, modules=None, nmap_profile="balanced"):
     if chosen_profile not in NMAP_PROFILES:
         chosen_profile = "balanced"
 
-    scan = run_nmap_scan(target, profile=nmap_profile)
+    result = {
+        "target": target,
+        "scan_time": datetime.utcnow().isoformat(),
+        "modules": {},
+        "summary": {},
+        "nmap_profile_requested": chosen_profile,
+    }
+
+    scan = run_nmap_scan(target, profile=chosen_profile)
     if "error" in scan:
         result["modules"]["ports"] = scan
         result["summary"] = {
