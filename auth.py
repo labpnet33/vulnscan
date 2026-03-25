@@ -3,12 +3,12 @@
 Authentication module for VulnScan Pro
 Handles: register, login, logout, verify email, password reset, session management
 """
-import os, secrets, hashlib, re
+import os, secrets, hashlib, re, string
 from datetime import datetime, timedelta
 from functools import wraps
 from flask import request, jsonify, session
 from database import (get_user_by_username, get_user_by_email, get_user_by_id,
-                      get_user_by_token, create_user, update_user, verify_user,
+                      get_user_by_token, create_user, update_user, verify_user, delete_user,
                       update_last_login, audit)
 
 SECRET_KEY = os.environ.get("VULNSCAN_SECRET", "change-this-secret-key-in-production-2024")
@@ -157,6 +157,32 @@ code{{background:#16162a;padding:8px 12px;border-radius:4px;word-break:break-all
         print(f"[!] Reset email failed: {e}")
         return False
 
+def generate_temp_password(length=14):
+    chars = string.ascii_letters + string.digits
+    while True:
+        pwd = ''.join(secrets.choice(chars) for _ in range(length))
+        ok, _ = validate_password(pwd)
+        if ok:
+            return pwd
+
+def send_admin_created_account_email(email, username, temp_password):
+    try:
+        from mail_config import send_mail
+        subject = "VulnScan Pro — Your account has been created"
+        body = f"""Hello {username},
+
+An administrator created your VulnScan Pro account.
+
+Username: {username}
+Temporary password: {temp_password}
+
+Please login and change your password immediately from the Profile page.
+"""
+        return send_mail(email, subject, body, is_html=False)
+    except Exception as e:
+        print(f"[!] Admin-created account email failed: {e}")
+        return False
+
 # ── Auth routes registration ────────────────────
 def register_auth_routes(app):
 
@@ -190,22 +216,30 @@ def register_auth_routes(app):
         count = con.execute("SELECT COUNT(*) FROM users").fetchone()[0]
         con.close()
         role = "admin" if count == 0 else "user"
-        is_verified = 1 if count == 0 else 0
+        # Always require email verification, including the first admin account.
+        # This ensures every registration triggers verification email delivery.
+        is_verified = 0
 
         ok, msg = create_user(username, email, ph, full_name, role, is_verified, token)
         if not ok: return jsonify({"error": msg}), 409
 
-        if not is_verified:
-            send_verification_email(email, username, token)
+        verification_email_sent = send_verification_email(email, username, token)
+        if not verification_email_sent:
+            audit(None, username, "VERIFY_EMAIL_SEND_FAIL", ip=request.remote_addr, ua=request.headers.get("User-Agent", ""))
 
         audit(None, username, "REGISTER", ip=request.remote_addr, ua=request.headers.get("User-Agent", ""),
               details=f"role={role}, verified={is_verified}")
 
         return jsonify({
             "success": True,
-            "message": "Account created! Check your email to verify." if not is_verified else "Account created! You can now login.",
+            "message": (
+                "Account created! Check your email to verify."
+                if verification_email_sent
+                else "Account created, but verification email could not be sent. Please contact support."
+            ),
             "verified": bool(is_verified),
-            "role": role
+            "role": role,
+            "verification_email_sent": bool(verification_email_sent)
         })
 
     @app.route("/api/login", methods=["POST"])
@@ -330,6 +364,37 @@ def register_auth_routes(app):
     def api_admin_users():
         from database import get_all_users
         return jsonify(get_all_users())
+
+    @app.route("/api/admin/users/create", methods=["POST"])
+    @admin_required
+    def api_admin_create_user():
+        d = request.get_json() or {}
+        full_name = d.get("full_name", "").strip()
+        username = d.get("username", "").strip()
+        email = d.get("email", "").strip()
+
+        ok, msg = validate_username(username)
+        if not ok: return jsonify({"error": msg}), 400
+        if not validate_email(email): return jsonify({"error": "Invalid email address"}), 400
+        if get_user_by_username(username): return jsonify({"error": "Username already taken"}), 409
+        if get_user_by_email(email): return jsonify({"error": "Email already registered"}), 409
+
+        temp_password = generate_temp_password()
+        ph = hash_password(temp_password)
+        ok, msg = create_user(username, email, ph, full_name, role="user", is_verified=1, verify_token="")
+        if not ok: return jsonify({"error": msg}), 409
+
+        if not send_admin_created_account_email(email, username, temp_password):
+            created = get_user_by_username(username)
+            if created:
+                delete_user(created["id"])
+            audit(None, username, "ADMIN_CREATE_USER_EMAIL_FAIL", ip=request.remote_addr, ua=request.headers.get("User-Agent", ""))
+            return jsonify({"error": "User could not be created because account email delivery failed."}), 500
+
+        current = get_current_user()
+        audit(current["id"], current["username"], "ADMIN_CREATE_USER", ip=request.remote_addr,
+              ua=request.headers.get("User-Agent", ""), details=f"created={username}")
+        return jsonify({"success": True, "message": f"User {username} created and credentials sent by email."})
 
     @app.route("/api/admin/users/<int:uid>/toggle", methods=["POST"])
     @admin_required
