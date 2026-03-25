@@ -2053,13 +2053,89 @@ def _run_nikto_for_webdeep(target):
             os.unlink(out_file)
 
 
-def _rate_web_findings(scan_data, nikto_data, dir_data, header_data):
+def _run_whatweb_for_webdeep(target):
+    import shutil
+    binary = shutil.which("whatweb")
+    if not binary:
+        return {"status": "skipped", "reason": "whatweb not installed", "technologies": []}
+    try:
+        proc = subprocess.run(
+            [binary, "--log-brief=-", "--no-errors", target],
+            capture_output=True, text=True, timeout=180
+        )
+        line = ""
+        for raw in proc.stdout.splitlines():
+            if raw.strip():
+                line = raw.strip()
+                break
+        tech = []
+        if line:
+            parts = line.split("[", 1)
+            if len(parts) == 2:
+                tech = [t.strip(" ]") for t in parts[1].split(",") if t.strip()]
+        return {"status": "ok", "technologies": tech, "raw": proc.stdout[:1000]}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "technologies": []}
+
+
+def _run_nuclei_for_webdeep(target):
+    import shutil, json as _json
+    binary = shutil.which("nuclei")
+    if not binary:
+        return {"status": "skipped", "reason": "nuclei not installed", "findings": []}
+    try:
+        proc = subprocess.run(
+            [binary, "-u", target, "-jsonl", "-severity", "critical,high,medium", "-silent", "-stats=false"],
+            capture_output=True, text=True, timeout=300
+        )
+        findings = []
+        for line in (proc.stdout or "").splitlines()[:150]:
+            try:
+                item = _json.loads(line)
+                info = item.get("info", {})
+                findings.append({
+                    "template": item.get("template-id", ""),
+                    "name": info.get("name", ""),
+                    "severity": str(info.get("severity", "unknown")).lower(),
+                    "matched_at": item.get("matched-at", "")
+                })
+            except Exception:
+                continue
+        return {"status": "ok", "findings": findings}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "findings": []}
+
+
+def _run_sqlmap_for_webdeep(target):
+    import shutil
+    binary = shutil.which("sqlmap")
+    if not binary:
+        return {"status": "skipped", "reason": "sqlmap not installed", "findings": []}
+    try:
+        proc = subprocess.run(
+            [binary, "-u", target, "--batch", "--crawl=1", "--level=1", "--risk=1", "--threads=2", "--timeout=8"],
+            capture_output=True, text=True, timeout=420
+        )
+        output = (proc.stdout or "") + "\n" + (proc.stderr or "")
+        hits = []
+        for line in output.splitlines():
+            ll = line.lower()
+            if "is vulnerable" in ll or "sql injection vulnerability" in ll:
+                hits.append(line.strip())
+        return {"status": "ok", "findings": hits[:25], "raw_tail": output[-1200:]}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "findings": []}
+
+
+def _rate_web_findings(scan_data, nikto_data, dir_data, header_data, nuclei_data=None, sqlmap_data=None):
     critical = int((scan_data.get("summary") or {}).get("critical_cves", 0))
     high = int((scan_data.get("summary") or {}).get("high_cves", 0))
     nikto_high = sum(1 for f in nikto_data.get("findings", []) if f.get("severity") == "high")
     dir_hits = len((dir_data or {}).get("found", []))
     hdr_issues = len([i for i in (header_data or {}).get("issues", []) if i.get("severity") in {"HIGH", "MEDIUM"}])
-    score = min(100, critical * 22 + high * 10 + nikto_high * 4 + min(25, dir_hits // 3) + hdr_issues * 3)
+    nuclei_high = len([f for f in (nuclei_data or {}).get("findings", []) if f.get("severity") in {"critical", "high"}])
+    sqlmap_hits = len((sqlmap_data or {}).get("findings", []))
+    score = min(100, critical * 22 + high * 10 + nikto_high * 4 + min(25, dir_hits // 3) + hdr_issues * 3 + nuclei_high * 8 + sqlmap_hits * 10)
     rating = "LOW" if score <= 15 else "MEDIUM" if score <= 35 else "HIGH" if score <= 60 else "CRITICAL"
     return score, rating, {
         "critical_cves": critical,
@@ -2067,7 +2143,9 @@ def _rate_web_findings(scan_data, nikto_data, dir_data, header_data):
         "nikto_high": nikto_high,
         "sensitive_paths": dir_hits,
         "header_issues": hdr_issues,
-        "total_findings": critical + high + nikto_high + dir_hits + hdr_issues
+        "nuclei_high": nuclei_high,
+        "sqlmap_hits": sqlmap_hits,
+        "total_findings": critical + high + nikto_high + dir_hits + hdr_issues + nuclei_high + sqlmap_hits
     }
 
 
@@ -2099,11 +2177,14 @@ def web_deep():
     audit(user["id"] if user else None, user["username"] if user else "anon",
           "WEB_DEEP_AUDIT", target=base_url, ip=request.remote_addr, details=f"profile={profile}")
 
-    network = run_backend("--modules", "ports,ssl,dns,headers", "--nmap-profile", profile, host, timeout=TIMEOUT_SCAN)
-    dir_enum = run_backend("--dirbust", base_url, "medium", "php,html,js,txt,bak,zip,env,log", timeout=TIMEOUT_DIRBUST)
+    network = run_backend("--modules", "ports,ssl,dns,headers", "--nmap-profile", profile, host, timeout=min(TIMEOUT_WEB_DEEP, TIMEOUT_SCAN))
+    dir_enum = run_backend("--dirbust", base_url, "medium", "php,html,js,txt,bak,zip,env,log", timeout=min(TIMEOUT_WEB_DEEP, TIMEOUT_DIRBUST))
     nikto = _run_nikto_for_webdeep(raw_url)
+    whatweb = _run_whatweb_for_webdeep(raw_url)
+    nuclei = _run_nuclei_for_webdeep(raw_url)
+    sqlmap = _run_sqlmap_for_webdeep(raw_url)
     headers = ((network.get("modules") or {}).get("headers") or {})
-    score, rating, summary = _rate_web_findings(network, nikto, dir_enum, headers)
+    score, rating, summary = _rate_web_findings(network, nikto, dir_enum, headers, nuclei_data=nuclei, sqlmap_data=sqlmap)
 
     response = {
         "target": base_url,
@@ -2116,6 +2197,9 @@ def web_deep():
             {"tool": "nikto", "status": nikto.get("status", "error")},
             {"tool": "dirbust", "status": "ok" if "error" not in dir_enum else "error"},
             {"tool": "dns+headers+ssl", "status": "ok" if "error" not in network else "error"},
+            {"tool": "whatweb", "status": whatweb.get("status", "error")},
+            {"tool": "nuclei", "status": nuclei.get("status", "error")},
+            {"tool": "sqlmap", "status": sqlmap.get("status", "error")},
         ],
         "key_findings": [
             f"Critical CVEs: {summary['critical_cves']}",
@@ -2123,12 +2207,17 @@ def web_deep():
             f"Nikto high findings: {summary['nikto_high']}",
             f"Interesting paths discovered: {summary['sensitive_paths']}",
             f"Header security issues: {summary['header_issues']}",
+            f"Nuclei critical/high findings: {summary['nuclei_high']}",
+            f"Potential SQL injection findings: {summary['sqlmap_hits']}",
         ],
         "executive_summary": f"Automated deep web audit completed for {base_url}. Risk rating is {rating} with score {score}/100.",
         "details": {
             "network_scan": network,
             "nikto": nikto,
             "directory_enum": dir_enum,
+            "whatweb": whatweb,
+            "nuclei": nuclei,
+            "sqlmap": sqlmap,
         }
     }
     return jsonify(response)
