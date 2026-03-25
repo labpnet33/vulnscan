@@ -1027,12 +1027,9 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
             <div class="card-title" style="margin-bottom:8px">Connected Agent Systems</div>
             <div id="ly-agents" style="color:var(--text3);font-size:12px">Loading agents...</div>
           </div>
-          <div class="card card-p" style="margin-bottom:12px">
-            <div class="card-title" style="margin-bottom:6px">Selected Agent</div>
-            <div id="ly-selected-agent" style="font-family:var(--mono);font-size:12px;color:var(--text3)">No remote agent selected (local scan mode).</div>
-            <div style="margin-top:8px">
-              <button class="btn btn-outline btn-sm" onclick="clearLynisAgentSelection()">CLEAR SELECTION</button>
-            </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>AGENT CLIENT ID (optional)</label><input class="inp inp-mono" id="ly-client-id" type="text" placeholder="e.g. acme-laptop-01"/></div>
+            <div class="fg"><label>MODE</label><select class="inp inp-mono" id="ly-mode"><option value="auto">Auto (remote if client id provided)</option><option value="local">Local only</option><option value="remote">Remote only</option></select></div>
           </div>
           <div class="row2" style="margin-bottom:12px">
             <div class="fg"><label>AUDIT PROFILE</label><select class="inp inp-mono" id="ly-profile"><option value="system">Full System Audit</option><option value="quick">Quick Scan</option><option value="forensics">Forensics Mode</option></select></div>
