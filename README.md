@@ -94,7 +94,7 @@ VulnScan Pro is a free, open-source vulnerability assessment platform featuring 
 - Python 3.8+
 - pip
 - nmap (for port scanning)
-- Optional: nikto, dnsrecon, theHarvester, lynis, wpscan
+- Optional: nikto, dnsrecon, theHarvester, lynis, wpscan, whatweb, nuclei, sqlmap
 
 ### Quick Start
 
@@ -192,6 +192,7 @@ All endpoints require an active session (login via `/api/login` first).
 | `POST` | `/wpscan` | WordPress scan |
 | `POST` | `/lynis` | System security audit |
 | `POST` | `/legion` | Legion auto-recon |
+| `POST` | `/web-deep` | Deep website audit (multi-tool + risk rating + detailed report JSON) |
 | `POST` | `/brute-http` | HTTP brute force |
 | `POST` | `/brute-ssh` | SSH brute force |
 
