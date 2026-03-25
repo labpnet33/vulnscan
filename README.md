@@ -132,10 +132,10 @@ This project supports running Lynis on **user Linux systems** via outbound HTTP(
 ### One-line install (copy/paste on user Linux machine)
 
 ```bash
-curl -fsSL http://161.118.189.254:5000/agent/install.sh | bash -s -- my-client-id
+curl -fsSL http://161.118.189.254:5000/agent/install.sh | bash
 ```
 
-> Replace `my-client-id` with a unique name per endpoint (example: `finance-prod-01`).
+> Optional: pass your own ID via `bash -s -- my-client-id`. If omitted, installer auto-generates a unique ID (hostname + random suffix).
 
 ### What the install flow does
 
@@ -259,7 +259,7 @@ All endpoints require an active session (login via `/api/login` first).
 
 Agent files are included in `agent/`:
 - `agent/lynis_pull_agent.py` (polling runner)
-- `agent/install_agent.sh <client_id> [token] [api_base]` (systemd installer, auto-start)
+- `agent/install_agent.sh [client_id] [token] [api_base]` (systemd installer, auto-start; generates ID if omitted)
 
 ### History & Reports
 

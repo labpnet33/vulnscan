@@ -11,6 +11,7 @@ import re
 import shutil
 import socket
 import subprocess
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -66,20 +67,67 @@ def parse_lynis_output(output):
     }
 
 
+def parse_lynis_report_dat(content):
+    hardening_index = 0
+    warnings, suggestions = [], []
+    tests_performed = "?"
+    for raw_line in content.splitlines():
+        line = raw_line.strip()
+        if line.startswith("hardening_index="):
+            try:
+                hardening_index = int(line.split("=", 1)[1].strip())
+            except Exception:
+                pass
+        elif line.startswith("tests_performed="):
+            tests_performed = line.split("=", 1)[1].strip() or tests_performed
+        elif line.startswith("warning[]="):
+            warnings.append(line.split("=", 1)[1].strip())
+        elif line.startswith("suggestion[]="):
+            suggestions.append(line.split("=", 1)[1].strip())
+    return {
+        "hardening_index": hardening_index,
+        "warnings": warnings,
+        "suggestions": suggestions,
+        "tests_performed": tests_performed,
+    }
+
+
 def run_job(job, api_base, token):
     job_id = job["job_id"]
     http_json(f"{api_base}/api/jobs/{job_id}/progress", method="POST",
               payload={"progress_pct": 10, "message": "Preparing Lynis"}, token=token)
     if not ensure_lynis():
         raise RuntimeError("Lynis not installed and auto-install failed. Install with: sudo apt install lynis")
-    cmd = ["lynis", "audit", "system", "--quiet", "--no-colors", "--noplugins"]
-    if job.get("compliance"):
-        cmd += ["--compliance", str(job["compliance"]).lower()]
-    http_json(f"{api_base}/api/jobs/{job_id}/progress", method="POST",
-              payload={"progress_pct": 40, "message": "Lynis running"}, token=token)
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=420)
-    out = (proc.stdout or "") + "\n" + (proc.stderr or "")
-    parsed = parse_lynis_output(out)
+    with tempfile.TemporaryDirectory(prefix="vulnscan-lynis-") as tmpdir:
+        report_file = os.path.join(tmpdir, "lynis-report.dat")
+        log_file = os.path.join(tmpdir, "lynis.log")
+        cmd = [
+            "lynis", "audit", "system", "--quiet", "--no-colors", "--noplugins",
+            "--report-file", report_file, "--logfile", log_file
+        ]
+        if job.get("compliance"):
+            cmd += ["--compliance", str(job["compliance"]).lower()]
+        http_json(f"{api_base}/api/jobs/{job_id}/progress", method="POST",
+                  payload={"progress_pct": 40, "message": "Lynis running"}, token=token)
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=420)
+        out = (proc.stdout or "") + "\n" + (proc.stderr or "")
+        parsed = parse_lynis_output(out)
+        report_dat_content = ""
+        if os.path.exists(report_file):
+            with open(report_file, "r", encoding="utf-8", errors="ignore") as f:
+                report_dat_content = f.read()
+            dat_parsed = parse_lynis_report_dat(report_dat_content)
+            parsed["hardening_index"] = dat_parsed["hardening_index"] or parsed["hardening_index"]
+            parsed["warnings"] = sorted(set(parsed["warnings"] + dat_parsed["warnings"]))[:120]
+            parsed["suggestions"] = sorted(set(parsed["suggestions"] + dat_parsed["suggestions"]))[:200]
+            if parsed["tests_performed"] in {"", "?", None}:
+                parsed["tests_performed"] = dat_parsed["tests_performed"]
+        if os.path.exists(log_file):
+            with open(log_file, "r", encoding="utf-8", errors="ignore") as f:
+                out += "\n\n# lynis.log\n" + f.read()
+        if report_dat_content:
+            out += "\n\n# lynis-report.dat\n" + report_dat_content
+        parsed["raw_report"] = out[-200000:]
     http_json(f"{api_base}/api/upload", method="POST", payload={"job_id": job_id, **parsed}, token=token)
 
 
