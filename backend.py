@@ -129,70 +129,95 @@ def _nmap_profile_settings(profile, use_tor):
         p = "balanced"
 
     if use_tor:
-        # Tor mode: keep intensity moderate to avoid long timeouts.
+        # Tor mode: TCP-connect only (-sT), no ping (-Pn), slow timing (-T2)
+        # fast:      top 100 ports, minimal version detection
+        # balanced:  top 200 ports + basic version info
+        # deep:      top 1000 ports + version detection
+        # very_deep: all ports + scripts (very slow through Tor, ~30+ min)
         presets = {
             "fast": (
-                ["-sT", "-Pn", "-n", "--open", "-T2", "--max-retries", "1",
-                 "--host-timeout", "180s", "--top-ports", "100",
-                 "-sV", "--version-intensity", "1"],
-                360,
-                "fast"
+                ["-sT", "-Pn", "-n", "--open",
+                 "-T2", "--max-retries", "1",
+                 "--host-timeout", "120s",
+                 "--min-rtt-timeout", "500ms", "--max-rtt-timeout", "8000ms",
+                 "--top-ports", "100"],
+                240,
+                "fast/Tor (top 100 ports)"
             ),
             "balanced": (
-                ["-sT", "-Pn", "-n", "--open", "-T2",
-                 "--host-timeout", "300s", "--max-retries", "1",
+                ["-sT", "-Pn", "-n", "--open",
+                 "-T2", "--max-retries", "1",
+                 "--host-timeout", "300s",
                  "--min-rtt-timeout", "500ms", "--max-rtt-timeout", "10000ms",
                  "--initial-rtt-timeout", "2000ms",
                  "-sV", "--version-intensity", "2",
                  "--top-ports", "200"],
                 600,
-                "balanced"
+                "balanced/Tor (top 200 + versions)"
             ),
             "deep": (
-                ["-sT", "-Pn", "-n", "--open", "-T2",
-                 "--host-timeout", "420s", "--max-retries", "1",
+                ["-sT", "-Pn", "-n", "--open",
+                 "-T2", "--max-retries", "1",
+                 "--host-timeout", "420s",
+                 "--min-rtt-timeout", "1000ms", "--max-rtt-timeout", "15000ms",
                  "-sV", "--version-intensity", "4",
                  "--top-ports", "1000"],
                 720,
-                "deep"
+                "deep/Tor (top 1000 + versions)"
             ),
             "very_deep": (
-                ["-sT", "-Pn", "-n", "--open", "-T2",
-                 "--host-timeout", "600s", "--max-retries", "1",
-                 "-sV", "--version-intensity", "7", "--script", "default,safe",
+                ["-sT", "-Pn", "-n", "--open",
+                 "-T2", "--max-retries", "1",
+                 "--host-timeout", "600s",
+                 "--min-rtt-timeout", "1000ms", "--max-rtt-timeout", "20000ms",
+                 "-sV", "--version-intensity", "6",
+                 "--script", "default,safe",
                  "-p-"],
-                900,
-                "very_deep (Tor-limited)"
+                1200,
+                "very_deep/Tor (all ports + scripts — slow!)"
             ),
         }
     else:
+        # Direct mode: no Tor — full nmap capabilities
+        # fast:      quick survey, top 100 ports, no version detection (~30s)
+        # balanced:  top 1000 ports + service versions (~60s)
+        # deep:      all 65535 TCP ports + aggressive version detection (~5 min)
+        # very_deep: all ports + NSE scripts + OS fingerprinting + traceroute (~15 min)
         presets = {
             "fast": (
-                ["-Pn", "-n", "--open", "-T4", "--max-retries", "1",
-                 "--host-timeout", "90s", "--top-ports", "100"],
-                180,
-                "fast"
+                ["-Pn", "-n", "--open",
+                 "-T4", "--max-retries", "1",
+                 "--host-timeout", "60s",
+                 "--top-ports", "100"],
+                120,
+                "fast (top 100 ports)"
             ),
             "balanced": (
-                ["-sV", "--version-intensity", "5", "-Pn", "-n", "--open",
+                ["-sV", "--version-intensity", "5",
+                 "-Pn", "-n", "--open",
                  "-T4", "--host-timeout", "120s", "--max-retries", "2",
                  "--top-ports", "1000"],
                 300,
-                "balanced"
+                "balanced (top 1000 + versions)"
             ),
             "deep": (
-                ["-sV", "--version-intensity", "7", "-Pn", "-n", "--open",
-                 "-T3", "--host-timeout", "300s", "--max-retries", "2",
+                ["-sV", "--version-intensity", "7",
+                 "-Pn", "-n", "--open",
+                 "-T3", "--host-timeout", "360s", "--max-retries", "2",
                  "-p-"],
-                480,
-                "deep"
+                600,
+                "deep (all 65535 ports + versions)"
             ),
             "very_deep": (
-                ["-sV", "--version-intensity", "9", "-Pn", "-n", "--open",
-                 "-T3", "--host-timeout", "480s", "--max-retries", "2",
-                 "--script", "default,safe", "-p-"],
-                720,
-                "very_deep"
+                ["-sV", "--version-intensity", "9",
+                 "-O",
+                 "--traceroute",
+                 "-Pn", "-n", "--open",
+                 "-T3", "--host-timeout", "600s", "--max-retries", "3",
+                 "--script", "default,safe,vuln",
+                 "-p-"],
+                900,
+                "very_deep (all ports + scripts + OS + traceroute)"
             ),
         }
     return presets[p]

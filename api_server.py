@@ -779,10 +779,10 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
             <div class="fg" style="margin-bottom:0">
               <label>NMAP PROFILE</label>
               <select class="inp inp-mono" id="scan-profile">
-                <option value="fast">Fast (quick ports)</option>
-                <option value="balanced" selected>Balanced (recommended)</option>
-                <option value="deep">Deep (all TCP ports)</option>
-                <option value="very_deep">Very Deep (all ports + safe scripts)</option>
+                <option value="fast">Fast — top 100 ports, no version (-T4, ~30s)</option>
+                <option value="balanced" selected>Balanced — top 1000 ports + versions (-T4, ~60s)</option>
+                <option value="deep">Deep — all 65535 TCP ports + versions (-T3, ~5min)</option>
+                <option value="very_deep">Very Deep — all ports + scripts + OS detect (-T3, ~15min)</option>
               </select>
             </div>
           </div>
@@ -1019,10 +1019,33 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
               <div class="fg"><label>PORT</label><input class="inp inp-mono" id="bf-ssh-port" value="22" type="text"/></div>
             </div>
           </div>
-          <div class="row2" style="margin-bottom:12px">
-            <div class="fg"><label>USERNAMES (one per line)</label><textarea class="inp inp-mono" id="bf-users" placeholder="admin&#10;root&#10;user"></textarea></div>
-            <div class="fg"><label>PASSWORDS (one per line)</label><textarea class="inp inp-mono" id="bf-pwds" placeholder="admin&#10;password&#10;123456"></textarea></div>
+          <!-- Wordlist Mode Selector -->
+          <div class="fg">
+            <label>USERNAME LIST MODE</label>
+            <select class="inp inp-mono" id="bf-user-mode" onchange="bfWordlistMode('user')">
+              <option value="manual">Manual Input</option>
+              <option value="rockyou_users" selected>rockyou.txt — default usernames &#10003;</option>
+              <option value="seclists_common">SecLists: common usernames shortlist</option>
+              <option value="seclists_top">SecLists: full names list</option>
+              <option value="seclists_default_creds">SecLists: default credential users</option>
+            </select>
           </div>
+          <div class="fg">
+            <label>PASSWORD LIST MODE</label>
+            <select class="inp inp-mono" id="bf-pass-mode" onchange="bfWordlistMode('pass')">
+              <option value="manual">Manual Input</option>
+              <option value="rockyou" selected>rockyou.txt — default passwords &#10003;</option>
+              <option value="seclists_10k">SecLists: top 10k passwords</option>
+              <option value="seclists_100k">SecLists: top 100k passwords</option>
+              <option value="seclists_default_creds_pass">SecLists: default credential passwords</option>
+              <option value="seclists_darkweb">SecLists: darkweb2017 top 10k</option>
+            </select>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>USERNAMES <span id="bf-user-src-lbl" style="color:var(--text3);font-size:10px">(one per line)</span></label><textarea class="inp inp-mono" id="bf-users" placeholder="admin&#10;root&#10;user"></textarea></div>
+            <div class="fg"><label>PASSWORDS <span id="bf-pass-src-lbl" style="color:var(--text3);font-size:10px">(one per line)</span></label><textarea class="inp inp-mono" id="bf-pwds" placeholder="admin&#10;password&#10;123456"></textarea></div>
+          </div>
+          <div id="bf-wordlist-status" style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:10px;display:none"></div>
           <button class="btn btn-primary btn-full" id="bf-btn" onclick="doBrute()">START BRUTE FORCE</button>
         </div>
         <div id="bf-res"></div>
@@ -1225,6 +1248,7 @@ var toast=showToast;
 /* ==== CANCEL SCAN ==== */
 var scanControllers={};
 function cancelScan(prefix){
+  if(prefix==='wd'&&_wdES){_wdES.close();_wdES=null;_wdReset();}
   if(scanControllers[prefix]){scanControllers[prefix].abort();delete scanControllers[prefix];}
   var id=prefix==='scan'?'sbtn-cancel':prefix+'-cancel';
   var b=document.getElementById(id);if(b)b.style.display='none';
@@ -1261,6 +1285,7 @@ function pg(id,el){
   if(id==='admin'){loadAdmin();setTimeout(initCliHeader,400);}
   if(id==='home'){setTimeout(loadHomeStats,80);if(currentUser)vsGreetUser(currentUser.username);}
   if(id==='profile'&&currentUser)loadProfileInfo(currentUser);
+  if(id==='brute')setTimeout(bfAutoLoad,300);
 }
 
 /* ==== AUTH ==== */
@@ -1499,18 +1524,53 @@ function mkTool(prefix){
 var hvTool=mkTool('hv'),drTool=mkTool('dr'),nkTool=mkTool('nk'),wpTool=mkTool('wp'),lyTool=mkTool('ly'),lgTool=mkTool('lg'),wdTool=mkTool('wd');
 
 /* ==== DEEP WEB AUDIT ==== */
-async function doWebDeep(){
+var _wdES=null;
+function _wdReset(){
+  var btn=document.getElementById('wd-btn');
+  if(btn){btn.disabled=false;btn.innerHTML='RUN DEEP WEB AUDIT';}
+  document.getElementById('wd-cancel').style.display='none';
+  endProg('wd-prog');
+}
+function doWebDeep(){
   var url=document.getElementById('wd-url').value.trim();if(!url){alert('Enter a website URL');return;}
   var profile=document.getElementById('wd-profile').value||'balanced';
   var btn=document.getElementById('wd-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Auditing...';
-  wdTool.start();wdTool.log('Target: '+url,'i');wdTool.log('Profile: '+profile,'i');wdTool.log('Running full multi-tool audit. This can take a while...','w');
-  try{
-    var r=await fetchWithTimeout('/web-deep',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:url,profile:profile})},1800000,'wd');
-    var d=await r.json();wdTool.end();
-    if(d.error){wdTool.log(d.error,'e');wdTool.err(d.error);}
-    else{wdTool.log('Audit complete -- Rating: '+(d.risk_rating||'UNKNOWN'),'s');renderWebDeep(d);}
-  }catch(e){wdTool.end();wdTool.err(e.message);}
-  finally{btn.disabled=false;btn.innerHTML='RUN DEEP WEB AUDIT';}
+  document.getElementById('wd-cancel').style.display='inline-flex';
+  wdTool.start();startProg('wd-prog');
+  wdTool.log('Target: '+url,'i');
+  wdTool.log('Profile: '+profile+' | 9 tools running — streaming live progress...','w');
+  if(_wdES){_wdES.close();_wdES=null;}
+  var params=new URLSearchParams({url:url,profile:profile});
+  _wdES=new EventSource('/web-deep-stream?'+params.toString());
+  _wdES.onmessage=function(e){
+    try{
+      var d=JSON.parse(e.data);
+      // Update progress bar
+      var pb=document.getElementById('wd-pb');if(pb)pb.style.width=(d.pct||0)+'%';
+      // Log
+      if(d.log){
+        var tp='i';
+        if(d.log.startsWith('[+]'))tp='s';
+        else if(d.log.startsWith('[!]'))tp='w';
+        else if(d.log.startsWith('[x]'))tp='e';
+        wdTool.log('['+d.pct+'%] '+d.log.replace(/^\[.\] /,''),tp);
+      }
+      if(d.done){
+        _wdES.close();_wdES=null;_wdReset();
+        if(d.error){wdTool.err(d.error);}
+        else if(d.result){
+          wdTool.log('Audit complete — '+d.result.risk_rating+' ('+d.result.vulnerability_score+'/100)','s');
+          renderWebDeep(d.result);
+          showToast('Deep Audit Done','Risk: '+d.result.risk_rating+' | Score: '+d.result.vulnerability_score+'/100','success',7000);
+        }
+      }
+    }catch(ex){wdTool.log('Parse: '+ex.message,'e');}
+  };
+  _wdES.onerror=function(){
+    if(_wdES){_wdES.close();_wdES=null;}
+    wdTool.end();wdTool.err('Stream connection lost. Retrying or check server logs.');
+    _wdReset();
+  };
 }
 function renderWebDeep(d){
   var s=d.summary||{};
@@ -1701,7 +1761,40 @@ async function doDir(){
 }
 
 /* ==== BRUTE FORCE ==== */
+var _bfWordlists={};
 function bfTypeChange(){var t=document.getElementById('bf-type').value;document.getElementById('bf-http-fields').style.display=t==='http'?'block':'none';document.getElementById('bf-ssh-fields').style.display=t==='ssh'?'block':'none';}
+async function bfWordlistMode(which){
+  var modeEl=document.getElementById('bf-'+(which==='user'?'user':'pass')+'-mode');
+  var textEl=document.getElementById('bf-'+(which==='user'?'users':'pwds'));
+  var lblEl=document.getElementById('bf-'+(which==='user'?'user':'pass')+'-src-lbl');
+  var statusEl=document.getElementById('bf-wordlist-status');
+  var mode=modeEl.value;
+  if(mode==='manual'){textEl.disabled=false;lblEl.textContent='(one per line)';return;}
+  var pathMap={
+    rockyou_users:'/usr/share/wordlists/rockyou.txt',
+    seclists_common:'/usr/share/seclists/Usernames/top-usernames-shortlist.txt',
+    seclists_top:'/usr/share/seclists/Usernames/Names/names.txt',
+    seclists_default_creds:'/usr/share/seclists/Passwords/Default-Credentials/default-passwords.txt',
+    rockyou:'/usr/share/wordlists/rockyou.txt',
+    seclists_10k:'/usr/share/seclists/Passwords/Common-Credentials/10k-most-common.txt',
+    seclists_100k:'/usr/share/seclists/Passwords/Common-Credentials/100k-most-common.txt',
+    seclists_default_creds_pass:'/usr/share/seclists/Passwords/Default-Credentials/default-passwords.txt',
+    seclists_darkweb:'/usr/share/seclists/Passwords/darkweb2017-top10000.txt'
+  };
+  var filePath=pathMap[mode];
+  if(!filePath){textEl.disabled=false;return;}
+  statusEl.style.display='block';
+  statusEl.textContent='[*] Loading wordlist: '+filePath+'...';
+  textEl.disabled=true;lblEl.textContent='(from: '+filePath.split('/').pop()+')';
+  try{
+    var r=await fetch('/api/wordlist?path='+encodeURIComponent(filePath)+'&limit='+(which==='user'?'200':'1000'));
+    var d=await r.json();
+    if(d.error){statusEl.textContent='[!] '+d.error;textEl.disabled=false;return;}
+    textEl.value=d.words.join('\n');
+    statusEl.textContent='[+] Loaded '+d.words.length+' entries from '+d.filename;
+    _bfWordlists[which]={path:filePath,count:d.words.length};
+  }catch(e){statusEl.textContent='[!] Failed to load wordlist: '+e.message;textEl.disabled=false;}
+}
 async function doBrute(){
   var type=document.getElementById('bf-type').value;
   var users=document.getElementById('bf-users').value.split('\n').map(function(s){return s.trim();}).filter(Boolean);
@@ -1711,6 +1804,9 @@ async function doBrute(){
   document.getElementById('bf-res').innerHTML='<div style="color:var(--text3);font-size:13px">Running -- '+users.length+' users x '+pwds.length+' passwords...</div>';
   try{
     var url='/brute-http',body={users:users,passwords:pwds};
+    // Pass wordlist paths for server-side use if large lists selected
+    if(_bfWordlists.user&&_bfWordlists.user.count>200)body.user_wordlist_path=_bfWordlists.user.path;
+    if(_bfWordlists.pass&&_bfWordlists.pass.count>1000)body.pass_wordlist_path=_bfWordlists.pass.path;
     if(type==='http'){body.url=document.getElementById('bf-url').value.trim();body.user_field=document.getElementById('bf-ufield').value||'username';body.pass_field=document.getElementById('bf-pfield').value||'password';}
     else{url='/brute-ssh';body.host=document.getElementById('bf-ssh-host').value.trim();body.port=document.getElementById('bf-ssh-port').value||'22';}
     var r=await fetchWithTimeout(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},120000);
@@ -2482,93 +2578,145 @@ def get_scan_route(sid):
     return jsonify(d) if d else (jsonify({"error": "Not found"}), 404)
 
 
-# ── DNSRecon route (FIXED — removed stray nmap subprocess call) ───────────────
+# ── DNSRecon route (v5 — multi-layer fallback, no broken --tcp) ──────────────
 @app.route("/dnsrecon", methods=["POST"])
 def dnsrecon_route():
     """
-    Run dnsrecon through proxychains (Tor).
-    DNSRecon supports TCP-based queries which work through SOCKS proxies.
-    Note: Standard UDP DNS won't go through Tor — dnsrecon's TCP mode is used.
+    DNS enumeration with three-layer fallback:
+      1. dnsrecon binary  (no --tcp — dnsrecon doesn't support that flag)
+      2. dig              (standard DNS tool)
+      3. Python socket    (always available)
+    DNS uses UDP — not proxied through Tor SOCKS.
     """
-    import shutil, tempfile
+    import shutil as _sh, tempfile, socket as _sock
+
     data = request.get_json() or {}
-    target = (data.get("target") or "").strip()
+    target    = (data.get("target") or "").strip()
     scan_type = data.get("type", "std")
-    ns = (data.get("ns") or "").strip()
-    rec_filter = (data.get("filter") or "").strip()
+    ns        = (data.get("ns") or "").strip()
+    rec_filter= (data.get("filter") or "").strip().upper()
 
     if not target:
         return jsonify({"error": "No target specified"})
 
-    binary = shutil.which("dnsrecon")
-    if not binary:
-        ok, msg = auto_install("dnsrecon", "dnsrecon")
-        if not ok:
-            return jsonify({
-                "error": f"dnsrecon not installed and auto-install failed: {msg}. Run: sudo apt install dnsrecon",
-                "auto_install_attempted": True
-            })
-        binary = shutil.which("dnsrecon")
+    user = get_current_user()
+    audit(user["id"] if user else None,
+          user["username"] if user else "anon",
+          "DNSRECON", target=target, ip=request.remote_addr)
 
-    px = proxychains_cmd()
+    records, method_used = [], "none"
 
-    with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tf:
-        out_file = tf.name
-
-    # Build dnsrecon command through proxychains
-    # Use --tcp flag so DNS queries go through SOCKS (TCP only — UDP is blocked by Tor)
-    cmd = [px, "-q", binary, "-d", target, "-t", scan_type, "-j", out_file, "--tcp"]
-    if ns:
-        cmd += ["-n", ns]
-
-    try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT_DNSRECON)
-        records = []
-
-        if os.path.exists(out_file):
-            try:
-                with open(out_file) as f:
-                    raw = json.load(f)
-                for item in (raw if isinstance(raw, list) else raw.get("records", [])):
-                    if isinstance(item, dict):
-                        rec = {
-                            "type": item.get("type", "?"),
-                            "name": item.get("name", ""),
-                            "address": item.get("address", item.get("data", ""))
-                        }
-                        if rec_filter and rec["type"] != rec_filter:
+    # ── Layer 1: dnsrecon ─────────────────────────────────────────────────
+    binary = _sh.which("dnsrecon")
+    if binary:
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as tf:
+            out_file = tf.name
+        # Run dnsrecon directly — no proxychains, no --tcp (neither is supported for DNS)
+        cmd = [binary, "-d", target, "-t", scan_type, "-j", out_file]
+        if ns:
+            cmd += ["-n", ns]
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT_DNSRECON)
+            # Parse JSON output
+            if os.path.exists(out_file) and os.path.getsize(out_file) > 5:
+                try:
+                    with open(out_file) as f:
+                        raw = json.load(f)
+                    items = raw if isinstance(raw, list) else raw.get("records", [])
+                    for item in items:
+                        if not isinstance(item, dict):
                             continue
-                        records.append(rec)
+                        rtype = str(item.get("type", "?")).upper()
+                        if rec_filter and rtype != rec_filter:
+                            continue
+                        records.append({
+                            "type":    rtype,
+                            "name":    item.get("name", item.get("host", "")),
+                            "address": item.get("address", item.get("data",
+                                       item.get("target", item.get("strings", "")))),
+                            "ttl":     str(item.get("ttl", "")),
+                        })
+                    if records:
+                        method_used = "dnsrecon-json"
+                except Exception:
+                    pass
+            # Fallback: parse stdout text output
+            if not records and proc.stdout:
+                for line in proc.stdout.splitlines():
+                    m = re.search(r'\[\*\]\s+(\w+)\s+([\w.\-*@]+)\s+([\S]+)', line)
+                    if m:
+                        rtype = m.group(1).upper()
+                        if rec_filter and rtype != rec_filter:
+                            continue
+                        records.append({"type": rtype, "name": m.group(2),
+                                        "address": m.group(3), "ttl": ""})
+                if records:
+                    method_used = "dnsrecon-stdout"
+        except subprocess.TimeoutExpired:
+            pass
+        except Exception:
+            pass
+        finally:
+            if os.path.exists(out_file):
+                os.unlink(out_file)
+
+    # ── Layer 2: dig ──────────────────────────────────────────────────────
+    if not records and _sh.which("dig"):
+        rtypes = [rec_filter] if rec_filter else ["A","AAAA","MX","NS","TXT","CNAME","SOA"]
+        resolver = f"@{ns}" if ns else "@8.8.8.8"
+        for rtype in rtypes:
+            try:
+                cmd2 = ["dig", "+noall", "+answer", "+time=5", "+tries=2",
+                        resolver, rtype, target]
+                proc2 = subprocess.run(cmd2, capture_output=True, text=True, timeout=15)
+                for line in proc2.stdout.splitlines():
+                    parts = line.split()
+                    if len(parts) >= 5 and not line.startswith(";"):
+                        records.append({
+                            "type":    parts[3].upper(),
+                            "name":    parts[0].rstrip("."),
+                            "address": " ".join(parts[4:]).rstrip("."),
+                            "ttl":     parts[1],
+                        })
+            except Exception:
+                pass
+        if records:
+            method_used = "dig"
+
+    # ── Layer 3: Python socket ────────────────────────────────────────────
+    if not records:
+        try:
+            ip = _sock.gethostbyname(target)
+            if not rec_filter or rec_filter == "A":
+                records.append({"type":"A","name":target,"address":ip,"ttl":""})
+            method_used = "python-socket"
+        except Exception:
+            pass
+        # nslookup for MX
+        if not rec_filter or rec_filter in ("MX","NS"):
+            try:
+                proc3 = subprocess.run(["nslookup","-type=MX",target],
+                                        capture_output=True, text=True, timeout=10)
+                for ln in proc3.stdout.splitlines():
+                    if "mail exchanger" in ln.lower():
+                        records.append({"type":"MX","name":target,
+                                        "address":ln.split("=")[-1].strip(),"ttl":""})
             except Exception:
                 pass
 
-        # Fallback: parse stdout if JSON was empty
-        if not records:
-            for line in proc.stdout.splitlines():
-                m = re.match(r'\s*\[\*\]\s*(\w+)\s+([\w.\-]+)\s+([\d.]+)', line)
-                if m:
-                    if rec_filter and m.group(1) != rec_filter:
-                        continue
-                    records.append({
-                        "type": m.group(1),
-                        "name": m.group(2),
-                        "address": m.group(3)
-                    })
-
-        if os.path.exists(out_file):
-            os.unlink(out_file)
-
-        return jsonify({
-            "target": target,
-            "records": records,
-            "scan_type": scan_type,
-            "note": "Queries sent via Tor (TCP mode). UDP-based records may be incomplete."
-        })
-
-    except subprocess.TimeoutExpired:
-        return jsonify({"error": f"dnsrecon timed out after {TIMEOUT_DNSRECON}s. Tor routing can be slow."})
-    except Exception as e:
-        return jsonify({"error": str(e)})
+    return jsonify({
+        "target":     target,
+        "records":    records,
+        "scan_type":  scan_type,
+        "total":      len(records),
+        "method":     method_used,
+        "note": (
+            "dnsrecon ran directly (DNS is UDP — cannot proxy through Tor)."
+            if "dnsrecon" in method_used else
+            f"Fallback method used: {method_used}. "
+            "Install dnsrecon for full results: sudo apt install dnsrecon"
+        )
+    })
 
 
 # ── Nikto route (FIXED — proper proxychains integration) ─────────────────────
@@ -3016,6 +3164,221 @@ def harvester():
 
 
 # ── Report route ──────────────────────────────────────────────────────────────
+# ── Deep Web Audit — SSE streaming endpoint ──────────────────────────────────
+@app.route("/web-deep-stream")
+def web_deep_stream():
+    """
+    Server-Sent Events endpoint.
+    Streams one JSON event per tool as it completes, with % progress.
+    Final event has done=True and the complete result dict.
+    """
+    import threading, queue, time as _t
+
+    input_url = request.args.get("url", "").strip()
+    profile   = request.args.get("profile", "balanced").strip().lower()
+    if profile not in {"balanced", "deep", "very_deep"}:
+        profile = "balanced"
+
+    raw_url, base_url, host = _normalize_target_url(input_url)
+    if not host:
+        def _err():
+            yield 'data: ' + json.dumps({"pct":0,"done":True,"error":"Invalid URL"}) + '
+
+'
+        return Response(_err(), mimetype="text/event-stream")
+
+    user = get_current_user()
+    audit(user["id"] if user else None,
+          user["username"] if user else "anon",
+          "WEB_DEEP_STREAM", target=base_url,
+          ip=request.remote_addr, details=f"profile={profile}")
+
+    q = queue.Queue()
+
+    # (end_pct, label, key)
+    STAGES = [
+        (8,  "HTTP Headers",              "headers"),
+        (16, "SSL/TLS Analysis",          "ssl"),
+        (24, "DNS Records",               "dns"),
+        (38, "Port Scan (nmap)",          "ports"),
+        (50, "Directory Enumeration",     "dirbust"),
+        (63, "Nikto Web Scanner",         "nikto"),
+        (73, "WhatWeb Fingerprint",       "whatweb"),
+        (84, "Nuclei Templates",          "nuclei"),
+        (93, "SQLMap Injection Check",    "sqlmap"),
+        (100,"Building Report",           "final"),
+    ]
+
+    def _worker():
+        store = {}
+        try:
+            for pct, label, key in STAGES:
+                q.put({"pct": pct-1, "stage": label,
+                       "log": f"[*] {label}...", "done": False})
+                try:
+                    if key == "headers":
+                        r = run_backend("--modules", "headers", host, timeout=60)
+                        store["headers"] = (r.get("modules") or {}).get("headers") or {}
+                        n = len(store["headers"].get("issues", []))
+                        q.put({"pct":pct,"stage":label,
+                               "log":f"[+] Headers — {n} issue(s)", "done":False})
+
+                    elif key == "ssl":
+                        r = run_backend("--modules", "ssl", host, timeout=60)
+                        store["ssl"] = (r.get("modules") or {}).get("ssl") or []
+                        g = store["ssl"][0].get("grade","?") if store["ssl"] else "N/A"
+                        q.put({"pct":pct,"stage":label,
+                               "log":f"[+] SSL — grade: {g}", "done":False})
+
+                    elif key == "dns":
+                        r = run_backend("--modules", "dns", host, timeout=60)
+                        store["dns"] = (r.get("modules") or {}).get("dns") or {}
+                        s = len(store["dns"].get("subdomains", []))
+                        q.put({"pct":pct,"stage":label,
+                               "log":f"[+] DNS — {s} subdomains found", "done":False})
+
+                    elif key == "ports":
+                        r = run_backend("--modules", "ports",
+                                        "--nmap-profile", profile, host, timeout=TIMEOUT_SCAN)
+                        store["ports"] = r
+                        op = sum(len(h.get("ports",[])) for h in (r.get("hosts") or []))
+                        cv = len([c for h in (r.get("hosts") or [])
+                                  for p in h.get("ports",[]) for c in p.get("cves",[])])
+                        q.put({"pct":pct,"stage":label,
+                               "log":f"[+] Ports — {op} open, {cv} CVEs", "done":False})
+
+                    elif key == "dirbust":
+                        r = run_backend("--dirbust", base_url, "medium",
+                                        "php,html,js,txt,bak,zip,env,log",
+                                        timeout=TIMEOUT_DIRBUST)
+                        store["dirbust"] = r
+                        q.put({"pct":pct,"stage":label,
+                               "log":f"[+] Dirs — {r.get('total',0)} path(s) found",
+                               "done":False})
+
+                    elif key == "nikto":
+                        r = _run_nikto_for_webdeep(raw_url)
+                        store["nikto"] = r
+                        q.put({"pct":pct,"stage":label,
+                               "log":f"[+] Nikto — {len(r.get('findings',[]))} finding(s)",
+                               "done":False})
+
+                    elif key == "whatweb":
+                        r = _run_whatweb_for_webdeep(raw_url)
+                        store["whatweb"] = r
+                        tech = ", ".join(r.get("technologies",[])[:4]) or "none"
+                        q.put({"pct":pct,"stage":label,
+                               "log":f"[+] WhatWeb — {tech}", "done":False})
+
+                    elif key == "nuclei":
+                        r = _run_nuclei_for_webdeep(raw_url)
+                        store["nuclei"] = r
+                        q.put({"pct":pct,"stage":label,
+                               "log":f"[+] Nuclei — {len(r.get('findings',[]))} finding(s)",
+                               "done":False})
+
+                    elif key == "sqlmap":
+                        r = _run_sqlmap_for_webdeep(raw_url)
+                        store["sqlmap"] = r
+                        q.put({"pct":pct,"stage":label,
+                               "log":f"[+] SQLMap — {len(r.get('findings',[]))} indicator(s)",
+                               "done":False})
+
+                    elif key == "final":
+                        net = store.get("ports", {})
+                        if "modules" not in net:
+                            net["modules"] = {}
+                        net["modules"]["headers"] = store.get("headers", {})
+                        net["modules"]["ssl"]     = store.get("ssl", [])
+                        net["modules"]["dns"]     = store.get("dns", {})
+
+                        hdr = store.get("headers", {})
+                        score, rating, summary = _rate_web_findings(
+                            net, store.get("nikto",{}),
+                            store.get("dirbust",{}), hdr,
+                            nuclei_data=store.get("nuclei",{}),
+                            sqlmap_data=store.get("sqlmap",{}))
+
+                        all_cves = [c for h in (net.get("hosts") or [])
+                                    for p in h.get("ports",[])
+                                    for c in p.get("cves",[])]
+                        net_sum = {
+                            "open_ports":   sum(len(h.get("ports",[])) for h in (net.get("hosts") or [])),
+                            "total_cves":   len(all_cves),
+                            "critical_cves":sum(1 for c in all_cves if c.get("severity")=="CRITICAL"),
+                            "high_cves":    sum(1 for c in all_cves if c.get("severity")=="HIGH"),
+                            "exploitable":  sum(1 for c in all_cves if c.get("has_exploit")),
+                        }
+
+                        result = {
+                            "target":              base_url,
+                            "vulnerability_score": score,
+                            "risk_rating":         rating,
+                            "summary":             {**summary, **net_sum},
+                            "tools_required":      required_web_tools(),
+                            "tools_run": [
+                                {"tool":k,"status":"ok" if v else "no-output"}
+                                for k,v in store.items()
+                            ],
+                            "key_findings": [
+                                f"Open ports: {net_sum['open_ports']}",
+                                f"Total CVEs: {net_sum['total_cves']}",
+                                f"Critical CVEs: {net_sum['critical_cves']}",
+                                f"Nikto findings: {summary['nikto_high']}",
+                                f"Sensitive paths: {summary['sensitive_paths']}",
+                                f"Header issues: {summary['header_issues']}",
+                                f"Nuclei findings: {summary['nuclei_high']}",
+                                f"SQLi indicators: {summary['sqlmap_hits']}",
+                            ],
+                            "executive_summary": (
+                                f"Deep web audit complete for {base_url}. "
+                                f"Risk: {rating} ({score}/100). "
+                                f"{net_sum['open_ports']} open ports, "
+                                f"{net_sum['total_cves']} CVEs."
+                            ),
+                            "details": {
+                                "network_scan":    net,
+                                "nikto":           store.get("nikto",{}),
+                                "directory_enum":  store.get("dirbust",{}),
+                                "whatweb":         store.get("whatweb",{}),
+                                "nuclei":          store.get("nuclei",{}),
+                                "sqlmap":          store.get("sqlmap",{}),
+                            }
+                        }
+                        q.put({"pct":100,"stage":"Done",
+                               "log":f"[+] Complete — {rating} ({score}/100)",
+                               "done":True, "result":result})
+                        return
+
+                except Exception as e:
+                    q.put({"pct":pct,"stage":label,
+                           "log":f"[!] {label} error: {str(e)[:100]}","done":False})
+
+        except Exception as e:
+            q.put({"pct":100,"done":True,"error":str(e),"result":{}})
+
+    threading.Thread(target=_worker, daemon=True).start()
+
+    def _stream():
+        while True:
+            try:
+                msg = q.get(timeout=1800)
+                yield "data: " + json.dumps(msg) + "
+
+"
+                if msg.get("done"):
+                    break
+            except Exception:
+                yield 'data: ' + json.dumps({"pct":100,"done":True,
+                                              "error":"Stream timeout"}) + "
+
+"
+                break
+
+    return Response(_stream(), mimetype="text/event-stream",
+                    headers={"Cache-Control":"no-cache","X-Accel-Buffering":"no"})
+
+
 @app.route("/report", methods=["POST"])
 def report():
     """
@@ -3730,6 +4093,82 @@ def cli_route():
 
 
 # ── Health check ───────────────────────────────────────────────────────────────
+# ── Wordlist API endpoint ─────────────────────────────────────────────────────
+@app.route("/api/wordlist")
+def wordlist_api():
+    """Serve wordlist file contents for brute force UI. Admin or authenticated users only."""
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Login required"}), 401
+
+    path = request.args.get("path", "").strip()
+    limit = min(int(request.args.get("limit", "1000")), 5000)
+
+    ALLOWED_DIRS = [
+        "/usr/share/wordlists/",
+        "/usr/share/seclists/",
+        "/usr/share/john/",
+        "/usr/share/dict/",
+    ]
+    allowed = any(os.path.abspath(path).startswith(d) for d in ALLOWED_DIRS)
+    if not allowed:
+        return jsonify({"error": "Path not in allowed wordlist directories"}), 403
+
+    if not os.path.isfile(path):
+        # Try to find best available alternative
+        alternatives = {
+            "/usr/share/wordlists/rockyou.txt": [
+                "/usr/share/john/password.lst",
+                "/usr/share/dict/words",
+            ],
+            "/usr/share/seclists/Usernames/top-usernames-shortlist.txt": [
+                "/usr/share/seclists/Usernames/Names/names.txt",
+                "/usr/share/wordlists/rockyou.txt",
+            ],
+            "/usr/share/seclists/Passwords/Common-Credentials/10k-most-common.txt": [
+                "/usr/share/seclists/Passwords/Common-Credentials/100k-most-common.txt",
+                "/usr/share/wordlists/rockyou.txt",
+                "/usr/share/john/password.lst",
+            ],
+        }
+        fallbacks = alternatives.get(path, [])
+        found_alt = next((p for p in fallbacks if os.path.isfile(p)), None)
+        if found_alt:
+            path = found_alt
+        else:
+            # Scan the allowed dir for best match
+            for d in ALLOWED_DIRS:
+                if os.path.isdir(d):
+                    for root, dirs, files in os.walk(d):
+                        for fn in files:
+                            fp = os.path.join(root, fn)
+                            if os.path.isfile(fp) and os.path.getsize(fp) > 100:
+                                path = fp
+                                break
+                        if path != request.args.get("path", ""):
+                            break
+            if not os.path.isfile(path):
+                return jsonify({"error": f"Wordlist not found: {path}. Install: sudo apt install wordlists seclists"})
+
+    try:
+        words = []
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                w = line.strip()
+                if w and not w.startswith("#") and len(w) <= 128:
+                    words.append(w)
+                if len(words) >= limit:
+                    break
+        return jsonify({
+            "path": path,
+            "filename": os.path.basename(path),
+            "words": words,
+            "total_loaded": len(words),
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/health")
 def health():
     import shutil

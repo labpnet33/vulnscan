@@ -368,6 +368,7 @@ def register_auth_routes(app):
     @app.route("/api/admin/users/create", methods=["POST"])
     @admin_required
     def api_admin_create_user():
+        import threading
         d = request.get_json() or {}
         full_name = d.get("full_name", "").strip()
         username = d.get("username", "").strip()
@@ -384,17 +385,21 @@ def register_auth_routes(app):
         ok, msg = create_user(username, email, ph, full_name, role="user", is_verified=1, verify_token="")
         if not ok: return jsonify({"error": msg}), 409
 
-        if not send_admin_created_account_email(email, username, temp_password):
-            created = get_user_by_username(username)
-            if created:
-                delete_user(created["id"])
-            audit(None, username, "ADMIN_CREATE_USER_EMAIL_FAIL", ip=request.remote_addr, ua=request.headers.get("User-Agent", ""))
-            return jsonify({"error": "User could not be created because account email delivery failed."}), 500
-
         current = get_current_user()
         audit(current["id"], current["username"], "ADMIN_CREATE_USER", ip=request.remote_addr,
               ua=request.headers.get("User-Agent", ""), details=f"created={username}")
-        return jsonify({"success": True, "message": f"User {username} created and credentials sent by email."})
+
+        # Send email in background thread so UI response is instant
+        def _send_bg(em, un, pw):
+            try:
+                send_admin_created_account_email(em, un, pw)
+            except Exception as e:
+                print(f"[!] Background email failed for {un}: {e}")
+
+        t = threading.Thread(target=_send_bg, args=(email, username, temp_password), daemon=True)
+        t.start()
+
+        return jsonify({"success": True, "message": f"User {username} created. Credentials are being emailed to {email}."})
 
     @app.route("/api/admin/users/<int:uid>/toggle", methods=["POST"])
     @admin_required
