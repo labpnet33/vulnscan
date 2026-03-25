@@ -328,6 +328,14 @@ body.dark .inp:focus{box-shadow:0 0 0 3px rgba(240,240,240,0.1)}
 .fg label{display:block;font-size:11px;font-weight:500;color:var(--text3);letter-spacing:0.5px;margin-bottom:5px}
 textarea.inp{resize:vertical;min-height:80px}
 select.inp{cursor:pointer}
+select.inp:not([multiple]){
+  appearance:none;-webkit-appearance:none;-moz-appearance:none;
+  padding-right:38px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 12px center;
+  background-size:14px;
+}
 .scan-bar{display:flex;gap:8px;align-items:center}
 .scan-bar .inp{font-family:var(--mono);flex:1}
 .pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
@@ -1610,6 +1618,7 @@ function mkTool(prefix){
   return{
     start:function(){logEl=document.getElementById(prefix+'-term');if(logEl){logEl.innerHTML='';logEl.classList.add('visible');}var e=document.getElementById(prefix+'-err');if(e){e.textContent='';e.classList.remove('visible');}var r=document.getElementById(prefix+'-res');if(r){r.innerHTML='';r.style.display='none';}startProg(prefix+'-prog');},
     log:function(t,tp){if(!logEl)return;if(!tp)tp='i';var div=document.createElement('div');div.className='tl-'+tp;var pf={i:'[*]',s:'[+]',w:'[!]',e:'[x]'}[tp]||'[*]';div.innerHTML='<span class="tl-prefix">'+pf+'</span> '+t;logEl.appendChild(div);logEl.scrollTop=logEl.scrollHeight;},
+    pct:function(v){var pw=document.getElementById(prefix+'-prog');var pb=document.getElementById(prefix+'-pb');if(pw)pw.classList.add('active');if(pb)pb.style.width=Math.max(0,Math.min(100,parseInt(v||0,10)))+'%';},
     end:function(){endProg(prefix+'-prog');},
     err:function(m){var e=document.getElementById(prefix+'-err');if(e){e.textContent='Error: '+m;e.classList.add('visible');}},
     res:function(html){var e=document.getElementById(prefix+'-res');if(e){e.innerHTML=html;e.style.display='block';}}
