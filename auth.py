@@ -190,16 +190,16 @@ def register_auth_routes(app):
         count = con.execute("SELECT COUNT(*) FROM users").fetchone()[0]
         con.close()
         role = "admin" if count == 0 else "user"
-        is_verified = 1 if count == 0 else 0
+        # Always require email verification, including the first admin account.
+        # This ensures every registration triggers verification email delivery.
+        is_verified = 0
 
         ok, msg = create_user(username, email, ph, full_name, role, is_verified, token)
         if not ok: return jsonify({"error": msg}), 409
 
-        verification_email_sent = True
-        if not is_verified:
-            verification_email_sent = send_verification_email(email, username, token)
-            if not verification_email_sent:
-                audit(None, username, "VERIFY_EMAIL_SEND_FAIL", ip=request.remote_addr, ua=request.headers.get("User-Agent", ""))
+        verification_email_sent = send_verification_email(email, username, token)
+        if not verification_email_sent:
+            audit(None, username, "VERIFY_EMAIL_SEND_FAIL", ip=request.remote_addr, ua=request.headers.get("User-Agent", ""))
 
         audit(None, username, "REGISTER", ip=request.remote_addr, ua=request.headers.get("User-Agent", ""),
               details=f"role={role}, verified={is_verified}")
@@ -208,10 +208,8 @@ def register_auth_routes(app):
             "success": True,
             "message": (
                 "Account created! Check your email to verify."
-                if (not is_verified and verification_email_sent)
+                if verification_email_sent
                 else "Account created, but verification email could not be sent. Please contact support."
-                if (not is_verified and not verification_email_sent)
-                else "Account created! You can now login."
             ),
             "verified": bool(is_verified),
             "role": role,
