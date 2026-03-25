@@ -9,6 +9,7 @@ from datetime import datetime
 
 TOR_SOCKS_HOST = "127.0.0.1"
 TOR_SOCKS_PORT = 9050
+NMAP_PROFILES = {"fast", "balanced", "deep", "very_deep"}
 
 def get_tor_opener():
     """
@@ -1066,7 +1067,9 @@ def full_scan(target, modules=None, nmap_profile="balanced"):
     if modules is None:
         modules = ["ports", "ssl", "dns", "headers"]
 
-    result = {"target": target, "scan_time": datetime.utcnow().isoformat(), "modules": {}}
+    chosen_profile = (nmap_profile or "balanced").strip().lower()
+    if chosen_profile not in NMAP_PROFILES:
+        chosen_profile = "balanced"
 
     scan = run_nmap_scan(target, profile=nmap_profile)
     if "error" in scan:
