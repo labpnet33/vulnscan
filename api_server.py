@@ -1019,6 +1019,10 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
             <div class="fg"><label>MODE</label><select class="inp inp-mono" id="ly-mode"><option value="auto">Auto (remote if client id provided)</option><option value="local">Local only</option><option value="remote">Remote only</option></select></div>
           </div>
           <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>AGENT CLIENT ID (optional)</label><input class="inp inp-mono" id="ly-client-id" type="text" placeholder="e.g. acme-laptop-01"/></div>
+            <div class="fg"><label>MODE</label><select class="inp inp-mono" id="ly-mode"><option value="auto">Auto (remote if client id provided)</option><option value="local">Local only</option><option value="remote">Remote only</option></select></div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
             <div class="fg"><label>AUDIT PROFILE</label><select class="inp inp-mono" id="ly-profile"><option value="system">Full System Audit</option><option value="quick">Quick Scan</option><option value="forensics">Forensics Mode</option></select></div>
             <div class="fg"><label>COMPLIANCE</label><select class="inp inp-mono" id="ly-compliance"><option value="">None</option><option value="ISO27001">ISO 27001</option><option value="PCI-DSS">PCI-DSS</option><option value="HIPAA">HIPAA</option><option value="CIS">CIS Benchmark</option></select></div>
           </div>
