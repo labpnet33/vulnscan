@@ -95,9 +95,14 @@ def init_agent_db():
                 suggestions_json TEXT DEFAULT '[]',
                 tests_performed TEXT DEFAULT '',
                 raw_report      TEXT DEFAULT '',
+                cancel_requested INTEGER DEFAULT 0,
                 FOREIGN KEY(client_id) REFERENCES agent_clients(client_id)
             );
         """)
+        # Lightweight migrations for existing deployments
+        job_cols = {r["name"] for r in con.execute("PRAGMA table_info(lynis_jobs)").fetchall()}
+        if "cancel_requested" not in job_cols:
+            con.execute("ALTER TABLE lynis_jobs ADD COLUMN cancel_requested INTEGER DEFAULT 0")
         con.commit()
         con.close()
 
@@ -1009,7 +1014,7 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
       <!-- LYNIS -->
       <div class="page" id="page-lynis">
         <div class="page-hd"><div class="page-title">Lynis</div><div class="page-desc">Local system security audit</div></div>
-        <div class="notice">&#9432; Leave <strong>Agent Client ID</strong> empty to scan this server, or set it to run Lynis on a remote Linux machine with the pull-agent.</div>
+        <div class="notice">&#9432; Run local scan by default, or click a connected agent below to run Lynis remotely on that Linux machine.</div>
         <div class="card card-p" style="margin-bottom:14px">
           <div class="fg" style="margin-bottom:10px">
             <label>ONE-LINE AGENT INSTALL (Linux)</label>
@@ -1039,6 +1044,10 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
         <div class="terminal" id="ly-term"></div>
         <div class="err-box" id="ly-err"></div>
         <div id="ly-res"></div>
+        <div class="card card-p" style="margin-top:12px">
+          <div class="card-title" style="margin-bottom:8px">Lynis Job Queue</div>
+          <div id="ly-jobs" style="color:var(--text3);font-size:12px">Loading jobs...</div>
+        </div>
       </div>
 
       <!-- LEGION -->
@@ -1383,7 +1392,7 @@ function pg(id,el){
   if(id==='home'){setTimeout(loadHomeStats,80);if(currentUser)vsGreetUser(currentUser.username);}
   if(id==='profile'&&currentUser)loadProfileInfo(currentUser);
   if(id==='brute')setTimeout(bfAutoLoad,300);
-  if(id==='lynis'){loadLynisAgents();startLynisAgentWatcher();}
+  if(id==='lynis'){loadLynisAgents();loadLynisJobs();startLynisAgentWatcher();}
 }
 
 /* ==== AUTH ==== */
@@ -1777,6 +1786,8 @@ function renderWPScan(d){
 
 /* ==== LYNIS ==== */
 var _lyAgentTimer=null;
+var _lySelectedAgentId='';
+var _lyCurrentJobId=null;
 function copyLynisInstallCmd(){
   var el=document.getElementById('ly-install-cmd');
   if(!el)return;
@@ -1791,31 +1802,52 @@ async function loadLynisAgents(){
     if(!agents.length){box.innerHTML='<div style="color:var(--text3)">No agent connected yet. Install with the command above.</div>';return;}
     var html='<div style="display:flex;flex-direction:column;gap:6px">';
     agents.forEach(function(a){
-      var st=(a.status||'unknown').toLowerCase();var col=st==='online'?'var(--green)':'var(--orange)';
-      html+='<div class="card-p" style="border:1px solid var(--border);border-radius:8px;cursor:pointer" onclick="pickLynisAgent(\''+a.client_id+'\')"><div style="display:flex;justify-content:space-between;gap:8px"><div><strong>'+a.client_id+'</strong><div style="font-size:11px;color:var(--text3)">'+(a.hostname||'')+' · '+(a.os_info||'')+'</div></div><div style="font-size:11px;color:'+col+'">'+st.toUpperCase()+'</div></div><div style="font-size:10px;color:var(--text3);margin-top:4px">Last seen: '+(a.last_seen||'--')+' · IP: '+(a.ip_seen||'--')+'</div></div>';
+      var st=(a.status||'unknown').toLowerCase();var col=st==='online'?'var(--green)':(st==='disconnected'?'var(--red)':'var(--orange)');
+      var selected=_lySelectedAgentId===a.client_id;
+      html+='<div class="card-p" style="border:1px solid '+(selected?'var(--green)':'var(--border)')+';border-radius:8px;cursor:pointer" onclick="pickLynisAgent(\''+a.client_id+'\')"><div style="display:flex;justify-content:space-between;gap:8px"><div><strong>'+a.client_id+(selected?' <span style=&quot;color:var(--green);font-size:11px&quot;>(selected)</span>':'')+'</strong><div style="font-size:11px;color:var(--text3)">'+(a.hostname||'')+' · '+(a.os_info||'')+'</div></div><div style="font-size:11px;color:'+col+'">'+st.toUpperCase()+'</div></div><div style="font-size:10px;color:var(--text3);margin-top:4px">Last seen: '+(a.last_seen||'--')+' · IP: '+(a.ip_seen||'--')+'</div><div style="margin-top:8px"><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();disconnectLynisAgent(\''+a.client_id+'\')">DISCONNECT</button></div></div>';
     });
     html+='</div><div style="font-size:11px;color:var(--green);margin-top:8px">&#10003; New system detected items appear here automatically.</div>';
     box.innerHTML=html;
+    updateLynisAgentBadge();
   }catch(e){
     box.innerHTML='<div class="err-box visible">Failed to load agents: '+e.message+'</div>';
   }
 }
 function pickLynisAgent(clientId){
-  var inp=document.getElementById('ly-client-id');if(inp)inp.value=clientId;
-  var mode=document.getElementById('ly-mode');if(mode&&mode.value!=='local')mode.value='remote';
+  _lySelectedAgentId=clientId;
+  updateLynisAgentBadge();
+  loadLynisAgents();
+}
+function clearLynisAgentSelection(){
+  _lySelectedAgentId='';
+  updateLynisAgentBadge();
+  loadLynisAgents();
+}
+function updateLynisAgentBadge(){
+  var el=document.getElementById('ly-selected-agent');if(!el)return;
+  el.textContent=_lySelectedAgentId?('Remote agent selected: '+_lySelectedAgentId):'No remote agent selected (local scan mode).';
+}
+async function disconnectLynisAgent(clientId){
+  if(!confirm('Disconnect '+clientId+'? This will revoke its token and request cancellation for active jobs.'))return;
+  try{
+    var r=await fetchWithTimeout('/api/agents/'+encodeURIComponent(clientId)+'/disconnect',{method:'POST'},20000,'ly');
+    var d=await r.json();if(d.error)throw new Error(d.error);
+    if(_lySelectedAgentId===clientId)_lySelectedAgentId='';
+    lyTool.log('Disconnected agent '+clientId,'w');
+    loadLynisAgents();loadLynisJobs();
+  }catch(e){lyTool.err('Disconnect failed: '+e.message);}
 }
 function startLynisAgentWatcher(){
   if(_lyAgentTimer)clearInterval(_lyAgentTimer);
   _lyAgentTimer=setInterval(function(){
     var page=document.getElementById('page-lynis');
-    if(page&&page.classList.contains('active'))loadLynisAgents();
+    if(page&&page.classList.contains('active')){loadLynisAgents();loadLynisJobs();}
   },10000);
 }
 async function doLynis(){
   var profile=document.getElementById('ly-profile').value;var category=document.getElementById('ly-category').value;var compliance=document.getElementById('ly-compliance').value;
-  var clientId=document.getElementById('ly-client-id').value.trim();var mode=document.getElementById('ly-mode').value;
-  var useRemote=(mode==='remote')||(mode==='auto'&&clientId);
-  if(mode==='remote'&&!clientId){alert('Client ID required in remote mode');return;}
+  var clientId=_lySelectedAgentId;
+  var useRemote=!!clientId;
   var btn=document.getElementById('ly-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Auditing...';
   lyTool.start();lyTool.log('Lynis audit starting...','i');lyTool.log('Profile: '+profile+(compliance?' - Compliance: '+compliance:''),'w');
   try{
@@ -1823,7 +1855,9 @@ async function doLynis(){
       lyTool.log('Queueing remote job for client: '+clientId,'i');
       var jr=await fetchWithTimeout('/api/create-job',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({client_id:clientId,profile:profile,category:category,compliance:compliance})},30000,'ly');
       var jd=await jr.json();if(jd.error)throw new Error(jd.error);
+      _lyCurrentJobId=jd.job_id;
       lyTool.log('Job #'+jd.job_id+' queued. Waiting for agent...','w');
+      loadLynisJobs();
       await pollLynisJob(jd.job_id);
     }else{
       var r=await fetchWithTimeout('/lynis',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile:profile,category:category,compliance:compliance})},300000,'ly');
@@ -1841,15 +1875,50 @@ async function pollLynisJob(jobId){
     var r=await fetchWithTimeout('/api/job-status/'+jobId,{},15000,'ly');
     var d=await r.json();if(d.error)throw new Error(d.error);
     var pct=parseInt(d.progress_pct||0);lyTool.pct(pct);
-    if(d.message)lyTool.log('['+d.status+'] '+d.message,(d.status==='completed'?'s':'i'));
+    if(d.message)lyTool.log('['+d.status+'] '+d.message,(d.status==='completed'?'s':(d.status==='cancelled'?'w':'i')));
     if(d.status==='completed'){
       lyTool.end();
       renderLynis(d);
+      loadLynisJobs();
+      return;
+    }
+    if(d.status==='cancelled'){
+      lyTool.end();lyTool.err('Job cancelled.');
+      loadLynisJobs();
       return;
     }
     await new Promise(function(res){setTimeout(res,2000);});
   }
   throw new Error('Timed out waiting for remote Lynis agent to finish');
+}
+async function loadLynisJobs(){
+  var box=document.getElementById('ly-jobs');if(!box)return;
+  try{
+    var r=await fetchWithTimeout('/api/jobs-overview',{},15000,'ly');
+    var d=await r.json();if(d.error)throw new Error(d.error);
+    var jobs=d.jobs||[];
+    if(!jobs.length){box.innerHTML='<div style="color:var(--text3)">No Lynis jobs yet.</div>';return;}
+    var html='<div style="display:flex;flex-direction:column;gap:6px">';
+    jobs.forEach(function(j){
+      var st=(j.status||'unknown').toLowerCase();
+      var col=st==='completed'?'var(--green)':(st==='running'?'var(--yellow)':(st==='pending'?'var(--orange)':(st==='cancelled'?'var(--red)':'var(--text3')));
+      var canCancel=(st==='pending'||st==='running');
+      html+='<div class="card-p" style="border:1px solid var(--border);border-radius:8px"><div style="display:flex;justify-content:space-between;gap:8px"><div><strong>Job #'+j.id+'</strong> · <span style="font-family:var(--mono)">'+j.client_id+'</span></div><div style="color:'+col+';font-size:11px">'+st.toUpperCase()+'</div></div><div style="font-size:11px;color:var(--text3);margin-top:4px">Progress: '+(j.progress_pct||0)+'% · '+(j.message||'')+'</div><div style="font-size:10px;color:var(--text3);margin-top:4px">Created: '+(j.created_at||'--')+(j.started_at?' · Started: '+j.started_at:'')+(j.completed_at?' · Completed: '+j.completed_at:'')+'</div>'+(canCancel?'<div style="margin-top:8px"><button class="btn btn-outline btn-sm" onclick="cancelLynisJob('+j.id+')">CANCEL JOB</button></div>':'')+'</div>';
+    });
+    html+='</div>';
+    box.innerHTML=html;
+  }catch(e){
+    box.innerHTML='<div class="err-box visible">Failed to load jobs: '+e.message+'</div>';
+  }
+}
+async function cancelLynisJob(jobId){
+  if(!confirm('Cancel Lynis job #'+jobId+'?'))return;
+  try{
+    var r=await fetchWithTimeout('/api/jobs/'+jobId+'/cancel',{method:'POST'},20000,'ly');
+    var d=await r.json();if(d.error)throw new Error(d.error);
+    lyTool.log('Cancellation requested for job #'+jobId,'w');
+    loadLynisJobs();
+  }catch(e){lyTool.err('Cancel failed: '+e.message);}
 }
 function renderLynis(d){
   var w=d.warnings||[],sg=d.suggestions||[],sc=d.hardening_index||0;
@@ -3212,10 +3281,13 @@ def create_lynis_job():
         return jsonify({"error": "client_id is required"}), 400
     with AGENT_LOCK:
         con = _agent_db()
-        exists = con.execute("SELECT 1 FROM agent_clients WHERE client_id=?", (client_id,)).fetchone()
-        if not exists:
+        agent = con.execute("SELECT status, last_seen FROM agent_clients WHERE client_id=?", (client_id,)).fetchone()
+        if not agent:
             con.close()
             return jsonify({"error": "Unknown client_id. Install/register agent first."}), 404
+        if (agent["status"] or "").lower() == "disconnected":
+            con.close()
+            return jsonify({"error": "Agent is disconnected. Reinstall/connect the agent first."}), 409
         cur = con.execute("""
             INSERT INTO lynis_jobs(client_id, profile, compliance, category, status, progress_pct, message)
             VALUES(?,?,?,?, 'pending', 0, 'Queued')
@@ -3235,7 +3307,7 @@ def poll_jobs():
         con = _agent_db()
         row = con.execute("""
             SELECT id, profile, compliance, category FROM lynis_jobs
-            WHERE client_id=? AND status='pending'
+            WHERE client_id=? AND status='pending' AND cancel_requested=0
             ORDER BY id ASC LIMIT 1
         """, (client_id,)).fetchone()
         if row:
@@ -3251,6 +3323,28 @@ def poll_jobs():
             job = {"job_id": None, "type": "none"}
         con.close()
     return jsonify(job)
+
+
+@app.route("/api/jobs/<int:job_id>/control", methods=["GET"])
+def job_control(job_id):
+    client_id = _auth_agent(request)
+    if not client_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    with AGENT_LOCK:
+        con = _agent_db()
+        row = con.execute("""
+            SELECT status, cancel_requested, message
+            FROM lynis_jobs
+            WHERE id=? AND client_id=?
+        """, (job_id, client_id)).fetchone()
+        con.close()
+    if not row:
+        return jsonify({"error": "Job not found"}), 404
+    return jsonify({
+        "status": row["status"],
+        "cancel_requested": bool(row["cancel_requested"]),
+        "message": row["message"] or ""
+    })
 
 
 @app.route("/api/jobs/<int:job_id>/progress", methods=["POST"])
@@ -3287,21 +3381,25 @@ def upload_job_report():
     suggestions = data.get("suggestions") or []
     tests_performed = str(data.get("tests_performed", ""))
     raw_report = str(data.get("raw_report", ""))[:200000]
+    status = (data.get("status") or "completed").strip().lower()
+    if status not in {"completed", "cancelled", "failed"}:
+        status = "completed"
+    message = (data.get("message") or ("Completed" if status == "completed" else status.title())).strip()[:300]
     with AGENT_LOCK:
         con = _agent_db()
         con.execute("""
             UPDATE lynis_jobs
-            SET status='completed',
+            SET status=?,
                 completed_at=datetime('now'),
                 progress_pct=100,
-                message='Completed',
+                message=?,
                 hardening_index=?,
                 warnings_json=?,
                 suggestions_json=?,
                 tests_performed=?,
                 raw_report=?
             WHERE id=? AND client_id=?
-        """, (hardening_index, json.dumps(warnings), json.dumps(suggestions), tests_performed, raw_report, job_id, client_id))
+        """, (status, message, hardening_index, json.dumps(warnings), json.dumps(suggestions), tests_performed, raw_report, job_id, client_id))
         con.commit()
         con.close()
     return jsonify({"ok": True})
@@ -3313,7 +3411,7 @@ def job_status(job_id):
         con = _agent_db()
         row = con.execute("""
             SELECT id, client_id, status, progress_pct, message, hardening_index, warnings_json,
-                   suggestions_json, tests_performed, created_at, started_at, completed_at
+                   suggestions_json, tests_performed, created_at, started_at, completed_at, cancel_requested
             FROM lynis_jobs WHERE id=?
         """, (job_id,)).fetchone()
         con.close()
@@ -3332,6 +3430,7 @@ def job_status(job_id):
         "created_at": row["created_at"],
         "started_at": row["started_at"],
         "completed_at": row["completed_at"],
+        "cancel_requested": bool(row["cancel_requested"]),
     })
 
 
@@ -3345,6 +3444,81 @@ def list_agents():
         """).fetchall()
         con.close()
     return jsonify({"agents": [dict(r) for r in rows]})
+
+
+@app.route("/api/agents/<client_id>/disconnect", methods=["POST"])
+def disconnect_agent(client_id):
+    client_id = (client_id or "").strip()
+    if not client_id:
+        return jsonify({"error": "client_id is required"}), 400
+    with AGENT_LOCK:
+        con = _agent_db()
+        row = con.execute("SELECT 1 FROM agent_clients WHERE client_id=?", (client_id,)).fetchone()
+        if not row:
+            con.close()
+            return jsonify({"error": "Unknown client_id"}), 404
+        con.execute("""
+            UPDATE agent_clients
+            SET token_hash=?, status='disconnected', last_seen=datetime('now')
+            WHERE client_id=?
+        """, (_hash_token(secrets.token_urlsafe(32)), client_id))
+        con.execute("""
+            UPDATE lynis_jobs
+            SET status='cancelled', completed_at=datetime('now'), progress_pct=100, message='Cancelled (agent disconnected)'
+            WHERE client_id=? AND status='pending'
+        """, (client_id,))
+        con.execute("""
+            UPDATE lynis_jobs
+            SET cancel_requested=1, message='Cancellation requested (agent disconnect)'
+            WHERE client_id=? AND status='running'
+        """, (client_id,))
+        con.commit()
+        con.close()
+    return jsonify({"ok": True, "client_id": client_id, "status": "disconnected"})
+
+
+@app.route("/api/jobs-overview", methods=["GET"])
+def jobs_overview():
+    limit = max(1, min(200, int(request.args.get("limit", 50))))
+    with AGENT_LOCK:
+        con = _agent_db()
+        rows = con.execute("""
+            SELECT id, client_id, status, progress_pct, message, created_at, started_at, completed_at, cancel_requested
+            FROM lynis_jobs
+            ORDER BY id DESC
+            LIMIT ?
+        """, (limit,)).fetchall()
+        con.close()
+    return jsonify({"jobs": [dict(r) for r in rows]})
+
+
+@app.route("/api/jobs/<int:job_id>/cancel", methods=["POST"])
+def cancel_job(job_id):
+    with AGENT_LOCK:
+        con = _agent_db()
+        row = con.execute("SELECT status FROM lynis_jobs WHERE id=?", (job_id,)).fetchone()
+        if not row:
+            con.close()
+            return jsonify({"error": "Job not found"}), 404
+        status = (row["status"] or "").lower()
+        if status in {"completed", "cancelled", "failed"}:
+            con.close()
+            return jsonify({"ok": True, "status": status, "message": "Job already finished"})
+        if status == "pending":
+            con.execute("""
+                UPDATE lynis_jobs
+                SET status='cancelled', completed_at=datetime('now'), progress_pct=100, message='Cancelled by user'
+                WHERE id=?
+            """, (job_id,))
+        else:
+            con.execute("""
+                UPDATE lynis_jobs
+                SET cancel_requested=1, message='Cancellation requested by dashboard user'
+                WHERE id=?
+            """, (job_id,))
+        con.commit()
+        con.close()
+    return jsonify({"ok": True, "job_id": job_id})
 
 
 @app.route("/api/job-report/<int:job_id>.txt", methods=["GET"])

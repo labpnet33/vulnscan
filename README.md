@@ -163,11 +163,12 @@ curl -fsSL http://161.118.189.254:5000/agent/install.sh | bash -s -- my-client-i
 
 1. Open **Lynis** page in VulnScan.
 2. Confirm the endpoint appears under **Connected Agent Systems** (`new system detected` list).
-3. Click a detected system (auto-fills client id).
+3. Click a detected system to select it for remote scan (or keep no selection for local scan).
 4. Select profile/compliance/category.
 5. Click **RUN LYNIS AUDIT**.
 6. Watch live status/progress in the Lynis terminal/progress bar.
-7. After completion, use **DOWNLOAD RAW REPORT** to download full audit output from the server.
+7. Use **Lynis Job Queue** to monitor pending/running/completed jobs and cancel active jobs.
+8. After completion, use **DOWNLOAD RAW REPORT** to download full audit output from the server.
 
 The first registered account is automatically granted **admin** role.
 
