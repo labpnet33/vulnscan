@@ -12,9 +12,9 @@ PROXYCHAINS CONFIG (/etc/proxychains4.conf or /etc/proxychains.conf):
   [ProxyList]
   socks5 127.0.0.1 9050
 """
-import json, re, sys, os, subprocess, io
+import json, re, sys, os, subprocess, io, sqlite3, secrets, hashlib, threading
 from urllib.parse import urlparse
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, Response, send_file, send_from_directory
 from flask_cors import CORS
 from datetime import datetime, timedelta, timezone
 
@@ -51,6 +51,80 @@ TIMEOUT_LYNIS      = 360   # 6 min
 TIMEOUT_LEGION     = 1200  # 20 min
 TIMEOUT_REPORT     = 90    # 1.5 min
 TIMEOUT_WEB_DEEP   = 1800  # 30 min
+
+AGENT_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_jobs.db")
+AGENT_LOCK = threading.Lock()
+AGENT_SERVER_URL = os.environ.get("VULNSCAN_AGENT_SERVER_URL", "http://161.118.189.254:5000")
+
+
+def _agent_db():
+    con = sqlite3.connect(AGENT_DB)
+    con.row_factory = sqlite3.Row
+    return con
+
+
+def init_agent_db():
+    with AGENT_LOCK:
+        con = _agent_db()
+        con.executescript("""
+            CREATE TABLE IF NOT EXISTS agent_clients (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                client_id       TEXT UNIQUE NOT NULL,
+                token_hash      TEXT NOT NULL,
+                hostname        TEXT,
+                os_info         TEXT,
+                ip_seen         TEXT,
+                created_at      TEXT DEFAULT (datetime('now')),
+                last_seen       TEXT DEFAULT (datetime('now')),
+                status          TEXT DEFAULT 'online'
+            );
+            CREATE TABLE IF NOT EXISTS lynis_jobs (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                client_id       TEXT NOT NULL,
+                profile         TEXT DEFAULT 'system',
+                compliance      TEXT DEFAULT '',
+                category        TEXT DEFAULT '',
+                status          TEXT DEFAULT 'pending',
+                created_at      TEXT DEFAULT (datetime('now')),
+                started_at      TEXT,
+                completed_at    TEXT,
+                progress_pct    INTEGER DEFAULT 0,
+                message         TEXT DEFAULT '',
+                hardening_index INTEGER DEFAULT 0,
+                warnings_json   TEXT DEFAULT '[]',
+                suggestions_json TEXT DEFAULT '[]',
+                tests_performed TEXT DEFAULT '',
+                raw_report      TEXT DEFAULT '',
+                FOREIGN KEY(client_id) REFERENCES agent_clients(client_id)
+            );
+        """)
+        con.commit()
+        con.close()
+
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _auth_agent(req):
+    auth = req.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        return None
+    token = auth.split(" ", 1)[1].strip()
+    if not token:
+        return None
+    token_hash = _hash_token(token)
+    con = _agent_db()
+    row = con.execute("SELECT client_id FROM agent_clients WHERE token_hash=?", (token_hash,)).fetchone()
+    if row:
+        con.execute("UPDATE agent_clients SET last_seen=datetime('now'), ip_seen=?, status='online' WHERE client_id=?",
+                    (req.remote_addr or "", row["client_id"]))
+        con.commit()
+    con.close()
+    return row["client_id"] if row else None
+
+
+init_agent_db()
 
 
 def run_backend(*args, timeout=300):
@@ -254,6 +328,14 @@ body.dark .inp:focus{box-shadow:0 0 0 3px rgba(240,240,240,0.1)}
 .fg label{display:block;font-size:11px;font-weight:500;color:var(--text3);letter-spacing:0.5px;margin-bottom:5px}
 textarea.inp{resize:vertical;min-height:80px}
 select.inp{cursor:pointer}
+select.inp:not([multiple]){
+  appearance:none;-webkit-appearance:none;-moz-appearance:none;
+  padding-right:38px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 12px center;
+  background-size:14px;
+}
 .scan-bar{display:flex;gap:8px;align-items:center}
 .scan-bar .inp{font-family:var(--mono);flex:1}
 .pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
@@ -927,8 +1009,20 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
       <!-- LYNIS -->
       <div class="page" id="page-lynis">
         <div class="page-hd"><div class="page-title">Lynis</div><div class="page-desc">Local system security audit</div></div>
-        <div class="notice">&#9432; Lynis audits the <strong>local server</strong> running VulnScan Pro. No target needed.</div>
+        <div class="notice">&#9432; Leave <strong>Agent Client ID</strong> empty to scan this server, or set it to run Lynis on a remote Linux machine with the pull-agent.</div>
         <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg" style="margin-bottom:10px">
+            <label>ONE-LINE AGENT INSTALL (Linux)</label>
+            <div class="scan-bar">
+              <input class="inp inp-mono" id="ly-install-cmd" type="text" readonly value="curl -fsSL http://161.118.189.254:5000/agent/install.sh | bash"/>
+              <button class="btn btn-outline btn-sm" onclick="copyLynisInstallCmd()">COPY</button>
+            </div>
+          </div>
+          <div class="card card-p" style="border:1px dashed var(--border2);margin-bottom:12px">
+            <div class="card-title" style="margin-bottom:8px">Connected Agent Systems</div>
+            <div id="ly-agents" style="color:var(--text3);font-size:12px">Loading agents...</div>
+          </div>
+          <div class="fg"><label>AGENT CLIENT ID (optional)</label><input class="inp inp-mono" id="ly-client-id" type="text" placeholder="Leave empty = local scan, set value = remote agent scan"/></div>
           <div class="row2" style="margin-bottom:12px">
             <div class="fg"><label>AUDIT PROFILE</label><select class="inp inp-mono" id="ly-profile"><option value="system">Full System Audit</option><option value="quick">Quick Scan</option><option value="forensics">Forensics Mode</option></select></div>
             <div class="fg"><label>COMPLIANCE</label><select class="inp inp-mono" id="ly-compliance"><option value="">None</option><option value="ISO27001">ISO 27001</option><option value="PCI-DSS">PCI-DSS</option><option value="HIPAA">HIPAA</option><option value="CIS">CIS Benchmark</option></select></div>
@@ -1286,6 +1380,7 @@ function pg(id,el){
   if(id==='home'){setTimeout(loadHomeStats,80);if(currentUser)vsGreetUser(currentUser.username);}
   if(id==='profile'&&currentUser)loadProfileInfo(currentUser);
   if(id==='brute')setTimeout(bfAutoLoad,300);
+  if(id==='lynis'){loadLynisAgents();startLynisAgentWatcher();}
 }
 
 /* ==== AUTH ==== */
@@ -1516,6 +1611,7 @@ function mkTool(prefix){
   return{
     start:function(){logEl=document.getElementById(prefix+'-term');if(logEl){logEl.innerHTML='';logEl.classList.add('visible');}var e=document.getElementById(prefix+'-err');if(e){e.textContent='';e.classList.remove('visible');}var r=document.getElementById(prefix+'-res');if(r){r.innerHTML='';r.style.display='none';}startProg(prefix+'-prog');},
     log:function(t,tp){if(!logEl)return;if(!tp)tp='i';var div=document.createElement('div');div.className='tl-'+tp;var pf={i:'[*]',s:'[+]',w:'[!]',e:'[x]'}[tp]||'[*]';div.innerHTML='<span class="tl-prefix">'+pf+'</span> '+t;logEl.appendChild(div);logEl.scrollTop=logEl.scrollHeight;},
+    pct:function(v){var pw=document.getElementById(prefix+'-prog');var pb=document.getElementById(prefix+'-pb');if(pw)pw.classList.add('active');if(pb)pb.style.width=Math.max(0,Math.min(100,parseInt(v||0,10)))+'%';},
     end:function(){endProg(prefix+'-prog');},
     err:function(m){var e=document.getElementById(prefix+'-err');if(e){e.textContent='Error: '+m;e.classList.add('visible');}},
     res:function(html){var e=document.getElementById(prefix+'-res');if(e){e.innerHTML=html;e.style.display='block';}}
@@ -1677,22 +1773,84 @@ function renderWPScan(d){
 }
 
 /* ==== LYNIS ==== */
+var _lyAgentTimer=null;
+function copyLynisInstallCmd(){
+  var el=document.getElementById('ly-install-cmd');
+  if(!el)return;
+  el.select();el.setSelectionRange(0,99999);
+  try{document.execCommand('copy');}catch(e){}
+}
+async function loadLynisAgents(){
+  var box=document.getElementById('ly-agents');if(!box)return;
+  try{
+    var r=await fetchWithTimeout('/api/agents',{},15000,'ly');
+    var d=await r.json();var agents=d.agents||[];
+    if(!agents.length){box.innerHTML='<div style="color:var(--text3)">No agent connected yet. Install with the command above.</div>';return;}
+    var html='<div style="display:flex;flex-direction:column;gap:6px">';
+    agents.forEach(function(a){
+      var st=(a.status||'unknown').toLowerCase();var col=st==='online'?'var(--green)':'var(--orange)';
+      html+='<div class="card-p" style="border:1px solid var(--border);border-radius:8px;cursor:pointer" onclick="pickLynisAgent(\''+a.client_id+'\')"><div style="display:flex;justify-content:space-between;gap:8px"><div><strong>'+a.client_id+'</strong><div style="font-size:11px;color:var(--text3)">'+(a.hostname||'')+' · '+(a.os_info||'')+'</div></div><div style="font-size:11px;color:'+col+'">'+st.toUpperCase()+'</div></div><div style="font-size:10px;color:var(--text3);margin-top:4px">Last seen: '+(a.last_seen||'--')+' · IP: '+(a.ip_seen||'--')+'</div></div>';
+    });
+    html+='</div><div style="font-size:11px;color:var(--green);margin-top:8px">&#10003; New system detected items appear here automatically.</div>';
+    box.innerHTML=html;
+  }catch(e){
+    box.innerHTML='<div class="err-box visible">Failed to load agents: '+e.message+'</div>';
+  }
+}
+function pickLynisAgent(clientId){
+  var inp=document.getElementById('ly-client-id');if(inp)inp.value=clientId;
+}
+function startLynisAgentWatcher(){
+  if(_lyAgentTimer)clearInterval(_lyAgentTimer);
+  _lyAgentTimer=setInterval(function(){
+    var page=document.getElementById('page-lynis');
+    if(page&&page.classList.contains('active'))loadLynisAgents();
+  },10000);
+}
 async function doLynis(){
   var profile=document.getElementById('ly-profile').value;var category=document.getElementById('ly-category').value;var compliance=document.getElementById('ly-compliance').value;
+  var clientId=document.getElementById('ly-client-id').value.trim();
+  var useRemote=!!clientId;
   var btn=document.getElementById('ly-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Auditing...';
   lyTool.start();lyTool.log('Lynis audit starting...','i');lyTool.log('Profile: '+profile+(compliance?' - Compliance: '+compliance:''),'w');
   try{
-    var r=await fetchWithTimeout('/lynis',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile:profile,category:category,compliance:compliance})},300000,'ly');
-    var d=await r.json();lyTool.end();
-    if(d.error){lyTool.log(d.error,'e');lyTool.err(d.error);}
-    else{lyTool.log('Audit complete -- Hardening Index: '+(d.hardening_index||'?'),(d.hardening_index>=70?'s':'w'));renderLynis(d);}
+    if(useRemote){
+      lyTool.log('Queueing remote job for client: '+clientId,'i');
+      var jr=await fetchWithTimeout('/api/create-job',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({client_id:clientId,profile:profile,category:category,compliance:compliance})},30000,'ly');
+      var jd=await jr.json();if(jd.error)throw new Error(jd.error);
+      lyTool.log('Job #'+jd.job_id+' queued. Waiting for agent...','w');
+      await pollLynisJob(jd.job_id);
+    }else{
+      var r=await fetchWithTimeout('/lynis',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile:profile,category:category,compliance:compliance})},300000,'ly');
+      var d=await r.json();lyTool.end();
+      if(d.error){lyTool.log(d.error,'e');lyTool.err(d.error);}
+      else{lyTool.log('Audit complete -- Hardening Index: '+(d.hardening_index||'?'),(d.hardening_index>=70?'s':'w'));renderLynis(d);}
+    }
   }catch(e){lyTool.end();lyTool.err(e.message);}
   finally{btn.disabled=false;btn.innerHTML='RUN LYNIS AUDIT';}
+}
+async function pollLynisJob(jobId){
+  var tries=0;
+  while(tries<180){
+    tries++;
+    var r=await fetchWithTimeout('/api/job-status/'+jobId,{},15000,'ly');
+    var d=await r.json();if(d.error)throw new Error(d.error);
+    var pct=parseInt(d.progress_pct||0);lyTool.pct(pct);
+    if(d.message)lyTool.log('['+d.status+'] '+d.message,(d.status==='completed'?'s':'i'));
+    if(d.status==='completed'){
+      lyTool.end();
+      renderLynis(d);
+      return;
+    }
+    await new Promise(function(res){setTimeout(res,2000);});
+  }
+  throw new Error('Timed out waiting for remote Lynis agent to finish');
 }
 function renderLynis(d){
   var w=d.warnings||[],sg=d.suggestions||[],sc=d.hardening_index||0;
   var sc_col=sc>=80?'var(--green)':sc>=60?'var(--yellow)':sc>=40?'var(--orange)':'var(--red)';
   var html='<div class="stats" style="margin-bottom:14px"><div class="stat"><div class="stat-val" style="color:'+sc_col+'">'+sc+'</div><div class="stat-lbl">HARDENING INDEX</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">'+w.length+'</div><div class="stat-lbl">WARNINGS</div></div><div class="stat"><div class="stat-val" style="color:var(--yellow)">'+sg.length+'</div><div class="stat-lbl">SUGGESTIONS</div></div><div class="stat"><div class="stat-val">'+(d.tests_performed||'--')+'</div><div class="stat-lbl">TESTS</div></div></div>';
+  if(d.job_id)html+='<div style="margin-bottom:10px"><a class="btn btn-outline btn-sm" href="/api/job-report/'+d.job_id+'.txt" target="_blank">DOWNLOAD RAW REPORT</a> <span style="font-size:11px;color:var(--text3);margin-left:6px">Job #'+d.job_id+'</span></div>';
   if(w.length)html+='<div class="card card-p" style="margin-bottom:8px"><div class="card-title" style="margin-bottom:8px;color:var(--red)">Warnings</div>'+w.map(function(x){return'<div style="border-bottom:1px solid var(--border);padding:7px 0;font-family:var(--mono);font-size:11px;color:var(--orange)">'+x+'</div>';}).join('')+'</div>';
   if(sg.length)html+='<div class="card card-p"><div class="card-title" style="margin-bottom:8px">Suggestions ('+sg.length+')</div>'+sg.slice(0,30).map(function(x){return'<div style="border-bottom:1px solid var(--border);padding:6px 0;font-family:var(--mono);font-size:11px;color:var(--text2)">&#8250; '+x+'</div>';}).join('')+(sg.length>30?'<div style="color:var(--text3);font-size:11px;padding-top:8px">...and '+(sg.length-30)+' more</div>':'')+'</div>';
   lyTool.res(html);
@@ -2973,6 +3131,223 @@ def lynis_route():
         return jsonify({"error": str(e)})
 
 
+# ── Lynis remote-agent orchestration ─────────────────────────────────────────
+@app.route("/api/agent/register", methods=["POST"])
+def register_agent():
+    data = request.get_json() or {}
+    client_id = (data.get("client_id") or "").strip()
+    hostname = (data.get("hostname") or "").strip()
+    os_info = (data.get("os_info") or "").strip()
+    if not client_id:
+        return jsonify({"error": "client_id is required"}), 400
+    token = secrets.token_urlsafe(32)
+    token_hash = _hash_token(token)
+    with AGENT_LOCK:
+        con = _agent_db()
+        con.execute("""
+            INSERT INTO agent_clients(client_id, token_hash, hostname, os_info, ip_seen, status)
+            VALUES(?,?,?,?,?,?)
+            ON CONFLICT(client_id) DO UPDATE SET
+              token_hash=excluded.token_hash,
+              hostname=excluded.hostname,
+              os_info=excluded.os_info,
+              ip_seen=excluded.ip_seen,
+              last_seen=datetime('now'),
+              status='online'
+        """, (client_id, token_hash, hostname, os_info, request.remote_addr or "", "online"))
+        con.commit()
+        con.close()
+    return jsonify({"client_id": client_id, "token": token, "api_base": request.url_root.rstrip("/")})
+
+
+@app.route("/api/create-job", methods=["POST"])
+def create_lynis_job():
+    data = request.get_json() or {}
+    client_id = (data.get("client_id") or "").strip()
+    profile = (data.get("profile") or "system").strip() or "system"
+    compliance = (data.get("compliance") or "").strip()
+    category = (data.get("category") or "").strip()
+    if not client_id:
+        return jsonify({"error": "client_id is required"}), 400
+    with AGENT_LOCK:
+        con = _agent_db()
+        exists = con.execute("SELECT 1 FROM agent_clients WHERE client_id=?", (client_id,)).fetchone()
+        if not exists:
+            con.close()
+            return jsonify({"error": "Unknown client_id. Install/register agent first."}), 404
+        cur = con.execute("""
+            INSERT INTO lynis_jobs(client_id, profile, compliance, category, status, progress_pct, message)
+            VALUES(?,?,?,?, 'pending', 0, 'Queued')
+        """, (client_id, profile, compliance, category))
+        jid = cur.lastrowid
+        con.commit()
+        con.close()
+    return jsonify({"job_id": jid, "status": "pending"})
+
+
+@app.route("/api/jobs", methods=["GET"])
+def poll_jobs():
+    client_id = _auth_agent(request)
+    if not client_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    with AGENT_LOCK:
+        con = _agent_db()
+        row = con.execute("""
+            SELECT id, profile, compliance, category FROM lynis_jobs
+            WHERE client_id=? AND status='pending'
+            ORDER BY id ASC LIMIT 1
+        """, (client_id,)).fetchone()
+        if row:
+            con.execute("""
+                UPDATE lynis_jobs
+                SET status='running', started_at=datetime('now'), progress_pct=5, message='Agent started scan'
+                WHERE id=? AND status='pending'
+            """, (row["id"],))
+            con.commit()
+            job = {"job_id": row["id"], "type": "lynis", "profile": row["profile"],
+                   "compliance": row["compliance"], "category": row["category"]}
+        else:
+            job = {"job_id": None, "type": "none"}
+        con.close()
+    return jsonify(job)
+
+
+@app.route("/api/jobs/<int:job_id>/progress", methods=["POST"])
+def update_job_progress(job_id):
+    client_id = _auth_agent(request)
+    if not client_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json() or {}
+    pct = int(data.get("progress_pct", 0))
+    message = (data.get("message") or "").strip()[:300]
+    with AGENT_LOCK:
+        con = _agent_db()
+        con.execute("""
+            UPDATE lynis_jobs
+            SET progress_pct=?, message=?
+            WHERE id=? AND client_id=? AND status='running'
+        """, (max(0, min(100, pct)), message, job_id, client_id))
+        con.commit()
+        con.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/upload", methods=["POST"])
+def upload_job_report():
+    client_id = _auth_agent(request)
+    if not client_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json() or {}
+    job_id = data.get("job_id")
+    if not job_id:
+        return jsonify({"error": "job_id is required"}), 400
+    hardening_index = int(data.get("hardening_index", 0))
+    warnings = data.get("warnings") or []
+    suggestions = data.get("suggestions") or []
+    tests_performed = str(data.get("tests_performed", ""))
+    raw_report = str(data.get("raw_report", ""))[:200000]
+    with AGENT_LOCK:
+        con = _agent_db()
+        con.execute("""
+            UPDATE lynis_jobs
+            SET status='completed',
+                completed_at=datetime('now'),
+                progress_pct=100,
+                message='Completed',
+                hardening_index=?,
+                warnings_json=?,
+                suggestions_json=?,
+                tests_performed=?,
+                raw_report=?
+            WHERE id=? AND client_id=?
+        """, (hardening_index, json.dumps(warnings), json.dumps(suggestions), tests_performed, raw_report, job_id, client_id))
+        con.commit()
+        con.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/job-status/<int:job_id>", methods=["GET"])
+def job_status(job_id):
+    with AGENT_LOCK:
+        con = _agent_db()
+        row = con.execute("""
+            SELECT id, client_id, status, progress_pct, message, hardening_index, warnings_json,
+                   suggestions_json, tests_performed, created_at, started_at, completed_at
+            FROM lynis_jobs WHERE id=?
+        """, (job_id,)).fetchone()
+        con.close()
+    if not row:
+        return jsonify({"error": "Job not found"}), 404
+    return jsonify({
+        "job_id": row["id"],
+        "client_id": row["client_id"],
+        "status": row["status"],
+        "progress_pct": row["progress_pct"],
+        "message": row["message"],
+        "hardening_index": row["hardening_index"],
+        "warnings": json.loads(row["warnings_json"] or "[]"),
+        "suggestions": json.loads(row["suggestions_json"] or "[]"),
+        "tests_performed": row["tests_performed"],
+        "created_at": row["created_at"],
+        "started_at": row["started_at"],
+        "completed_at": row["completed_at"],
+    })
+
+
+@app.route("/api/agents", methods=["GET"])
+def list_agents():
+    with AGENT_LOCK:
+        con = _agent_db()
+        rows = con.execute("""
+            SELECT client_id, hostname, os_info, ip_seen, created_at, last_seen, status
+            FROM agent_clients ORDER BY datetime(last_seen) DESC
+        """).fetchall()
+        con.close()
+    return jsonify({"agents": [dict(r) for r in rows]})
+
+
+@app.route("/api/job-report/<int:job_id>.txt", methods=["GET"])
+def download_job_report(job_id):
+    with AGENT_LOCK:
+        con = _agent_db()
+        row = con.execute("SELECT raw_report FROM lynis_jobs WHERE id=?", (job_id,)).fetchone()
+        con.close()
+    if not row:
+        return jsonify({"error": "Job not found"}), 404
+    report = row["raw_report"] or "No report content."
+    buf = io.BytesIO(report.encode("utf-8", errors="ignore"))
+    return send_file(buf, as_attachment=True, download_name=f"lynis-job-{job_id}.txt", mimetype="text/plain")
+
+
+@app.route("/agent/install.sh", methods=["GET"])
+def agent_install_script():
+    script = f"""#!/usr/bin/env bash
+set -euo pipefail
+SERVER_URL="${{SERVER_URL:-{AGENT_SERVER_URL}}}"
+CLIENT_ID="${{1:-}}"
+TOKEN="${{2:-}}"
+echo "[*] Checking server connectivity: $SERVER_URL"
+curl -fsS "$SERVER_URL/health" >/dev/null
+echo "[+] Connected to VulnScan server"
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+curl -fsSL "$SERVER_URL/agent/lynis_pull_agent.py" -o "$TMP_DIR/lynis_pull_agent.py"
+curl -fsSL "$SERVER_URL/agent/install_agent.sh" -o "$TMP_DIR/install_agent.sh"
+chmod +x "$TMP_DIR/install_agent.sh" "$TMP_DIR/lynis_pull_agent.py"
+bash "$TMP_DIR/install_agent.sh" "$CLIENT_ID" "$TOKEN" "$SERVER_URL"
+echo "[+] Agent installed. Refresh Lynis dashboard: new system should appear shortly."
+"""
+    return Response(script, mimetype="text/x-shellscript")
+
+
+@app.route("/agent/<path:filename>", methods=["GET"])
+def agent_file(filename):
+    agent_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent")
+    if filename not in {"install_agent.sh", "lynis_pull_agent.py"}:
+        return jsonify({"error": "Not found"}), 404
+    return send_from_directory(agent_dir, filename, as_attachment=False)
+
+
 # ── Legion route ──────────────────────────────────────────────────────────────
 @app.route("/legion", methods=["POST"])
 def legion_route():
@@ -3182,9 +3557,7 @@ def web_deep_stream():
     raw_url, base_url, host = _normalize_target_url(input_url)
     if not host:
         def _err():
-            yield 'data: ' + json.dumps({"pct":0,"done":True,"error":"Invalid URL"}) + '
-
-'
+            yield 'data: ' + json.dumps({"pct":0,"done":True,"error":"Invalid URL"}) + '\n\n'
         return Response(_err(), mimetype="text/event-stream")
 
     user = get_current_user()
@@ -3363,16 +3736,12 @@ def web_deep_stream():
         while True:
             try:
                 msg = q.get(timeout=1800)
-                yield "data: " + json.dumps(msg) + "
-
-"
+                yield "data: " + json.dumps(msg) + "\n\n"
                 if msg.get("done"):
                     break
             except Exception:
                 yield 'data: ' + json.dumps({"pct":100,"done":True,
-                                              "error":"Stream timeout"}) + "
-
-"
+                                              "error":"Stream timeout"}) + "\n\n"
                 break
 
     return Response(_stream(), mimetype="text/event-stream",
