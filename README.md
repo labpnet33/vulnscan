@@ -196,6 +196,21 @@ All endpoints require an active session (login via `/api/login` first).
 | `POST` | `/brute-http` | HTTP brute force |
 | `POST` | `/brute-ssh` | SSH brute force |
 
+### Lynis Pull-Agent APIs (remote Linux audits)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/agent/register` | Register/rotate token for a Linux agent |
+| `POST` | `/api/create-job` | Queue a Lynis job for a specific `client_id` |
+| `GET` | `/api/jobs` | Agent poll endpoint (Bearer token) |
+| `POST` | `/api/jobs/<id>/progress` | Agent sends running progress updates |
+| `POST` | `/api/upload` | Agent uploads parsed Lynis results |
+| `GET` | `/api/job-status/<id>` | Website polls status/results for queued job |
+
+Agent files are included in `agent/`:
+- `agent/lynis_pull_agent.py` (polling runner)
+- `agent/install_agent.sh <api_base> <client_id> [token]` (systemd installer, auto-start)
+
 ### History & Reports
 
 | Method | Endpoint | Description |
