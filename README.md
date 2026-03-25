@@ -100,7 +100,7 @@ VulnScan Pro is a free, open-source vulnerability assessment platform featuring 
 
 **1. Clone the repository**
 ```bash
-git clone https://github.com/labpnet33/vulnscan.git
+git clone <your-current-vulnscan-repo-url>
 cd vulnscan
 ```
 
@@ -118,6 +118,56 @@ python3 api_server.py
 ```
 http://localhost:5000
 ```
+
+---
+
+## 🧩 Remote Lynis Agent (Pull Model)
+
+This project supports running Lynis on **user Linux systems** via outbound HTTP(S) polling (no inbound firewall opening required).
+
+### Server used in this deployment
+
+- `http://161.118.189.254:5000`
+
+### One-line install (copy/paste on user Linux machine)
+
+```bash
+curl -fsSL http://161.118.189.254:5000/agent/install.sh | bash -s -- my-client-id
+```
+
+> Replace `my-client-id` with a unique name per endpoint (example: `finance-prod-01`).
+
+### What the install flow does
+
+1. Checks connectivity to `http://161.118.189.254:5000/health`.
+2. Downloads `lynis_pull_agent.py` and installer script from the server.
+3. Installs a systemd service (`vulnscan-lynis-agent`) for auto-start on boot.
+4. Registers the endpoint so it appears in the Lynis dashboard as a detected system.
+
+### Optional: explicit token flow
+
+```bash
+# Register and get token
+curl -sS -X POST http://161.118.189.254:5000/api/agent/register \
+  -H "Content-Type: application/json" \
+  -d '{"client_id":"my-client-id","hostname":"myhost","os_info":"Linux"}'
+```
+
+Then run installer with token:
+
+```bash
+curl -fsSL http://161.118.189.254:5000/agent/install.sh | bash -s -- my-client-id <TOKEN>
+```
+
+### Dashboard workflow (Lynis page)
+
+1. Open **Lynis** page in VulnScan.
+2. Confirm the endpoint appears under **Connected Agent Systems** (`new system detected` list).
+3. Click a detected system (auto-fills client id).
+4. Select profile/compliance/category.
+5. Click **RUN LYNIS AUDIT**.
+6. Watch live status/progress in the Lynis terminal/progress bar.
+7. After completion, use **DOWNLOAD RAW REPORT** to download full audit output from the server.
 
 The first registered account is automatically granted **admin** role.
 
@@ -195,6 +245,21 @@ All endpoints require an active session (login via `/api/login` first).
 | `POST` | `/web-deep` | Deep website audit (multi-tool + risk rating + detailed report JSON) |
 | `POST` | `/brute-http` | HTTP brute force |
 | `POST` | `/brute-ssh` | SSH brute force |
+
+### Lynis Pull-Agent APIs (remote Linux audits)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/agent/register` | Register/rotate token for a Linux agent |
+| `POST` | `/api/create-job` | Queue a Lynis job for a specific `client_id` |
+| `GET` | `/api/jobs` | Agent poll endpoint (Bearer token) |
+| `POST` | `/api/jobs/<id>/progress` | Agent sends running progress updates |
+| `POST` | `/api/upload` | Agent uploads parsed Lynis results |
+| `GET` | `/api/job-status/<id>` | Website polls status/results for queued job |
+
+Agent files are included in `agent/`:
+- `agent/lynis_pull_agent.py` (polling runner)
+- `agent/install_agent.sh <client_id> [token] [api_base]` (systemd installer, auto-start)
 
 ### History & Reports
 
