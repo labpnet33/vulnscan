@@ -1014,17 +1014,13 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
           <div class="fg" style="margin-bottom:10px">
             <label>ONE-LINE AGENT INSTALL (Linux)</label>
             <div class="scan-bar">
-              <input class="inp inp-mono" id="ly-install-cmd" type="text" readonly value="curl -fsSL http://161.118.189.254:5000/agent/install.sh | bash -s -- my-client-id"/>
+              <input class="inp inp-mono" id="ly-install-cmd" type="text" readonly value="curl -fsSL http://161.118.189.254:5000/agent/install.sh | bash"/>
               <button class="btn btn-outline btn-sm" onclick="copyLynisInstallCmd()">COPY</button>
             </div>
           </div>
           <div class="card card-p" style="border:1px dashed var(--border2);margin-bottom:12px">
             <div class="card-title" style="margin-bottom:8px">Connected Agent Systems</div>
             <div id="ly-agents" style="color:var(--text3);font-size:12px">Loading agents...</div>
-          </div>
-          <div class="row2" style="margin-bottom:12px">
-            <div class="fg"><label>AGENT CLIENT ID (optional)</label><input class="inp inp-mono" id="ly-client-id" type="text" placeholder="e.g. acme-laptop-01"/></div>
-            <div class="fg"><label>MODE</label><select class="inp inp-mono" id="ly-mode"><option value="auto">Auto (remote if client id provided)</option><option value="local">Local only</option><option value="remote">Remote only</option></select></div>
           </div>
           <div class="row2" style="margin-bottom:12px">
             <div class="fg"><label>AGENT CLIENT ID (optional)</label><input class="inp inp-mono" id="ly-client-id" type="text" placeholder="e.g. acme-laptop-01"/></div>
@@ -3100,15 +3096,39 @@ def lynis_route():
             return jsonify({"error": "Auto-install ran but lynis still not found."})
 
     # Lynis is local — no proxychains needed
-    cmd = [binary, "audit", "system", "--quiet", "--no-colors", "--noplugins"]
+    report_file = "/tmp/vulnscan-lynis-report.dat"
+    log_file = "/tmp/vulnscan-lynis.log"
+    cmd = [
+        binary, "audit", "system", "--quiet", "--no-colors", "--noplugins",
+        "--report-file", report_file, "--logfile", log_file
+    ]
     if compliance:
         cmd += ["--compliance", compliance.lower()]
 
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT_LYNIS)
-        output = proc.stdout + proc.stderr
+        output = (proc.stdout or "") + "\n" + (proc.stderr or "")
         hardening_index = 0
         warnings, suggestions = [], []
+        tests_performed = "?"
+
+        report_content = ""
+        if os.path.exists(report_file):
+            with open(report_file, "r", encoding="utf-8", errors="ignore") as rf:
+                report_content = rf.read()
+            for line in report_content.splitlines():
+                line = line.strip()
+                if line.startswith("hardening_index="):
+                    try:
+                        hardening_index = int(line.split("=", 1)[1].strip())
+                    except Exception:
+                        pass
+                elif line.startswith("tests_performed="):
+                    tests_performed = line.split("=", 1)[1].strip() or tests_performed
+                elif line.startswith("warning[]="):
+                    warnings.append(line.split("=", 1)[1].strip())
+                elif line.startswith("suggestion[]="):
+                    suggestions.append(line.split("=", 1)[1].strip())
 
         for line in output.splitlines():
             m = re.search(r'Hardening index\s*[:\|]\s*(\d+)', line, re.IGNORECASE)
@@ -3124,13 +3144,25 @@ def lynis_route():
                     suggestions.append(clean)
 
         tests_m = re.search(r'Tests performed\s*[:\|]\s*(\d+)', output, re.IGNORECASE)
-        tests_performed = tests_m.group(1) if tests_m else "?"
+        if tests_m:
+            tests_performed = tests_m.group(1)
+        if hardening_index == 0:
+            h_m = re.search(r'hardening_index\s*=\s*(\d+)', report_content, re.IGNORECASE)
+            if h_m:
+                hardening_index = int(h_m.group(1))
+        raw_report = output
+        if report_content:
+            raw_report += "\n\n# /tmp/vulnscan-lynis-report.dat\n" + report_content
+        if os.path.exists(log_file):
+            with open(log_file, "r", encoding="utf-8", errors="ignore") as lf:
+                raw_report += "\n\n# /tmp/vulnscan-lynis.log\n" + lf.read()
 
         return jsonify({
             "hardening_index": hardening_index,
-            "warnings": list(set(warnings))[:50],
-            "suggestions": list(set(suggestions))[:100],
+            "warnings": sorted(set(filter(None, warnings)))[:120],
+            "suggestions": sorted(set(filter(None, suggestions)))[:200],
             "tests_performed": tests_performed,
+            "raw_report": raw_report[-200000:],
             "note": "Lynis is a local scan — Tor not used (local system audit)."
         })
 
@@ -3333,12 +3365,15 @@ def agent_install_script():
     script = f"""#!/usr/bin/env bash
 set -euo pipefail
 SERVER_URL="${{SERVER_URL:-{AGENT_SERVER_URL}}}"
-if [[ $# -lt 1 ]]; then
-  echo "Usage: bash install.sh <client_id> [token]"
-  exit 1
-fi
-CLIENT_ID="$1"
+CLIENT_ID="${{1:-}}"
 TOKEN="${{2:-}}"
+if [[ -z "$CLIENT_ID" ]]; then
+  base_host="$(hostname -s 2>/dev/null || echo linux-client)"
+  rand_part="$(tr -dc 'a-z0-9' </dev/urandom | head -c 8 || true)"
+  if [[ -z "$rand_part" ]]; then rand_part="$(date +%s)"; fi
+  CLIENT_ID="${{base_host}}-${{rand_part}}"
+  echo "[*] Generated random client id: $CLIENT_ID"
+fi
 echo "[*] Checking server connectivity: $SERVER_URL"
 curl -fsS "$SERVER_URL/health" >/dev/null
 echo "[+] Connected to VulnScan server"
