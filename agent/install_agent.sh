@@ -1,21 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CLIENT_ID="${1:-}"
+if [[ $# -lt 1 ]]; then
+  echo "Usage: $0 <client_id> [token] [api_base]"
+  exit 1
+fi
+
+CLIENT_ID="$1"
 TOKEN="${2:-}"
 API_BASE="${3:-http://161.118.189.254:5000}"
-if [[ -z "$CLIENT_ID" ]]; then
-  RAND="$(tr -dc 'a-z0-9' </dev/urandom | head -c 6)"
-  HOST="$(hostname | tr -cd 'a-zA-Z0-9-')"
-  CLIENT_ID="agent-${HOST:-linux}-$RAND"
-fi
 AGENT_DIR="/opt/vulnscan-agent"
 SERVICE_FILE="/etc/systemd/system/vulnscan-lynis-agent.service"
 
 echo "[*] Checking connection to $API_BASE ..."
 curl -fsS "$API_BASE/health" >/dev/null
 echo "[+] Connection established."
-echo "[+] Using client_id: $CLIENT_ID"
 
 sudo mkdir -p "$AGENT_DIR"
 sudo cp "$(dirname "$0")/lynis_pull_agent.py" "$AGENT_DIR/lynis_pull_agent.py"

@@ -1014,7 +1014,7 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
           <div class="fg" style="margin-bottom:10px">
             <label>ONE-LINE AGENT INSTALL (Linux)</label>
             <div class="scan-bar">
-              <input class="inp inp-mono" id="ly-install-cmd" type="text" readonly value="curl -fsSL http://161.118.189.254:5000/agent/install.sh | bash"/>
+              <input class="inp inp-mono" id="ly-install-cmd" type="text" readonly value="curl -fsSL http://161.118.189.254:5000/agent/install.sh | bash -s -- my-client-id"/>
               <button class="btn btn-outline btn-sm" onclick="copyLynisInstallCmd()">COPY</button>
             </div>
           </div>
@@ -1022,7 +1022,14 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
             <div class="card-title" style="margin-bottom:8px">Connected Agent Systems</div>
             <div id="ly-agents" style="color:var(--text3);font-size:12px">Loading agents...</div>
           </div>
-          <div class="fg"><label>AGENT CLIENT ID (optional)</label><input class="inp inp-mono" id="ly-client-id" type="text" placeholder="Leave empty = local scan, set value = remote agent scan"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>AGENT CLIENT ID (optional)</label><input class="inp inp-mono" id="ly-client-id" type="text" placeholder="e.g. acme-laptop-01"/></div>
+            <div class="fg"><label>MODE</label><select class="inp inp-mono" id="ly-mode"><option value="auto">Auto (remote if client id provided)</option><option value="local">Local only</option><option value="remote">Remote only</option></select></div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>AGENT CLIENT ID (optional)</label><input class="inp inp-mono" id="ly-client-id" type="text" placeholder="e.g. acme-laptop-01"/></div>
+            <div class="fg"><label>MODE</label><select class="inp inp-mono" id="ly-mode"><option value="auto">Auto (remote if client id provided)</option><option value="local">Local only</option><option value="remote">Remote only</option></select></div>
+          </div>
           <div class="row2" style="margin-bottom:12px">
             <div class="fg"><label>AUDIT PROFILE</label><select class="inp inp-mono" id="ly-profile"><option value="system">Full System Audit</option><option value="quick">Quick Scan</option><option value="forensics">Forensics Mode</option></select></div>
             <div class="fg"><label>COMPLIANCE</label><select class="inp inp-mono" id="ly-compliance"><option value="">None</option><option value="ISO27001">ISO 27001</option><option value="PCI-DSS">PCI-DSS</option><option value="HIPAA">HIPAA</option><option value="CIS">CIS Benchmark</option></select></div>
@@ -1799,6 +1806,7 @@ async function loadLynisAgents(){
 }
 function pickLynisAgent(clientId){
   var inp=document.getElementById('ly-client-id');if(inp)inp.value=clientId;
+  var mode=document.getElementById('ly-mode');if(mode&&mode.value!=='local')mode.value='remote';
 }
 function startLynisAgentWatcher(){
   if(_lyAgentTimer)clearInterval(_lyAgentTimer);
@@ -1809,8 +1817,9 @@ function startLynisAgentWatcher(){
 }
 async function doLynis(){
   var profile=document.getElementById('ly-profile').value;var category=document.getElementById('ly-category').value;var compliance=document.getElementById('ly-compliance').value;
-  var clientId=document.getElementById('ly-client-id').value.trim();
-  var useRemote=!!clientId;
+  var clientId=document.getElementById('ly-client-id').value.trim();var mode=document.getElementById('ly-mode').value;
+  var useRemote=(mode==='remote')||(mode==='auto'&&clientId);
+  if(mode==='remote'&&!clientId){alert('Client ID required in remote mode');return;}
   var btn=document.getElementById('ly-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Auditing...';
   lyTool.start();lyTool.log('Lynis audit starting...','i');lyTool.log('Profile: '+profile+(compliance?' - Compliance: '+compliance:''),'w');
   try{
@@ -3324,7 +3333,11 @@ def agent_install_script():
     script = f"""#!/usr/bin/env bash
 set -euo pipefail
 SERVER_URL="${{SERVER_URL:-{AGENT_SERVER_URL}}}"
-CLIENT_ID="${{1:-}}"
+if [[ $# -lt 1 ]]; then
+  echo "Usage: bash install.sh <client_id> [token]"
+  exit 1
+fi
+CLIENT_ID="$1"
 TOKEN="${{2:-}}"
 echo "[*] Checking server connectivity: $SERVER_URL"
 curl -fsS "$SERVER_URL/health" >/dev/null
