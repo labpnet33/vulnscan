@@ -13,6 +13,7 @@ PROXYCHAINS CONFIG (/etc/proxychains4.conf or /etc/proxychains.conf):
   socks5 127.0.0.1 9050
 """
 import json, re, sys, os, subprocess, io
+from urllib.parse import urlparse
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 from datetime import datetime, timedelta, timezone
@@ -49,6 +50,7 @@ TIMEOUT_WPSCAN     = 480   # 8 min
 TIMEOUT_LYNIS      = 360   # 6 min
 TIMEOUT_LEGION     = 1200  # 20 min
 TIMEOUT_REPORT     = 90    # 1.5 min
+TIMEOUT_WEB_DEEP   = 1800  # 30 min
 
 
 def run_backend(*args, timeout=300):
@@ -86,6 +88,19 @@ def proxychains_cmd():
     """Return the available proxychains binary name."""
     import shutil
     return shutil.which("proxychains4") or shutil.which("proxychains") or "proxychains4"
+
+
+def required_web_tools():
+    """Tool suggestions for full web audits on Linux servers."""
+    return [
+        {"tool": "nmap", "install": "sudo apt install nmap"},
+        {"tool": "nikto", "install": "sudo apt install nikto"},
+        {"tool": "dnsrecon", "install": "sudo apt install dnsrecon"},
+        {"tool": "whatweb", "install": "sudo apt install whatweb"},
+        {"tool": "nuclei", "install": "sudo apt install nuclei || go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest"},
+        {"tool": "wpscan", "install": "sudo gem install wpscan"},
+        {"tool": "sqlmap", "install": "sudo apt install sqlmap"},
+    ]
 
 
 # ══════════════════════════════════════════════
@@ -633,6 +648,7 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
       </div>
       <div class="nav-section">
         <div class="nav-label">WEB TESTING</div>
+        <button class="nav-item" id="ni-webdeep" onclick="pg('webdeep',this)"><span class="ni">&#9675;</span> Deep Web Audit</button>
         <button class="nav-item" id="ni-nikto" onclick="pg('nikto',this)"><span class="ni">&#9675;</span> Nikto</button>
         <button class="nav-item" id="ni-wpscan" onclick="pg('wpscan',this)"><span class="ni">&#9675;</span> WPScan</button>
         <button class="nav-item" id="ni-dir" onclick="pg('dir',this)"><span class="ni">&#9675;</span> Dir Buster</button>
@@ -695,6 +711,9 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
           <div class="card" style="cursor:pointer" onclick="pg('nikto',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
             <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Nikto</div><div style="font-size:12px;color:var(--text3)">Web vulnerability scanner &middot; 6700+ checks</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">web</span><span class="tag">CVE</span></div></div>
           </div>
+          <div class="card" style="cursor:pointer" onclick="pg('webdeep',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Deep Web Audit</div><div style="font-size:12px;color:var(--text3)">Nmap + Nikto + Dir Enum + Headers + DNS + optional WPScan in one run</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">full-audit</span><span class="tag">report</span></div></div>
+          </div>
           <div class="card" style="cursor:pointer" onclick="pg('dir',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
             <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Directory Buster</div><div style="font-size:12px;color:var(--text3)">Hidden paths, admin panels, sensitive files</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">HTTP</span><span class="tag">fuzzing</span></div></div>
           </div>
@@ -720,12 +739,43 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
             <button class="pill on" id="mod-dns" onclick="tmg('dns',this)">DNS</button>
             <button class="pill on" id="mod-headers" onclick="tmg('headers',this)">Headers</button>
           </div>
+          <div class="row2" style="margin-top:10px">
+            <div class="fg" style="margin-bottom:0">
+              <label>NMAP PROFILE</label>
+              <select class="inp inp-mono" id="scan-profile">
+                <option value="fast">Fast (quick ports)</option>
+                <option value="balanced" selected>Balanced (recommended)</option>
+                <option value="deep">Deep (all TCP ports)</option>
+                <option value="very_deep">Very Deep (all ports + safe scripts)</option>
+              </select>
+            </div>
+          </div>
           <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:10px">&#9432; Scans may take 30--180 seconds depending on target and modules.</div>
         </div>
         <div class="progress-wrap" id="prog"><div class="progress-bar" id="pb" style="width:0%"></div></div>
         <div class="terminal" id="term"></div>
         <div class="err-box" id="err"></div>
         <div id="res"></div>
+      </div>
+
+      <!-- DEEP WEB AUDIT -->
+      <div class="page" id="page-webdeep">
+        <div class="page-hd"><div class="page-title">Deep Web Audit</div><div class="page-desc">Comprehensive website assessment with multiple tools and a risk rating</div></div>
+        <div class="notice">&#9888; Authorized use only. Scan only websites you own or are explicitly permitted to assess.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>TARGET WEBSITE URL</label><input class="inp inp-mono" id="wd-url" type="text" placeholder="https://example.com" onkeydown="if(event.key==='Enter')doWebDeep()"/></div>
+          <div class="row2" style="margin-bottom:8px">
+            <div class="fg"><label>DEPTH PROFILE</label><select class="inp inp-mono" id="wd-profile"><option value="balanced" selected>Balanced</option><option value="deep">Deep</option><option value="very_deep">Very Deep</option></select></div>
+            <div class="fg"><label>SCAN MODE</label><input class="inp inp-mono" type="text" value="Automated multi-tool web audit" disabled/></div>
+          </div>
+          <button class="btn btn-primary" id="wd-btn" onclick="doWebDeep()">RUN DEEP WEB AUDIT</button>
+          <button class="btn btn-outline btn-sm" id="wd-cancel" onclick="cancelScan('wd')" style="display:none;color:var(--red);margin-left:8px">CANCEL</button>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:10px">&#9432; This workflow can take 5--30 minutes depending on target size and enabled tools.</div>
+        </div>
+        <div class="progress-wrap" id="wd-prog"><div class="progress-bar" id="wd-pb" style="width:0%"></div></div>
+        <div class="terminal" id="wd-term"></div>
+        <div class="err-box" id="wd-err"></div>
+        <div id="wd-res"></div>
       </div>
 
       <!-- HARVESTER -->
@@ -1145,7 +1195,7 @@ async function fetchWithTimeout(url,options,timeoutMs,prefix){
 }
 
 /* ==== PAGE NAV ==== */
-var PAGE_TITLES={home:'Home',scan:'Network Scanner',harvester:'theHarvester',dnsrecon:'DNSRecon',nikto:'Nikto',wpscan:'WPScan',lynis:'Lynis',legion:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',brute:'Brute Force',disc:'Network Discovery',hist:'Scan History',dash:'Dashboard',profile:'Profile',admin:'Admin Console'};
+var PAGE_TITLES={home:'Home',scan:'Network Scanner',webdeep:'Deep Web Audit',harvester:'theHarvester',dnsrecon:'DNSRecon',nikto:'Nikto',wpscan:'WPScan',lynis:'Lynis',legion:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',brute:'Brute Force',disc:'Network Discovery',hist:'Scan History',dash:'Dashboard',profile:'Profile',admin:'Admin Console'};
 function saveCurrentPage(id){try{sessionStorage.setItem('vs-page',id);}catch(e){}}
 function pg(id,el){
   document.querySelectorAll('.page').forEach(function(e){e.classList.remove('active');});
@@ -1168,6 +1218,7 @@ function pg(id,el){
 var currentUser=null;
 var busy=false;
 var mods={ports:true,ssl:true,dns:true,headers:true};
+var nmapProfile='balanced';
 
 function authTab(t){
   document.querySelectorAll('.auth-tab').forEach(function(e,i){
@@ -1315,14 +1366,16 @@ function tmg(m,el){mods[m]=!mods[m];el.classList.toggle('on',mods[m]);}
 async function doScan(){
   var target=document.getElementById('tgt').value.trim();
   if(!target||busy)return;
+  var profileSel=document.getElementById('scan-profile');
+  nmapProfile=(profileSel&&profileSel.value?profileSel.value:'balanced');
   clrUI();busy=true;
   showTerminal('term');startProg('prog');
   var btn=document.getElementById('sbtn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
   setScanRunning('scan',true);
   var ml=Object.keys(mods).filter(function(m){return mods[m];}).join(',');
-  termLog('term','Target: '+target,'i');termLog('term','Modules: '+ml,'i');termLog('term','Scanning -- may take 60-180s','w');
+  termLog('term','Target: '+target,'i');termLog('term','Modules: '+ml,'i');termLog('term','Profile: '+nmapProfile,'i');termLog('term','Scanning -- may take 60-180s','w');
   try{
-    var r=await fetchWithTimeout('/scan?target='+encodeURIComponent(target)+'&modules='+encodeURIComponent(ml),{},300000,'scan');
+    var r=await fetchWithTimeout('/scan?target='+encodeURIComponent(target)+'&modules='+encodeURIComponent(ml)+'&profile='+encodeURIComponent(nmapProfile),{},300000,'scan');
     var d=await r.json();endProg('prog');
     if(d.error){showErr('err','Error: '+d.error);termLog('term',d.error,'e');}
     else{var ports=d.summary?d.summary.open_ports:0,cves=d.summary?d.summary.total_cves:0;termLog('term','Done -- '+ports+' ports, '+cves+' CVEs','s');renderScan(d);showToast('Scan Complete',ports+' open ports - '+cves+' CVEs','success');}
@@ -1394,7 +1447,34 @@ function mkTool(prefix){
     res:function(html){var e=document.getElementById(prefix+'-res');if(e){e.innerHTML=html;e.style.display='block';}}
   };
 }
-var hvTool=mkTool('hv'),drTool=mkTool('dr'),nkTool=mkTool('nk'),wpTool=mkTool('wp'),lyTool=mkTool('ly'),lgTool=mkTool('lg');
+var hvTool=mkTool('hv'),drTool=mkTool('dr'),nkTool=mkTool('nk'),wpTool=mkTool('wp'),lyTool=mkTool('ly'),lgTool=mkTool('lg'),wdTool=mkTool('wd');
+
+/* ==== DEEP WEB AUDIT ==== */
+async function doWebDeep(){
+  var url=document.getElementById('wd-url').value.trim();if(!url){alert('Enter a website URL');return;}
+  var profile=document.getElementById('wd-profile').value||'balanced';
+  var btn=document.getElementById('wd-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Auditing...';
+  wdTool.start();wdTool.log('Target: '+url,'i');wdTool.log('Profile: '+profile,'i');wdTool.log('Running full multi-tool audit. This can take a while...','w');
+  try{
+    var r=await fetchWithTimeout('/web-deep',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:url,profile:profile})},1800000,'wd');
+    var d=await r.json();wdTool.end();
+    if(d.error){wdTool.log(d.error,'e');wdTool.err(d.error);}
+    else{wdTool.log('Audit complete -- Rating: '+(d.risk_rating||'UNKNOWN'),'s');renderWebDeep(d);}
+  }catch(e){wdTool.end();wdTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN DEEP WEB AUDIT';}
+}
+function renderWebDeep(d){
+  var s=d.summary||{};
+  var tools=d.tools_run||[];
+  var req=d.tools_required||[];
+  var html='<div class="stats" style="margin-bottom:14px"><div class="stat"><div class="stat-val" style="color:var(--red)">'+(d.vulnerability_score||0)+'</div><div class="stat-lbl">RISK SCORE /100</div></div><div class="stat"><div class="stat-val">'+(d.risk_rating||'UNKNOWN')+'</div><div class="stat-lbl">RATING</div></div><div class="stat"><div class="stat-val">'+(s.total_findings||0)+'</div><div class="stat-lbl">TOTAL FINDINGS</div></div><div class="stat"><div class="stat-val">'+tools.length+'</div><div class="stat-lbl">TOOLS RUN</div></div></div>';
+  html+='<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">Executive Summary</div><div style="font-size:13px;color:var(--text2)">'+(d.executive_summary||'No summary available')+'</div></div>';
+  html+='<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">Tool Status</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+tools.map(function(t){return'<span class="tag">'+t.tool+': '+t.status+'</span>';}).join('')+'</div></div>';
+  html+='<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">Install These Tools on Linux Server</div><div style="display:grid;gap:6px">'+req.map(function(t){return'<div style="font-family:var(--mono);font-size:11px"><strong>'+t.tool+'</strong> &middot; '+t.install+'</div>';}).join('')+'</div></div>';
+  if(d.key_findings&&d.key_findings.length){html+='<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">Key Findings</div><ul class="mit-list">'+d.key_findings.map(function(f){return'<li class="mit-item"><span class="mit-bullet">&#8250;</span><span>'+f+'</span></li>';}).join('')+'</ul></div>';}
+  html+='<div class="card"><div class="card-header"><div class="card-title">Detailed JSON Report</div></div><div class="card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+JSON.stringify(d.details||{},null,2)+'</pre></div></div>';
+  wdTool.res(html);
+}
 
 /* ==== HARVESTER ==== */
 async function doHarvest(){
@@ -1922,6 +2002,153 @@ TOOL_INSTALL_MAP = {
 }
 
 
+def _normalize_target_url(url):
+    raw = (url or "").strip()
+    if not raw:
+        return "", "", ""
+    if not re.match(r"^https?://", raw, re.I):
+        raw = "https://" + raw
+    parsed = urlparse(raw)
+    host = (parsed.netloc or parsed.path).split("@")[-1]
+    host = host.split(":")[0].strip().lower()
+    if not host or not re.match(r"^[a-z0-9.\-]+$", host):
+        return "", "", ""
+    base = f"{parsed.scheme}://{host}"
+    return raw, base, host
+
+
+def _run_nikto_for_webdeep(target):
+    import shutil, tempfile
+    binary = shutil.which("nikto")
+    if not binary:
+        return {"status": "skipped", "reason": "nikto not installed", "findings": []}
+    px = proxychains_cmd()
+    with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as tf:
+        out_file = tf.name
+    cmd = [px, "-q", binary, "-h", target, "-Format", "json", "-o", out_file, "-nointeractive", "-maxtime", "1200"]
+    findings = []
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT_NIKTO)
+        if os.path.exists(out_file):
+            with open(out_file) as f:
+                raw = json.load(f)
+            for host in (raw.get("host", []) if isinstance(raw, dict) else []):
+                for item in host.get("vulnerabilities", []):
+                    findings.append({
+                        "id": item.get("id", ""),
+                        "description": item.get("msg", ""),
+                        "uri": item.get("uri", ""),
+                        "severity": "high" if item.get("OSVDB", "0") != "0" else "info"
+                    })
+        if not findings and proc.stdout:
+            for line in proc.stdout.splitlines():
+                m = re.search(r'\+ (OSVDB-\d+|[\w-]+): (.+)', line)
+                if m:
+                    findings.append({"id": m.group(1), "description": m.group(2), "severity": "high"})
+        return {"status": "ok", "findings": findings}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "findings": findings}
+    finally:
+        if os.path.exists(out_file):
+            os.unlink(out_file)
+
+
+def _run_whatweb_for_webdeep(target):
+    import shutil
+    binary = shutil.which("whatweb")
+    if not binary:
+        return {"status": "skipped", "reason": "whatweb not installed", "technologies": []}
+    try:
+        proc = subprocess.run(
+            [binary, "--log-brief=-", "--no-errors", target],
+            capture_output=True, text=True, timeout=180
+        )
+        line = ""
+        for raw in proc.stdout.splitlines():
+            if raw.strip():
+                line = raw.strip()
+                break
+        tech = []
+        if line:
+            parts = line.split("[", 1)
+            if len(parts) == 2:
+                tech = [t.strip(" ]") for t in parts[1].split(",") if t.strip()]
+        return {"status": "ok", "technologies": tech, "raw": proc.stdout[:1000]}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "technologies": []}
+
+
+def _run_nuclei_for_webdeep(target):
+    import shutil, json as _json
+    binary = shutil.which("nuclei")
+    if not binary:
+        return {"status": "skipped", "reason": "nuclei not installed", "findings": []}
+    try:
+        proc = subprocess.run(
+            [binary, "-u", target, "-jsonl", "-severity", "critical,high,medium", "-silent", "-stats=false"],
+            capture_output=True, text=True, timeout=300
+        )
+        findings = []
+        for line in (proc.stdout or "").splitlines()[:150]:
+            try:
+                item = _json.loads(line)
+                info = item.get("info", {})
+                findings.append({
+                    "template": item.get("template-id", ""),
+                    "name": info.get("name", ""),
+                    "severity": str(info.get("severity", "unknown")).lower(),
+                    "matched_at": item.get("matched-at", "")
+                })
+            except Exception:
+                continue
+        return {"status": "ok", "findings": findings}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "findings": []}
+
+
+def _run_sqlmap_for_webdeep(target):
+    import shutil
+    binary = shutil.which("sqlmap")
+    if not binary:
+        return {"status": "skipped", "reason": "sqlmap not installed", "findings": []}
+    try:
+        proc = subprocess.run(
+            [binary, "-u", target, "--batch", "--crawl=1", "--level=1", "--risk=1", "--threads=2", "--timeout=8"],
+            capture_output=True, text=True, timeout=420
+        )
+        output = (proc.stdout or "") + "\n" + (proc.stderr or "")
+        hits = []
+        for line in output.splitlines():
+            ll = line.lower()
+            if "is vulnerable" in ll or "sql injection vulnerability" in ll:
+                hits.append(line.strip())
+        return {"status": "ok", "findings": hits[:25], "raw_tail": output[-1200:]}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "findings": []}
+
+
+def _rate_web_findings(scan_data, nikto_data, dir_data, header_data, nuclei_data=None, sqlmap_data=None):
+    critical = int((scan_data.get("summary") or {}).get("critical_cves", 0))
+    high = int((scan_data.get("summary") or {}).get("high_cves", 0))
+    nikto_high = sum(1 for f in nikto_data.get("findings", []) if f.get("severity") == "high")
+    dir_hits = len((dir_data or {}).get("found", []))
+    hdr_issues = len([i for i in (header_data or {}).get("issues", []) if i.get("severity") in {"HIGH", "MEDIUM"}])
+    nuclei_high = len([f for f in (nuclei_data or {}).get("findings", []) if f.get("severity") in {"critical", "high"}])
+    sqlmap_hits = len((sqlmap_data or {}).get("findings", []))
+    score = min(100, critical * 22 + high * 10 + nikto_high * 4 + min(25, dir_hits // 3) + hdr_issues * 3 + nuclei_high * 8 + sqlmap_hits * 10)
+    rating = "LOW" if score <= 15 else "MEDIUM" if score <= 35 else "HIGH" if score <= 60 else "CRITICAL"
+    return score, rating, {
+        "critical_cves": critical,
+        "high_cves": high,
+        "nikto_high": nikto_high,
+        "sensitive_paths": dir_hits,
+        "header_issues": hdr_issues,
+        "nuclei_high": nuclei_high,
+        "sqlmap_hits": sqlmap_hits,
+        "total_findings": critical + high + nikto_high + dir_hits + hdr_issues + nuclei_high + sqlmap_hits
+    }
+
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 @app.route("/")
 def index():
@@ -1935,11 +2162,75 @@ def verify_page(token):
     return HTML
 
 
+@app.route("/web-deep", methods=["POST"])
+def web_deep():
+    data = request.get_json() or {}
+    input_url = (data.get("url") or "").strip()
+    profile = (data.get("profile") or "deep").strip().lower()
+    if profile not in {"balanced", "deep", "very_deep"}:
+        profile = "deep"
+    raw_url, base_url, host = _normalize_target_url(input_url)
+    if not host:
+        return jsonify({"error": "Invalid website URL"}), 400
+
+    user = get_current_user()
+    audit(user["id"] if user else None, user["username"] if user else "anon",
+          "WEB_DEEP_AUDIT", target=base_url, ip=request.remote_addr, details=f"profile={profile}")
+
+    network = run_backend("--modules", "ports,ssl,dns,headers", "--nmap-profile", profile, host, timeout=min(TIMEOUT_WEB_DEEP, TIMEOUT_SCAN))
+    dir_enum = run_backend("--dirbust", base_url, "medium", "php,html,js,txt,bak,zip,env,log", timeout=min(TIMEOUT_WEB_DEEP, TIMEOUT_DIRBUST))
+    nikto = _run_nikto_for_webdeep(raw_url)
+    whatweb = _run_whatweb_for_webdeep(raw_url)
+    nuclei = _run_nuclei_for_webdeep(raw_url)
+    sqlmap = _run_sqlmap_for_webdeep(raw_url)
+    headers = ((network.get("modules") or {}).get("headers") or {})
+    score, rating, summary = _rate_web_findings(network, nikto, dir_enum, headers, nuclei_data=nuclei, sqlmap_data=sqlmap)
+
+    response = {
+        "target": base_url,
+        "vulnerability_score": score,
+        "risk_rating": rating,
+        "summary": summary,
+        "tools_required": required_web_tools(),
+        "tools_run": [
+            {"tool": "nmap", "status": "ok" if "error" not in ((network.get("modules") or {}).get("ports") or {}) else "error"},
+            {"tool": "nikto", "status": nikto.get("status", "error")},
+            {"tool": "dirbust", "status": "ok" if "error" not in dir_enum else "error"},
+            {"tool": "dns+headers+ssl", "status": "ok" if "error" not in network else "error"},
+            {"tool": "whatweb", "status": whatweb.get("status", "error")},
+            {"tool": "nuclei", "status": nuclei.get("status", "error")},
+            {"tool": "sqlmap", "status": sqlmap.get("status", "error")},
+        ],
+        "key_findings": [
+            f"Critical CVEs: {summary['critical_cves']}",
+            f"High CVEs: {summary['high_cves']}",
+            f"Nikto high findings: {summary['nikto_high']}",
+            f"Interesting paths discovered: {summary['sensitive_paths']}",
+            f"Header security issues: {summary['header_issues']}",
+            f"Nuclei critical/high findings: {summary['nuclei_high']}",
+            f"Potential SQL injection findings: {summary['sqlmap_hits']}",
+        ],
+        "executive_summary": f"Automated deep web audit completed for {base_url}. Risk rating is {rating} with score {score}/100.",
+        "details": {
+            "network_scan": network,
+            "nikto": nikto,
+            "directory_enum": dir_enum,
+            "whatweb": whatweb,
+            "nuclei": nuclei,
+            "sqlmap": sqlmap,
+        }
+    }
+    return jsonify(response)
+
+
 @app.route("/scan", methods=["GET", "POST"])
 def scan():
     target = (request.args.get("target", "") if request.method == "GET"
               else (request.get_json() or {}).get("target", "")).strip()
     modules = request.args.get("modules", "ports,ssl,dns,headers")
+    profile = request.args.get("profile", "balanced").strip().lower()
+    if profile not in {"fast", "balanced", "deep", "very_deep"}:
+        profile = "balanced"
     if not target:
         return jsonify({"error": "No target specified"}), 400
     if not re.match(r'^[a-zA-Z0-9.\-_:/\[\]]+$', target):
@@ -1950,11 +2241,11 @@ def scan():
     uname = user["username"] if user else "anonymous"
 
     try:
-        data = run_backend("--modules", modules, target, timeout=TIMEOUT_SCAN)
+        data = run_backend("--modules", modules, "--nmap-profile", profile, target, timeout=TIMEOUT_SCAN)
         if "error" not in data:
             data["scan_id"] = save_scan(target, data, user_id=uid, modules=modules)
             audit(uid, uname, "SCAN", target=target, ip=request.remote_addr,
-                  details=f"modules={modules}")
+                  details=f"modules={modules};profile={profile}")
         return jsonify(data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500

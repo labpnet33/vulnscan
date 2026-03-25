@@ -9,6 +9,7 @@ from datetime import datetime
 
 TOR_SOCKS_HOST = "127.0.0.1"
 TOR_SOCKS_PORT = 9050
+NMAP_PROFILES = {"fast", "balanced", "deep", "very_deep"}
 
 def get_tor_opener():
     """
@@ -118,7 +119,86 @@ def _has_proxychains():
     return _shutil.which("proxychains4") or _shutil.which("proxychains") or None
 
 
-def run_nmap_scan(target):
+def _nmap_profile_settings(profile, use_tor):
+    """
+    Return (args, timeout_seconds, label) for a named scan profile.
+    Profiles are tuned differently for Tor/proxychains vs direct mode.
+    """
+    p = (profile or "balanced").strip().lower()
+    if p not in NMAP_PROFILES:
+        p = "balanced"
+
+    if use_tor:
+        # Tor mode: keep intensity moderate to avoid long timeouts.
+        presets = {
+            "fast": (
+                ["-sT", "-Pn", "-n", "--open", "-T2", "--max-retries", "1",
+                 "--host-timeout", "180s", "--top-ports", "100",
+                 "-sV", "--version-intensity", "1"],
+                360,
+                "fast"
+            ),
+            "balanced": (
+                ["-sT", "-Pn", "-n", "--open", "-T2",
+                 "--host-timeout", "300s", "--max-retries", "1",
+                 "--min-rtt-timeout", "500ms", "--max-rtt-timeout", "10000ms",
+                 "--initial-rtt-timeout", "2000ms",
+                 "-sV", "--version-intensity", "2",
+                 "--top-ports", "200"],
+                600,
+                "balanced"
+            ),
+            "deep": (
+                ["-sT", "-Pn", "-n", "--open", "-T2",
+                 "--host-timeout", "420s", "--max-retries", "1",
+                 "-sV", "--version-intensity", "4",
+                 "--top-ports", "1000"],
+                720,
+                "deep"
+            ),
+            "very_deep": (
+                ["-sT", "-Pn", "-n", "--open", "-T2",
+                 "--host-timeout", "600s", "--max-retries", "1",
+                 "-sV", "--version-intensity", "7", "--script", "default,safe",
+                 "-p-"],
+                900,
+                "very_deep (Tor-limited)"
+            ),
+        }
+    else:
+        presets = {
+            "fast": (
+                ["-Pn", "-n", "--open", "-T4", "--max-retries", "1",
+                 "--host-timeout", "90s", "--top-ports", "100"],
+                180,
+                "fast"
+            ),
+            "balanced": (
+                ["-sV", "--version-intensity", "5", "-Pn", "-n", "--open",
+                 "-T4", "--host-timeout", "120s", "--max-retries", "2",
+                 "--top-ports", "1000"],
+                300,
+                "balanced"
+            ),
+            "deep": (
+                ["-sV", "--version-intensity", "7", "-Pn", "-n", "--open",
+                 "-T3", "--host-timeout", "300s", "--max-retries", "2",
+                 "-p-"],
+                480,
+                "deep"
+            ),
+            "very_deep": (
+                ["-sV", "--version-intensity", "9", "-Pn", "-n", "--open",
+                 "-T3", "--host-timeout", "480s", "--max-retries", "2",
+                 "--script", "default,safe", "-p-"],
+                720,
+                "very_deep"
+            ),
+        }
+    return presets[p]
+
+
+def run_nmap_scan(target, profile="balanced"):
     """
     Runs nmap, routing through proxychains/Tor when available.
     Falls back to direct nmap if proxychains is not installed or Tor is not running.
@@ -141,37 +221,16 @@ def run_nmap_scan(target):
         except Exception:
             use_tor = False
 
+    nmap_args, timeout, profile_used = _nmap_profile_settings(profile, use_tor)
+
     if use_tor:
         # TCP connect scan required through proxychains (SYN blocked by SOCKS)
-        cmd = [
-            px, "-q",
-            "nmap", "-sT", "-Pn", "-n", "--open",
-            "-T2",
-            "--host-timeout", "300s",
-            "--max-retries", "1",
-            "--min-rtt-timeout", "500ms",
-            "--max-rtt-timeout", "10000ms",
-            "--initial-rtt-timeout", "2000ms",
-            "-sV", "--version-intensity", "2",
-            "--top-ports", "200",
-            "-oX", "-", target
-        ]
-        timeout = 600
-        print(f"[*] nmap via Tor/proxychains on: {target}", file=sys.stderr)
+        cmd = [px, "-q", "nmap"] + nmap_args + ["-oX", "-", target]
+        print(f"[*] nmap via Tor/proxychains on: {target} (profile={profile_used})", file=sys.stderr)
     else:
-        # Direct scan — faster, more reliable, SYN scan available if root
-        cmd = [
-            "nmap", "-sV", "--version-intensity", "5",
-            "-Pn", "-n", "--open",
-            "-T4",
-            "--host-timeout", "120s",
-            "--max-retries", "2",
-            "--top-ports", "1000",
-            "-oX", "-", target
-        ]
-        timeout = 300
+        cmd = ["nmap"] + nmap_args + ["-oX", "-", target]
         mode_note = "(direct — proxychains/Tor not available)" if px is None else "(direct — Tor not running on port " + str(TOR_SOCKS_PORT) + ")"
-        print(f"[*] nmap direct scan on: {target} {mode_note}", file=sys.stderr)
+        print(f"[*] nmap direct scan on: {target} {mode_note} (profile={profile_used})", file=sys.stderr)
 
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
@@ -185,6 +244,7 @@ def run_nmap_scan(target):
 
         result = parse_nmap_xml(r.stdout)
         result["via_tor"] = use_tor
+        result["scan_profile"] = profile_used
         return result
 
     except subprocess.TimeoutExpired:
@@ -998,7 +1058,7 @@ def calculate_risk(cves, port, service):
 
 
 # ─── FULL SCAN ORCHESTRATOR ───────────────────
-def full_scan(target, modules=None):
+def full_scan(target, modules=None, nmap_profile="balanced"):
     """
     Orchestrates all scan modules.
     CVE lookups are rate-limited more conservatively since Tor exit nodes
@@ -1007,9 +1067,18 @@ def full_scan(target, modules=None):
     if modules is None:
         modules = ["ports", "ssl", "dns", "headers"]
 
-    result = {"target": target, "scan_time": datetime.utcnow().isoformat(), "modules": {}}
+    chosen_profile = (nmap_profile or "balanced").strip().lower()
+    if chosen_profile not in NMAP_PROFILES:
+        chosen_profile = "balanced"
 
-    scan = run_nmap_scan(target)
+    result = {
+        "target": target,
+        "scan_time": datetime.utcnow().isoformat(),
+        "modules": {},
+        "nmap_profile_requested": chosen_profile
+    }
+
+    scan = run_nmap_scan(target, profile=chosen_profile)
     if "error" in scan:
         result["modules"]["ports"] = scan
         result["summary"] = {
@@ -1226,9 +1295,16 @@ if __name__ == "__main__":
         sys.exit(0)
 
     mods = ["ports", "ssl", "dns", "headers"]
+    nmap_profile = "balanced"
     target = sys.argv[-1]
     if "--modules" in sys.argv:
         idx = sys.argv.index("--modules")
         mods = sys.argv[idx + 1].split(",")
+    if "--nmap-profile" in sys.argv:
+        idx = sys.argv.index("--nmap-profile")
+        nmap_profile = sys.argv[idx + 1] if len(sys.argv) > idx + 1 else "balanced"
+    nmap_profile = nmap_profile.strip().lower()
+    if nmap_profile not in NMAP_PROFILES:
+        nmap_profile = "balanced"
 
-    print(json.dumps(full_scan(target, mods)))
+    print(json.dumps(full_scan(target, mods, nmap_profile=nmap_profile)))
