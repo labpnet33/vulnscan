@@ -1123,7 +1123,26 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
             </div>
           </div>
         </div>
-        <div class="tc" id="at-users"><div class="card"><div class="card-header"><div class="card-title">User Management</div></div><div class="card-p" id="admin-users" style="overflow-x:auto"><p style="color:var(--text3)">Loading...</p></div></div></div>
+        <div class="tc" id="at-users">
+          <div class="card" style="margin-bottom:12px">
+            <div class="card-header"><div class="card-title">Create User (Admin)</div></div>
+            <div class="card-p">
+              <div class="profile-grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-bottom:10px">
+                <div class="fg" style="margin:0"><label>FULL NAME</label><input class="inp" id="au-full-name" type="text" placeholder="Jane Doe"/></div>
+                <div class="fg" style="margin:0"><label>USERNAME</label><input class="inp inp-mono" id="au-username" type="text" placeholder="jane.doe"/></div>
+                <div class="fg" style="margin:0"><label>EMAIL</label><input class="inp" id="au-email" type="email" placeholder="jane@example.com"/></div>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <button class="btn btn-primary btn-sm" onclick="adminCreateUser()">Create User & Send Password</button>
+                <div id="admin-create-user-msg" class="auth-msg" style="margin:0"></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">User Management</div></div>
+            <div class="card-p" id="admin-users-table" style="overflow-x:auto"><p style="color:var(--text3)">Loading...</p></div>
+          </div>
+        </div>
         <div class="tc" id="at-stats"><div class="card"><div class="card-header"><div class="card-title">Platform Statistics</div></div><div class="card-p" id="admin-stats"></div></div></div>
         <div class="tc" id="at-audit"><div class="card"><div class="card-header"><div class="card-title">Audit Log</div></div><div class="card-p" id="admin-audit" style="overflow-x:auto"></div></div></div>
         <div class="tc" id="at-scans"><div class="card"><div class="card-header"><div class="card-title">All Scans</div></div><div class="card-p" id="admin-scans" style="overflow-x:auto"></div></div></div>
@@ -1740,7 +1759,30 @@ async function loadServerStats(){
   if(!window._statsInterval)window._statsInterval=setInterval(function(){var cp=document.getElementById('at-cli');if(cp&&cp.classList.contains('active'))loadServerStats();else{clearInterval(window._statsInterval);window._statsInterval=null;}},3000);
 }
 async function loadAdminUsers(){
-  try{var r=await fetch('/api/admin/users');var d=await r.json();document.getElementById('admin-users').innerHTML='<table class="tbl"><thead><tr><th>#</th><th>USERNAME</th><th>EMAIL</th><th>ROLE</th><th>ACTIVE</th><th>LOGINS</th><th>LAST LOGIN</th><th>ACTIONS</th></tr></thead><tbody>'+d.map(function(u){return'<tr><td style="color:var(--text3)">#'+u.id+'</td><td style="font-family:var(--mono)">'+u.username+'</td><td style="font-size:11px;color:var(--text3)">'+u.email+'</td><td><span class="badge '+(u.role==='admin'?'badge-admin':'badge-user')+'">'+u.role+'</span></td><td style="color:'+(u.is_active?'var(--green)':'var(--red)')+'">'+( u.is_active?'Active':'Disabled')+'</td><td style="color:var(--text3)">'+(u.login_count||0)+'</td><td style="font-size:11px;color:var(--text3)">'+((u.last_login||'never').substring(0,16))+'</td><td style="display:flex;gap:4px;flex-wrap:wrap"><button class="btn btn-outline btn-sm" onclick="toggleUser('+u.id+')">'+(u.is_active?'Disable':'Enable')+'</button><button class="btn btn-outline btn-sm" onclick="setRole('+u.id+',\''+(u.role==='admin'?'user':'admin')+'\')">'+(u.role==='admin'?'User':'Admin')+'</button><button class="btn btn-danger btn-sm" onclick="deleteUser('+u.id+')">Del</button></td></tr>';}).join('')+'</tbody></table>';}catch(e){}
+  try{var r=await fetch('/api/admin/users');var d=await r.json();document.getElementById('admin-users-table').innerHTML='<table class="tbl"><thead><tr><th>#</th><th>USERNAME</th><th>EMAIL</th><th>ROLE</th><th>ACTIVE</th><th>LOGINS</th><th>LAST LOGIN</th><th>ACTIONS</th></tr></thead><tbody>'+d.map(function(u){return'<tr><td style="color:var(--text3)">#'+u.id+'</td><td style="font-family:var(--mono)">'+u.username+'</td><td style="font-size:11px;color:var(--text3)">'+u.email+'</td><td><span class="badge '+(u.role==='admin'?'badge-admin':'badge-user')+'">'+u.role+'</span></td><td style="color:'+(u.is_active?'var(--green)':'var(--red)')+'">'+( u.is_active?'Active':'Disabled')+'</td><td style="color:var(--text3)">'+(u.login_count||0)+'</td><td style="font-size:11px;color:var(--text3)">'+((u.last_login||'never').substring(0,16))+'</td><td style="display:flex;gap:4px;flex-wrap:wrap"><button class="btn btn-outline btn-sm" onclick="toggleUser('+u.id+')">'+(u.is_active?'Disable':'Enable')+'</button><button class="btn btn-outline btn-sm" onclick="setRole('+u.id+',\''+(u.role==='admin'?'user':'admin')+'\')">'+(u.role==='admin'?'User':'Admin')+'</button><button class="btn btn-danger btn-sm" onclick="deleteUser('+u.id+')">Del</button></td></tr>';}).join('')+'</tbody></table>';}catch(e){}
+}
+async function adminCreateUser(){
+  var fullName=(document.getElementById('au-full-name')||{}).value||'';
+  var username=(document.getElementById('au-username')||{}).value||'';
+  var email=(document.getElementById('au-email')||{}).value||'';
+  var msg=document.getElementById('admin-create-user-msg');
+  if(msg){msg.className='auth-msg';msg.textContent='';}
+  try{
+    var r=await fetch('/api/admin/users/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({full_name:fullName,username:username,email:email})});
+    var d=await r.json();
+    if(msg){
+      msg.className='auth-msg '+(d.success?'ok':'err');
+      msg.textContent=d.message||d.error||'Request completed.';
+    }
+    if(d.success){
+      document.getElementById('au-full-name').value='';
+      document.getElementById('au-username').value='';
+      document.getElementById('au-email').value='';
+      loadAdminUsers();
+    }
+  }catch(e){
+    if(msg){msg.className='auth-msg err';msg.textContent='Failed to create user: '+e.message;}
+  }
 }
 async function toggleUser(id){await fetch('/api/admin/users/'+id+'/toggle',{method:'POST'});loadAdminUsers();}
 async function setRole(id,role){await fetch('/api/admin/users/'+id+'/role',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role:role})});loadAdminUsers();}
