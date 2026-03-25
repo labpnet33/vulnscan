@@ -125,7 +125,7 @@ def _nmap_profile_settings(profile, use_tor):
     Profiles are tuned differently for Tor/proxychains vs direct mode.
     """
     p = (profile or "balanced").strip().lower()
-    if p not in NMAP_PROFILES:
+    if p not in {"fast", "balanced", "deep", "very_deep"}:
         p = "balanced"
 
     if use_tor:
@@ -1071,14 +1071,7 @@ def full_scan(target, modules=None, nmap_profile="balanced"):
     if chosen_profile not in NMAP_PROFILES:
         chosen_profile = "balanced"
 
-    result = {
-        "target": target,
-        "scan_time": datetime.utcnow().isoformat(),
-        "modules": {},
-        "nmap_profile_requested": chosen_profile
-    }
-
-    scan = run_nmap_scan(target, profile=chosen_profile)
+    scan = run_nmap_scan(target, profile=nmap_profile)
     if "error" in scan:
         result["modules"]["ports"] = scan
         result["summary"] = {
@@ -1303,8 +1296,5 @@ if __name__ == "__main__":
     if "--nmap-profile" in sys.argv:
         idx = sys.argv.index("--nmap-profile")
         nmap_profile = sys.argv[idx + 1] if len(sys.argv) > idx + 1 else "balanced"
-    nmap_profile = nmap_profile.strip().lower()
-    if nmap_profile not in NMAP_PROFILES:
-        nmap_profile = "balanced"
 
     print(json.dumps(full_scan(target, mods, nmap_profile=nmap_profile)))
