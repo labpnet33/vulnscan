@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -lt 2 ]]; then
-  echo "Usage: $0 <api_base> <client_id> [token]"
+if [[ $# -lt 1 ]]; then
+  echo "Usage: $0 <client_id> [token] [api_base]"
   exit 1
 fi
 
-API_BASE="$1"
-CLIENT_ID="$2"
-TOKEN="${3:-}"
+CLIENT_ID="$1"
+TOKEN="${2:-}"
+API_BASE="${3:-http://161.118.189.254:5000}"
 AGENT_DIR="/opt/vulnscan-agent"
 SERVICE_FILE="/etc/systemd/system/vulnscan-lynis-agent.service"
+
+echo "[*] Checking connection to $API_BASE ..."
+curl -fsS "$API_BASE/health" >/dev/null
+echo "[+] Connection established."
 
 sudo mkdir -p "$AGENT_DIR"
 sudo cp "$(dirname "$0")/lynis_pull_agent.py" "$AGENT_DIR/lynis_pull_agent.py"

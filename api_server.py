@@ -14,7 +14,7 @@ PROXYCHAINS CONFIG (/etc/proxychains4.conf or /etc/proxychains.conf):
 """
 import json, re, sys, os, subprocess, io, sqlite3, secrets, hashlib, threading
 from urllib.parse import urlparse
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, Response, send_file, send_from_directory
 from flask_cors import CORS
 from datetime import datetime, timedelta, timezone
 
@@ -54,6 +54,7 @@ TIMEOUT_WEB_DEEP   = 1800  # 30 min
 
 AGENT_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_jobs.db")
 AGENT_LOCK = threading.Lock()
+AGENT_SERVER_URL = os.environ.get("VULNSCAN_AGENT_SERVER_URL", "http://161.118.189.254:5000")
 
 
 def _agent_db():
@@ -1002,6 +1003,21 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
         <div class="page-hd"><div class="page-title">Lynis</div><div class="page-desc">Local system security audit</div></div>
         <div class="notice">&#9432; Leave <strong>Agent Client ID</strong> empty to scan this server, or set it to run Lynis on a remote Linux machine with the pull-agent.</div>
         <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg" style="margin-bottom:10px">
+            <label>ONE-LINE AGENT INSTALL (Linux)</label>
+            <div class="scan-bar">
+              <input class="inp inp-mono" id="ly-install-cmd" type="text" readonly value="curl -fsSL http://161.118.189.254:5000/agent/install.sh | bash -s -- my-client-id"/>
+              <button class="btn btn-outline btn-sm" onclick="copyLynisInstallCmd()">COPY</button>
+            </div>
+          </div>
+          <div class="card card-p" style="border:1px dashed var(--border2);margin-bottom:12px">
+            <div class="card-title" style="margin-bottom:8px">Connected Agent Systems</div>
+            <div id="ly-agents" style="color:var(--text3);font-size:12px">Loading agents...</div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>AGENT CLIENT ID (optional)</label><input class="inp inp-mono" id="ly-client-id" type="text" placeholder="e.g. acme-laptop-01"/></div>
+            <div class="fg"><label>MODE</label><select class="inp inp-mono" id="ly-mode"><option value="auto">Auto (remote if client id provided)</option><option value="local">Local only</option><option value="remote">Remote only</option></select></div>
+          </div>
           <div class="row2" style="margin-bottom:12px">
             <div class="fg"><label>AGENT CLIENT ID (optional)</label><input class="inp inp-mono" id="ly-client-id" type="text" placeholder="e.g. acme-laptop-01"/></div>
             <div class="fg"><label>MODE</label><select class="inp inp-mono" id="ly-mode"><option value="auto">Auto (remote if client id provided)</option><option value="local">Local only</option><option value="remote">Remote only</option></select></div>
@@ -1363,6 +1379,7 @@ function pg(id,el){
   if(id==='home'){setTimeout(loadHomeStats,80);if(currentUser)vsGreetUser(currentUser.username);}
   if(id==='profile'&&currentUser)loadProfileInfo(currentUser);
   if(id==='brute')setTimeout(bfAutoLoad,300);
+  if(id==='lynis'){loadLynisAgents();startLynisAgentWatcher();}
 }
 
 /* ==== AUTH ==== */
@@ -1754,6 +1771,41 @@ function renderWPScan(d){
 }
 
 /* ==== LYNIS ==== */
+var _lyAgentTimer=null;
+function copyLynisInstallCmd(){
+  var el=document.getElementById('ly-install-cmd');
+  if(!el)return;
+  el.select();el.setSelectionRange(0,99999);
+  try{document.execCommand('copy');}catch(e){}
+}
+async function loadLynisAgents(){
+  var box=document.getElementById('ly-agents');if(!box)return;
+  try{
+    var r=await fetchWithTimeout('/api/agents',{},15000,'ly');
+    var d=await r.json();var agents=d.agents||[];
+    if(!agents.length){box.innerHTML='<div style="color:var(--text3)">No agent connected yet. Install with the command above.</div>';return;}
+    var html='<div style="display:flex;flex-direction:column;gap:6px">';
+    agents.forEach(function(a){
+      var st=(a.status||'unknown').toLowerCase();var col=st==='online'?'var(--green)':'var(--orange)';
+      html+='<div class="card-p" style="border:1px solid var(--border);border-radius:8px;cursor:pointer" onclick="pickLynisAgent(\''+a.client_id+'\')"><div style="display:flex;justify-content:space-between;gap:8px"><div><strong>'+a.client_id+'</strong><div style="font-size:11px;color:var(--text3)">'+(a.hostname||'')+' · '+(a.os_info||'')+'</div></div><div style="font-size:11px;color:'+col+'">'+st.toUpperCase()+'</div></div><div style="font-size:10px;color:var(--text3);margin-top:4px">Last seen: '+(a.last_seen||'--')+' · IP: '+(a.ip_seen||'--')+'</div></div>';
+    });
+    html+='</div><div style="font-size:11px;color:var(--green);margin-top:8px">&#10003; New system detected items appear here automatically.</div>';
+    box.innerHTML=html;
+  }catch(e){
+    box.innerHTML='<div class="err-box visible">Failed to load agents: '+e.message+'</div>';
+  }
+}
+function pickLynisAgent(clientId){
+  var inp=document.getElementById('ly-client-id');if(inp)inp.value=clientId;
+  var mode=document.getElementById('ly-mode');if(mode&&mode.value!=='local')mode.value='remote';
+}
+function startLynisAgentWatcher(){
+  if(_lyAgentTimer)clearInterval(_lyAgentTimer);
+  _lyAgentTimer=setInterval(function(){
+    var page=document.getElementById('page-lynis');
+    if(page&&page.classList.contains('active'))loadLynisAgents();
+  },10000);
+}
 async function doLynis(){
   var profile=document.getElementById('ly-profile').value;var category=document.getElementById('ly-category').value;var compliance=document.getElementById('ly-compliance').value;
   var clientId=document.getElementById('ly-client-id').value.trim();var mode=document.getElementById('ly-mode').value;
@@ -1798,6 +1850,7 @@ function renderLynis(d){
   var w=d.warnings||[],sg=d.suggestions||[],sc=d.hardening_index||0;
   var sc_col=sc>=80?'var(--green)':sc>=60?'var(--yellow)':sc>=40?'var(--orange)':'var(--red)';
   var html='<div class="stats" style="margin-bottom:14px"><div class="stat"><div class="stat-val" style="color:'+sc_col+'">'+sc+'</div><div class="stat-lbl">HARDENING INDEX</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">'+w.length+'</div><div class="stat-lbl">WARNINGS</div></div><div class="stat"><div class="stat-val" style="color:var(--yellow)">'+sg.length+'</div><div class="stat-lbl">SUGGESTIONS</div></div><div class="stat"><div class="stat-val">'+(d.tests_performed||'--')+'</div><div class="stat-lbl">TESTS</div></div></div>';
+  if(d.job_id)html+='<div style="margin-bottom:10px"><a class="btn btn-outline btn-sm" href="/api/job-report/'+d.job_id+'.txt" target="_blank">DOWNLOAD RAW REPORT</a> <span style="font-size:11px;color:var(--text3);margin-left:6px">Job #'+d.job_id+'</span></div>';
   if(w.length)html+='<div class="card card-p" style="margin-bottom:8px"><div class="card-title" style="margin-bottom:8px;color:var(--red)">Warnings</div>'+w.map(function(x){return'<div style="border-bottom:1px solid var(--border);padding:7px 0;font-family:var(--mono);font-size:11px;color:var(--orange)">'+x+'</div>';}).join('')+'</div>';
   if(sg.length)html+='<div class="card card-p"><div class="card-title" style="margin-bottom:8px">Suggestions ('+sg.length+')</div>'+sg.slice(0,30).map(function(x){return'<div style="border-bottom:1px solid var(--border);padding:6px 0;font-family:var(--mono);font-size:11px;color:var(--text2)">&#8250; '+x+'</div>';}).join('')+(sg.length>30?'<div style="color:var(--text3);font-size:11px;padding-top:8px">...and '+(sg.length-30)+' more</div>':'')+'</div>';
   lyTool.res(html);
@@ -3239,6 +3292,64 @@ def job_status(job_id):
         "started_at": row["started_at"],
         "completed_at": row["completed_at"],
     })
+
+
+@app.route("/api/agents", methods=["GET"])
+def list_agents():
+    with AGENT_LOCK:
+        con = _agent_db()
+        rows = con.execute("""
+            SELECT client_id, hostname, os_info, ip_seen, created_at, last_seen, status
+            FROM agent_clients ORDER BY datetime(last_seen) DESC
+        """).fetchall()
+        con.close()
+    return jsonify({"agents": [dict(r) for r in rows]})
+
+
+@app.route("/api/job-report/<int:job_id>.txt", methods=["GET"])
+def download_job_report(job_id):
+    with AGENT_LOCK:
+        con = _agent_db()
+        row = con.execute("SELECT raw_report FROM lynis_jobs WHERE id=?", (job_id,)).fetchone()
+        con.close()
+    if not row:
+        return jsonify({"error": "Job not found"}), 404
+    report = row["raw_report"] or "No report content."
+    buf = io.BytesIO(report.encode("utf-8", errors="ignore"))
+    return send_file(buf, as_attachment=True, download_name=f"lynis-job-{job_id}.txt", mimetype="text/plain")
+
+
+@app.route("/agent/install.sh", methods=["GET"])
+def agent_install_script():
+    script = f"""#!/usr/bin/env bash
+set -euo pipefail
+SERVER_URL="${{SERVER_URL:-{AGENT_SERVER_URL}}}"
+if [[ $# -lt 1 ]]; then
+  echo "Usage: bash install.sh <client_id> [token]"
+  exit 1
+fi
+CLIENT_ID="$1"
+TOKEN="${{2:-}}"
+echo "[*] Checking server connectivity: $SERVER_URL"
+curl -fsS "$SERVER_URL/health" >/dev/null
+echo "[+] Connected to VulnScan server"
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+curl -fsSL "$SERVER_URL/agent/lynis_pull_agent.py" -o "$TMP_DIR/lynis_pull_agent.py"
+curl -fsSL "$SERVER_URL/agent/install_agent.sh" -o "$TMP_DIR/install_agent.sh"
+chmod +x "$TMP_DIR/install_agent.sh" "$TMP_DIR/lynis_pull_agent.py"
+bash "$TMP_DIR/install_agent.sh" "$CLIENT_ID" "$TOKEN" "$SERVER_URL"
+echo "[+] Agent installed. Refresh Lynis dashboard: new system should appear shortly."
+"""
+    return Response(script, mimetype="text/x-shellscript")
+
+
+@app.route("/agent/<path:filename>", methods=["GET"])
+def agent_file(filename):
+    agent_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent")
+    if filename not in {"install_agent.sh", "lynis_pull_agent.py"}:
+        return jsonify({"error": "Not found"}), 404
+    return send_from_directory(agent_dir, filename, as_attachment=False)
 
 
 # ── Legion route ──────────────────────────────────────────────────────────────

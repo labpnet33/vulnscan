@@ -102,8 +102,7 @@ def main():
         token = reg["token"]
         print(f"[+] Registered agent {args.client_id}")
         print(f"[+] Save token securely: {token}")
-        print("[+] Re-run with --token to avoid rotating token each start.")
-        return
+        print("[+] Continuing in connected mode with generated token.")
 
     print(f"[*] Agent started for {args.client_id}, polling every {args.interval}s")
     while True:
