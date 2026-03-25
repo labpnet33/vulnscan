@@ -3182,9 +3182,7 @@ def web_deep_stream():
     raw_url, base_url, host = _normalize_target_url(input_url)
     if not host:
         def _err():
-            yield 'data: ' + json.dumps({"pct":0,"done":True,"error":"Invalid URL"}) + '
-
-'
+            yield 'data: ' + json.dumps({"pct":0,"done":True,"error":"Invalid URL"}) + '\n\n'
         return Response(_err(), mimetype="text/event-stream")
 
     user = get_current_user()
@@ -3363,16 +3361,12 @@ def web_deep_stream():
         while True:
             try:
                 msg = q.get(timeout=1800)
-                yield "data: " + json.dumps(msg) + "
-
-"
+                yield "data: " + json.dumps(msg) + "\n\n"
                 if msg.get("done"):
                     break
             except Exception:
                 yield 'data: ' + json.dumps({"pct":100,"done":True,
-                                              "error":"Stream timeout"}) + "
-
-"
+                                              "error":"Stream timeout"}) + "\n\n"
                 break
 
     return Response(_stream(), mimetype="text/event-stream",
