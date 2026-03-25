@@ -1168,20 +1168,6 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
           </div>
         </div>
         <div class="tc" id="at-users">
-          <div class="card" style="margin-bottom:12px">
-            <div class="card-header"><div class="card-title">Create User (Admin)</div></div>
-            <div class="card-p">
-              <div class="profile-grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-bottom:10px">
-                <div class="fg" style="margin:0"><label>FULL NAME</label><input class="inp" id="au-full-name" type="text" placeholder="Jane Doe"/></div>
-                <div class="fg" style="margin:0"><label>USERNAME</label><input class="inp inp-mono" id="au-username" type="text" placeholder="jane.doe"/></div>
-                <div class="fg" style="margin:0"><label>EMAIL</label><input class="inp" id="au-email" type="email" placeholder="jane@example.com"/></div>
-              </div>
-              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                <button class="btn btn-primary btn-sm" onclick="adminCreateUser()">Create User & Send Password</button>
-                <div id="admin-create-user-msg" class="auth-msg" style="margin:0"></div>
-              </div>
-            </div>
-          </div>
           <div class="card">
             <div class="card-header"><div class="card-title">User Management</div></div>
             <div class="card-p" id="admin-users-table" style="overflow-x:auto"><p style="color:var(--text3)">Loading...</p></div>
