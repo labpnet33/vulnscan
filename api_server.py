@@ -1190,6 +1190,18 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
         <div class="terminal" id="set-term"></div>
         <div class="err-box" id="set-err"></div>
         <div id="set-res"></div>
+        <div class="page-hd"><div class="page-title">Social-Engineer Toolkit (SET)</div><div class="page-desc">Interactive social engineering simulation framework</div></div>
+        <div class="notice">&#9888; Use only for internal awareness assessments with written authorization. Never use for unauthorized phishing or payload delivery.</div>
+        <div class="card card-p" style="margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:8px">Recommended Use Cases</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.8">Email phishing simulations, clone-page credential capture in controlled labs, and awareness testing with approved target lists.</div>
+          <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px"><span class="tag">spear-phishing</span><span class="tag">web templates</span><span class="tag">payload generation</span></div>
+        </div>
+        <div class="card card-p">
+          <div class="card-title" style="margin-bottom:8px">Quick Commands (Linux)</div>
+          <div style="font-family:var(--mono);font-size:11px;line-height:1.8;color:var(--text2)">sudo apt install set<br/>sudo setoolkit</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:10px">Workflow: Social-Engineering Attacks &rarr; Spear-Phishing &rarr; Select payload/template &rarr; send only to approved recipients.</div>
+        </div>
       </div>
 
       <!-- GOPHISH -->
@@ -1208,6 +1220,18 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
         <div class="terminal" id="gp-term"></div>
         <div class="err-box" id="gp-err"></div>
         <div id="gp-res"></div>
+        <div class="page-hd"><div class="page-title">Gophish</div><div class="page-desc">Phishing campaign platform for security awareness programs</div></div>
+        <div class="notice">&#9888; Restrict campaigns to consented users and approved domains. Keep credentials disabled or safely sandboxed.</div>
+        <div class="card card-p" style="margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:8px">What Gophish Is Best For</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.8">Building email templates, importing user groups, launching controlled campaigns, and tracking opens/clicks/reporting rates.</div>
+          <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px"><span class="tag">campaigns</span><span class="tag">templates</span><span class="tag">metrics</span></div>
+        </div>
+        <div class="card card-p">
+          <div class="card-title" style="margin-bottom:8px">Quick Commands (Linux)</div>
+          <div style="font-family:var(--mono);font-size:11px;line-height:1.8;color:var(--text2)">wget https://github.com/gophish/gophish/releases/latest<br/># Download the latest Linux 64-bit release asset from that page<br/>unzip gophish-*.zip -d gophish &amp;&amp; cd gophish &amp;&amp; ./gophish</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:10px">By default, the admin UI starts on port 3333 and the phishing listener on port 80. Configure sending profiles before launching any campaign.</div>
+        </div>
       </div>
 
       <!-- EVILGINX2 -->
@@ -1226,6 +1250,18 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
         <div class="terminal" id="eg-term"></div>
         <div class="err-box" id="eg-err"></div>
         <div id="eg-res"></div>
+        <div class="page-hd"><div class="page-title">Evilginx2</div><div class="page-desc">Reverse proxy phishing simulation for advanced red-team exercises</div></div>
+        <div class="notice">&#9888; High-risk tool. Use only in a legal red-team scope with explicit authorization and blue-team coordination.</div>
+        <div class="card card-p" style="margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:8px">Use It For</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.8">Testing MFA-aware phishing resilience in controlled engagements, validating detection controls, and training incident response teams.</div>
+          <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px"><span class="tag">reverse-proxy</span><span class="tag">MFA testing</span><span class="tag">red team</span></div>
+        </div>
+        <div class="card card-p">
+          <div class="card-title" style="margin-bottom:8px">Quick Commands (Linux)</div>
+          <div style="font-family:var(--mono);font-size:11px;line-height:1.8;color:var(--text2)">sudo apt install evilginx2<br/>sudo evilginx</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:10px">Typical workflow: configure domain and DNS, load phishlet, configure lure URL, run only during approved testing window.</div>
+        </div>
       </div>
 
       <!-- SHELLPHISH -->
@@ -1244,6 +1280,18 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
         <div class="terminal" id="sp-term"></div>
         <div class="err-box" id="sp-err"></div>
         <div id="sp-res"></div>
+        <div class="page-hd"><div class="page-title">ShellPhish</div><div class="page-desc">Template-based phishing simulation launcher</div></div>
+        <div class="notice">&#9888; Use only on authorized targets in isolated labs. This tool is commonly abused in the wild.</div>
+        <div class="card card-p" style="margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:8px">Common Lab Workflows</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.8">Spin up prebuilt phishing templates for awareness demos, observe user behavior, and validate endpoint/browser protections in non-production environments.</div>
+          <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px"><span class="tag">templates</span><span class="tag">tunnels</span><span class="tag">training labs</span></div>
+        </div>
+        <div class="card card-p">
+          <div class="card-title" style="margin-bottom:8px">Quick Commands (Linux)</div>
+          <div style="font-family:var(--mono);font-size:11px;line-height:1.8;color:var(--text2)">sudo apt install git php curl -y<br/>git clone https://github.com/thelinuxchoice/shellphish.git<br/>cd shellphish &amp;&amp; bash shellphish.sh</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:10px">Use local tunnel options (localhost.run/ngrok) only for authorized simulations and teardown infrastructure immediately after testing.</div>
+        </div>
       </div>
 
       <!-- NETWORK DISCOVERY -->
