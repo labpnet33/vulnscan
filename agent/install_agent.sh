@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -lt 1 ]]; then
-  echo "Usage: $0 <client_id> [token] [api_base]"
-  exit 1
-fi
-
-CLIENT_ID="$1"
+CLIENT_ID="${1:-}"
 TOKEN="${2:-}"
 API_BASE="${3:-http://161.118.189.254:5000}"
+if [[ -z "$CLIENT_ID" ]]; then
+  base_host="$(hostname -s 2>/dev/null || echo linux-client)"
+  rand_part="$(tr -dc 'a-z0-9' </dev/urandom | head -c 8 || true)"
+  if [[ -z "$rand_part" ]]; then rand_part="$(date +%s)"; fi
+  CLIENT_ID="${base_host}-${rand_part}"
+  echo "[*] No client id supplied. Generated: $CLIENT_ID"
+fi
 AGENT_DIR="/opt/vulnscan-agent"
 SERVICE_FILE="/etc/systemd/system/vulnscan-lynis-agent.service"
 
