@@ -109,30 +109,8 @@ def run_job(job, api_base, token):
             cmd += ["--compliance", str(job["compliance"]).lower()]
         http_json(f"{api_base}/api/jobs/{job_id}/progress", method="POST",
                   payload={"progress_pct": 40, "message": "Lynis running"}, token=token)
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        cancelled = False
-        while True:
-            if proc.poll() is not None:
-                break
-            try:
-                ctl = http_json(f"{api_base}/api/jobs/{job_id}/control", token=token)
-                if ctl.get("cancel_requested"):
-                    cancelled = True
-                    proc.terminate()
-                    try:
-                        proc.wait(timeout=15)
-                    except subprocess.TimeoutExpired:
-                        proc.kill()
-                    break
-            except Exception:
-                pass
-            time.sleep(2)
-        try:
-            stdout_data, stderr_data = proc.communicate(timeout=20)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            stdout_data, stderr_data = proc.communicate()
-        out = (stdout_data or "") + "\n" + (stderr_data or "")
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=420)
+        out = (proc.stdout or "") + "\n" + (proc.stderr or "")
         parsed = parse_lynis_output(out)
         report_dat_content = ""
         if os.path.exists(report_file):
@@ -150,9 +128,6 @@ def run_job(job, api_base, token):
         if report_dat_content:
             out += "\n\n# lynis-report.dat\n" + report_dat_content
         parsed["raw_report"] = out[-200000:]
-    if cancelled:
-        parsed["status"] = "cancelled"
-        parsed["message"] = "Cancelled by dashboard user"
     http_json(f"{api_base}/api/upload", method="POST", payload={"job_id": job_id, **parsed}, token=token)
 
 

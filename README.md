@@ -167,9 +167,8 @@ curl -fsSL http://161.118.189.254:5000/agent/install.sh | bash -s -- my-client-i
 4. Select profile/compliance/category.
 5. Click **RUN LYNIS AUDIT**.
 6. Watch live status/progress in the Lynis terminal/progress bar.
-7. Use **Lynis Job Queue** to monitor pending/running/completed jobs, cancel active jobs, view per-job report summaries, and remove old jobs.
-8. If you disconnect an agent from dashboard, it is removed and must be reconnected by running the installer command again on that client host.
-9. After completion, use **DOWNLOAD RAW REPORT** to download full audit output from the server.
+7. Use **Lynis Job Queue** to monitor pending/running/completed jobs and cancel active jobs.
+8. After completion, use **DOWNLOAD RAW REPORT** to download full audit output from the server.
 
 The first registered account is automatically granted **admin** role.
 
