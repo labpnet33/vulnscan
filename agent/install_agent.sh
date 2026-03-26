@@ -23,9 +23,40 @@ sudo cp "$(dirname "$0")/lynis_pull_agent.py" "$AGENT_DIR/lynis_pull_agent.py"
 sudo chmod +x "$AGENT_DIR/lynis_pull_agent.py"
 
 EXTRA=""
-if [[ -n "$TOKEN" ]]; then
-  EXTRA="--token $TOKEN"
+if [[ -z "$TOKEN" ]]; then
+  echo "[*] No token supplied, registering agent with server..."
+  reg_json="$(python3 - <<PY
+import json, platform, socket, urllib.request
+api_base = ${API_BASE@Q}
+client_id = ${CLIENT_ID@Q}
+payload = json.dumps({
+    "client_id": client_id,
+    "hostname": socket.gethostname(),
+    "os_info": f"{platform.system()} {platform.release()}",
+}).encode("utf-8")
+req = urllib.request.Request(
+    f"{api_base.rstrip('/')}/api/agent/register",
+    data=payload,
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+with urllib.request.urlopen(req, timeout=30) as resp:
+    print(resp.read().decode("utf-8"))
+PY
+)" || true
+  if [[ -z "$reg_json" ]]; then
+    echo "[x] Agent registration failed: empty response from server"
+    exit 1
+  fi
+  TOKEN="$(printf '%s' "$reg_json" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("token","")).strip())' 2>/dev/null || true)"
+  if [[ -z "$TOKEN" ]]; then
+    echo "[x] Agent registration failed: token missing in response"
+    echo "[!] Raw response: $reg_json"
+    exit 1
+  fi
+  echo "[+] Agent registered successfully."
 fi
+EXTRA="--token $TOKEN"
 
 sudo tee "$SERVICE_FILE" >/dev/null <<EOF
 [Unit]

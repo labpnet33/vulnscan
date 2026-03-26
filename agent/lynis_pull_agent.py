@@ -29,6 +29,15 @@ def http_json(url, method="GET", payload=None, token=""):
         return json.loads(resp.read().decode("utf-8"))
 
 
+def server_reachable(api_base, timeout=10):
+    try:
+        req = urllib.request.Request(f"{api_base.rstrip('/')}/health", method="GET")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return 200 <= getattr(resp, "status", 200) < 500
+    except Exception:
+        return False
+
+
 def ensure_lynis():
     if shutil.which("lynis"):
         return True
@@ -153,8 +162,21 @@ def main():
         print("[+] Continuing in connected mode with generated token.")
 
     print(f"[*] Agent started for {args.client_id}, polling every {args.interval}s")
+    was_connected = None
     while True:
         try:
+            connected = server_reachable(api_base)
+            if was_connected is None:
+                print("[+] Server connection: online" if connected else "[!] Server connection: offline (will retry)")
+            elif connected and was_connected is False:
+                print("[+] Server connection restored")
+            elif (not connected) and was_connected is True:
+                print("[!] Lost connection to server, retrying...")
+            was_connected = connected
+            if not connected:
+                time.sleep(max(10, args.interval))
+                continue
+
             job = http_json(f"{api_base}/api/jobs", token=token)
             if job.get("type") == "lynis" and job.get("job_id"):
                 print(f"[*] Running Lynis job #{job['job_id']}")
@@ -162,6 +184,10 @@ def main():
                 print(f"[+] Job #{job['job_id']} completed")
         except urllib.error.HTTPError as e:
             print(f"[!] HTTP error: {e.code} {e.reason}")
+            if e.code in (401, 403):
+                print("[!] Agent token is no longer valid (likely disconnected from dashboard).")
+                print("[!] Re-run the install curl command to reconnect this system.")
+                break
         except Exception as e:
             print(f"[!] Agent loop error: {e}")
         time.sleep(max(10, args.interval))
