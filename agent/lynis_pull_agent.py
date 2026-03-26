@@ -162,6 +162,10 @@ def main():
                 print(f"[+] Job #{job['job_id']} completed")
         except urllib.error.HTTPError as e:
             print(f"[!] HTTP error: {e.code} {e.reason}")
+            if e.code in (401, 403):
+                print("[!] Agent token is no longer valid (likely disconnected from dashboard).")
+                print("[!] Re-run the install curl command to reconnect this system.")
+                break
         except Exception as e:
             print(f"[!] Agent loop error: {e}")
         time.sleep(max(10, args.interval))
