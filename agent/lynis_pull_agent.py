@@ -29,6 +29,15 @@ def http_json(url, method="GET", payload=None, token=""):
         return json.loads(resp.read().decode("utf-8"))
 
 
+def server_reachable(api_base, timeout=10):
+    try:
+        req = urllib.request.Request(f"{api_base.rstrip('/')}/health", method="GET")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return 200 <= getattr(resp, "status", 200) < 500
+    except Exception:
+        return False
+
+
 def ensure_lynis():
     if shutil.which("lynis"):
         return True
@@ -94,6 +103,9 @@ def parse_lynis_report_dat(content):
 
 def run_job(job, api_base, token):
     job_id = job["job_id"]
+    profile = (job.get("profile") or "system").strip().lower()
+    category = (job.get("category") or "").strip()
+    compliance = (job.get("compliance") or "").strip()
     http_json(f"{api_base}/api/jobs/{job_id}/progress", method="POST",
               payload={"progress_pct": 10, "message": "Preparing Lynis"}, token=token)
     if not ensure_lynis():
@@ -105,10 +117,16 @@ def run_job(job, api_base, token):
             "lynis", "audit", "system", "--quiet", "--no-colors", "--noplugins",
             "--report-file", report_file, "--logfile", log_file
         ]
-        if job.get("compliance"):
-            cmd += ["--compliance", str(job["compliance"]).lower()]
+        if compliance:
+            cmd += ["--compliance", compliance.lower()]
+        if category:
+            cmd += ["--tests-category", category.lower()]
+        if profile == "quick":
+            cmd += ["--quick"]
+        elif profile == "forensics":
+            cmd += ["--forensics"]
         http_json(f"{api_base}/api/jobs/{job_id}/progress", method="POST",
-                  payload={"progress_pct": 40, "message": "Lynis running"}, token=token)
+                  payload={"progress_pct": 40, "message": f"Lynis running (profile={profile}{', category='+category if category else ''}{', compliance='+compliance if compliance else ''})"}, token=token)
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=420)
         out = (proc.stdout or "") + "\n" + (proc.stderr or "")
         parsed = parse_lynis_output(out)
@@ -128,7 +146,11 @@ def run_job(job, api_base, token):
         if report_dat_content:
             out += "\n\n# lynis-report.dat\n" + report_dat_content
         parsed["raw_report"] = out[-200000:]
-    http_json(f"{api_base}/api/upload", method="POST", payload={"job_id": job_id, **parsed}, token=token)
+    http_json(f"{api_base}/api/upload", method="POST", payload={
+        "job_id": job_id,
+        "message": f"Completed (profile={profile}{', category='+category if category else ''}{', compliance='+compliance if compliance else ''})",
+        **parsed
+    }, token=token)
 
 
 def main():
@@ -153,8 +175,21 @@ def main():
         print("[+] Continuing in connected mode with generated token.")
 
     print(f"[*] Agent started for {args.client_id}, polling every {args.interval}s")
+    was_connected = None
     while True:
         try:
+            connected = server_reachable(api_base)
+            if was_connected is None:
+                print("[+] Server connection: online" if connected else "[!] Server connection: offline (will retry)")
+            elif connected and was_connected is False:
+                print("[+] Server connection restored")
+            elif (not connected) and was_connected is True:
+                print("[!] Lost connection to server, retrying...")
+            was_connected = connected
+            if not connected:
+                time.sleep(max(10, args.interval))
+                continue
+
             job = http_json(f"{api_base}/api/jobs", token=token)
             if job.get("type") == "lynis" and job.get("job_id"):
                 print(f"[*] Running Lynis job #{job['job_id']}")
@@ -162,6 +197,10 @@ def main():
                 print(f"[+] Job #{job['job_id']} completed")
         except urllib.error.HTTPError as e:
             print(f"[!] HTTP error: {e.code} {e.reason}")
+            if e.code in (401, 403):
+                print("[!] Agent token is no longer valid (likely disconnected from dashboard).")
+                print("[!] Re-run the install curl command to reconnect this system.")
+                break
         except Exception as e:
             print(f"[!] Agent loop error: {e}")
         time.sleep(max(10, args.interval))
