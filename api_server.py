@@ -783,6 +783,13 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
         <button class="nav-item" id="ni-brute" onclick="pg('brute',this)"><span class="ni">&#9675;</span> Brute Force</button>
       </div>
       <div class="nav-section">
+        <div class="nav-label">SOCIAL ENGINEERING</div>
+        <button class="nav-item" id="ni-setoolkit" onclick="pg('setoolkit',this)"><span class="ni">&#9675;</span> Social-Engineer Toolkit</button>
+        <button class="nav-item" id="ni-gophish" onclick="pg('gophish',this)"><span class="ni">&#9675;</span> Gophish</button>
+        <button class="nav-item" id="ni-evilginx2" onclick="pg('evilginx2',this)"><span class="ni">&#9675;</span> Evilginx2</button>
+        <button class="nav-item" id="ni-shellphish" onclick="pg('shellphish',this)"><span class="ni">&#9675;</span> ShellPhish</button>
+      </div>
+      <div class="nav-section">
         <div class="nav-label">AUDITING</div>
         <button class="nav-item" id="ni-lynis" onclick="pg('lynis',this)"><span class="ni">&#9675;</span> Lynis</button>
       </div>
@@ -821,7 +828,7 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
           <div class="stat"><div class="stat-val" id="hs-scans">--</div><div class="stat-lbl">TOTAL SCANS</div></div>
           <div class="stat"><div class="stat-val" id="hs-cves">--</div><div class="stat-lbl">CVEs FOUND</div></div>
           <div class="stat"><div class="stat-val" id="hs-ports">--</div><div class="stat-lbl">OPEN PORTS</div></div>
-          <div class="stat"><div class="stat-val">12</div><div class="stat-lbl">TOOLS</div></div>
+          <div class="stat"><div class="stat-val">16</div><div class="stat-lbl">TOOLS</div></div>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
           <div class="card" style="cursor:pointer" onclick="pg('scan',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
@@ -844,6 +851,18 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
           </div>
           <div class="card" style="cursor:pointer" onclick="pg('lynis',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
             <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Lynis</div><div style="font-size:12px;color:var(--text3)">System audit &middot; hardening &middot; compliance</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">local</span><span class="tag">CIS</span></div></div>
+          </div>
+          <div class="card" style="cursor:pointer" onclick="pg('setoolkit',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Social-Engineer Toolkit</div><div style="font-size:12px;color:var(--text3)">Interactive social engineering simulation framework</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">phishing</span><span class="tag">payloads</span></div></div>
+          </div>
+          <div class="card" style="cursor:pointer" onclick="pg('gophish',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Gophish</div><div style="font-size:12px;color:var(--text3)">Phishing campaign manager with landing pages and tracking</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">campaign</span><span class="tag">awareness</span></div></div>
+          </div>
+          <div class="card" style="cursor:pointer" onclick="pg('evilginx2',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Evilginx2</div><div style="font-size:12px;color:var(--text3)">Reverse-proxy phishing simulation for MFA resilience testing</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">MFA</span><span class="tag">proxy</span></div></div>
+          </div>
+          <div class="card" style="cursor:pointer" onclick="pg('shellphish',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">ShellPhish</div><div style="font-size:12px;color:var(--text3)">Template-driven phishing simulation framework for labs</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">templates</span><span class="tag">ngrok</span></div></div>
           </div>
         </div>
         <div class="notice" style="margin-top:18px">&#9888; <strong>Authorized use only.</strong> Only scan systems you own or have explicit written permission to assess.</div>
@@ -1155,6 +1174,70 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
         <div id="bf-res"></div>
       </div>
 
+      <!-- SOCIAL-ENGINEER TOOLKIT -->
+      <div class="page" id="page-setoolkit">
+        <div class="page-hd"><div class="page-title">Social-Engineer Toolkit (SET)</div><div class="page-desc">Interactive social engineering simulation framework</div></div>
+        <div class="notice">&#9888; Use only for internal awareness assessments with written authorization. Never use for unauthorized phishing or payload delivery.</div>
+        <div class="card card-p" style="margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:8px">Recommended Use Cases</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.8">Email phishing simulations, clone-page credential capture in controlled labs, and awareness testing with approved target lists.</div>
+          <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px"><span class="tag">spear-phishing</span><span class="tag">web templates</span><span class="tag">payload generation</span></div>
+        </div>
+        <div class="card card-p">
+          <div class="card-title" style="margin-bottom:8px">Quick Commands (Linux)</div>
+          <div style="font-family:var(--mono);font-size:11px;line-height:1.8;color:var(--text2)">sudo apt install set<br/>sudo setoolkit</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:10px">Workflow: Social-Engineering Attacks &rarr; Spear-Phishing &rarr; Select payload/template &rarr; send only to approved recipients.</div>
+        </div>
+      </div>
+
+      <!-- GOPHISH -->
+      <div class="page" id="page-gophish">
+        <div class="page-hd"><div class="page-title">Gophish</div><div class="page-desc">Phishing campaign platform for security awareness programs</div></div>
+        <div class="notice">&#9888; Restrict campaigns to consented users and approved domains. Keep credentials disabled or safely sandboxed.</div>
+        <div class="card card-p" style="margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:8px">What Gophish Is Best For</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.8">Building email templates, importing user groups, launching controlled campaigns, and tracking opens/clicks/reporting rates.</div>
+          <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px"><span class="tag">campaigns</span><span class="tag">templates</span><span class="tag">metrics</span></div>
+        </div>
+        <div class="card card-p">
+          <div class="card-title" style="margin-bottom:8px">Quick Commands (Linux)</div>
+          <div style="font-family:var(--mono);font-size:11px;line-height:1.8;color:var(--text2)">wget https://github.com/gophish/gophish/releases/latest<br/># Download the latest Linux 64-bit release asset from that page<br/>unzip gophish-*.zip -d gophish &amp;&amp; cd gophish &amp;&amp; ./gophish</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:10px">By default, the admin UI starts on port 3333 and the phishing listener on port 80. Configure sending profiles before launching any campaign.</div>
+        </div>
+      </div>
+
+      <!-- EVILGINX2 -->
+      <div class="page" id="page-evilginx2">
+        <div class="page-hd"><div class="page-title">Evilginx2</div><div class="page-desc">Reverse proxy phishing simulation for advanced red-team exercises</div></div>
+        <div class="notice">&#9888; High-risk tool. Use only in a legal red-team scope with explicit authorization and blue-team coordination.</div>
+        <div class="card card-p" style="margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:8px">Use It For</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.8">Testing MFA-aware phishing resilience in controlled engagements, validating detection controls, and training incident response teams.</div>
+          <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px"><span class="tag">reverse-proxy</span><span class="tag">MFA testing</span><span class="tag">red team</span></div>
+        </div>
+        <div class="card card-p">
+          <div class="card-title" style="margin-bottom:8px">Quick Commands (Linux)</div>
+          <div style="font-family:var(--mono);font-size:11px;line-height:1.8;color:var(--text2)">sudo apt install evilginx2<br/>sudo evilginx</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:10px">Typical workflow: configure domain and DNS, load phishlet, configure lure URL, run only during approved testing window.</div>
+        </div>
+      </div>
+
+      <!-- SHELLPHISH -->
+      <div class="page" id="page-shellphish">
+        <div class="page-hd"><div class="page-title">ShellPhish</div><div class="page-desc">Template-based phishing simulation launcher</div></div>
+        <div class="notice">&#9888; Use only on authorized targets in isolated labs. This tool is commonly abused in the wild.</div>
+        <div class="card card-p" style="margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:8px">Common Lab Workflows</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.8">Spin up prebuilt phishing templates for awareness demos, observe user behavior, and validate endpoint/browser protections in non-production environments.</div>
+          <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px"><span class="tag">templates</span><span class="tag">tunnels</span><span class="tag">training labs</span></div>
+        </div>
+        <div class="card card-p">
+          <div class="card-title" style="margin-bottom:8px">Quick Commands (Linux)</div>
+          <div style="font-family:var(--mono);font-size:11px;line-height:1.8;color:var(--text2)">sudo apt install git php curl -y<br/>git clone https://github.com/thelinuxchoice/shellphish.git<br/>cd shellphish &amp;&amp; bash shellphish.sh</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:10px">Use local tunnel options (localhost.run/ngrok) only for authorized simulations and teardown infrastructure immediately after testing.</div>
+        </div>
+      </div>
+
       <!-- NETWORK DISCOVERY -->
       <div class="page" id="page-disc">
         <div class="page-hd"><div class="page-title">Network Discovery</div><div class="page-desc">Discover live hosts on a subnet</div></div>
@@ -1372,7 +1455,7 @@ async function fetchWithTimeout(url,options,timeoutMs,prefix){
 }
 
 /* ==== PAGE NAV ==== */
-var PAGE_TITLES={home:'Home',scan:'Network Scanner',webdeep:'Deep Web Audit',harvester:'theHarvester',dnsrecon:'DNSRecon',nikto:'Nikto',wpscan:'WPScan',lynis:'Lynis',legion:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',brute:'Brute Force',disc:'Network Discovery',hist:'Scan History',dash:'Dashboard',profile:'Profile',admin:'Admin Console'};
+var PAGE_TITLES={home:'Home',scan:'Network Scanner',webdeep:'Deep Web Audit',harvester:'theHarvester',dnsrecon:'DNSRecon',nikto:'Nikto',wpscan:'WPScan',lynis:'Lynis',legion:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',brute:'Brute Force',setoolkit:'Social-Engineer Toolkit',gophish:'Gophish',evilginx2:'Evilginx2',shellphish:'ShellPhish',disc:'Network Discovery',hist:'Scan History',dash:'Dashboard',profile:'Profile',admin:'Admin Console'};
 function saveCurrentPage(id){try{sessionStorage.setItem('vs-page',id);}catch(e){}}
 function pg(id,el){
   document.querySelectorAll('.page').forEach(function(e){e.classList.remove('active');});
