@@ -12,7 +12,7 @@ PROXYCHAINS CONFIG (/etc/proxychains4.conf or /etc/proxychains.conf):
   [ProxyList]
   socks5 127.0.0.1 9050
 """
-import json, re, sys, os, subprocess, io, sqlite3, secrets, hashlib, threading
+import json, re, sys, os, subprocess, io, sqlite3, secrets, hashlib, threading, shlex, time, shutil
 from urllib.parse import urlparse
 from flask import Flask, request, jsonify, Response, send_file, send_from_directory
 from flask_cors import CORS
@@ -1176,6 +1176,20 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
 
       <!-- SOCIAL-ENGINEER TOOLKIT -->
       <div class="page" id="page-setoolkit">
+        <div class="page-hd"><div class="page-title">Social-Engineer Toolkit (SET)</div><div class="page-desc">Run SET commands from server and view live output</div></div>
+        <div class="notice">&#9888; Authorized awareness testing only. This executes real SET commands on your server.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>OPERATION</label><select class="inp inp-mono" id="set-op"><option value="help">Help / capability check</option><option value="version">Version check</option><option value="custom">Custom arguments</option></select></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="set-timeout" type="number" value="90" min="10" max="600"/></div>
+          </div>
+          <div class="fg"><label>CUSTOM ARGUMENTS (for custom mode)</label><input class="inp inp-mono" id="set-args" type="text" placeholder="--help"/></div>
+          <button class="btn btn-primary" id="set-btn" onclick="runSetToolkit()">RUN SET</button>
+        </div>
+        <div class="progress-wrap" id="set-prog"><div class="progress-bar" id="set-pb" style="width:0%"></div></div>
+        <div class="terminal" id="set-term"></div>
+        <div class="err-box" id="set-err"></div>
+        <div id="set-res"></div>
         <div class="page-hd"><div class="page-title">Social-Engineer Toolkit (SET)</div><div class="page-desc">Interactive social engineering simulation framework</div></div>
         <div class="notice">&#9888; Use only for internal awareness assessments with written authorization. Never use for unauthorized phishing or payload delivery.</div>
         <div class="card card-p" style="margin-bottom:12px">
@@ -1192,6 +1206,20 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
 
       <!-- GOPHISH -->
       <div class="page" id="page-gophish">
+        <div class="page-hd"><div class="page-title">Gophish</div><div class="page-desc">Execute Gophish server commands and inspect output</div></div>
+        <div class="notice">&#9888; Use only for approved phishing-awareness campaigns and legal red-team scope.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>OPERATION</label><select class="inp inp-mono" id="gp-op"><option value="help">Help / capability check</option><option value="version">Version check</option><option value="custom">Custom arguments</option></select></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="gp-timeout" type="number" value="90" min="10" max="600"/></div>
+          </div>
+          <div class="fg"><label>CUSTOM ARGUMENTS (for custom mode)</label><input class="inp inp-mono" id="gp-args" type="text" placeholder="-h"/></div>
+          <button class="btn btn-primary" id="gp-btn" onclick="runGophish()">RUN GOPHISH</button>
+        </div>
+        <div class="progress-wrap" id="gp-prog"><div class="progress-bar" id="gp-pb" style="width:0%"></div></div>
+        <div class="terminal" id="gp-term"></div>
+        <div class="err-box" id="gp-err"></div>
+        <div id="gp-res"></div>
         <div class="page-hd"><div class="page-title">Gophish</div><div class="page-desc">Phishing campaign platform for security awareness programs</div></div>
         <div class="notice">&#9888; Restrict campaigns to consented users and approved domains. Keep credentials disabled or safely sandboxed.</div>
         <div class="card card-p" style="margin-bottom:12px">
@@ -1208,6 +1236,20 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
 
       <!-- EVILGINX2 -->
       <div class="page" id="page-evilginx2">
+        <div class="page-hd"><div class="page-title">Evilginx2</div><div class="page-desc">Execute Evilginx2 commands on server and view process output</div></div>
+        <div class="notice">&#9888; High-risk tooling. Run only in explicitly authorized red-team engagements.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>OPERATION</label><select class="inp inp-mono" id="eg-op"><option value="help">Help / capability check</option><option value="version">Version check</option><option value="custom">Custom arguments</option></select></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="eg-timeout" type="number" value="90" min="10" max="600"/></div>
+          </div>
+          <div class="fg"><label>CUSTOM ARGUMENTS (for custom mode)</label><input class="inp inp-mono" id="eg-args" type="text" placeholder="-h"/></div>
+          <button class="btn btn-primary" id="eg-btn" onclick="runEvilginx2()">RUN EVILGINX2</button>
+        </div>
+        <div class="progress-wrap" id="eg-prog"><div class="progress-bar" id="eg-pb" style="width:0%"></div></div>
+        <div class="terminal" id="eg-term"></div>
+        <div class="err-box" id="eg-err"></div>
+        <div id="eg-res"></div>
         <div class="page-hd"><div class="page-title">Evilginx2</div><div class="page-desc">Reverse proxy phishing simulation for advanced red-team exercises</div></div>
         <div class="notice">&#9888; High-risk tool. Use only in a legal red-team scope with explicit authorization and blue-team coordination.</div>
         <div class="card card-p" style="margin-bottom:12px">
@@ -1224,6 +1266,20 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
 
       <!-- SHELLPHISH -->
       <div class="page" id="page-shellphish">
+        <div class="page-hd"><div class="page-title">ShellPhish</div><div class="page-desc">Run ShellPhish script commands and inspect output</div></div>
+        <div class="notice">&#9888; Use only in controlled labs or approved awareness simulations.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>SCRIPT PATH</label><input class="inp inp-mono" id="sp-script" type="text" value="/opt/shellphish/shellphish.sh"/></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="sp-timeout" type="number" value="90" min="10" max="600"/></div>
+          </div>
+          <div class="fg"><label>ARGUMENTS</label><input class="inp inp-mono" id="sp-args" type="text" placeholder="--help"/></div>
+          <button class="btn btn-primary" id="sp-btn" onclick="runShellPhish()">RUN SHELLPHISH</button>
+        </div>
+        <div class="progress-wrap" id="sp-prog"><div class="progress-bar" id="sp-pb" style="width:0%"></div></div>
+        <div class="terminal" id="sp-term"></div>
+        <div class="err-box" id="sp-err"></div>
+        <div id="sp-res"></div>
         <div class="page-hd"><div class="page-title">ShellPhish</div><div class="page-desc">Template-based phishing simulation launcher</div></div>
         <div class="notice">&#9888; Use only on authorized targets in isolated labs. This tool is commonly abused in the wild.</div>
         <div class="card card-p" style="margin-bottom:12px">
@@ -1710,7 +1766,7 @@ function mkTool(prefix){
     res:function(html){var e=document.getElementById(prefix+'-res');if(e){e.innerHTML=html;e.style.display='block';}}
   };
 }
-var hvTool=mkTool('hv'),drTool=mkTool('dr'),nkTool=mkTool('nk'),wpTool=mkTool('wp'),lyTool=mkTool('ly'),lgTool=mkTool('lg'),wdTool=mkTool('wd');
+var hvTool=mkTool('hv'),drTool=mkTool('dr'),nkTool=mkTool('nk'),wpTool=mkTool('wp'),lyTool=mkTool('ly'),lgTool=mkTool('lg'),wdTool=mkTool('wd'),setTool=mkTool('set'),gpTool=mkTool('gp'),egTool=mkTool('eg'),spTool=mkTool('sp');
 
 /* ==== DEEP WEB AUDIT ==== */
 var _wdES=null;
@@ -1863,6 +1919,55 @@ function renderWPScan(d){
   if(u.length)html+='<div class="card card-p" style="margin-bottom:8px"><div class="card-title" style="margin-bottom:8px">Users</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+u.map(function(x){return'<span class="tag">'+x+'</span>';}).join('')+'</div></div>';
   if(p.length)html+='<div class="card"><div class="card-header"><div class="card-title">Plugins</div></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>PLUGIN</th><th>VERSION</th><th>VULNS</th></tr></thead><tbody>'+p.map(function(x){return'<tr><td>'+(x.name||'--')+'</td><td style="color:var(--text3)">'+(x.version||'--')+'</td><td style="color:'+(x.vulnerabilities&&x.vulnerabilities.length?'var(--red)':'var(--green)')+'">'+(x.vulnerabilities?x.vulnerabilities.length:0)+'</td></tr>';}).join('')+'</tbody></table></div></div>';
   wpTool.res(html);
+}
+
+/* ==== SOCIAL ENGINEERING TOOLS ==== */
+function renderSocialTool(toolObj,d){
+  var html='<div class="stats" style="margin-bottom:14px"><div class="stat"><div class="stat-val">'+(d.tool||'tool').toUpperCase()+'</div><div class="stat-lbl">TOOL</div></div><div class="stat"><div class="stat-val">'+(d.exit_code===null?'--':d.exit_code)+'</div><div class="stat-lbl">EXIT CODE</div></div><div class="stat"><div class="stat-val">'+(d.duration_ms||0)+'</div><div class="stat-lbl">DURATION (ms)</div></div></div>';
+  html+='<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">Command Executed</div><div style="font-family:var(--mono);font-size:11px;color:var(--text2);word-break:break-all">'+(d.command||'n/a')+'</div></div>';
+  html+='<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">stdout</div><pre style="font-family:var(--mono);font-size:11px;color:var(--text2);white-space:pre-wrap">'+(d.stdout||'(empty)')+'</pre></div>';
+  html+='<div class="card card-p"><div class="card-title" style="margin-bottom:8px">stderr</div><pre style="font-family:var(--mono);font-size:11px;color:var(--text2);white-space:pre-wrap">'+(d.stderr||'(empty)')+'</pre></div>';
+  toolObj.res(html);
+}
+async function runSetToolkit(){
+  var op=document.getElementById('set-op').value, args=document.getElementById('set-args').value.trim(), timeout=parseInt(document.getElementById('set-timeout').value||'90',10);
+  var btn=document.getElementById('set-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  setTool.start();setTool.log('Executing SET operation: '+op,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'setoolkit',operation:op,args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'set');
+    var d=await r.json();setTool.end();if(d.error){setTool.err(d.error);}else{setTool.log('SET completed','s');renderSocialTool(setTool,d);}
+  }catch(e){setTool.end();setTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN SET';}
+}
+async function runGophish(){
+  var op=document.getElementById('gp-op').value, args=document.getElementById('gp-args').value.trim(), timeout=parseInt(document.getElementById('gp-timeout').value||'90',10);
+  var btn=document.getElementById('gp-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  gpTool.start();gpTool.log('Executing Gophish operation: '+op,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'gophish',operation:op,args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'gp');
+    var d=await r.json();gpTool.end();if(d.error){gpTool.err(d.error);}else{gpTool.log('Gophish command completed','s');renderSocialTool(gpTool,d);}
+  }catch(e){gpTool.end();gpTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN GOPHISH';}
+}
+async function runEvilginx2(){
+  var op=document.getElementById('eg-op').value, args=document.getElementById('eg-args').value.trim(), timeout=parseInt(document.getElementById('eg-timeout').value||'90',10);
+  var btn=document.getElementById('eg-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  egTool.start();egTool.log('Executing Evilginx2 operation: '+op,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'evilginx2',operation:op,args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'eg');
+    var d=await r.json();egTool.end();if(d.error){egTool.err(d.error);}else{egTool.log('Evilginx2 command completed','s');renderSocialTool(egTool,d);}
+  }catch(e){egTool.end();egTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN EVILGINX2';}
+}
+async function runShellPhish(){
+  var scriptPath=document.getElementById('sp-script').value.trim(), args=document.getElementById('sp-args').value.trim(), timeout=parseInt(document.getElementById('sp-timeout').value||'90',10);
+  var btn=document.getElementById('sp-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  spTool.start();spTool.log('Executing ShellPhish script: '+scriptPath,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'shellphish',operation:'custom',args:args,script_path:scriptPath,timeout:timeout})},Math.max(20000,timeout*1000+5000),'sp');
+    var d=await r.json();spTool.end();if(d.error){spTool.err(d.error);}else{spTool.log('ShellPhish command completed','s');renderSocialTool(spTool,d);}
+  }catch(e){spTool.end();spTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN SHELLPHISH';}
 }
 
 /* ==== LYNIS ==== */
@@ -2880,6 +2985,115 @@ def brute_ssh():
     try:
         return jsonify(run_backend("--brute-ssh", host, port, users, pwds,
                                    timeout=TIMEOUT_BRUTE))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+def _social_tool_binary(tool_name: str, script_path: str = ""):
+    tool_name = (tool_name or "").strip().lower()
+    if tool_name == "setoolkit":
+        return shutil.which("setoolkit"), []
+    if tool_name == "gophish":
+        return shutil.which("gophish"), []
+    if tool_name == "evilginx2":
+        return shutil.which("evilginx2") or shutil.which("evilginx"), []
+    if tool_name == "shellphish":
+        candidate = (script_path or "").strip()
+        if candidate and os.path.isfile(candidate):
+            return "/bin/bash", [candidate]
+        for p in [
+            "/opt/shellphish/shellphish.sh",
+            "/usr/local/bin/shellphish.sh",
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "shellphish.sh"),
+        ]:
+            if os.path.isfile(p):
+                return "/bin/bash", [p]
+        return None, []
+    return None, []
+
+
+def _safe_cli_args(args_text: str):
+    args_text = (args_text or "").strip()
+    if not args_text:
+        return []
+    if len(args_text) > 400:
+        raise ValueError("Arguments too long (max 400 chars).")
+    if re.search(r"[;&|`$><]", args_text):
+        raise ValueError("Arguments contain disallowed shell characters.")
+    parsed = shlex.split(args_text)
+    if len(parsed) > 30:
+        raise ValueError("Too many arguments (max 30).")
+    for tok in parsed:
+        if len(tok) > 120:
+            raise ValueError("Argument token too long.")
+        if not re.match(r"^[a-zA-Z0-9._:/,@%+=\-]+$", tok):
+            raise ValueError(f"Unsafe argument token: {tok}")
+    return parsed
+
+
+@app.route("/social-tools/run", methods=["POST"])
+def social_tool_run():
+    data = request.get_json() or {}
+    tool = (data.get("tool") or "").strip().lower()
+    operation = (data.get("operation") or "help").strip().lower()
+    args_text = (data.get("args") or "").strip()
+    script_path = (data.get("script_path") or "").strip()
+    timeout = int(data.get("timeout") or 90)
+    timeout = max(10, min(600, timeout))
+
+    if tool not in {"setoolkit", "gophish", "evilginx2", "shellphish"}:
+        return jsonify({"error": "Unsupported social engineering tool."}), 400
+    if operation not in {"help", "version", "custom"}:
+        operation = "help"
+
+    binary, prefix_args = _social_tool_binary(tool, script_path=script_path)
+    if not binary:
+        return jsonify({"error": f"{tool} is not installed or script path is invalid on server."}), 400
+
+    try:
+        custom_args = _safe_cli_args(args_text) if operation == "custom" else []
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+
+    if operation == "help":
+        op_args = ["--help"]
+    elif operation == "version":
+        op_args = ["--version"]
+    else:
+        op_args = custom_args or ["--help"]
+
+    cmd = [binary] + prefix_args + op_args
+
+    user = get_current_user()
+    audit(user["id"] if user else None, user["username"] if user else "anon",
+          "SOCIAL_TOOL_RUN", target=tool, ip=request.remote_addr,
+          details=f"operation={operation};cmd={' '.join(cmd[:5])}")
+
+    start = time.monotonic()
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        elapsed = int((time.monotonic() - start) * 1000)
+        return jsonify({
+            "tool": tool,
+            "operation": operation,
+            "command": " ".join(cmd),
+            "exit_code": proc.returncode,
+            "stdout": (proc.stdout or "")[-50000:],
+            "stderr": (proc.stderr or "")[-50000:],
+            "duration_ms": elapsed,
+        })
+    except subprocess.TimeoutExpired as te:
+        elapsed = int((time.monotonic() - start) * 1000)
+        return jsonify({
+            "tool": tool,
+            "operation": operation,
+            "command": " ".join(cmd),
+            "exit_code": None,
+            "stdout": ((te.stdout or "") if te.stdout else "")[-20000:],
+            "stderr": ((te.stderr or "") if te.stderr else "")[-20000:],
+            "duration_ms": elapsed,
+            "error": f"Command timed out after {timeout}s."
+        }), 408
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
