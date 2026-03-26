@@ -103,6 +103,9 @@ def parse_lynis_report_dat(content):
 
 def run_job(job, api_base, token):
     job_id = job["job_id"]
+    profile = (job.get("profile") or "system").strip().lower()
+    category = (job.get("category") or "").strip()
+    compliance = (job.get("compliance") or "").strip()
     http_json(f"{api_base}/api/jobs/{job_id}/progress", method="POST",
               payload={"progress_pct": 10, "message": "Preparing Lynis"}, token=token)
     if not ensure_lynis():
@@ -114,10 +117,16 @@ def run_job(job, api_base, token):
             "lynis", "audit", "system", "--quiet", "--no-colors", "--noplugins",
             "--report-file", report_file, "--logfile", log_file
         ]
-        if job.get("compliance"):
-            cmd += ["--compliance", str(job["compliance"]).lower()]
+        if compliance:
+            cmd += ["--compliance", compliance.lower()]
+        if category:
+            cmd += ["--tests-category", category.lower()]
+        if profile == "quick":
+            cmd += ["--quick"]
+        elif profile == "forensics":
+            cmd += ["--forensics"]
         http_json(f"{api_base}/api/jobs/{job_id}/progress", method="POST",
-                  payload={"progress_pct": 40, "message": "Lynis running"}, token=token)
+                  payload={"progress_pct": 40, "message": f"Lynis running (profile={profile}{', category='+category if category else ''}{', compliance='+compliance if compliance else ''})"}, token=token)
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=420)
         out = (proc.stdout or "") + "\n" + (proc.stderr or "")
         parsed = parse_lynis_output(out)
@@ -137,7 +146,11 @@ def run_job(job, api_base, token):
         if report_dat_content:
             out += "\n\n# lynis-report.dat\n" + report_dat_content
         parsed["raw_report"] = out[-200000:]
-    http_json(f"{api_base}/api/upload", method="POST", payload={"job_id": job_id, **parsed}, token=token)
+    http_json(f"{api_base}/api/upload", method="POST", payload={
+        "job_id": job_id,
+        "message": f"Completed (profile={profile}{', category='+category if category else ''}{', compliance='+compliance if compliance else ''})",
+        **parsed
+    }, token=token)
 
 
 def main():

@@ -3168,7 +3168,7 @@ def lynis_route():
     import shutil
 
     data = request.get_json() or {}
-    profile = data.get("profile", "system")
+    profile = (data.get("profile") or "system").strip().lower()
     category = (data.get("category") or "").strip()
     compliance = (data.get("compliance") or "").strip()
 
@@ -3193,6 +3193,12 @@ def lynis_route():
     ]
     if compliance:
         cmd += ["--compliance", compliance.lower()]
+    if category:
+        cmd += ["--tests-category", category.lower()]
+    if profile == "quick":
+        cmd += ["--quick"]
+    elif profile == "forensics":
+        cmd += ["--forensics"]
 
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT_LYNIS)
@@ -3239,6 +3245,10 @@ def lynis_route():
             h_m = re.search(r'hardening_index\s*=\s*(\d+)', report_content, re.IGNORECASE)
             if h_m:
                 hardening_index = int(h_m.group(1))
+        if tests_performed in {"", "?"} and report_content:
+            t_m = re.search(r'tests_performed\s*=\s*(\d+)', report_content, re.IGNORECASE)
+            if t_m:
+                tests_performed = t_m.group(1)
         raw_report = output
         if report_content:
             raw_report += "\n\n# /tmp/vulnscan-lynis-report.dat\n" + report_content
@@ -3252,6 +3262,10 @@ def lynis_route():
             "suggestions": sorted(set(filter(None, suggestions)))[:200],
             "tests_performed": tests_performed,
             "raw_report": raw_report[-200000:],
+            "profile_used": profile,
+            "category_used": category,
+            "compliance_used": compliance,
+            "command_used": " ".join(cmd),
             "note": "Lynis is a local scan — Tor not used (local system audit)."
         })
 
@@ -3440,7 +3454,7 @@ def job_status(job_id):
     with AGENT_LOCK:
         con = _agent_db()
         row = con.execute("""
-            SELECT id, client_id, status, progress_pct, message, hardening_index, warnings_json,
+            SELECT id, client_id, profile, compliance, category, status, progress_pct, message, hardening_index, warnings_json,
                    suggestions_json, tests_performed, created_at, started_at, completed_at, cancel_requested
             FROM lynis_jobs WHERE id=?
         """, (job_id,)).fetchone()
@@ -3450,6 +3464,9 @@ def job_status(job_id):
     return jsonify({
         "job_id": row["id"],
         "client_id": row["client_id"],
+        "profile_used": row["profile"] or "system",
+        "compliance_used": row["compliance"] or "",
+        "category_used": row["category"] or "",
         "status": row["status"],
         "progress_pct": row["progress_pct"],
         "message": row["message"],
