@@ -114,7 +114,7 @@ def run_job(job, api_base, token):
         report_file = os.path.join(tmpdir, "lynis-report.dat")
         log_file = os.path.join(tmpdir, "lynis.log")
         cmd = [
-            "lynis", "audit", "system", "--quiet", "--no-colors", "--noplugins",
+            "lynis", "audit", "system", "--no-colors",
             "--report-file", report_file, "--logfile", log_file
         ]
         if compliance:

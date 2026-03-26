@@ -3188,7 +3188,7 @@ def lynis_route():
     report_file = "/tmp/vulnscan-lynis-report.dat"
     log_file = "/tmp/vulnscan-lynis.log"
     cmd = [
-        binary, "audit", "system", "--quiet", "--no-colors", "--noplugins",
+        binary, "audit", "system", "--no-colors",
         "--report-file", report_file, "--logfile", log_file
     ]
     if compliance:
@@ -3254,7 +3254,16 @@ def lynis_route():
             raw_report += "\n\n# /tmp/vulnscan-lynis-report.dat\n" + report_content
         if os.path.exists(log_file):
             with open(log_file, "r", encoding="utf-8", errors="ignore") as lf:
-                raw_report += "\n\n# /tmp/vulnscan-lynis.log\n" + lf.read()
+                log_content = lf.read()
+                raw_report += "\n\n# /tmp/vulnscan-lynis.log\n" + log_content
+                if not warnings:
+                    for ln in log_content.splitlines():
+                        if "warning[" in ln.lower() or "warning:" in ln.lower():
+                            warnings.append(ln.strip())
+                if not suggestions:
+                    for ln in log_content.splitlines():
+                        if "suggestion[" in ln.lower() or "suggestion:" in ln.lower():
+                            suggestions.append(ln.strip())
 
         return jsonify({
             "hardening_index": hardening_index,
