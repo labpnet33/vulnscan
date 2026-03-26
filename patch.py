@@ -1,845 +1,821 @@
 #!/usr/bin/env python3
 """
-VulnScan Pro — Patch v5.0
-Fixes (api_server.py only):
-  1. DNSRecon: remove broken --tcp flag, multi-layer fallback (dnsrecon→dig→socket)
-  2. Deep Web Audit: SSE streaming route + live % progress in UI
-  3. Brute Force: rockyou pre-selected + auto-loaded, fallback path list
+VulnScan Pro — Patch: SET Interactive Terminal Integration
+Adds a full PTY-based interactive terminal for Social-Engineer Toolkit.
 
-Run: python3 patch.py  (from project root)
+Run: python3 patch_set.py  (from project root)
 """
 import os, shutil, subprocess, sys
 from datetime import datetime
 
-GREEN="\033[92m";RED="\033[91m";CYAN="\033[96m";YELLOW="\033[93m"
-RESET="\033[0m";BOLD="\033[1m";DIM="\033[2m"
+GREEN  = "\033[92m"; RED    = "\033[91m"; CYAN   = "\033[96m"
+YELLOW = "\033[93m"; RESET  = "\033[0m";  BOLD   = "\033[1m"; DIM = "\033[2m"
 
 def ok(m):   print(f"  {GREEN}✓{RESET} {m}")
 def fail(m): print(f"  {RED}✗{RESET} {m}")
 def info(m): print(f"  {CYAN}→{RESET} {m}")
 def skip(m): print(f"  {DIM}·{RESET} {m}")
 
-R={"applied":0,"skipped":0,"failed":0,"files":[],"restart":False}
+R = {"applied": 0, "skipped": 0, "failed": 0, "files": [], "restart": False}
 
 def backup(p):
-    ts=datetime.now().strftime("%Y%m%d_%H%M%S")
-    shutil.copy2(p,f"{p}.{ts}.bak")
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    shutil.copy2(p, f"{p}.{ts}.bak")
 
 def patch(path, changes):
     if not os.path.isfile(path):
-        fail(f"Not found: {path}"); R["failed"]+=len(changes); return
-    with open(path,"r",encoding="utf-8") as f: src=f.read()
-    out=src; applied=0
-    for desc,old,new in changes:
+        fail(f"Not found: {path}")
+        R["failed"] += len(changes)
+        return
+    with open(path, "r", encoding="utf-8") as f:
+        src = f.read()
+    out = src
+    applied = 0
+    for desc, old, new in changes:
         if old in out:
-            out=out.replace(old,new,1); ok(desc); applied+=1; R["applied"]+=1
+            out = out.replace(old, new, 1)
+            ok(desc)
+            applied += 1
+            R["applied"] += 1
         elif new in out:
-            skip(f"{desc} (already applied)"); R["skipped"]+=1
+            skip(f"{desc} (already applied)")
+            R["skipped"] += 1
         else:
-            fail(f"{desc} — anchor not found"); R["failed"]+=1
+            fail(f"{desc} — anchor not found")
+            R["failed"] += 1
     if applied:
         backup(path)
-        with open(path,"w",encoding="utf-8") as f: f.write(out)
-        if path not in R["files"]: R["files"].append(path)
-        R["restart"]=True
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(out)
+        if path not in R["files"]:
+            R["files"].append(path)
+        R["restart"] = True
 
 def syntax(p):
-    r=subprocess.run([sys.executable,"-m","py_compile",p],capture_output=True,text=True)
-    return r.returncode==0, r.stderr.strip()
+    r = subprocess.run([sys.executable, "-m", "py_compile", p],
+                       capture_output=True, text=True)
+    return r.returncode == 0, r.stderr.strip()
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# PATCH 1 — DNSRecon: remove --tcp, add fallback chain
-# ═══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+# PATCH 1 — api_server.py: Add /set-terminal SSE + /set-input endpoints
+# ══════════════════════════════════════════════════════════════════════════════
 
-OLD_DR = '''# ── DNSRecon route (FIXED — removed stray nmap subprocess call) ───────────────
-@app.route("/dnsrecon", methods=["POST"])
-def dnsrecon_route():
+# Anchor: insert the new SET routes just before the existing /social-tools/run route
+OLD_SOCIAL_ANCHOR = '''@app.route("/social-tools/run", methods=["POST"])
+def social_tool_run():'''
+
+NEW_SOCIAL_ANCHOR = '''# ── SET Interactive Terminal (PTY-based) ──────────────────────────────────────
+import threading as _threading
+import queue as _queue
+import uuid as _uuid
+import fcntl as _fcntl
+import pty as _pty
+import select as _select
+import termios as _termios
+import struct as _struct
+
+# Session store: session_id → {"proc", "master_fd", "output_q", "alive", "created"}
+_SET_SESSIONS = {}
+_SET_SESSIONS_LOCK = _threading.Lock()
+_SET_SESSION_TTL = 1800  # 30 minutes
+
+def _reap_old_set_sessions():
+    """Kill sessions older than TTL."""
+    now = datetime.now(timezone.utc).timestamp()
+    with _SET_SESSIONS_LOCK:
+        dead = [sid for sid, s in _SET_SESSIONS.items()
+                if now - s.get("created", now) > _SET_SESSION_TTL]
+        for sid in dead:
+            _kill_set_session(sid, locked=True)
+
+def _kill_set_session(sid, locked=False):
+    """Terminate a SET session. Call with locked=True if already holding the lock."""
+    def _do_kill():
+        s = _SET_SESSIONS.pop(sid, None)
+        if not s:
+            return
+        s["alive"] = False
+        try:
+            s["proc"].terminate()
+        except Exception:
+            pass
+        try:
+            os.close(s["master_fd"])
+        except Exception:
+            pass
+    if locked:
+        _do_kill()
+    else:
+        with _SET_SESSIONS_LOCK:
+            _do_kill()
+
+def _set_session_reader(sid, master_fd, output_q):
+    """Background thread: read PTY output → push to queue."""
+    buf = b""
+    while True:
+        with _SET_SESSIONS_LOCK:
+            alive = _SET_SESSIONS.get(sid, {}).get("alive", False)
+        if not alive:
+            break
+        try:
+            r, _, _ = _select.select([master_fd], [], [], 0.3)
+            if r:
+                chunk = os.read(master_fd, 4096)
+                if not chunk:
+                    break
+                buf += chunk
+                # Push whole UTF-8 decoded chunk; replace bad bytes
+                output_q.put(chunk.decode("utf-8", errors="replace"))
+                buf = b""
+        except OSError:
+            break
+        except Exception:
+            break
+    output_q.put(None)  # sentinel: stream ended
+
+
+@app.route("/api/set/session/new", methods=["POST"])
+def set_session_new():
     """
-    Run dnsrecon through proxychains (Tor).
-    DNSRecon supports TCP-based queries which work through SOCKS proxies.
-    Note: Standard UDP DNS won't go through Tor — dnsrecon's TCP mode is used.
+    Start a new SET PTY session.
+    Returns: { session_id, ok }
     """
-    import shutil, tempfile
-    data = request.get_json() or {}
-    target = (data.get("target") or "").strip()
-    scan_type = data.get("type", "std")
-    ns = (data.get("ns") or "").strip()
-    rec_filter = (data.get("filter") or "").strip()
+    import shutil as _sh
+    u = get_current_user()
+    if not u:
+        return jsonify({"error": "Login required"}), 401
 
-    if not target:
-        return jsonify({"error": "No target specified"})
-
-    binary = shutil.which("dnsrecon")
+    binary = _sh.which("setoolkit") or _sh.which("set") or _sh.which("se-toolkit")
     if not binary:
-        ok, msg = auto_install("dnsrecon", "dnsrecon")
-        if not ok:
-            return jsonify({
-                "error": f"dnsrecon not installed and auto-install failed: {msg}. Run: sudo apt install dnsrecon",
-                "auto_install_attempted": True
-            })
-        binary = shutil.which("dnsrecon")
+        return jsonify({"error": (
+            "setoolkit not found on PATH. "
+            "Install: sudo apt install set  OR  "
+            "clone from https://github.com/trustedsec/social-engineer-toolkit"
+        )}), 404
 
-    px = proxychains_cmd()
+    _reap_old_set_sessions()
 
-    with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tf:
-        out_file = tf.name
-
-    # Build dnsrecon command through proxychains
-    # Use --tcp flag so DNS queries go through SOCKS (TCP only — UDP is blocked by Tor)
-    cmd = [px, "-q", binary, "-d", target, "-t", scan_type, "-j", out_file, "--tcp"]
-    if ns:
-        cmd += ["-n", ns]
-
+    sid = str(_uuid.uuid4())
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT_DNSRECON)
-        records = []
+        master_fd, slave_fd = _pty.openpty()
 
-        if os.path.exists(out_file):
-            try:
-                with open(out_file) as f:
-                    raw = json.load(f)
-                for item in (raw if isinstance(raw, list) else raw.get("records", [])):
-                    if isinstance(item, dict):
-                        rec = {
-                            "type": item.get("type", "?"),
-                            "name": item.get("name", ""),
-                            "address": item.get("address", item.get("data", ""))
-                        }
-                        if rec_filter and rec["type"] != rec_filter:
-                            continue
-                        records.append(rec)
-            except Exception:
-                pass
+        # Set window size so SET menus render correctly (80×24)
+        winsize = _struct.pack("HHHH", 40, 220, 0, 0)
+        _fcntl.ioctl(slave_fd, _termios.TIOCSWINSZ, winsize)
 
-        # Fallback: parse stdout if JSON was empty
-        if not records:
-            for line in proc.stdout.splitlines():
-                m = re.match(r'\s*\[\*\]\s*(\w+)\s+([\w.\-]+)\s+([\d.]+)', line)
-                if m:
-                    if rec_filter and m.group(1) != rec_filter:
-                        continue
-                    records.append({
-                        "type": m.group(1),
-                        "name": m.group(2),
-                        "address": m.group(3)
-                    })
-
-        if os.path.exists(out_file):
-            os.unlink(out_file)
-
-        return jsonify({
-            "target": target,
-            "records": records,
-            "scan_type": scan_type,
-            "note": "Queries sent via Tor (TCP mode). UDP-based records may be incomplete."
-        })
-
-    except subprocess.TimeoutExpired:
-        return jsonify({"error": f"dnsrecon timed out after {TIMEOUT_DNSRECON}s. Tor routing can be slow."})
-    except Exception as e:
-        return jsonify({"error": str(e)})'''
-
-NEW_DR = '''# ── DNSRecon route (v5 — multi-layer fallback, no broken --tcp) ──────────────
-@app.route("/dnsrecon", methods=["POST"])
-def dnsrecon_route():
-    """
-    DNS enumeration with three-layer fallback:
-      1. dnsrecon binary  (no --tcp — dnsrecon doesn't support that flag)
-      2. dig              (standard DNS tool)
-      3. Python socket    (always available)
-    DNS uses UDP — not proxied through Tor SOCKS.
-    """
-    import shutil as _sh, tempfile, socket as _sock
-
-    data = request.get_json() or {}
-    target    = (data.get("target") or "").strip()
-    scan_type = data.get("type", "std")
-    ns        = (data.get("ns") or "").strip()
-    rec_filter= (data.get("filter") or "").strip().upper()
-
-    if not target:
-        return jsonify({"error": "No target specified"})
-
-    user = get_current_user()
-    audit(user["id"] if user else None,
-          user["username"] if user else "anon",
-          "DNSRECON", target=target, ip=request.remote_addr)
-
-    records, method_used = [], "none"
-
-    # ── Layer 1: dnsrecon ─────────────────────────────────────────────────
-    binary = _sh.which("dnsrecon")
-    if binary:
-        with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as tf:
-            out_file = tf.name
-        # Run dnsrecon directly — no proxychains, no --tcp (neither is supported for DNS)
-        cmd = [binary, "-d", target, "-t", scan_type, "-j", out_file]
-        if ns:
-            cmd += ["-n", ns]
-        try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT_DNSRECON)
-            # Parse JSON output
-            if os.path.exists(out_file) and os.path.getsize(out_file) > 5:
-                try:
-                    with open(out_file) as f:
-                        raw = json.load(f)
-                    items = raw if isinstance(raw, list) else raw.get("records", [])
-                    for item in items:
-                        if not isinstance(item, dict):
-                            continue
-                        rtype = str(item.get("type", "?")).upper()
-                        if rec_filter and rtype != rec_filter:
-                            continue
-                        records.append({
-                            "type":    rtype,
-                            "name":    item.get("name", item.get("host", "")),
-                            "address": item.get("address", item.get("data",
-                                       item.get("target", item.get("strings", "")))),
-                            "ttl":     str(item.get("ttl", "")),
-                        })
-                    if records:
-                        method_used = "dnsrecon-json"
-                except Exception:
-                    pass
-            # Fallback: parse stdout text output
-            if not records and proc.stdout:
-                for line in proc.stdout.splitlines():
-                    m = re.search(r'\[\*\]\s+(\w+)\s+([\w.\-*@]+)\s+([\S]+)', line)
-                    if m:
-                        rtype = m.group(1).upper()
-                        if rec_filter and rtype != rec_filter:
-                            continue
-                        records.append({"type": rtype, "name": m.group(2),
-                                        "address": m.group(3), "ttl": ""})
-                if records:
-                    method_used = "dnsrecon-stdout"
-        except subprocess.TimeoutExpired:
-            pass
-        except Exception:
-            pass
-        finally:
-            if os.path.exists(out_file):
-                os.unlink(out_file)
-
-    # ── Layer 2: dig ──────────────────────────────────────────────────────
-    if not records and _sh.which("dig"):
-        rtypes = [rec_filter] if rec_filter else ["A","AAAA","MX","NS","TXT","CNAME","SOA"]
-        resolver = f"@{ns}" if ns else "@8.8.8.8"
-        for rtype in rtypes:
-            try:
-                cmd2 = ["dig", "+noall", "+answer", "+time=5", "+tries=2",
-                        resolver, rtype, target]
-                proc2 = subprocess.run(cmd2, capture_output=True, text=True, timeout=15)
-                for line in proc2.stdout.splitlines():
-                    parts = line.split()
-                    if len(parts) >= 5 and not line.startswith(";"):
-                        records.append({
-                            "type":    parts[3].upper(),
-                            "name":    parts[0].rstrip("."),
-                            "address": " ".join(parts[4:]).rstrip("."),
-                            "ttl":     parts[1],
-                        })
-            except Exception:
-                pass
-        if records:
-            method_used = "dig"
-
-    # ── Layer 3: Python socket ────────────────────────────────────────────
-    if not records:
-        try:
-            ip = _sock.gethostbyname(target)
-            if not rec_filter or rec_filter == "A":
-                records.append({"type":"A","name":target,"address":ip,"ttl":""})
-            method_used = "python-socket"
-        except Exception:
-            pass
-        # nslookup for MX
-        if not rec_filter or rec_filter in ("MX","NS"):
-            try:
-                proc3 = subprocess.run(["nslookup","-type=MX",target],
-                                        capture_output=True, text=True, timeout=10)
-                for ln in proc3.stdout.splitlines():
-                    if "mail exchanger" in ln.lower():
-                        records.append({"type":"MX","name":target,
-                                        "address":ln.split("=")[-1].strip(),"ttl":""})
-            except Exception:
-                pass
-
-    return jsonify({
-        "target":     target,
-        "records":    records,
-        "scan_type":  scan_type,
-        "total":      len(records),
-        "method":     method_used,
-        "note": (
-            "dnsrecon ran directly (DNS is UDP — cannot proxy through Tor)."
-            if "dnsrecon" in method_used else
-            f"Fallback method used: {method_used}. "
-            "Install dnsrecon for full results: sudo apt install dnsrecon"
+        proc = subprocess.Popen(
+            [binary],
+            stdin=slave_fd, stdout=slave_fd, stderr=slave_fd,
+            close_fds=True,
+            env={**os.environ, "TERM": "xterm-256color", "COLUMNS": "220", "LINES": "40"},
         )
-    })'''
+        os.close(slave_fd)
+
+        output_q = _queue.Queue(maxsize=2000)
+        alive_flag = {"alive": True}
+
+        session = {
+            "proc":       proc,
+            "master_fd":  master_fd,
+            "output_q":   output_q,
+            "alive":      True,
+            "created":    datetime.now(timezone.utc).timestamp(),
+            "binary":     binary,
+            "user":       u["username"],
+        }
+        with _SET_SESSIONS_LOCK:
+            _SET_SESSIONS[sid] = session
+
+        t = _threading.Thread(
+            target=_set_session_reader,
+            args=(sid, master_fd, output_q),
+            daemon=True,
+        )
+        t.start()
+
+        audit(u["id"], u["username"], "SET_SESSION_START",
+              ip=request.remote_addr, details=f"binary={binary}")
+
+        return jsonify({"session_id": sid, "ok": True, "binary": binary})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# PATCH 2a — Add SSE streaming route for Deep Web Audit (inserted before /report)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-OLD_REPORT_ANCHOR = '''@app.route("/report", methods=["POST"])
-def report():'''
-
-NEW_REPORT_ANCHOR = '''# ── Deep Web Audit — SSE streaming endpoint ──────────────────────────────────
-@app.route("/web-deep-stream")
-def web_deep_stream():
+@app.route("/api/set/session/<sid>/stream")
+def set_session_stream(sid):
     """
-    Server-Sent Events endpoint.
-    Streams one JSON event per tool as it completes, with % progress.
-    Final event has done=True and the complete result dict.
+    SSE endpoint — streams PTY output for a given session.
+    The client connects here and receives text/event-stream chunks.
     """
-    import threading, queue, time as _t
+    u = get_current_user()
+    if not u:
+        return jsonify({"error": "Login required"}), 401
 
-    input_url = request.args.get("url", "").strip()
-    profile   = request.args.get("profile", "balanced").strip().lower()
-    if profile not in {"balanced", "deep", "very_deep"}:
-        profile = "balanced"
+    with _SET_SESSIONS_LOCK:
+        session = _SET_SESSIONS.get(sid)
 
-    raw_url, base_url, host = _normalize_target_url(input_url)
-    if not host:
-        def _err():
-            yield 'data: ' + json.dumps({"pct":0,"done":True,"error":"Invalid URL"}) + '\n\n'
-        return Response(_err(), mimetype="text/event-stream")
+    if not session:
+        def _gone():
+            yield "data: " + json.dumps({"type": "error", "text": "Session not found or expired."}) + "\\n\\n"
+        return Response(_gone(), mimetype="text/event-stream")
 
-    user = get_current_user()
-    audit(user["id"] if user else None,
-          user["username"] if user else "anon",
-          "WEB_DEEP_STREAM", target=base_url,
-          ip=request.remote_addr, details=f"profile={profile}")
-
-    q = queue.Queue()
-
-    # (end_pct, label, key)
-    STAGES = [
-        (8,  "HTTP Headers",              "headers"),
-        (16, "SSL/TLS Analysis",          "ssl"),
-        (24, "DNS Records",               "dns"),
-        (38, "Port Scan (nmap)",          "ports"),
-        (50, "Directory Enumeration",     "dirbust"),
-        (63, "Nikto Web Scanner",         "nikto"),
-        (73, "WhatWeb Fingerprint",       "whatweb"),
-        (84, "Nuclei Templates",          "nuclei"),
-        (93, "SQLMap Injection Check",    "sqlmap"),
-        (100,"Building Report",           "final"),
-    ]
-
-    def _worker():
-        store = {}
-        try:
-            for pct, label, key in STAGES:
-                q.put({"pct": pct-1, "stage": label,
-                       "log": f"[*] {label}...", "done": False})
-                try:
-                    if key == "headers":
-                        r = run_backend("--modules", "headers", host, timeout=60)
-                        store["headers"] = (r.get("modules") or {}).get("headers") or {}
-                        n = len(store["headers"].get("issues", []))
-                        q.put({"pct":pct,"stage":label,
-                               "log":f"[+] Headers — {n} issue(s)", "done":False})
-
-                    elif key == "ssl":
-                        r = run_backend("--modules", "ssl", host, timeout=60)
-                        store["ssl"] = (r.get("modules") or {}).get("ssl") or []
-                        g = store["ssl"][0].get("grade","?") if store["ssl"] else "N/A"
-                        q.put({"pct":pct,"stage":label,
-                               "log":f"[+] SSL — grade: {g}", "done":False})
-
-                    elif key == "dns":
-                        r = run_backend("--modules", "dns", host, timeout=60)
-                        store["dns"] = (r.get("modules") or {}).get("dns") or {}
-                        s = len(store["dns"].get("subdomains", []))
-                        q.put({"pct":pct,"stage":label,
-                               "log":f"[+] DNS — {s} subdomains found", "done":False})
-
-                    elif key == "ports":
-                        r = run_backend("--modules", "ports",
-                                        "--nmap-profile", profile, host, timeout=TIMEOUT_SCAN)
-                        store["ports"] = r
-                        op = sum(len(h.get("ports",[])) for h in (r.get("hosts") or []))
-                        cv = len([c for h in (r.get("hosts") or [])
-                                  for p in h.get("ports",[]) for c in p.get("cves",[])])
-                        q.put({"pct":pct,"stage":label,
-                               "log":f"[+] Ports — {op} open, {cv} CVEs", "done":False})
-
-                    elif key == "dirbust":
-                        r = run_backend("--dirbust", base_url, "medium",
-                                        "php,html,js,txt,bak,zip,env,log",
-                                        timeout=TIMEOUT_DIRBUST)
-                        store["dirbust"] = r
-                        q.put({"pct":pct,"stage":label,
-                               "log":f"[+] Dirs — {r.get('total',0)} path(s) found",
-                               "done":False})
-
-                    elif key == "nikto":
-                        r = _run_nikto_for_webdeep(raw_url)
-                        store["nikto"] = r
-                        q.put({"pct":pct,"stage":label,
-                               "log":f"[+] Nikto — {len(r.get('findings',[]))} finding(s)",
-                               "done":False})
-
-                    elif key == "whatweb":
-                        r = _run_whatweb_for_webdeep(raw_url)
-                        store["whatweb"] = r
-                        tech = ", ".join(r.get("technologies",[])[:4]) or "none"
-                        q.put({"pct":pct,"stage":label,
-                               "log":f"[+] WhatWeb — {tech}", "done":False})
-
-                    elif key == "nuclei":
-                        r = _run_nuclei_for_webdeep(raw_url)
-                        store["nuclei"] = r
-                        q.put({"pct":pct,"stage":label,
-                               "log":f"[+] Nuclei — {len(r.get('findings',[]))} finding(s)",
-                               "done":False})
-
-                    elif key == "sqlmap":
-                        r = _run_sqlmap_for_webdeep(raw_url)
-                        store["sqlmap"] = r
-                        q.put({"pct":pct,"stage":label,
-                               "log":f"[+] SQLMap — {len(r.get('findings',[]))} indicator(s)",
-                               "done":False})
-
-                    elif key == "final":
-                        net = store.get("ports", {})
-                        if "modules" not in net:
-                            net["modules"] = {}
-                        net["modules"]["headers"] = store.get("headers", {})
-                        net["modules"]["ssl"]     = store.get("ssl", [])
-                        net["modules"]["dns"]     = store.get("dns", {})
-
-                        hdr = store.get("headers", {})
-                        score, rating, summary = _rate_web_findings(
-                            net, store.get("nikto",{}),
-                            store.get("dirbust",{}), hdr,
-                            nuclei_data=store.get("nuclei",{}),
-                            sqlmap_data=store.get("sqlmap",{}))
-
-                        all_cves = [c for h in (net.get("hosts") or [])
-                                    for p in h.get("ports",[])
-                                    for c in p.get("cves",[])]
-                        net_sum = {
-                            "open_ports":   sum(len(h.get("ports",[])) for h in (net.get("hosts") or [])),
-                            "total_cves":   len(all_cves),
-                            "critical_cves":sum(1 for c in all_cves if c.get("severity")=="CRITICAL"),
-                            "high_cves":    sum(1 for c in all_cves if c.get("severity")=="HIGH"),
-                            "exploitable":  sum(1 for c in all_cves if c.get("has_exploit")),
-                        }
-
-                        result = {
-                            "target":              base_url,
-                            "vulnerability_score": score,
-                            "risk_rating":         rating,
-                            "summary":             {**summary, **net_sum},
-                            "tools_required":      required_web_tools(),
-                            "tools_run": [
-                                {"tool":k,"status":"ok" if v else "no-output"}
-                                for k,v in store.items()
-                            ],
-                            "key_findings": [
-                                f"Open ports: {net_sum['open_ports']}",
-                                f"Total CVEs: {net_sum['total_cves']}",
-                                f"Critical CVEs: {net_sum['critical_cves']}",
-                                f"Nikto findings: {summary['nikto_high']}",
-                                f"Sensitive paths: {summary['sensitive_paths']}",
-                                f"Header issues: {summary['header_issues']}",
-                                f"Nuclei findings: {summary['nuclei_high']}",
-                                f"SQLi indicators: {summary['sqlmap_hits']}",
-                            ],
-                            "executive_summary": (
-                                f"Deep web audit complete for {base_url}. "
-                                f"Risk: {rating} ({score}/100). "
-                                f"{net_sum['open_ports']} open ports, "
-                                f"{net_sum['total_cves']} CVEs."
-                            ),
-                            "details": {
-                                "network_scan":    net,
-                                "nikto":           store.get("nikto",{}),
-                                "directory_enum":  store.get("dirbust",{}),
-                                "whatweb":         store.get("whatweb",{}),
-                                "nuclei":          store.get("nuclei",{}),
-                                "sqlmap":          store.get("sqlmap",{}),
-                            }
-                        }
-                        q.put({"pct":100,"stage":"Done",
-                               "log":f"[+] Complete — {rating} ({score}/100)",
-                               "done":True, "result":result})
-                        return
-
-                except Exception as e:
-                    q.put({"pct":pct,"stage":label,
-                           "log":f"[!] {label} error: {str(e)[:100]}","done":False})
-
-        except Exception as e:
-            q.put({"pct":100,"done":True,"error":str(e),"result":{}})
-
-    threading.Thread(target=_worker, daemon=True).start()
-
-    def _stream():
+    def _gen():
+        q = session["output_q"]
         while True:
             try:
-                msg = q.get(timeout=1800)
-                yield "data: " + json.dumps(msg) + "\n\n"
-                if msg.get("done"):
-                    break
-            except Exception:
-                yield 'data: ' + json.dumps({"pct":100,"done":True,
-                                              "error":"Stream timeout"}) + "\n\n"
+                chunk = q.get(timeout=25)
+            except _queue.Empty:
+                # Heartbeat so the connection stays alive
+                yield "data: " + json.dumps({"type": "heartbeat"}) + "\\n\\n"
+                continue
+
+            if chunk is None:
+                # Reader thread ended — process exited
+                yield "data: " + json.dumps({"type": "exit", "text": "\\r\\n[SET session ended]\\r\\n"}) + "\\n\\n"
+                _kill_set_session(sid)
                 break
 
-    return Response(_stream(), mimetype="text/event-stream",
-                    headers={"Cache-Control":"no-cache","X-Accel-Buffering":"no"})
+            yield "data: " + json.dumps({"type": "output", "text": chunk}) + "\\n\\n"
+
+    return Response(
+        _gen(),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
-@app.route("/report", methods=["POST"])
-def report():'''
+@app.route("/api/set/session/<sid>/input", methods=["POST"])
+def set_session_input(sid):
+    """
+    Send keystrokes / a line to the SET PTY.
+    Body: { "text": "1\\n" }   — text to write verbatim to the PTY
+    OR:   { "key": "ctrl_c" }  — named special key
+    """
+    u = get_current_user()
+    if not u:
+        return jsonify({"error": "Login required"}), 401
+
+    with _SET_SESSIONS_LOCK:
+        session = _SET_SESSIONS.get(sid)
+
+    if not session or not session["alive"]:
+        return jsonify({"error": "Session not found or already closed"}), 404
+
+    data = request.get_json() or {}
+    text = data.get("text", "")
+    key  = data.get("key", "")
+
+    SPECIAL = {
+        "ctrl_c": b"\\x03",
+        "ctrl_d": b"\\x04",
+        "ctrl_z": b"\\x1a",
+        "enter":  b"\\n",
+        "up":     b"\\x1b[A",
+        "down":   b"\\x1b[B",
+        "q":      b"q\\n",
+        "99":     b"99\\n",
+        "back":   b"99\\n",
+    }
+
+    try:
+        if key and key in SPECIAL:
+            raw = SPECIAL[key]
+        elif text is not None:
+            raw = (str(text)).encode("utf-8", errors="replace")
+        else:
+            return jsonify({"error": "Provide text or key"}), 400
+
+        os.write(session["master_fd"], raw)
+        return jsonify({"ok": True})
+
+    except OSError as e:
+        _kill_set_session(sid)
+        return jsonify({"error": f"Write failed — session may have ended: {e}"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# PATCH 2b — Deep Web Audit JS: switch to SSE + live progress
-# ═══════════════════════════════════════════════════════════════════════════════
+@app.route("/api/set/session/<sid>/kill", methods=["POST"])
+def set_session_kill(sid):
+    """Terminate a SET session cleanly."""
+    u = get_current_user()
+    if not u:
+        return jsonify({"error": "Login required"}), 401
+    _kill_set_session(sid)
+    audit(u["id"], u["username"], "SET_SESSION_KILL",
+          ip=request.remote_addr, details=f"sid={sid}")
+    return jsonify({"ok": True})
 
-OLD_WD_JS = '''/* ==== DEEP WEB AUDIT ==== */
-async function doWebDeep(){
-  var url=document.getElementById('wd-url').value.trim();if(!url){alert('Enter a website URL');return;}
-  var profile=document.getElementById('wd-profile').value||'balanced';
-  var btn=document.getElementById('wd-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Auditing...';
-  wdTool.start();wdTool.log('Target: '+url,'i');wdTool.log('Profile: '+profile,'i');wdTool.log('Running full multi-tool audit. This can take a while...','w');
+
+@app.route("/api/set/sessions", methods=["GET"])
+def set_sessions_list():
+    """List active SET sessions (admin only)."""
+    u = get_current_user()
+    if not u or u.get("role") != "admin":
+        return jsonify({"error": "Admin required"}), 403
+    _reap_old_set_sessions()
+    with _SET_SESSIONS_LOCK:
+        sessions = [
+            {"sid": sid, "user": s["user"], "alive": s["alive"],
+             "binary": s["binary"],
+             "created": datetime.fromtimestamp(s["created"], tz=timezone.utc).isoformat()}
+            for sid, s in _SET_SESSIONS.items()
+        ]
+    return jsonify({"sessions": sessions})
+
+
+@app.route("/social-tools/run", methods=["POST"])
+def social_tool_run():'''
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PATCH 2 — HTML: Replace SET page with full interactive terminal UI
+# ══════════════════════════════════════════════════════════════════════════════
+
+OLD_SET_PAGE = '''      <!-- SOCIAL-ENGINEER TOOLKIT -->
+      <div class="page" id="page-setoolkit">
+        <div class="page-hd"><div class="page-title">Social-Engineer Toolkit (SET)</div><div class="page-desc">Run SET commands from server and view live output</div></div>
+        <div class="notice">&#9888; Authorized awareness testing only. This executes real SET commands on your server.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>OPERATION</label><select class="inp inp-mono" id="set-op"><option value="help">Help / capability check</option><option value="version">Version check</option><option value="custom">Custom arguments</option></select></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="set-timeout" type="number" value="90" min="10" max="600"/></div>
+          </div>
+          <div class="fg"><label>CUSTOM ARGUMENTS (for custom mode)</label><input class="inp inp-mono" id="set-args" type="text" placeholder="--help"/></div>
+          <button class="btn btn-primary" id="set-btn" onclick="runSetToolkit()">RUN SET</button>
+        </div>
+        <div class="progress-wrap" id="set-prog"><div class="progress-bar" id="set-pb" style="width:0%"></div></div>
+        <div class="terminal" id="set-term"></div>
+        <div class="err-box" id="set-err"></div>
+        <div id="set-res"></div>
+        <div class="page-hd"><div class="page-title">Social-Engineer Toolkit (SET)</div><div class="page-desc">Interactive social engineering simulation framework</div></div>
+        <div class="notice">&#9888; Use only for internal awareness assessments with written authorization. Never use for unauthorized phishing or payload delivery.</div>
+        <div class="card card-p" style="margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:8px">Recommended Use Cases</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.8">Email phishing simulations, clone-page credential capture in controlled labs, and awareness testing with approved target lists.</div>
+          <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px"><span class="tag">spear-phishing</span><span class="tag">web templates</span><span class="tag">payload generation</span></div>
+        </div>
+        <div class="card card-p">
+          <div class="card-title" style="margin-bottom:8px">Quick Commands (Linux)</div>
+          <div style="font-family:var(--mono);font-size:11px;line-height:1.8;color:var(--text2)">sudo apt install set<br/>sudo setoolkit</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:10px">Workflow: Social-Engineering Attacks &rarr; Spear-Phishing &rarr; Select payload/template &rarr; send only to approved recipients.</div>
+        </div>
+      </div>'''
+
+NEW_SET_PAGE = '''      <!-- SOCIAL-ENGINEER TOOLKIT — Interactive PTY Terminal -->
+      <div class="page" id="page-setoolkit">
+        <div class="page-hd">
+          <div class="page-title">Social-Engineer Toolkit (SET)</div>
+          <div class="page-desc">Full interactive terminal — navigate all SET menus directly from your browser</div>
+        </div>
+        <div class="notice">&#9888; Authorized awareness testing only. All actions are audit-logged. Never use for unauthorized phishing or payload delivery.</div>
+
+        <!-- Quick-select menu panel -->
+        <div class="card card-p" style="margin-bottom:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+            <div>
+              <div class="card-title">SET Interactive Terminal</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:2px">Type directly in the terminal below, or use the quick-select buttons</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-primary btn-sm" id="set-launch-btn" onclick="setLaunch()">
+                <span id="set-launch-icon">&#9654;</span> LAUNCH SET
+              </button>
+              <button class="btn btn-outline btn-sm" id="set-kill-btn" onclick="setKill()" style="display:none;color:var(--red);border-color:rgba(192,57,43,0.3)">
+                &#9632; KILL SESSION
+              </button>
+            </div>
+          </div>
+
+          <!-- Quick menu buttons — Main menu -->
+          <div id="set-quick-panel">
+            <div style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;margin-bottom:6px">QUICK SELECT — MAIN MENU</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px" id="set-main-btns">
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('1\\n')" title="Social-Engineering Attacks">1 — SE Attacks</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('2\\n')" title="Penetration Testing (Fast-Track)">2 — PenTest</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('3\\n')" title="Third Party Modules">3 — Third Party</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('4\\n')" title="Update SET">4 — Update SET</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('5\\n')" title="Update SET Config">5 — SET Config</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('6\\n')" title="Help / Credits">6 — Help</button>
+            </div>
+            <div style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;margin-bottom:6px">SOCIAL-ENGINEERING ATTACKS (after selecting 1)</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('1\\n')" title="Spear-Phishing">1 — Spear-Phishing</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('2\\n')" title="Website Attack Vectors">2 — Website Attacks</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('3\\n')" title="Infectious Media Generator">3 — Infectious Media</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('4\\n')" title="Create a Payload and Listener">4 — Payload + Listener</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('5\\n')" title="Mass Mailer Attack">5 — Mass Mailer</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('6\\n')" title="Arduino-Based Attack Vector">6 — Arduino</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('7\\n')" title="Wireless Access Point Attack">7 — Wireless AP</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('8\\n')" title="QRCode Generator">8 — QRCode</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('9\\n')" title="Powershell Attack Vectors">9 — PowerShell</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('10\\n')">10 — SMS Spoofing</button>
+            </div>
+            <div style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;margin-bottom:6px">NAVIGATION</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <button class="btn btn-outline btn-sm" onclick="setSend('99\\n')" style="color:var(--text2)">&#8592; Back / 99</button>
+              <button class="btn btn-outline btn-sm" onclick="setSpecialKey('ctrl_c')" style="color:var(--yellow)">&#9679; Ctrl+C</button>
+              <button class="btn btn-outline btn-sm" onclick="setSend('q\\n')" style="color:var(--text2)">q — Quit prompt</button>
+              <button class="btn btn-outline btn-sm" onclick="setSend('exit\\n')" style="color:var(--text2)">exit</button>
+              <button class="btn btn-outline btn-sm" onclick="setSend('\\n')" style="color:var(--text2)">&#9166; Enter</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Terminal window -->
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-header" style="padding:10px 16px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="width:10px;height:10px;border-radius:50%;background:var(--green)" id="set-status-dot"></div>
+              <span style="font-family:var(--mono);font-size:11px;color:var(--text3)" id="set-status-label">Not started — click LAUNCH SET</span>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-ghost btn-sm" onclick="setTermClear()" title="Clear screen">CLR</button>
+              <button class="btn btn-ghost btn-sm" onclick="setTermScroll()" title="Scroll to bottom">&#8595;</button>
+            </div>
+          </div>
+
+          <!-- The main xterm-like display -->
+          <div id="set-terminal-output"
+               style="background:#0a0a0a;color:#00e5ff;font-family:var(--mono);font-size:12.5px;
+                      line-height:1.65;padding:14px 16px;min-height:360px;max-height:520px;
+                      overflow-y:auto;white-space:pre-wrap;word-break:break-all;
+                      border-bottom:1px solid var(--border);cursor:text"
+               onclick="document.getElementById('set-input-box').focus()">
+            <span style="color:var(--text3)">[ SET Interactive Terminal ]  Click LAUNCH SET to begin.</span>
+          </div>
+
+          <!-- Inline input row -->
+          <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--bg2)">
+            <span style="font-family:var(--mono);font-size:12px;color:var(--text3);flex-shrink:0">set&gt;</span>
+            <input id="set-input-box"
+                   class="inp inp-mono"
+                   type="text"
+                   placeholder="Type a menu number or command, then press Enter..."
+                   style="flex:1;background:transparent;border:none;box-shadow:none;padding:4px 0;font-size:12.5px"
+                   onkeydown="setInputKey(event)"
+                   autocomplete="off" spellcheck="false"/>
+            <button class="btn btn-primary btn-sm" onclick="setInputSend()">SEND</button>
+          </div>
+        </div>
+
+        <!-- Info cards -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">
+          <div class="card card-p">
+            <div class="card-title" style="margin-bottom:8px">How to Use</div>
+            <div style="font-size:12px;color:var(--text2);line-height:1.8">
+              1. Click <strong>LAUNCH SET</strong> to open a live session.<br/>
+              2. Wait for the SET menu to appear in the terminal.<br/>
+              3. Use the quick buttons or type a number + Enter.<br/>
+              4. Navigate sub-menus the same way.<br/>
+              5. Use <strong>99</strong> to go back, <strong>Ctrl+C</strong> to interrupt.
+            </div>
+          </div>
+          <div class="card card-p">
+            <div class="card-title" style="margin-bottom:8px">Common Workflows</div>
+            <div style="font-size:12px;color:var(--text2);line-height:1.8">
+              <strong>Phishing simulation:</strong> 1 → 1 → 1<br/>
+              <strong>Website clone attack:</strong> 1 → 2 → 2<br/>
+              <strong>Payload + listener:</strong> 1 → 4<br/>
+              <strong>Mass mailer:</strong> 1 → 5<br/>
+              <strong>PowerShell attack:</strong> 1 → 9
+            </div>
+          </div>
+          <div class="card card-p" style="border-left:3px solid var(--yellow)">
+            <div class="card-title" style="margin-bottom:8px;color:var(--yellow)">&#9888; Legal Notice</div>
+            <div style="font-size:12px;color:var(--text2);line-height:1.8">
+              All SET operations are audit-logged. Only use against systems and users you are <strong>explicitly authorized</strong> to test in writing.
+            </div>
+            <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px">
+              <span class="tag">phishing-sim</span><span class="tag">authorized</span><span class="tag">awareness</span>
+            </div>
+          </div>
+        </div>
+      </div>'''
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PATCH 3 — HTML JS: Replace runSetToolkit() with full PTY session management
+# ══════════════════════════════════════════════════════════════════════════════
+
+OLD_SET_JS = '''/* ==== SOCIAL ENGINEERING TOOLS ==== */
+function renderSocialTool(toolObj,d){
+  var html=\'<div class="stats" style="margin-bottom:14px"><div class="stat"><div class="stat-val">\'+(d.tool||\'tool\').toUpperCase()+\'</div><div class="stat-lbl">TOOL</div></div><div class="stat"><div class="stat-val">\'+(d.exit_code===null?\'--\':d.exit_code)+\'</div><div class="stat-lbl">EXIT CODE</div></div><div class="stat"><div class="stat-val">\'+(d.duration_ms||0)+\'</div><div class="stat-lbl">DURATION (ms)</div></div></div>\';
+  html+=\'<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">Command Executed</div><div style="font-family:var(--mono);font-size:11px;color:var(--text2);word-break:break-all">\'+(d.command||\'n/a\')+\'</div></div>\';
+  html+=\'<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">stdout</div><pre style="font-family:var(--mono);font-size:11px;color:var(--text2);white-space:pre-wrap">\'+(d.stdout||\'(empty)\')+\'</pre></div>\';
+  html+=\'<div class="card card-p"><div class="card-title" style="margin-bottom:8px">stderr</div><pre style="font-family:var(--mono);font-size:11px;color:var(--text2);white-space:pre-wrap">\'+(d.stderr||\'(empty)\')+\'</pre></div>\';
+  toolObj.res(html);
+}
+async function runSetToolkit(){
+  var op=document.getElementById(\'set-op\').value, args=document.getElementById(\'set-args\').value.trim(), timeout=parseInt(document.getElementById(\'set-timeout\').value||\'90\',10);
+  var btn=document.getElementById(\'set-btn\');btn.disabled=true;btn.innerHTML=\'<span class="spin"></span> Running...\';
+  setTool.start();setTool.log(\'Executing SET operation: \'+op,\'i\');
   try{
-    var r=await fetchWithTimeout('/web-deep',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:url,profile:profile})},1800000,'wd');
-    var d=await r.json();wdTool.end();
-    if(d.error){wdTool.log(d.error,'e');wdTool.err(d.error);}
-    else{wdTool.log('Audit complete -- Rating: '+(d.risk_rating||'UNKNOWN'),'s');renderWebDeep(d);}
-  }catch(e){wdTool.end();wdTool.err(e.message);}
-  finally{btn.disabled=false;btn.innerHTML='RUN DEEP WEB AUDIT';}
+    var r=await fetchWithTimeout(\'/social-tools/run\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({tool:\'setoolkit\',operation:op,args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),\'set\');
+    var d=await r.json();setTool.end();if(d.error){setTool.err(d.error);}else{setTool.log(\'SET completed\',\'s\');renderSocialTool(setTool,d);}
+  }catch(e){setTool.end();setTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML=\'RUN SET\';}
 }'''
 
-NEW_WD_JS = '''/* ==== DEEP WEB AUDIT ==== */
-var _wdES=null;
-function _wdReset(){
-  var btn=document.getElementById('wd-btn');
-  if(btn){btn.disabled=false;btn.innerHTML='RUN DEEP WEB AUDIT';}
-  document.getElementById('wd-cancel').style.display='none';
-  endProg('wd-prog');
+NEW_SET_JS = '''/* ==== SET INTERACTIVE TERMINAL ==== */
+var _setSid = null;
+var _setES  = null;
+var _setHistory = [];
+var _setHistIdx = -1;
+var _setAnsiRe  = /[\\x1B\\x9B][[\\]()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><~]/g;
+var _setCRRe    = /\\r/g;
+
+function _setAppend(raw) {
+  var el = document.getElementById('set-terminal-output');
+  if (!el) return;
+  // Strip ANSI escape codes, keep printable text + newlines
+  var clean = raw.replace(_setAnsiRe, '').replace(_setCRRe, '');
+  el.textContent += clean;
+  // Auto-scroll
+  el.scrollTop = el.scrollHeight;
 }
-function doWebDeep(){
-  var url=document.getElementById('wd-url').value.trim();if(!url){alert('Enter a website URL');return;}
-  var profile=document.getElementById('wd-profile').value||'balanced';
-  var btn=document.getElementById('wd-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Auditing...';
-  document.getElementById('wd-cancel').style.display='inline-flex';
-  wdTool.start();startProg('wd-prog');
-  wdTool.log('Target: '+url,'i');
-  wdTool.log('Profile: '+profile+' | 9 tools running — streaming live progress...','w');
-  if(_wdES){_wdES.close();_wdES=null;}
-  var params=new URLSearchParams({url:url,profile:profile});
-  _wdES=new EventSource('/web-deep-stream?'+params.toString());
-  _wdES.onmessage=function(e){
-    try{
-      var d=JSON.parse(e.data);
-      // Update progress bar
-      var pb=document.getElementById('wd-pb');if(pb)pb.style.width=(d.pct||0)+'%';
-      // Log
-      if(d.log){
-        var tp='i';
-        if(d.log.startsWith('[+]'))tp='s';
-        else if(d.log.startsWith('[!]'))tp='w';
-        else if(d.log.startsWith('[x]'))tp='e';
-        wdTool.log('['+d.pct+'%] '+d.log.replace(/^\[.\] /,''),tp);
+
+function setTermClear() {
+  var el = document.getElementById('set-terminal-output');
+  if (el) el.textContent = '';
+}
+
+function setTermScroll() {
+  var el = document.getElementById('set-terminal-output');
+  if (el) el.scrollTop = el.scrollHeight;
+}
+
+function _setSetStatus(label, color, showKill) {
+  var dot   = document.getElementById('set-status-dot');
+  var lbl   = document.getElementById('set-status-label');
+  var kill  = document.getElementById('set-kill-btn');
+  var launch= document.getElementById('set-launch-btn');
+  if (dot)    dot.style.background = color;
+  if (lbl)    lbl.textContent      = label;
+  if (kill)   kill.style.display   = showKill ? 'inline-flex' : 'none';
+  if (launch) launch.disabled      = showKill;
+}
+
+async function setLaunch() {
+  // Kill any existing session first
+  if (_setSid) { await setKill(); }
+  setTermClear();
+  _setAppend('Launching SET session...\\n');
+  _setSetStatus('Connecting...', 'var(--yellow)', false);
+
+  try {
+    var r = await fetch('/api/set/session/new', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({})
+    });
+    var d = await r.json();
+    if (d.error) {
+      _setAppend('[ERROR] ' + d.error + '\\n');
+      _setSetStatus('Error — SET not found', 'var(--red)', false);
+      showToast('SET Error', d.error, 'error', 7000);
+      return;
+    }
+    _setSid = d.session_id;
+    _setAppend('[+] Session started (binary: ' + d.binary + ')\\n');
+    _setSetStatus('Session active', 'var(--green)', true);
+    showToast('SET Launched', 'Interactive terminal ready', 'success', 3000);
+    _setStartStream();
+  } catch(e) {
+    _setAppend('[ERROR] ' + e.message + '\\n');
+    _setSetStatus('Launch failed', 'var(--red)', false);
+  }
+}
+
+function _setStartStream() {
+  if (_setES) { _setES.close(); _setES = null; }
+  if (!_setSid) return;
+
+  _setES = new EventSource('/api/set/session/' + _setSid + '/stream');
+
+  _setES.onmessage = function(ev) {
+    try {
+      var msg = JSON.parse(ev.data);
+      if (msg.type === 'output') {
+        _setAppend(msg.text);
+      } else if (msg.type === 'exit') {
+        _setAppend(msg.text || '\\n[Session ended]\\n');
+        _setSetStatus('Session ended', 'var(--text3)', false);
+        _setES.close(); _setES = null; _setSid = null;
+      } else if (msg.type === 'error') {
+        _setAppend('[ERROR] ' + msg.text + '\\n');
+        _setSetStatus('Error', 'var(--red)', false);
       }
-      if(d.done){
-        _wdES.close();_wdES=null;_wdReset();
-        if(d.error){wdTool.err(d.error);}
-        else if(d.result){
-          wdTool.log('Audit complete — '+d.result.risk_rating+' ('+d.result.vulnerability_score+'/100)','s');
-          renderWebDeep(d.result);
-          showToast('Deep Audit Done','Risk: '+d.result.risk_rating+' | Score: '+d.result.vulnerability_score+'/100','success',7000);
-        }
-      }
-    }catch(ex){wdTool.log('Parse: '+ex.message,'e');}
+      // heartbeat: ignore
+    } catch(e) {}
   };
-  _wdES.onerror=function(){
-    if(_wdES){_wdES.close();_wdES=null;}
-    wdTool.end();wdTool.err('Stream connection lost. Retrying or check server logs.');
-    _wdReset();
+
+  _setES.onerror = function() {
+    _setAppend('\\n[Stream lost — session may have ended]\\n');
+    _setSetStatus('Disconnected', 'var(--red)', false);
+    if (_setES) { _setES.close(); _setES = null; }
   };
-}'''
+}
 
-
-# ── Patch cancelScan to also close SSE
-OLD_CANCEL = '''function cancelScan(prefix){
-  if(scanControllers[prefix]){scanControllers[prefix].abort();delete scanControllers[prefix];}
-  var id=prefix==='scan'?'sbtn-cancel':prefix+'-cancel';
-  var b=document.getElementById(id);if(b)b.style.display='none';
-  showToast('Cancelled','Scan stopped by user.','warning',3000);
-}'''
-
-NEW_CANCEL = '''function cancelScan(prefix){
-  if(prefix==='wd'&&_wdES){_wdES.close();_wdES=null;_wdReset();}
-  if(scanControllers[prefix]){scanControllers[prefix].abort();delete scanControllers[prefix];}
-  var id=prefix==='scan'?'sbtn-cancel':prefix+'-cancel';
-  var b=document.getElementById(id);if(b)b.style.display='none';
-  showToast('Cancelled','Scan stopped by user.','warning',3000);
-}'''
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# PATCH 3a — Brute Force HTML: rockyou selected by default
-# ═══════════════════════════════════════════════════════════════════════════════
-
-OLD_BF_SEL = '''          <div class="fg">
-            <label>USERNAME LIST MODE</label>
-            <select class="inp inp-mono" id="bf-user-mode" onchange="bfWordlistMode(\'user\')">
-              <option value="manual">Manual Input</option>
-              <option value="rockyou_users">rockyou.txt (top usernames)</option>
-              <option value="seclists_common">SecLists: common usernames</option>
-              <option value="seclists_top">SecLists: top shortlist</option>
-              <option value="seclists_default_creds">SecLists: default credentials users</option>
-            </select>
-          </div>
-          <div class="fg">
-            <label>PASSWORD LIST MODE</label>
-            <select class="inp inp-mono" id="bf-pass-mode" onchange="bfWordlistMode(\'pass\')">
-              <option value="manual">Manual Input</option>
-              <option value="rockyou">rockyou.txt (top 1000)</option>
-              <option value="seclists_10k">SecLists: top 10k passwords</option>
-              <option value="seclists_100k">SecLists: top 100k passwords</option>
-              <option value="seclists_default_creds_pass">SecLists: default credential passwords</option>
-              <option value="seclists_darkweb">SecLists: darkweb 2017 top 10k</option>
-            </select>
-          </div>'''
-
-NEW_BF_SEL = '''          <div class="fg">
-            <label>USERNAME LIST MODE</label>
-            <select class="inp inp-mono" id="bf-user-mode" onchange="bfWordlistMode(\'user\')">
-              <option value="manual">Manual Input</option>
-              <option value="rockyou_users" selected>rockyou.txt — default usernames &#10003;</option>
-              <option value="seclists_common">SecLists: common usernames shortlist</option>
-              <option value="seclists_top">SecLists: full names list</option>
-              <option value="seclists_default_creds">SecLists: default credential users</option>
-            </select>
-          </div>
-          <div class="fg">
-            <label>PASSWORD LIST MODE</label>
-            <select class="inp inp-mono" id="bf-pass-mode" onchange="bfWordlistMode(\'pass\')">
-              <option value="manual">Manual Input</option>
-              <option value="rockyou" selected>rockyou.txt — default passwords &#10003;</option>
-              <option value="seclists_10k">SecLists: top 10k passwords</option>
-              <option value="seclists_100k">SecLists: top 100k passwords</option>
-              <option value="seclists_default_creds_pass">SecLists: default credential passwords</option>
-              <option value="seclists_darkweb">SecLists: darkweb2017 top 10k</option>
-            </select>
-          </div>'''
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# PATCH 3b — Brute Force JS: multi-path fallback + auto-load on page open
-# ═══════════════════════════════════════════════════════════════════════════════
-
-OLD_BF_JS = '''// Wordlist path map — ordered by preference (first existing file wins)
-var BF_PATH_MAP={
-  rockyou_users:['/usr/share/wordlists/rockyou.txt','/usr/share/john/password.lst','/usr/share/dict/words'],
-  seclists_common:['/usr/share/seclists/Usernames/top-usernames-shortlist.txt','/usr/share/seclists/Usernames/Names/names.txt','/usr/share/wordlists/rockyou.txt'],
-  seclists_top:['/usr/share/seclists/Usernames/Names/names.txt','/usr/share/seclists/Usernames/top-usernames-shortlist.txt'],
-  seclists_default_creds:['/usr/share/seclists/Passwords/Default-Credentials/default-passwords.txt','/usr/share/wordlists/rockyou.txt'],
-  rockyou:['/usr/share/wordlists/rockyou.txt','/usr/share/john/password.lst','/usr/share/dict/words'],
-  seclists_10k:['/usr/share/seclists/Passwords/Common-Credentials/10k-most-common.txt','/usr/share/seclists/Passwords/Common-Credentials/best110.txt','/usr/share/wordlists/rockyou.txt'],
-  seclists_100k:['/usr/share/seclists/Passwords/Common-Credentials/100k-most-common.txt','/usr/share/seclists/Passwords/Common-Credentials/10k-most-common.txt'],
-  seclists_default_creds_pass:['/usr/share/seclists/Passwords/Default-Credentials/default-passwords.txt','/usr/share/wordlists/rockyou.txt'],
-  seclists_darkweb:['/usr/share/seclists/Passwords/darkweb2017-top10000.txt','/usr/share/seclists/Passwords/Common-Credentials/10k-most-common.txt','/usr/share/wordlists/rockyou.txt']
-};
-async function bfWordlistMode(which){
-  var modeEl=document.getElementById('bf-'+(which==='user'?'user':'pass')+'-mode');
-  var textEl=document.getElementById('bf-'+(which==='user'?'users':'pwds'));
-  var lblEl=document.getElementById('bf-'+(which==='user'?'user':'pass')+'-src-lbl');
-  var statusEl=document.getElementById('bf-wordlist-status');
-  var mode=modeEl.value;
-  if(mode==='manual'){textEl.disabled=false;lblEl.textContent='(one per line)';return;}
-  var paths=BF_PATH_MAP[mode]||[];
-  if(!paths.length){textEl.disabled=false;return;}
-  statusEl.style.display='block';
-  statusEl.textContent='[*] Loading wordlist...';
-  textEl.disabled=true;
-  // Try each path in order — server will auto-fallback to first existing file
-  var loaded=false;
-  for(var i=0;i<paths.length&&!loaded;i++){
-    var filePath=paths[i];
-    try{
-      var limit=which==='user'?200:2000;
-      var r=await fetch('/api/wordlist?path='+encodeURIComponent(filePath)+'&limit='+limit);
-      var d=await r.json();
-      if(!d.error&&d.words&&d.words.length){
-        textEl.value=d.words.join('\\n');
-        textEl.disabled=false;
-        lblEl.textContent='(from: '+d.filename+')';
-        statusEl.innerHTML='[+] Loaded <strong>'+d.words.length+'</strong> entries from <code style="font-family:var(--mono)">'+d.path+'</code>';
-        _bfWordlists[which]={path:d.path,count:d.words.length};
-        loaded=true;
-      }
-    }catch(e){}
+async function setKill() {
+  if (_setES) { _setES.close(); _setES = null; }
+  if (_setSid) {
+    try {
+      await fetch('/api/set/session/' + _setSid + '/kill', {method: 'POST'});
+    } catch(e) {}
+    _setSid = null;
   }
-  if(!loaded){
-    statusEl.textContent='[!] No wordlist found. Install: sudo apt install wordlists seclists';
-    textEl.disabled=false;
+  _setSetStatus('Killed', 'var(--red)', false);
+  _setAppend('\\n[Session killed]\\n');
+  showToast('SET session killed', '', 'warning', 2500);
+}
+
+async function setSend(text) {
+  if (!_setSid) {
+    showToast('No active SET session', 'Click LAUNCH SET first', 'warning', 3000);
+    return;
+  }
+  try {
+    await fetch('/api/set/session/' + _setSid + '/input', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({text: text})
+    });
+  } catch(e) {
+    _setAppend('[send error] ' + e.message + '\\n');
   }
 }
-// Auto-load rockyou defaults when page first shows brute force
-function bfAutoLoad(){
-  var userMode=document.getElementById('bf-user-mode');
-  var passMode=document.getElementById('bf-pass-mode');
-  if(userMode&&userMode.value==='rockyou_users')bfWordlistMode('user');
-  if(passMode&&passMode.value==='rockyou')bfWordlistMode('pass');
-}'''
 
-NEW_BF_JS = '''// Wordlist fallback chains — first reachable file wins
-var BF_PATH_MAP={
-  rockyou_users:['/usr/share/wordlists/rockyou.txt','/usr/share/john/password.lst','/usr/share/dict/words'],
-  seclists_common:['/usr/share/seclists/Usernames/top-usernames-shortlist.txt','/usr/share/seclists/Usernames/Names/names.txt','/usr/share/wordlists/rockyou.txt'],
-  seclists_top:['/usr/share/seclists/Usernames/Names/names.txt','/usr/share/seclists/Usernames/top-usernames-shortlist.txt','/usr/share/wordlists/rockyou.txt'],
-  seclists_default_creds:['/usr/share/seclists/Passwords/Default-Credentials/default-passwords.txt','/usr/share/wordlists/rockyou.txt'],
-  rockyou:['/usr/share/wordlists/rockyou.txt','/usr/share/john/password.lst','/usr/share/dict/words'],
-  seclists_10k:['/usr/share/seclists/Passwords/Common-Credentials/10k-most-common.txt','/usr/share/seclists/Passwords/Common-Credentials/best110.txt','/usr/share/wordlists/rockyou.txt'],
-  seclists_100k:['/usr/share/seclists/Passwords/Common-Credentials/100k-most-common.txt','/usr/share/seclists/Passwords/Common-Credentials/10k-most-common.txt','/usr/share/wordlists/rockyou.txt'],
-  seclists_default_creds_pass:['/usr/share/seclists/Passwords/Default-Credentials/default-passwords.txt','/usr/share/wordlists/rockyou.txt'],
-  seclists_darkweb:['/usr/share/seclists/Passwords/darkweb2017-top10000.txt','/usr/share/seclists/Passwords/Common-Credentials/10k-most-common.txt','/usr/share/wordlists/rockyou.txt']
-};
-async function bfWordlistMode(which,silent){
-  var modeEl=document.getElementById('bf-'+(which==='user'?'user':'pass')+'-mode');
-  var textEl=document.getElementById('bf-'+(which==='user'?'users':'pwds'));
-  var lblEl=document.getElementById('bf-'+(which==='user'?'user':'pass')+'-src-lbl');
-  var statusEl=document.getElementById('bf-wordlist-status');
-  var mode=modeEl?modeEl.value:'manual';
-  if(mode==='manual'){if(textEl)textEl.disabled=false;if(lblEl)lblEl.textContent='(one per line)';return;}
-  var paths=BF_PATH_MAP[mode]||[];
-  if(!paths.length){if(textEl)textEl.disabled=false;return;}
-  if(statusEl){statusEl.style.display='block';statusEl.textContent='[*] Loading '+mode+' wordlist...';}
-  if(textEl)textEl.disabled=true;
-  var limit=which==='user'?200:2000;
-  var loaded=false;
-  for(var i=0;i<paths.length&&!loaded;i++){
-    try{
-      var r=await fetch('/api/wordlist?path='+encodeURIComponent(paths[i])+'&limit='+limit);
-      var d=await r.json();
-      if(!d.error&&d.words&&d.words.length){
-        if(textEl){textEl.value=d.words.join('\\n');textEl.disabled=false;}
-        if(lblEl)lblEl.textContent='('+d.filename+' — '+d.words.length+' entries)';
-        if(statusEl)statusEl.innerHTML='[+] Loaded <strong>'+d.words.length+'</strong> entries from <code style="font-family:var(--mono);font-size:10px">'+d.path+'</code>';
-        _bfWordlists[which]={path:d.path,count:d.words.length};
-        loaded=true;
-        if(!silent)showToast('Wordlist Loaded',d.filename+' ('+d.words.length+' entries)','success',3000);
-      }
-    }catch(e){}
+async function setSpecialKey(key) {
+  if (!_setSid) {
+    showToast('No active SET session', 'Click LAUNCH SET first', 'warning', 3000);
+    return;
   }
-  if(!loaded){
-    if(statusEl)statusEl.textContent='[!] Wordlist not found. sudo apt install wordlists seclists';
-    if(textEl)textEl.disabled=false;
-    if(!silent)showToast('Wordlist Missing','Install: sudo apt install wordlists seclists','warning',5000);
+  try {
+    await fetch('/api/set/session/' + _setSid + '/input', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({key: key})
+    });
+  } catch(e) {}
+}
+
+function setInputSend() {
+  var inp = document.getElementById('set-input-box');
+  if (!inp) return;
+  var val = inp.value;
+  if (!val && val !== '0') return;
+  if (_setHistory[0] !== val) _setHistory.unshift(val);
+  if (_setHistory.length > 50) _setHistory.pop();
+  _setHistIdx = -1;
+  inp.value = '';
+  setSend(val + '\\n');
+}
+
+function setInputKey(e) {
+  var inp = document.getElementById('set-input-box');
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    setInputSend();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (_setHistIdx < _setHistory.length - 1) {
+      _setHistIdx++;
+      inp.value = _setHistory[_setHistIdx] || '';
+    }
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (_setHistIdx > 0) { _setHistIdx--; inp.value = _setHistory[_setHistIdx] || ''; }
+    else { _setHistIdx = -1; inp.value = ''; }
+  } else if (e.key === 'c' && e.ctrlKey) {
+    e.preventDefault();
+    setSpecialKey('ctrl_c');
+  } else if (e.key === 'd' && e.ctrlKey) {
+    e.preventDefault();
+    setSpecialKey('ctrl_d');
   }
 }
-// Auto-load rockyou when user opens brute force page
-function bfAutoLoad(){
-  var um=document.getElementById('bf-user-mode');
-  var pm=document.getElementById('bf-pass-mode');
-  if(um&&um.value!=='manual')bfWordlistMode('user',true);
-  if(pm&&pm.value!=='manual')bfWordlistMode('pass',true);
+
+/* Keep old renderSocialTool for Gophish/Evilginx2/ShellPhish */
+function renderSocialTool(toolObj,d){
+  var html=\'<div class="stats" style="margin-bottom:14px"><div class="stat"><div class="stat-val">\'+(d.tool||\'tool\').toUpperCase()+\'</div><div class="stat-lbl">TOOL</div></div><div class="stat"><div class="stat-val">\'+(d.exit_code===null?\'--\':d.exit_code)+\'</div><div class="stat-lbl">EXIT CODE</div></div><div class="stat"><div class="stat-val">\'+(d.duration_ms||0)+\'</div><div class="stat-lbl">DURATION (ms)</div></div></div>\';
+  html+=\'<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">Command Executed</div><div style="font-family:var(--mono);font-size:11px;color:var(--text2);word-break:break-all">\'+(d.command||\'n/a\')+\'</div></div>\';
+  html+=\'<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">stdout</div><pre style="font-family:var(--mono);font-size:11px;color:var(--text2);white-space:pre-wrap">\'+(d.stdout||\'(empty)\')+\'</pre></div>\';
+  html+=\'<div class="card card-p"><div class="card-title" style="margin-bottom:8px">stderr</div><pre style="font-family:var(--mono);font-size:11px;color:var(--text2);white-space:pre-wrap">\'+(d.stderr||\'(empty)\')+\'</pre></div>\';
+  toolObj.res(html);
+}
+async function runSetToolkit(){
+  /* SET now uses the interactive terminal above — this stub keeps
+     any residual references from breaking the page. */
+  setLaunch();
 }'''
 
 
-# ── Also auto-call bfAutoLoad when brute page is opened
-OLD_PG_HOOK = '''  if(id==='hist')loadHist();
-  if(id==='dash')loadDash();
-  if(id==='admin'){loadAdmin();setTimeout(initCliHeader,400);}
-  if(id==='home'){setTimeout(loadHomeStats,80);if(currentUser)vsGreetUser(currentUser.username);}
-  if(id==='profile'&&currentUser)loadProfileInfo(currentUser);'''
+# ══════════════════════════════════════════════════════════════════════════════
+# PATCH 4 — CSS: Add SET terminal styling
+# ══════════════════════════════════════════════════════════════════════════════
 
-NEW_PG_HOOK = '''  if(id==='hist')loadHist();
-  if(id==='dash')loadDash();
-  if(id==='admin'){loadAdmin();setTimeout(initCliHeader,400);}
-  if(id==='home'){setTimeout(loadHomeStats,80);if(currentUser)vsGreetUser(currentUser.username);}
-  if(id==='profile'&&currentUser)loadProfileInfo(currentUser);
-  if(id==='brute')setTimeout(bfAutoLoad,300);'''
+OLD_CSS_ANCHOR = '''::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}'''
+
+NEW_CSS_ANCHOR = '''::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+/* SET Terminal */
+#set-terminal-output{scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+#set-terminal-output::-webkit-scrollbar{width:5px}
+#set-terminal-output::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.set-menu-btn{font-family:var(--mono);font-size:11px;padding:4px 10px}
+.set-menu-btn:hover{background:var(--bg3);color:var(--text);transform:scale(1.03)}'''
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 # RUN
-# ═══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 
-PATCHES = [("api_server.py", [
-    ("DNSRecon: remove --tcp, add dnsrecon→dig→socket fallback chain",
-     OLD_DR, NEW_DR),
-    ("Deep Web Audit: add /web-deep-stream SSE route (before /report)",
-     OLD_REPORT_ANCHOR, NEW_REPORT_ANCHOR),
-    ("Deep Web Audit JS: switch to SSE EventSource with live % progress",
-     OLD_WD_JS, NEW_WD_JS),
-    ("cancelScan: close SSE stream for web-deep cancel",
-     OLD_CANCEL, NEW_CANCEL),
-    ("Brute Force HTML: rockyou selected by default in both dropdowns",
-     OLD_BF_SEL, NEW_BF_SEL),
-    ("Brute Force JS: multi-path fallback + silent auto-load flag",
-     OLD_BF_JS, NEW_BF_JS),
-    ("pg(): auto-load wordlists when brute force page opens",
-     OLD_PG_HOOK, NEW_PG_HOOK),
-])]
+PATCHES = [
+    ("api_server.py", [
+        ("SET: add PTY session manager + /api/set/* routes",
+         OLD_SOCIAL_ANCHOR, NEW_SOCIAL_ANCHOR),
+        ("SET: replace old page HTML with interactive terminal UI",
+         OLD_SET_PAGE, NEW_SET_PAGE),
+        ("SET: replace runSetToolkit() JS with full PTY client",
+         OLD_SET_JS, NEW_SET_JS),
+        ("SET: add terminal CSS overrides",
+         OLD_CSS_ANCHOR, NEW_CSS_ANCHOR),
+    ]),
+]
 
 
 def main():
     print()
-    print(BOLD+CYAN+"╔══════════════════════════════════════════════════════╗"+RESET)
-    print(BOLD+CYAN+"║  VulnScan Pro — Patch v5.0                          ║"+RESET)
-    print(BOLD+CYAN+"║  DNSRecon fix · Deep Audit SSE · Brute wordlists    ║"+RESET)
-    print(BOLD+CYAN+"╚══════════════════════════════════════════════════════╝"+RESET)
+    print(BOLD + CYAN + "╔══════════════════════════════════════════════════════╗" + RESET)
+    print(BOLD + CYAN + "║  VulnScan Pro — Patch: SET Interactive Terminal     ║" + RESET)
+    print(BOLD + CYAN + "║  PTY-based full menu navigation in the browser      ║" + RESET)
+    print(BOLD + CYAN + "╚══════════════════════════════════════════════════════╝" + RESET)
     print()
 
-    missing=[f for f in ["api_server.py","backend.py","auth.py"] if not os.path.isfile(f)]
+    missing = [f for f in ["api_server.py", "backend.py"] if not os.path.isfile(f)]
     if missing:
-        print(RED+BOLD+"  ERROR: Not in project root. Missing: "+", ".join(missing)+RESET)
-        print("  Run: cd ~/vulnscan && python3 patch.py"); sys.exit(1)
+        print(RED + BOLD + "  ERROR: Not in project root. Missing: " + ", ".join(missing) + RESET)
+        print("  Run: cd ~/vulnscan && python3 patch_set.py")
+        sys.exit(1)
 
-    info(f"Project root: {os.getcwd()}"); print()
+    info(f"Project root: {os.getcwd()}")
+    print()
 
     for fname, changes in PATCHES:
-        print(BOLD+f"  ── {fname}"+RESET)
+        print(BOLD + f"  ── {fname}" + RESET)
         patch(fname, changes)
         print()
 
     if R["files"]:
-        print(BOLD+"  Syntax checks:"+RESET)
+        print(BOLD + "  Syntax checks:" + RESET)
         for p in R["files"]:
-            flag,err=syntax(p)
-            if flag: ok(f"{p} — OK")
-            else: fail(f"{p} — SYNTAX ERROR: {err}")
+            flag, err = syntax(p)
+            if flag:
+                ok(f"{p} — OK")
+            else:
+                fail(f"{p} — SYNTAX ERROR:\n    {err}")
         print()
 
-    print(BOLD+CYAN+"══════════════════════════════════════════════════════"+RESET)
-    print(f"  Applied : {GREEN}{R['applied']}{RESET}  |  "
-          f"Skipped : {DIM}{R['skipped']}{RESET}  |  "
-          f"Failed : {RED if R['failed'] else DIM}{R['failed']}{RESET}")
+    print(BOLD + CYAN + "══════════════════════════════════════════════════════" + RESET)
+    print(
+        f"  Applied : {GREEN}{R['applied']}{RESET}  |  "
+        f"Skipped : {DIM}{R['skipped']}{RESET}  |  "
+        f"Failed  : {RED if R['failed'] else DIM}{R['failed']}{RESET}"
+    )
     print()
+
     if R["files"]:
-        for f in R["files"]: print(f"  {GREEN}✓{RESET}  {f}  {DIM}({f}.*.bak){RESET}")
+        for f in R["files"]:
+            print(f"  {GREEN}✓{RESET}  {f}  {DIM}(backup: {f}.*.bak){RESET}")
         print()
-    if R["applied"]>0:
-        print(f"  {YELLOW}Restart:{RESET}  python3 api_server.py  |  sudo systemctl restart vulnscan")
+
+    if R["applied"] > 0:
+        print(f"  {YELLOW}Restart required:{RESET}")
+        print(f"    python3 api_server.py")
+        print(f"    OR: sudo systemctl restart vulnscan")
         print()
         print(f"  {GREEN}What changed:{RESET}")
-        print(f"    {GREEN}✓{RESET} DNSRecon: no --tcp, tries dnsrecon binary → dig → python socket")
-        print(f"    {GREEN}✓{RESET} Deep Web Audit: GET /web-deep-stream SSE, 9 tools, live % per stage")
-        print(f"    {GREEN}✓{RESET} Deep Web Audit: progress bar + terminal log update in real time")
-        print(f"    {GREEN}✓{RESET} Brute Force: rockyou.txt pre-selected & auto-loaded on page open")
-        print(f"    {GREEN}✓{RESET} Brute Force: fallback chain tries multiple paths automatically")
+        print(f"    {GREEN}✓{RESET} New routes: /api/set/session/new, /stream, /input, /kill, /sessions")
+        print(f"    {GREEN}✓{RESET} SET page now shows a live PTY terminal with scrollable output")
+        print(f"    {GREEN}✓{RESET} Quick-select buttons for all main menu options (1–10 + sub-menus)")
+        print(f"    {GREEN}✓{RESET} Inline text input with history (↑/↓), Ctrl+C, Ctrl+D support")
+        print(f"    {GREEN}✓{RESET} Session auto-killed on TTL (30 min) + kill button in UI")
+        print(f"    {GREEN}✓{RESET} All other pages (Gophish, Evilginx2, ShellPhish) unchanged")
         print()
-        print(f"  {CYAN}Install wordlists (if not present):{RESET}")
-        print(f"    sudo apt install wordlists seclists")
-        print(f"    sudo gunzip /usr/share/wordlists/rockyou.txt.gz 2>/dev/null || true")
-    elif R["skipped"]>0:
+        print(f"  {CYAN}Install SET if not present:{RESET}")
+        print(f"    sudo apt install set")
+        print(f"    OR: git clone https://github.com/trustedsec/social-engineer-toolkit")
+        print(f"        cd social-engineer-toolkit && pip3 install -r requirements.txt")
+        print(f"        python3 setup.py")
+    elif R["skipped"] > 0:
         print(f"  {GREEN}Already up to date — no restart needed.{RESET}")
+
     print()
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     main()
