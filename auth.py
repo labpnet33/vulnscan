@@ -13,6 +13,25 @@ from database import (get_user_by_username, get_user_by_email, get_user_by_id,
 
 SECRET_KEY = os.environ.get("VULNSCAN_SECRET", "change-this-secret-key-in-production-2024")
 
+def email_verification_required():
+    """
+    Determine whether email verification should be enforced.
+    Modes:
+      - VULNSCAN_REQUIRE_EMAIL_VERIFY=true  -> always enforce
+      - VULNSCAN_REQUIRE_EMAIL_VERIFY=false -> never enforce
+      - unset/auto                          -> enforce only when mail_config is importable
+    """
+    mode = os.environ.get("VULNSCAN_REQUIRE_EMAIL_VERIFY", "auto").strip().lower()
+    if mode in {"1", "true", "yes", "on"}:
+        return True
+    if mode in {"0", "false", "no", "off"}:
+        return False
+    try:
+        import mail_config  # noqa: F401
+        return True
+    except Exception:
+        return False
+
 # ── Password hashing ───────────────────────────
 def hash_password(password):
     salt = secrets.token_hex(16)
@@ -208,7 +227,8 @@ def register_auth_routes(app):
         if get_user_by_username(username): return jsonify({"error": "Username already taken"}), 409
         if get_user_by_email(email): return jsonify({"error": "Email already registered"}), 409
 
-        token = gen_token()
+        require_verify = email_verification_required()
+        token = gen_token() if require_verify else ""
         ph = hash_password(password)
 
         from database import get_db
@@ -216,30 +236,34 @@ def register_auth_routes(app):
         count = con.execute("SELECT COUNT(*) FROM users").fetchone()[0]
         con.close()
         role = "admin" if count == 0 else "user"
-        # Always require email verification, including the first admin account.
-        # This ensures every registration triggers verification email delivery.
-        is_verified = 0
+        is_verified = 0 if require_verify else 1
 
         ok, msg = create_user(username, email, ph, full_name, role, is_verified, token)
         if not ok: return jsonify({"error": msg}), 409
 
-        verification_email_sent = send_verification_email(email, username, token)
-        if not verification_email_sent:
-            audit(None, username, "VERIFY_EMAIL_SEND_FAIL", ip=request.remote_addr, ua=request.headers.get("User-Agent", ""))
+        verification_email_sent = False
+        if require_verify:
+            verification_email_sent = send_verification_email(email, username, token)
+            if not verification_email_sent:
+                audit(None, username, "VERIFY_EMAIL_SEND_FAIL", ip=request.remote_addr, ua=request.headers.get("User-Agent", ""))
 
         audit(None, username, "REGISTER", ip=request.remote_addr, ua=request.headers.get("User-Agent", ""),
-              details=f"role={role}, verified={is_verified}")
+              details=f"role={role}, verified={is_verified}, verify_required={int(require_verify)}")
+
+        if not require_verify:
+            message = "Account created! You can login now."
+        elif verification_email_sent:
+            message = "Account created! Check your email to verify."
+        else:
+            message = "Account created, but verification email could not be sent. Please contact support."
 
         return jsonify({
             "success": True,
-            "message": (
-                "Account created! Check your email to verify."
-                if verification_email_sent
-                else "Account created, but verification email could not be sent. Please contact support."
-            ),
+            "message": message,
             "verified": bool(is_verified),
             "role": role,
-            "verification_email_sent": bool(verification_email_sent)
+            "verification_email_sent": bool(verification_email_sent),
+            "verification_required": bool(require_verify)
         })
 
     @app.route("/api/login", methods=["POST"])
@@ -254,7 +278,14 @@ def register_auth_routes(app):
             audit(user["id"], username, "LOGIN_FAIL", ip=request.remote_addr)
             return jsonify({"error": "Invalid username or password"}), 401
         if not user["is_active"]: return jsonify({"error": "Account is disabled. Contact admin."}), 403
-        if not user["is_verified"]: return jsonify({"error": "Please verify your email first. Check your inbox.", "unverified": True}), 403
+        if not user["is_verified"]:
+            if email_verification_required():
+                return jsonify({"error": "Please verify your email first. Check your inbox.", "unverified": True}), 403
+            # Backward compatibility: auto-verify old users when verification is disabled.
+            update_user(user["id"], is_verified=1, verify_token=None)
+            user["is_verified"] = 1
+            audit(user["id"], username, "AUTO_VERIFY_LOGIN", ip=request.remote_addr,
+                  ua=request.headers.get("User-Agent", ""))
 
         session.permanent = True
         session["user_id"] = user["id"]
