@@ -3581,10 +3581,16 @@ def set_session_new():
         sudo_bin = _sh.which("sudo")
         if not sudo_bin:
             return jsonify({"error": "SET must run as root. 'sudo' is not installed on this server."}), 500
-        # Use regular sudo invocation (TTY-backed PTY session) to match server usage like:
-        # sudo -u www-data sudo setoolkit
-        launch_cmd = [sudo_bin, binary]
-        launch_display = f"{sudo_bin} {binary}"
+        sudo_check = subprocess.run([sudo_bin, "-n", "-v"], capture_output=True, text=True)
+        if sudo_check.returncode != 0:
+            return jsonify({
+                "error": (
+                    "SET must run as root. Passwordless sudo is required for the web service user. "
+                    "Configure sudoers to allow launching setoolkit without a TTY/password."
+                )
+            }), 403
+        launch_cmd = [sudo_bin, "-n", binary]
+        launch_display = f"{sudo_bin} -n {binary}"
 
     _reap_old_set_sessions()
 
