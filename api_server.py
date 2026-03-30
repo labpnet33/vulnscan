@@ -3577,29 +3577,24 @@ def set_session_new():
 
     launch_cmd = [binary]
     launch_display = binary
-
-    # Optional override for complex deployments, e.g.:
-    #   SET_LAUNCH_CMD="sudo -u www-data sudo {binary}"
-    custom_launch = (os.environ.get("SET_LAUNCH_CMD") or "").strip()
-    if custom_launch:
-        try:
-            cmd_parts = shlex.split(custom_launch)
-        except Exception:
-            return jsonify({"error": "Invalid SET_LAUNCH_CMD (unable to parse command)."}), 500
-        if not cmd_parts:
-            return jsonify({"error": "Invalid SET_LAUNCH_CMD (empty command)."}), 500
-        if any(part == "{binary}" for part in cmd_parts):
-            launch_cmd = [binary if part == "{binary}" else part for part in cmd_parts]
-        else:
-            launch_cmd = cmd_parts + [binary]
-        launch_display = " ".join(shlex.quote(x) for x in launch_cmd)
-    elif hasattr(os, "geteuid") and os.geteuid() != 0:
+    if hasattr(os, "geteuid") and os.geteuid() != 0:
         sudo_bin = _sh.which("sudo")
         if not sudo_bin:
             return jsonify({"error": "SET must run as root. 'sudo' is not installed on this server."}), 500
-        # Default non-root path: escalate SET to root.
+        # Force target user to root so SET always runs with effective UID 0.
+        # Mirrors host-side validation pattern: sudo -u www-data sudo setoolkit
         launch_cmd = [sudo_bin, "-u", "root", binary]
         launch_display = f"{sudo_bin} -u root {binary}"
+        sudo_check = subprocess.run([sudo_bin, "-n", "-v"], capture_output=True, text=True)
+        if sudo_check.returncode != 0:
+            return jsonify({
+                "error": (
+                    "SET must run as root. Passwordless sudo is required for the web service user. "
+                    "Configure sudoers to allow launching setoolkit without a TTY/password."
+                )
+            }), 403
+        launch_cmd = [sudo_bin, "-n", binary]
+        launch_display = f"{sudo_bin} -n {binary}"
 
     _reap_old_set_sessions()
 
