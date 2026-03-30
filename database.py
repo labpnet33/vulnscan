@@ -76,24 +76,6 @@ def init_db():
         """)
         con.commit()
 
-        # Lightweight migrations for older deployments.
-        user_cols = {r[1] for r in con.execute("PRAGMA table_info(users)").fetchall()}
-        if "is_verified" not in user_cols:
-            con.execute("ALTER TABLE users ADD COLUMN is_verified INTEGER DEFAULT 1")
-        if "is_active" not in user_cols:
-            con.execute("ALTER TABLE users ADD COLUMN is_active INTEGER DEFAULT 1")
-        if "verify_token" not in user_cols:
-            con.execute("ALTER TABLE users ADD COLUMN verify_token TEXT")
-        if "reset_token" not in user_cols:
-            con.execute("ALTER TABLE users ADD COLUMN reset_token TEXT")
-        if "reset_expires" not in user_cols:
-            con.execute("ALTER TABLE users ADD COLUMN reset_expires TEXT")
-        if "login_count" not in user_cols:
-            con.execute("ALTER TABLE users ADD COLUMN login_count INTEGER DEFAULT 0")
-        if "full_name" not in user_cols:
-            con.execute("ALTER TABLE users ADD COLUMN full_name TEXT DEFAULT ''")
-        con.commit()
-
         # Migrate old scans.db if exists
         old_db = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scans.db")
         if os.path.exists(old_db):
