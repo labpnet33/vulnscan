@@ -2169,7 +2169,8 @@ function _setSetStatus(label, color, showKill) {
   if (dot)    dot.style.background = color;
   if (lbl)    lbl.textContent      = label;
   if (kill)   kill.style.display   = showKill ? 'inline-flex' : 'none';
-  if (launch) launch.disabled      = showKill;
+  // Keep launch enabled so clicking LAUNCH SET always restarts a fresh session.
+  if (launch) launch.disabled      = false;
 }
 
 async function setLaunch() {
