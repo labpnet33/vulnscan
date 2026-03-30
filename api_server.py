@@ -3581,6 +3581,10 @@ def set_session_new():
         sudo_bin = _sh.which("sudo")
         if not sudo_bin:
             return jsonify({"error": "SET must run as root. 'sudo' is not installed on this server."}), 500
+        # Force target user to root so SET always runs with effective UID 0.
+        # Mirrors host-side validation pattern: sudo -u www-data sudo setoolkit
+        launch_cmd = [sudo_bin, "-u", "root", binary]
+        launch_display = f"{sudo_bin} -u root {binary}"
         sudo_check = subprocess.run([sudo_bin, "-n", "-v"], capture_output=True, text=True)
         if sudo_check.returncode != 0:
             return jsonify({
