@@ -796,6 +796,14 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
         <button class="nav-item" id="ni-shellphish" onclick="pg('shellphish',this)"><span class="ni">&#9675;</span> ShellPhish</button>
       </div>
       <div class="nav-section">
+        <div class="nav-label">C2 / PIVOTING</div>
+        <button class="nav-item" id="ni-netcat" onclick="pg('netcat',this)"><span class="ni">&#9675;</span> Netcat</button>
+        <button class="nav-item" id="ni-ncat" onclick="pg('ncat',this)"><span class="ni">&#9675;</span> Ncat</button>
+        <button class="nav-item" id="ni-socat" onclick="pg('socat',this)"><span class="ni">&#9675;</span> Socat</button>
+        <button class="nav-item" id="ni-sliver" onclick="pg('sliver',this)"><span class="ni">&#9675;</span> Sliver</button>
+        <button class="nav-item" id="ni-empire" onclick="pg('empire',this)"><span class="ni">&#9675;</span> Empire</button>
+      </div>
+      <div class="nav-section">
         <div class="nav-label">AUDITING</div>
         <button class="nav-item" id="ni-lynis" onclick="pg('lynis',this)"><span class="ni">&#9675;</span> Lynis</button>
       </div>
@@ -834,7 +842,7 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
           <div class="stat"><div class="stat-val" id="hs-scans">--</div><div class="stat-lbl">TOTAL SCANS</div></div>
           <div class="stat"><div class="stat-val" id="hs-cves">--</div><div class="stat-lbl">CVEs FOUND</div></div>
           <div class="stat"><div class="stat-val" id="hs-ports">--</div><div class="stat-lbl">OPEN PORTS</div></div>
-          <div class="stat"><div class="stat-val">16</div><div class="stat-lbl">TOOLS</div></div>
+          <div class="stat"><div class="stat-val">21</div><div class="stat-lbl">TOOLS</div></div>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
           <div class="card" style="cursor:pointer" onclick="pg('scan',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
@@ -1401,6 +1409,103 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
         </div>
       </div>
 
+      <!-- C2 / PIVOTING TOOLS -->
+      <div class="page" id="page-netcat">
+        <div class="page-hd"><div class="page-title">Netcat</div><div class="page-desc">Build listener/connect commands and run netcat on server</div></div>
+        <div class="notice">&#9888; Authorized red-team/lab use only.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>MODE</label><select class="inp inp-mono" id="nc-mode"><option value="connect">Connect</option><option value="listen">Listen</option></select></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="nc-timeout" type="number" value="90" min="10" max="600"/></div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TARGET HOST</label><input class="inp inp-mono" id="nc-host" type="text" placeholder="127.0.0.1"/></div>
+            <div class="fg"><label>PORT</label><input class="inp inp-mono" id="nc-port" type="number" value="4444" min="1" max="65535"/></div>
+          </div>
+          <div class="fg"><label>EXTRA ARGUMENTS</label><input class="inp inp-mono" id="nc-extra" type="text" placeholder="-v -n"/></div>
+          <button class="btn btn-primary" id="nc-btn" onclick="runNetcat()">RUN NETCAT</button>
+        </div>
+        <div class="progress-wrap" id="nc-prog"><div class="progress-bar" id="nc-pb" style="width:0%"></div></div>
+        <div class="terminal" id="nc-term"></div>
+        <div class="err-box" id="nc-err"></div>
+        <div id="nc-res"></div>
+      </div>
+
+      <div class="page" id="page-ncat">
+        <div class="page-hd"><div class="page-title">Ncat</div><div class="page-desc">Run ncat with validated arguments</div></div>
+        <div class="notice">&#9888; Authorized red-team/lab use only.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>MODE</label><select class="inp inp-mono" id="nct-mode"><option value="connect">Connect</option><option value="listen">Listen</option></select></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="nct-timeout" type="number" value="90" min="10" max="600"/></div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TARGET HOST</label><input class="inp inp-mono" id="nct-host" type="text" placeholder="127.0.0.1"/></div>
+            <div class="fg"><label>PORT</label><input class="inp inp-mono" id="nct-port" type="number" value="4444" min="1" max="65535"/></div>
+          </div>
+          <div class="fg"><label>EXTRA ARGUMENTS</label><input class="inp inp-mono" id="nct-extra" type="text" placeholder="-v -n"/></div>
+          <button class="btn btn-primary" id="nct-btn" onclick="runNcat()">RUN NCAT</button>
+        </div>
+        <div class="progress-wrap" id="nct-prog"><div class="progress-bar" id="nct-pb" style="width:0%"></div></div>
+        <div class="terminal" id="nct-term"></div>
+        <div class="err-box" id="nct-err"></div>
+        <div id="nct-res"></div>
+      </div>
+
+      <div class="page" id="page-socat">
+        <div class="page-hd"><div class="page-title">Socat</div><div class="page-desc">Bridge two sockets/channels with socat</div></div>
+        <div class="notice">&#9888; Authorized red-team/lab use only.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>LEFT ADDRESS</label><input class="inp inp-mono" id="sc-left" type="text" placeholder="TCP-LISTEN:4444,reuseaddr,fork"/></div>
+            <div class="fg"><label>RIGHT ADDRESS</label><input class="inp inp-mono" id="sc-right" type="text" placeholder="TCP:127.0.0.1:22"/></div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="sc-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>EXTRA ARGUMENTS</label><input class="inp inp-mono" id="sc-extra" type="text" placeholder="-d -d"/></div>
+          </div>
+          <button class="btn btn-primary" id="sc-btn" onclick="runSocat()">RUN SOCAT</button>
+        </div>
+        <div class="progress-wrap" id="sc-prog"><div class="progress-bar" id="sc-pb" style="width:0%"></div></div>
+        <div class="terminal" id="sc-term"></div>
+        <div class="err-box" id="sc-err"></div>
+        <div id="sc-res"></div>
+      </div>
+
+      <div class="page" id="page-sliver">
+        <div class="page-hd"><div class="page-title">Sliver</div><div class="page-desc">Run Sliver client/server binary commands</div></div>
+        <div class="notice">&#9888; Authorized red-team engagements only.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>OPERATION</label><select class="inp inp-mono" id="sv-op"><option value="help">Help / capability check</option><option value="version">Version check</option><option value="custom">Custom arguments</option></select></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="sv-timeout" type="number" value="90" min="10" max="600"/></div>
+          </div>
+          <div class="fg"><label>CUSTOM ARGUMENTS</label><input class="inp inp-mono" id="sv-args" type="text" placeholder="version"/></div>
+          <button class="btn btn-primary" id="sv-btn" onclick="runSliver()">RUN SLIVER</button>
+        </div>
+        <div class="progress-wrap" id="sv-prog"><div class="progress-bar" id="sv-pb" style="width:0%"></div></div>
+        <div class="terminal" id="sv-term"></div>
+        <div class="err-box" id="sv-err"></div>
+        <div id="sv-res"></div>
+      </div>
+
+      <div class="page" id="page-empire">
+        <div class="page-hd"><div class="page-title">Empire</div><div class="page-desc">Run Empire framework CLI checks/commands</div></div>
+        <div class="notice">&#9888; Authorized red-team engagements only.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>OPERATION</label><select class="inp inp-mono" id="em-op"><option value="help">Help / capability check</option><option value="version">Version check</option><option value="custom">Custom arguments</option></select></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="em-timeout" type="number" value="90" min="10" max="600"/></div>
+          </div>
+          <div class="fg"><label>CUSTOM ARGUMENTS</label><input class="inp inp-mono" id="em-args" type="text" placeholder="server --help"/></div>
+          <button class="btn btn-primary" id="em-btn" onclick="runEmpire()">RUN EMPIRE</button>
+        </div>
+        <div class="progress-wrap" id="em-prog"><div class="progress-bar" id="em-pb" style="width:0%"></div></div>
+        <div class="terminal" id="em-term"></div>
+        <div class="err-box" id="em-err"></div>
+        <div id="em-res"></div>
+      </div>
+
       <!-- NETWORK DISCOVERY -->
       <div class="page" id="page-disc">
         <div class="page-hd"><div class="page-title">Network Discovery</div><div class="page-desc">Discover live hosts on a subnet</div></div>
@@ -1618,7 +1723,7 @@ async function fetchWithTimeout(url,options,timeoutMs,prefix){
 }
 
 /* ==== PAGE NAV ==== */
-var PAGE_TITLES={home:'Home',scan:'Network Scanner',webdeep:'Deep Web Audit',harvester:'theHarvester',dnsrecon:'DNSRecon',nikto:'Nikto',wpscan:'WPScan',lynis:'Lynis',legion:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',brute:'Brute Force',setoolkit:'Social-Engineer Toolkit',gophish:'Gophish',evilginx2:'Evilginx2',shellphish:'ShellPhish',disc:'Network Discovery',hist:'Scan History',dash:'Dashboard',profile:'Profile',admin:'Admin Console'};
+var PAGE_TITLES={home:'Home',scan:'Network Scanner',webdeep:'Deep Web Audit',harvester:'theHarvester',dnsrecon:'DNSRecon',nikto:'Nikto',wpscan:'WPScan',lynis:'Lynis',legion:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',brute:'Brute Force',setoolkit:'Social-Engineer Toolkit',gophish:'Gophish',evilginx2:'Evilginx2',shellphish:'ShellPhish',netcat:'Netcat',ncat:'Ncat',socat:'Socat',sliver:'Sliver',empire:'Empire',disc:'Network Discovery',hist:'Scan History',dash:'Dashboard',profile:'Profile',admin:'Admin Console'};
 function saveCurrentPage(id){try{sessionStorage.setItem('vs-page',id);}catch(e){}}
 function pg(id,el){
   document.querySelectorAll('.page').forEach(function(e){e.classList.remove('active');});
@@ -1873,7 +1978,7 @@ function mkTool(prefix){
     res:function(html){var e=document.getElementById(prefix+'-res');if(e){e.innerHTML=html;e.style.display='block';}}
   };
 }
-var hvTool=mkTool('hv'),drTool=mkTool('dr'),nkTool=mkTool('nk'),wpTool=mkTool('wp'),lyTool=mkTool('ly'),lgTool=mkTool('lg'),wdTool=mkTool('wd'),setTool=mkTool('set'),gpTool=mkTool('gp'),egTool=mkTool('eg'),spTool=mkTool('sp');
+var hvTool=mkTool('hv'),drTool=mkTool('dr'),nkTool=mkTool('nk'),wpTool=mkTool('wp'),lyTool=mkTool('ly'),lgTool=mkTool('lg'),wdTool=mkTool('wd'),setTool=mkTool('set'),gpTool=mkTool('gp'),egTool=mkTool('eg'),spTool=mkTool('sp'),ncTool=mkTool('nc'),nctTool=mkTool('nct'),scTool=mkTool('sc'),svTool=mkTool('sv'),emTool=mkTool('em');
 
 /* ==== DEEP WEB AUDIT ==== */
 var _wdES=null;
@@ -2249,6 +2354,64 @@ async function runShellPhish(){
     var d=await r.json();spTool.end();if(d.error){spTool.err(d.error);}else{spTool.log('ShellPhish command completed','s');renderSocialTool(spTool,d);}
   }catch(e){spTool.end();spTool.err(e.message);}
   finally{btn.disabled=false;btn.innerHTML='RUN SHELLPHISH';}
+}
+async function runNetcat(){
+  var mode=document.getElementById('nc-mode').value, host=document.getElementById('nc-host').value.trim(), port=parseInt(document.getElementById('nc-port').value||'0',10), extra=document.getElementById('nc-extra').value.trim(), timeout=parseInt(document.getElementById('nc-timeout').value||'90',10);
+  if(!port||port<1||port>65535){alert('Enter a valid port');return;}
+  if(mode==='connect'&&!host){alert('Enter target host for connect mode');return;}
+  var args=(mode==='listen'?('-l -p '+port):((host+' '+port)))+(extra?' '+extra:'');
+  var btn=document.getElementById('nc-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  ncTool.start();ncTool.log('Executing netcat mode: '+mode,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'netcat',operation:'custom',args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'nc');
+    var d=await r.json();ncTool.end();if(d.error){ncTool.err(d.error);}else{ncTool.log('Netcat command completed','s');renderSocialTool(ncTool,d);}
+  }catch(e){ncTool.end();ncTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN NETCAT';}
+}
+async function runNcat(){
+  var mode=document.getElementById('nct-mode').value, host=document.getElementById('nct-host').value.trim(), port=parseInt(document.getElementById('nct-port').value||'0',10), extra=document.getElementById('nct-extra').value.trim(), timeout=parseInt(document.getElementById('nct-timeout').value||'90',10);
+  if(!port||port<1||port>65535){alert('Enter a valid port');return;}
+  if(mode==='connect'&&!host){alert('Enter target host for connect mode');return;}
+  var args=(mode==='listen'?('-l -p '+port):((host+' '+port)))+(extra?' '+extra:'');
+  var btn=document.getElementById('nct-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  nctTool.start();nctTool.log('Executing ncat mode: '+mode,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'ncat',operation:'custom',args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'nct');
+    var d=await r.json();nctTool.end();if(d.error){nctTool.err(d.error);}else{nctTool.log('Ncat command completed','s');renderSocialTool(nctTool,d);}
+  }catch(e){nctTool.end();nctTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN NCAT';}
+}
+async function runSocat(){
+  var left=document.getElementById('sc-left').value.trim(), right=document.getElementById('sc-right').value.trim(), extra=document.getElementById('sc-extra').value.trim(), timeout=parseInt(document.getElementById('sc-timeout').value||'90',10);
+  if(!left||!right){alert('Enter both left and right addresses');return;}
+  var args=(extra?extra+' ':'')+left+' '+right;
+  var btn=document.getElementById('sc-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  scTool.start();scTool.log('Executing socat bridge','i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'socat',operation:'custom',args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'sc');
+    var d=await r.json();scTool.end();if(d.error){scTool.err(d.error);}else{scTool.log('Socat command completed','s');renderSocialTool(scTool,d);}
+  }catch(e){scTool.end();scTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN SOCAT';}
+}
+async function runSliver(){
+  var op=document.getElementById('sv-op').value, args=document.getElementById('sv-args').value.trim(), timeout=parseInt(document.getElementById('sv-timeout').value||'90',10);
+  var btn=document.getElementById('sv-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  svTool.start();svTool.log('Executing Sliver operation: '+op,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'sliver',operation:op,args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'sv');
+    var d=await r.json();svTool.end();if(d.error){svTool.err(d.error);}else{svTool.log('Sliver command completed','s');renderSocialTool(svTool,d);}
+  }catch(e){svTool.end();svTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN SLIVER';}
+}
+async function runEmpire(){
+  var op=document.getElementById('em-op').value, args=document.getElementById('em-args').value.trim(), timeout=parseInt(document.getElementById('em-timeout').value||'90',10);
+  var btn=document.getElementById('em-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  emTool.start();emTool.log('Executing Empire operation: '+op,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'empire',operation:op,args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'em');
+    var d=await r.json();emTool.end();if(d.error){emTool.err(d.error);}else{emTool.log('Empire command completed','s');renderSocialTool(emTool,d);}
+  }catch(e){emTool.end();emTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN EMPIRE';}
 }
 
 /* ==== LYNIS ==== */
@@ -3290,6 +3453,16 @@ def _social_tool_binary(tool_name: str, script_path: str = ""):
             if os.path.isfile(p):
                 return "/bin/bash", [p]
         return None, []
+    if tool_name == "netcat":
+        return shutil.which("netcat") or shutil.which("nc"), []
+    if tool_name == "ncat":
+        return shutil.which("ncat"), []
+    if tool_name == "socat":
+        return shutil.which("socat"), []
+    if tool_name == "sliver":
+        return shutil.which("sliver-client") or shutil.which("sliver"), []
+    if tool_name == "empire":
+        return shutil.which("empire"), []
     return None, []
 
 
@@ -3583,8 +3756,8 @@ def social_tool_run():
     timeout = int(data.get("timeout") or 90)
     timeout = max(10, min(600, timeout))
 
-    if tool not in {"setoolkit", "gophish", "evilginx2", "shellphish"}:
-        return jsonify({"error": "Unsupported social engineering tool."}), 400
+    if tool not in {"setoolkit", "gophish", "evilginx2", "shellphish", "netcat", "ncat", "socat", "sliver", "empire"}:
+        return jsonify({"error": "Unsupported tool."}), 400
     if operation not in {"help", "version", "custom"}:
         operation = "help"
 
