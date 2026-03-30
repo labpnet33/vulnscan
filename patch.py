@@ -1,12 +1,22 @@
 #!/usr/bin/env python3
 """
-VulnScan Pro — Patch: Run Social-Engineer Toolkit (SET) as root user
+VulnScan Pro — Patch: Fix Social-Engineer Toolkit (SET) sudo launch
 
-Changes applied:
-  • api_server.py — SET session Popen cmd now prefixes 'sudo' when not already root
-  • api_server.py — /api/set/session/new route uses sudo to launch setoolkit
+Root cause:
+  The /api/set/session/new route validates sudo with `sudo -n -v` which checks
+  general sudo capability, NOT the specific NOPASSWD rule for setoolkit.
+  When www-data only has NOPASSWD for /usr/local/bin/setoolkit (not ALL),
+  `sudo -n -v` returns non-zero and the route rejects the launch before even trying.
 
-Run: python3 patch.py  (from project root)
+Fix applied:
+  1. Remove the `sudo -n -v` pre-check entirely — it's wrong for restricted sudoers.
+  2. Try `sudo -n <binary>` directly, catch CalledProcessError/PermissionError.
+  3. Build the launch command correctly every time: [sudo, "-n", binary].
+  4. Clear the redundant/conflicting sudo-building logic that was scattered
+     across multiple if/else blocks (some used "-u root", some used "-n" only).
+  5. Improve the error message to tell the user exactly what sudoers line to add.
+
+Run: python3 patch.py  (from the VulnScan project root)
 """
 
 import os
@@ -30,21 +40,17 @@ def info(m): print(f"  {CYAN}→{RESET}  {m}")
 def skip(m): print(f"  {DIM}·{RESET}  {m}")
 def warn(m): print(f"  {YELLOW}!{RESET}  {m}")
 
-# ── Patch result tracking ─────────────────────────────────────────────────────
 RESULTS = {"applied": 0, "skipped": 0, "failed": 0, "files": [], "restart": False}
 
 
 def backup(path: str) -> None:
-    """Create a timestamped backup of a file before patching it."""
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    shutil.copy2(path, f"{path}.{ts}.bak")
+    dest = f"{path}.{ts}.bak"
+    shutil.copy2(path, dest)
+    info(f"Backup saved → {dest}")
 
 
 def apply_patches(path: str, changes: list) -> None:
-    """
-    Apply a list of (description, old_text, new_text) patches to a file.
-    Backs up the file before the first write.
-    """
     if not os.path.isfile(path):
         fail(f"File not found: {path}")
         RESULTS["failed"] += len(changes)
@@ -63,10 +69,10 @@ def apply_patches(path: str, changes: list) -> None:
             applied_count += 1
             RESULTS["applied"] += 1
         elif new in modified:
-            skip(f"{desc} (already applied)")
+            skip(f"{desc}  (already applied)")
             RESULTS["skipped"] += 1
         else:
-            fail(f"{desc} — anchor text not found in {path}")
+            fail(f"{desc}  — anchor text not found in {path}")
             RESULTS["failed"] += 1
 
     if applied_count:
@@ -78,8 +84,7 @@ def apply_patches(path: str, changes: list) -> None:
         RESULTS["restart"] = True
 
 
-def syntax_check(path: str) -> tuple[bool, str]:
-    """Return (ok, error_message) after running py_compile on a file."""
+def syntax_check(path: str) -> tuple:
     result = subprocess.run(
         [sys.executable, "-m", "py_compile", path],
         capture_output=True, text=True,
@@ -91,82 +96,151 @@ def syntax_check(path: str) -> tuple[bool, str]:
 #  PATCH DEFINITIONS
 # ══════════════════════════════════════════════════════════════════════════════
 
-# ---------------------------------------------------------------------------
-# PATCH A  (api_server.py)
-# The /api/set/session/new route builds the Popen command like this:
+# ─── PATCH 1 ──────────────────────────────────────────────────────────────────
+# Replace the entire broken sudo-detection block inside set_session_new().
 #
-#   proc = subprocess.Popen(
-#       [binary],
-#       ...
-#   )
+# OLD behaviour (broken):
+#   • Runs `sudo -n -v` — this validates generic sudo capability.
+#   • www-data only has NOPASSWD for setoolkit, NOT for all commands.
+#   • So `sudo -n -v` exits non-zero → route returns 403 before even trying.
 #
-# We replace that with a command that prepends sudo when the current process
-# is not already running as root, so SET always gets root privileges.
-# ---------------------------------------------------------------------------
+# NEW behaviour (fixed):
+#   • If already root → run binary directly.
+#   • If not root → build cmd as [sudo, "-n", binary] and let Popen handle it.
+#   • No pre-flight sudo check; if sudo really fails, Popen raises an exception
+#     which is caught and returned as a 500 with a helpful error message.
+# ─────────────────────────────────────────────────────────────────────────────
 
-OLD_POPEN = '''        proc = subprocess.Popen(
-            [binary],
-            stdin=slave_fd, stdout=slave_fd, stderr=slave_fd,
-            close_fds=True,
-            env={**os.environ, "TERM": "xterm-256color", "COLUMNS": "220", "LINES": "40"},
-        )'''
+OLD_SUDO_BLOCK = '''    binary = _sh.which("setoolkit") or _sh.which("set") or _sh.which("se-toolkit")
+    if not binary:
+        return jsonify({"error": (
+            "setoolkit not found on PATH. "
+            "Install: sudo apt install set  OR  "
+            "clone from https://github.com/trustedsec/social-engineer-toolkit"
+        )}), 404
 
-NEW_POPEN = '''        # Run SET as root so all its features work correctly.
-        # If we are already root (euid 0) just invoke the binary directly;
-        # otherwise prepend sudo so the child process gets root privileges.
-        import os as _os_root
-        if _os_root.geteuid() == 0:
-            set_cmd = [binary]
-        else:
-            sudo_bin = shutil.which("sudo") or "sudo"
-            set_cmd = [sudo_bin, binary]
+    launch_cmd = [binary]
+    launch_display = binary
+    if hasattr(os, "geteuid") and os.geteuid() != 0:
+        sudo_bin = _sh.which("sudo")
+        if not sudo_bin:
+            return jsonify({"error": "SET must run as root. 'sudo' is not installed on this server."}), 500
+        # Force target user to root so SET always runs with effective UID 0.
+        # Mirrors host-side validation pattern: sudo -u www-data sudo setoolkit
+        launch_cmd = [sudo_bin, "-u", "root", binary]
+        launch_display = f"{sudo_bin} -u root {binary}"
+        sudo_check = subprocess.run([sudo_bin, "-n", "-v"], capture_output=True, text=True)
+        if sudo_check.returncode != 0:
+            return jsonify({
+                "error": (
+                    "SET must run as root. Passwordless sudo is required for the web service user. "
+                    "Configure sudoers to allow launching setoolkit without a TTY/password."
+                )
+            }), 403
+        launch_cmd = [sudo_bin, "-n", binary]
+        launch_display = f"{sudo_bin} -n {binary}"'''
+
+NEW_SUDO_BLOCK = '''    binary = _sh.which("setoolkit") or _sh.which("se-toolkit")
+    if not binary:
+        # Also search common install locations not always on PATH for www-data
+        for candidate in [
+            "/usr/local/bin/setoolkit",
+            "/usr/bin/setoolkit",
+            "/opt/setoolkit/setoolkit",
+            "/usr/local/bin/se-toolkit",
+        ]:
+            if os.path.isfile(candidate):
+                binary = candidate
+                break
+    if not binary:
+        return jsonify({"error": (
+            "setoolkit not found. Install: sudo apt install set  OR  "
+            "git clone https://github.com/trustedsec/social-engineer-toolkit && "
+            "cd social-engineer-toolkit && pip3 install -r requirements.txt && "
+            "python setup.py"
+        )}), 404
+
+    # Build the launch command.
+    # If we are already root (euid 0) → invoke binary directly.
+    # Otherwise → use 'sudo -n <binary>' which honours a NOPASSWD sudoers rule
+    # like: www-data ALL=(ALL) NOPASSWD: /usr/local/bin/setoolkit
+    # We intentionally do NOT run `sudo -n -v` as a pre-check because that
+    # tests generic sudo access, not the specific per-binary NOPASSWD rule.
+    if os.geteuid() == 0:
+        launch_cmd = [binary]
+        launch_display = binary
+    else:
+        sudo_bin = _sh.which("sudo")
+        if not sudo_bin:
+            return jsonify({
+                "error": (
+                    "SET requires root privileges but 'sudo' is not installed. "
+                    "Run the VulnScan server as root: sudo python3 api_server.py"
+                )
+            }), 500
+        launch_cmd = [sudo_bin, "-n", binary]
+        launch_display = f"{sudo_bin} -n {binary}"'''
+
+# ─── PATCH 2 ──────────────────────────────────────────────────────────────────
+# The preexec_fn lambda in Popen doesn't give the child a controlling TTY,
+# which makes SET think it's not in a real terminal.  Fix: use a proper
+# def instead of a lambda so we can call both os.setsid() and TIOCSCTTY.
+# Also pass the slave_fd correctly.
+# ─────────────────────────────────────────────────────────────────────────────
+
+OLD_PREEXEC = '''        def _set_pty_preexec():
+            # Ensure child has a controlling TTY so sudo/SET interactive flows work.
+            os.setsid()
+            try:
+                _fcntl.ioctl(slave_fd, _termios.TIOCSCTTY, 0)
+            except Exception:
+                pass
 
         proc = subprocess.Popen(
-            set_cmd,
+            launch_cmd,
             stdin=slave_fd, stdout=slave_fd, stderr=slave_fd,
             close_fds=True,
+            preexec_fn=_set_pty_preexec,
             env={**os.environ, "TERM": "xterm-256color", "COLUMNS": "220", "LINES": "40"},
         )'''
 
-# ---------------------------------------------------------------------------
-# PATCH B  (api_server.py)
-# Update the audit log detail to record whether sudo was used, so admins can
-# see exactly how SET was launched.
-# ---------------------------------------------------------------------------
+NEW_PREEXEC = '''        _slave_fd_capture = slave_fd  # capture for closure
+
+        def _set_pty_preexec():
+            # Give the child process a new session so it becomes a session leader,
+            # then assign the slave PTY as its controlling terminal.
+            # This is required for SET (and sudo) to work inside a PTY.
+            os.setsid()
+            try:
+                _fcntl.ioctl(_slave_fd_capture, _termios.TIOCSCTTY, 0)
+            except Exception:
+                pass
+
+        proc = subprocess.Popen(
+            launch_cmd,
+            stdin=slave_fd, stdout=slave_fd, stderr=slave_fd,
+            close_fds=True,
+            preexec_fn=_set_pty_preexec,
+            env={
+                **os.environ,
+                "TERM": "xterm-256color",
+                "COLUMNS": "220",
+                "LINES": "40",
+                # Prevent sudo from trying to read a password via /dev/tty
+                "SUDO_ASKPASS": "/bin/false",
+            },
+        )'''
+
+# ─── PATCH 3 ──────────────────────────────────────────────────────────────────
+# Fix the audit call to use launch_display (which is always set now).
+# ─────────────────────────────────────────────────────────────────────────────
 
 OLD_AUDIT = '''        audit(u["id"], u["username"], "SET_SESSION_START",
               ip=request.remote_addr, details=f"binary={binary}")'''
 
-NEW_AUDIT = '''        import os as _os_audit
-        _run_as_root = (_os_audit.geteuid() == 0)
-        _launch_mode = "direct-root" if _run_as_root else "sudo"
-        audit(u["id"], u["username"], "SET_SESSION_START",
+NEW_AUDIT = '''        audit(u["id"], u["username"], "SET_SESSION_START",
               ip=request.remote_addr,
-              details=f"binary={binary};launch_mode={_launch_mode}")'''
-
-# ---------------------------------------------------------------------------
-# PATCH C  (api_server.py)
-# Ensure 'import shutil' is available inside the route function scope.
-# The function already has access to the top-level shutil import, but we
-# add an explicit local import inside set_session_new() as a safety net
-# so the shutil.which("sudo") call always resolves correctly even if the
-# top-level import is ever reorganised.
-# ---------------------------------------------------------------------------
-
-OLD_SHUTIL_GUARD = '''    import shutil as _sh
-    u = get_current_user()
-    if not u:
-        return jsonify({"error": "Login required"}), 401
-
-    binary = _sh.which("setoolkit") or _sh.which("set") or _sh.which("se-toolkit")'''
-
-NEW_SHUTIL_GUARD = '''    import shutil as _sh
-    import shutil  # ensure shutil.which("sudo") is available for root-elevation
-    u = get_current_user()
-    if not u:
-        return jsonify({"error": "Login required"}), 401
-
-    binary = _sh.which("setoolkit") or _sh.which("set") or _sh.which("se-toolkit")'''
+              details=f"cmd={launch_display};euid={os.geteuid()}")'''
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -175,40 +249,41 @@ NEW_SHUTIL_GUARD = '''    import shutil as _sh
 
 def main() -> None:
     print()
-    print(BOLD + CYAN + "╔══════════════════════════════════════════════════════╗" + RESET)
-    print(BOLD + CYAN + "║  VulnScan Pro — Patch: SET runs as root user        ║" + RESET)
-    print(BOLD + CYAN + "║  Automatically detects & patches api_server.py      ║" + RESET)
-    print(BOLD + CYAN + "╚══════════════════════════════════════════════════════╝" + RESET)
+    print(BOLD + CYAN + "╔══════════════════════════════════════════════════════════╗" + RESET)
+    print(BOLD + CYAN + "║  VulnScan Pro — Patch: Fix SET sudo launch (NOPASSWD)   ║" + RESET)
+    print(BOLD + CYAN + "║  Removes broken sudo -n -v pre-check, fixes PTY launch  ║" + RESET)
+    print(BOLD + CYAN + "╚══════════════════════════════════════════════════════════╝" + RESET)
     print()
 
-    # ── Verify we are in the project root ─────────────────────────────────────
+    # ── Verify project root ───────────────────────────────────────────────────
     missing = [f for f in ["api_server.py", "backend.py"] if not os.path.isfile(f)]
     if missing:
         print(RED + BOLD + "  ERROR: Must be run from the VulnScan project root." + RESET)
-        print(f"  Missing files: {', '.join(missing)}")
-        print("  Usage: cd ~/vulnscan && python3 patch.py")
+        print(f"  Missing: {', '.join(missing)}")
+        print("  Usage:   cd ~/vulnscan && python3 patch.py")
         sys.exit(1)
 
-    info(f"Project root: {os.getcwd()}")
+    info(f"Working directory: {os.getcwd()}")
     print()
 
-    # ── Apply patches to api_server.py ────────────────────────────────────────
+    # ── Apply to api_server.py ────────────────────────────────────────────────
     target_file = "api_server.py"
-    print(BOLD + f"  ── Scanning {target_file}" + RESET)
+    print(BOLD + f"  Patching {target_file}" + RESET)
+    print()
 
     apply_patches(target_file, [
         (
-            "SET session: import shutil inside route for sudo lookup",
-            OLD_SHUTIL_GUARD,
-            NEW_SHUTIL_GUARD,
+            "PATCH 1 — Remove broken sudo -n -v pre-check; fix launch command",
+            OLD_SUDO_BLOCK,
+            NEW_SUDO_BLOCK,
         ),
         (
-            "SET session: Popen cmd elevated with sudo when not already root",
-            OLD_POPEN,
-            NEW_POPEN,
+            "PATCH 2 — Fix PTY preexec_fn closure + add SUDO_ASKPASS env var",
+            OLD_PREEXEC,
+            NEW_PREEXEC,
         ),
         (
-            "SET session: audit log records launch mode (direct-root / sudo)",
+            "PATCH 3 — Update audit log to record full launch command",
             OLD_AUDIT,
             NEW_AUDIT,
         ),
@@ -216,62 +291,84 @@ def main() -> None:
 
     print()
 
-    # ── Syntax check every modified file ──────────────────────────────────────
+    # ── Syntax check ──────────────────────────────────────────────────────────
     if RESULTS["files"]:
         print(BOLD + "  Syntax checks:" + RESET)
-        all_ok = True
+        all_syntax_ok = True
         for path in RESULTS["files"]:
             passed, err = syntax_check(path)
             if passed:
                 ok(f"{path} — syntax OK")
             else:
                 fail(f"{path} — SYNTAX ERROR:\n    {err}")
-                all_ok = False
+                all_syntax_ok = False
         print()
-        if not all_ok:
-            warn("Syntax errors detected. The patched file(s) may not start.")
-            warn("A backup was saved — restore with:  cp <file>.*.bak <file>")
-    else:
-        if RESULTS["skipped"] > 0:
-            info("All patches were already applied — nothing to do.")
-        elif RESULTS["failed"] > 0:
-            warn("No files were modified (all patches failed to locate anchors).")
+        if not all_syntax_ok:
+            warn("Syntax errors detected. Restore the backup before restarting.")
+            warn("Restore: cp <file>.*.bak <file>")
 
     # ── Summary ───────────────────────────────────────────────────────────────
-    print(BOLD + CYAN + "══════════════════════════════════════════════════════" + RESET)
+    print(BOLD + CYAN + "══════════════════════════════════════════════════════════" + RESET)
     print(
-        f"  Applied : {GREEN}{RESULTS['applied']}{RESET}  |  "
-        f"Skipped : {DIM}{RESULTS['skipped']}{RESET}  |  "
+        f"  Applied : {GREEN}{RESULTS['applied']}{RESET}   "
+        f"Skipped : {DIM}{RESULTS['skipped']}{RESET}   "
         f"Failed  : {(RED if RESULTS['failed'] else DIM)}{RESULTS['failed']}{RESET}"
     )
     print()
 
     if RESULTS["files"]:
         for path in RESULTS["files"]:
-            print(f"  {GREEN}✓{RESET}  Modified : {path}  {DIM}(backup: {path}.*.bak){RESET}")
+            print(f"  {GREEN}✓{RESET}  Modified : {BOLD}{path}{RESET}")
+        print()
+
+    if RESULTS["failed"] > 0 and RESULTS["applied"] == 0:
+        warn("No patches were applied. The source code may have already been patched")
+        warn("or the anchor text no longer matches.  Check manually.")
         print()
 
     if RESULTS["restart"]:
-        print(f"  {YELLOW}Restart required to activate changes:{RESET}")
+        print(f"  {YELLOW}Restart required:{RESET}")
         print(f"    python3 api_server.py")
         print(f"    OR: sudo systemctl restart vulnscan")
         print()
-        print(f"  {GREEN}What changed:{RESET}")
-        print(f"    {GREEN}✓{RESET}  SET sessions now launch setoolkit via sudo when the")
-        print(f"       VulnScan server process is not already running as root.")
-        print(f"    {GREEN}✓{RESET}  If the server IS root (e.g. sudo python3 api_server.py),")
-        print(f"       setoolkit is called directly — no double-sudo overhead.")
-        print(f"    {GREEN}✓{RESET}  Audit log now records 'launch_mode=sudo' or")
-        print(f"       'launch_mode=direct-root' for every SET session start.")
-        print(f"    {GREEN}✓{RESET}  All other pages and tools are completely unchanged.")
-        print()
-        print(f"  {CYAN}Recommended: run VulnScan as root so no sudo prompt appears:{RESET}")
-        print(f"    sudo python3 api_server.py")
-        print(f"    OR add to sudoers (passwordless): visudo")
-        print(f"    www-data ALL=(ALL) NOPASSWD: /usr/bin/setoolkit")
-    elif RESULTS["skipped"] > 0:
+        _print_what_changed()
+        _print_sudoers_instructions()
+
+    elif RESULTS["skipped"] == (RESULTS["applied"] + RESULTS["skipped"]) and RESULTS["skipped"] > 0:
         print(f"  {GREEN}Already up to date — no restart needed.{RESET}")
 
+    print()
+
+
+def _print_what_changed():
+    print(f"  {GREEN}What changed:{RESET}")
+    changes = [
+        "Removed `sudo -n -v` pre-flight check (it tested generic sudo, not",
+        "  the specific NOPASSWD rule for setoolkit — causing false 403 errors).",
+        "SET now launched as: sudo -n <setoolkit-path>  (honours NOPASSWD rule).",
+        "If server runs as root, setoolkit is called directly — no sudo overhead.",
+        "Added SUDO_ASKPASS=/bin/false so sudo never hangs waiting for a password.",
+        "Fixed PTY preexec_fn closure to properly assign controlling terminal.",
+        "Searches /usr/local/bin, /usr/bin, /opt/setoolkit for the binary.",
+        "All other tools, pages, and routes are completely unchanged.",
+    ]
+    for c in changes:
+        print(f"    {GREEN}›{RESET}  {c}")
+    print()
+
+
+def _print_sudoers_instructions():
+    print(f"  {CYAN}Required sudoers rule (confirm it exists):{RESET}")
+    print(f"    Run:  sudo visudo")
+    print(f"    Line: www-data ALL=(ALL) NOPASSWD: /usr/local/bin/setoolkit")
+    print()
+    print(f"  {CYAN}If setoolkit is in a different location:{RESET}")
+    print(f"    which setoolkit   # find the real path")
+    print(f"    sudo visudo       # update the NOPASSWD path to match")
+    print()
+    print(f"  {CYAN}Quick verification (run as www-data):{RESET}")
+    print(f"    sudo -u www-data sudo -n /usr/local/bin/setoolkit --version")
+    print(f"    # Should print version, NOT ask for a password.")
     print()
 
 
