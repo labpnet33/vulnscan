@@ -3609,32 +3609,44 @@ def set_session_new():
     if not u:
         return jsonify({"error": "Login required"}), 401
 
-    binary = _sh.which("setoolkit") or _sh.which("set") or _sh.which("se-toolkit")
+    binary = _sh.which("setoolkit") or _sh.which("se-toolkit")
+    if not binary:
+        # Also search common install locations not always on PATH for www-data
+        for candidate in [
+            "/usr/local/bin/setoolkit",
+            "/usr/bin/setoolkit",
+            "/opt/setoolkit/setoolkit",
+            "/usr/local/bin/se-toolkit",
+        ]:
+            if os.path.isfile(candidate):
+                binary = candidate
+                break
     if not binary:
         return jsonify({"error": (
-            "setoolkit not found on PATH. "
-            "Install: sudo apt install set  OR  "
-            "clone from https://github.com/trustedsec/social-engineer-toolkit"
+            "setoolkit not found. Install: sudo apt install set  OR  "
+            "git clone https://github.com/trustedsec/social-engineer-toolkit && "
+            "cd social-engineer-toolkit && pip3 install -r requirements.txt && "
+            "python setup.py"
         )}), 404
 
-    launch_cmd = [binary]
-    launch_display = binary
-    if hasattr(os, "geteuid") and os.geteuid() != 0:
+    # Build the launch command.
+    # If we are already root (euid 0) → invoke binary directly.
+    # Otherwise → use 'sudo -n <binary>' which honours a NOPASSWD sudoers rule
+    # like: www-data ALL=(ALL) NOPASSWD: /usr/local/bin/setoolkit
+    # We intentionally do NOT run `sudo -n -v` as a pre-check because that
+    # tests generic sudo access, not the specific per-binary NOPASSWD rule.
+    if os.geteuid() == 0:
+        launch_cmd = [binary]
+        launch_display = binary
+    else:
         sudo_bin = _sh.which("sudo")
         if not sudo_bin:
-            return jsonify({"error": "SET must run as root. 'sudo' is not installed on this server."}), 500
-        # Force target user to root so SET always runs with effective UID 0.
-        # Mirrors host-side validation pattern: sudo -u www-data sudo setoolkit
-        launch_cmd = [sudo_bin, "-u", "root", binary]
-        launch_display = f"{sudo_bin} -u root {binary}"
-        sudo_check = subprocess.run([sudo_bin, "-n", "-v"], capture_output=True, text=True)
-        if sudo_check.returncode != 0:
             return jsonify({
                 "error": (
-                    "SET must run as root. Passwordless sudo is required for the web service user. "
-                    "Configure sudoers to allow launching setoolkit without a TTY/password."
+                    "SET requires root privileges but 'sudo' is not installed. "
+                    "Run the VulnScan server as root: sudo python3 api_server.py"
                 )
-            }), 403
+            }), 500
         launch_cmd = [sudo_bin, "-n", binary]
         launch_display = f"{sudo_bin} -n {binary}"
 
@@ -3648,11 +3660,15 @@ def set_session_new():
         winsize = _struct.pack("HHHH", 40, 220, 0, 0)
         _fcntl.ioctl(slave_fd, _termios.TIOCSWINSZ, winsize)
 
+        _slave_fd_capture = slave_fd  # capture for closure
+
         def _set_pty_preexec():
-            # Ensure child has a controlling TTY so sudo/SET interactive flows work.
+            # Give the child process a new session so it becomes a session leader,
+            # then assign the slave PTY as its controlling terminal.
+            # This is required for SET (and sudo) to work inside a PTY.
             os.setsid()
             try:
-                _fcntl.ioctl(slave_fd, _termios.TIOCSCTTY, 0)
+                _fcntl.ioctl(_slave_fd_capture, _termios.TIOCSCTTY, 0)
             except Exception:
                 pass
 
@@ -3661,7 +3677,14 @@ def set_session_new():
             stdin=slave_fd, stdout=slave_fd, stderr=slave_fd,
             close_fds=True,
             preexec_fn=_set_pty_preexec,
-            env={**os.environ, "TERM": "xterm-256color", "COLUMNS": "220", "LINES": "40"},
+            env={
+                **os.environ,
+                "TERM": "xterm-256color",
+                "COLUMNS": "220",
+                "LINES": "40",
+                # Prevent sudo from trying to read a password via /dev/tty
+                "SUDO_ASKPASS": "/bin/false",
+            },
         )
         os.close(slave_fd)
 
