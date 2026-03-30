@@ -3100,16 +3100,45 @@ def auto_install(pkg, binary=None):
 
 
 TOOL_INSTALL_MAP = {
+    # Core existing tools
     "nmap":         ("nmap",         "nmap"),
     "nikto":        ("nikto",        "nikto"),
     "lynis":        ("lynis",        "lynis"),
     "dnsrecon":     ("dnsrecon",     "dnsrecon"),
     "legion":       ("legion",       "legion"),
     "theharvester": ("theharvester", "theHarvester"),
-    "wpscan":       (None,           "wpscan"),
+    "wpscan":       (None,            "wpscan"),
     "dig":          ("dnsutils",     "dig"),
     "proxychains4": ("proxychains4", "proxychains4"),
     "tor":          ("tor",          "tor"),
+
+    # Added tools (categorized in setup/install script)
+    "wapiti":       ("wapiti",       "wapiti"),
+    "whatweb":      ("whatweb",      "whatweb"),
+    "medusa":       ("medusa",       "medusa"),
+    "hashcat":      ("hashcat",      "hashcat"),
+    "john":         ("john",         "john"),
+    "openvas":      ("openvas",      "openvas"),
+    "chkrootkit":   ("chkrootkit",   "chkrootkit"),
+    "rkhunter":     ("rkhunter",     "rkhunter"),
+    "searchsploit": ("exploitdb",    "searchsploit"),
+    "hping3":       ("hping3",       "hping3"),
+    "scapy":        ("python3-scapy", "scapy"),
+    "yersinia":     ("yersinia",     "yersinia"),
+    "ffuf":         ("ffuf",         "ffuf"),
+    "dalfox":       ("dalfox",       "dalfox"),
+    "sqlmap":       ("sqlmap",       "sqlmap"),
+    "kxss":         (None,            "kxss"),
+    "seclists":     ("seclists",     "seclists"),
+    "nuclei":       ("nuclei",       "nuclei"),
+    "grype":        ("grype",        "grype"),
+    "msfvenom":     ("metasploit-framework", "msfvenom"),
+    "pwncat":       ("pwncat",       "pwncat"),
+    "rlwrap":       ("rlwrap",       "rlwrap"),
+    "radare2":      ("radare2",      "radare2"),
+    "ligolo-ng":    ("ligolo-ng",    "ligolo-ng"),
+    "chisel":       ("chisel",       "chisel"),
+    "pspy":         (None,            "pspy"),
 }
 
 
