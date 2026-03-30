@@ -2169,7 +2169,8 @@ function _setSetStatus(label, color, showKill) {
   if (dot)    dot.style.background = color;
   if (lbl)    lbl.textContent      = label;
   if (kill)   kill.style.display   = showKill ? 'inline-flex' : 'none';
-  if (launch) launch.disabled      = showKill;
+  // Keep launch enabled so clicking LAUNCH SET always restarts a fresh session.
+  if (launch) launch.disabled      = false;
 }
 
 async function setLaunch() {
@@ -3574,6 +3575,17 @@ def set_session_new():
             "clone from https://github.com/trustedsec/social-engineer-toolkit"
         )}), 404
 
+    launch_cmd = [binary]
+    launch_display = binary
+    if hasattr(os, "geteuid") and os.geteuid() != 0:
+        sudo_bin = _sh.which("sudo")
+        if not sudo_bin:
+            return jsonify({"error": "SET must run as root. 'sudo' is not installed on this server."}), 500
+        # Use regular sudo invocation (TTY-backed PTY session) to match server usage like:
+        # sudo -u www-data sudo setoolkit
+        launch_cmd = [sudo_bin, binary]
+        launch_display = f"{sudo_bin} {binary}"
+
     _reap_old_set_sessions()
 
     sid = str(_uuid.uuid4())
@@ -3585,7 +3597,7 @@ def set_session_new():
         _fcntl.ioctl(slave_fd, _termios.TIOCSWINSZ, winsize)
 
         proc = subprocess.Popen(
-            [binary],
+            launch_cmd,
             stdin=slave_fd, stdout=slave_fd, stderr=slave_fd,
             close_fds=True,
             env={**os.environ, "TERM": "xterm-256color", "COLUMNS": "220", "LINES": "40"},
@@ -3601,7 +3613,7 @@ def set_session_new():
             "output_q":   output_q,
             "alive":      True,
             "created":    datetime.now(timezone.utc).timestamp(),
-            "binary":     binary,
+            "binary":     launch_display,
             "user":       u["username"],
         }
         with _SET_SESSIONS_LOCK:
@@ -3615,9 +3627,9 @@ def set_session_new():
         t.start()
 
         audit(u["id"], u["username"], "SET_SESSION_START",
-              ip=request.remote_addr, details=f"binary={binary}")
+              ip=request.remote_addr, details=f"binary={launch_display}")
 
-        return jsonify({"session_id": sid, "ok": True, "binary": binary})
+        return jsonify({"session_id": sid, "ok": True, "binary": launch_display})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
