@@ -3585,6 +3585,16 @@ def set_session_new():
         # Mirrors host-side validation pattern: sudo -u www-data sudo setoolkit
         launch_cmd = [sudo_bin, "-u", "root", binary]
         launch_display = f"{sudo_bin} -u root {binary}"
+        sudo_check = subprocess.run([sudo_bin, "-n", "-v"], capture_output=True, text=True)
+        if sudo_check.returncode != 0:
+            return jsonify({
+                "error": (
+                    "SET must run as root. Passwordless sudo is required for the web service user. "
+                    "Configure sudoers to allow launching setoolkit without a TTY/password."
+                )
+            }), 403
+        launch_cmd = [sudo_bin, "-n", binary]
+        launch_display = f"{sudo_bin} -n {binary}"
 
     _reap_old_set_sessions()
 
