@@ -3606,10 +3606,19 @@ def set_session_new():
         winsize = _struct.pack("HHHH", 40, 220, 0, 0)
         _fcntl.ioctl(slave_fd, _termios.TIOCSWINSZ, winsize)
 
+        def _set_pty_preexec():
+            # Ensure child has a controlling TTY so sudo/SET interactive flows work.
+            os.setsid()
+            try:
+                _fcntl.ioctl(slave_fd, _termios.TIOCSCTTY, 0)
+            except Exception:
+                pass
+
         proc = subprocess.Popen(
             launch_cmd,
             stdin=slave_fd, stdout=slave_fd, stderr=slave_fd,
             close_fds=True,
+            preexec_fn=_set_pty_preexec,
             env={**os.environ, "TERM": "xterm-256color", "COLUMNS": "220", "LINES": "40"},
         )
         os.close(slave_fd)
