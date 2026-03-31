@@ -763,26 +763,31 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
     </div>
     <nav>
 
-      <!-- VulnScan Nav Search v2 -->
-      <div style="padding:8px 10px 2px">
+      <!-- VS-NAV-SEARCH-V3 -->
+      <div style="padding:8px 10px 4px;position:relative">
         <div style="position:relative">
-          <span id="nav-search-icon" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:12px;pointer-events:none">&#128269;</span>
+          <span style="position:absolute;left:9px;top:50%;transform:translateY(-50%);
+                       color:var(--text3);font-size:12px;pointer-events:none;z-index:1">&#128269;</span>
           <input
-            id="nav-search-input"
+            id="vns-input"
             class="inp inp-mono"
             type="text"
             placeholder="Search tools..."
             autocomplete="off"
             spellcheck="false"
-            oninput="vsNavSearch(this.value)"
-            onkeydown="vsNavSearchKey(event)"
-            style="width:100%;padding:6px 10px 6px 28px;font-size:11px;background:var(--bg3);border-color:var(--border)"
+            style="width:100%;padding:6px 10px 6px 28px;font-size:11px;
+                   background:var(--bg3);border-color:var(--border)"
           />
         </div>
-        <div id="nav-search-results" style="display:none;margin-top:3px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);overflow:hidden;max-height:260px;overflow-y:auto;position:relative;z-index:100"></div>
+        <div id="vns-popup"
+             style="display:none;position:absolute;left:10px;right:10px;top:calc(100% - 2px);
+                    border:1px solid var(--border2);border-radius:0 0 var(--radius) var(--radius);
+                    background:var(--bg);box-shadow:var(--shadow-md);
+                    max-height:260px;overflow-y:auto;z-index:9999">
+        </div>
       </div>
-      <!-- /VulnScan Nav Search v2 -->
-      <style>
+      <!-- /VS-NAV-SEARCH-V3 -->
+            <style>
 .nav-section{padding:4px 10px}
 .nav-cat-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:6px 8px;border-radius:var(--radius);user-select:none}
 .nav-cat-toggle:hover{background:var(--bg3)}
@@ -818,6 +823,155 @@ function navRestore(){
   });
 }
 document.addEventListener('DOMContentLoaded',navRestore);
+
+// ── VS-NAV-SEARCH-V3 ────────────────────────────────────────
+(function () {
+  'use strict';
+
+  // Build an index of all tool nav buttons once the DOM is ready
+  function buildIndex() {
+    var items = [];
+    var sidebar = document.querySelector('.sidebar');
+    if (!sidebar) return items;
+    sidebar.querySelectorAll('button.nav-item[onclick]').forEach(function (btn) {
+      var oc  = btn.getAttribute('onclick') || '';
+      var m   = oc.match(/pg\(['"]([^'"]+)['"]/);
+      if (!m) return;
+      var pid = m[1];
+      // skip non-tool pages
+      if (['home','dash','hist','profile','admin'].indexOf(pid) !== -1) return;
+      var label = (btn.textContent || '').replace(/[○●■□•⚡⚙]/gu, '').trim();
+      if (!label) return;
+      items.push({ label: label, pid: pid });
+    });
+    return items;
+  }
+
+  var _idx = null;
+  function getIndex() { return _idx || (_idx = buildIndex()); }
+
+  function highlight(text, q) {
+    if (!q) return text;
+    var i = text.toLowerCase().indexOf(q.toLowerCase());
+    if (i < 0) return text;
+    return text.slice(0, i)
+      + '<mark style="background:rgba(255,214,10,0.35);color:inherit;'
+      + 'border-radius:2px;padding:0 1px">'
+      + text.slice(i, i + q.length) + '</mark>'
+      + text.slice(i + q.length);
+  }
+
+  function showPopup(items, query) {
+    var popup = document.getElementById('vns-popup');
+    if (!popup) return;
+
+    if (!items.length) {
+      popup.innerHTML =
+        '<div style="padding:9px 12px;font-size:11px;'
+        + 'color:var(--text3);font-family:var(--mono)">No tools match</div>';
+      popup.style.display = 'block';
+      return;
+    }
+
+    popup.innerHTML = items.slice(0, 25).map(function (item, idx) {
+      return '<button data-idx="' + idx + '" data-pid="' + item.pid + '" '
+        + 'class="nav-item" '
+        + 'style="width:100%;border-radius:0;padding:8px 14px;'
+        + 'text-align:left;border:none;border-bottom:1px solid var(--border)" '
+        + 'onmousedown="vsNavPick('' + item.pid + '')">'
+        + '<span class="ni" style="margin-right:6px">&#9675;</span>'
+        + highlight(item.label, query)
+        + '</button>';
+    }).join('');
+    popup.style.display = 'block';
+  }
+
+  function hidePopup() {
+    var popup = document.getElementById('vns-popup');
+    if (popup) { popup.style.display = 'none'; popup.innerHTML = ''; }
+  }
+
+  // Exposed globally so inline onclick can call it
+  window.vsNavPick = function (pid) {
+    // clear search first
+    var input = document.getElementById('vns-input');
+    if (input) input.value = '';
+    hidePopup();
+    _idx = null; // rebuild next search
+
+    // navigate
+    if (typeof pg === 'function') pg(pid, null);
+
+    // expand the containing category
+    var sidebar = document.querySelector('.sidebar');
+    if (!sidebar) return;
+    sidebar.querySelectorAll('button.nav-item[onclick]').forEach(function (btn) {
+      var oc = btn.getAttribute('onclick') || '';
+      if (oc.indexOf("'" + pid + "'") !== -1 || oc.indexOf('"' + pid + '"') !== -1) {
+        var section = btn.closest('.nav-cat-items');
+        if (!section) return;
+        var catId = section.id.replace('nc-', '');
+        section.classList.remove('collapsed');
+        section.classList.add('expanded');
+        var arrow = document.getElementById('na-' + catId);
+        if (arrow) arrow.classList.add('open');
+        try { localStorage.setItem('vs-nav-' + catId, '1'); } catch (e) {}
+        setTimeout(function () {
+          btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 60);
+      }
+    });
+  };
+
+  // Wire up the input after DOM ready
+  document.addEventListener('DOMContentLoaded', function () {
+    var input = document.getElementById('vns-input');
+    if (!input) return;
+
+    input.addEventListener('input', function () {
+      var q = input.value.trim();
+      if (!q) { hidePopup(); return; }
+      var hits = getIndex().filter(function (item) {
+        return item.label.toLowerCase().indexOf(q.toLowerCase()) !== -1
+          || item.pid.toLowerCase().indexOf(q.toLowerCase()) !== -1;
+      });
+      showPopup(hits, q);
+    });
+
+    input.addEventListener('keydown', function (e) {
+      var popup  = document.getElementById('vns-popup');
+      if (!popup || popup.style.display === 'none') return;
+      var btns   = Array.from(popup.querySelectorAll('button'));
+      var focused = popup.querySelector('button:focus');
+      var fi      = focused ? btns.indexOf(focused) : -1;
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        var next = fi < btns.length - 1 ? btns[fi + 1] : btns[0];
+        next && next.focus();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (fi <= 0) { input.focus(); return; }
+        btns[fi - 1].focus();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        input.value = ''; hidePopup(); input.blur();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (focused) focused.click();
+        else if (btns.length) btns[0].click();
+      }
+    });
+
+    // blur hides popup only if not clicking inside it
+    input.addEventListener('blur', function () {
+      setTimeout(hidePopup, 150);
+    });
+  });
+
+}());
+// ── /VS-NAV-SEARCH-V3 ───────────────────────────────────────
+
       </script>
 
       <div class="nav-section">
