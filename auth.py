@@ -90,28 +90,28 @@ def send_verification_email(email, username, token):
         link = f"{APP_URL}/verify/{token}"
         body = f"""<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><style>
-body{{font-family:Helvetica,sans-serif;background-color:#04040a;color:#e8e8f0;margin:0;padding:0}}
-.container{{background:#0d0d18;border:1px solid #16162a;border-radius:12px;max-width:600px;margin:20px auto;overflow:hidden}}
-.header{{background:linear-gradient(90deg,#00e5ff,#b06fff);padding:30px;text-align:center}}
-.header h1{{margin:0;color:white;font-size:28px;font-weight:800}}
-.content{{padding:40px 30px}}
-.content h2{{color:#00e5ff;font-size:20px;margin-top:0}}
-.content p{{color:#c0c0d0;line-height:1.8;font-size:14px}}
-.button{{display:block;width:fit-content;background:linear-gradient(135deg,#ff3366,#ff6b35);color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;margin:25px 0}}
-.warning{{background:#16162a;border-left:4px solid #ffd60a;padding:12px 15px;margin:20px 0;border-radius:4px;font-size:12px;color:#c0c0d0}}
-.footer{{background:#0d0d18;padding:20px 30px;text-align:center;border-top:1px solid #16162a;font-size:11px;color:#5a5a8a}}
-code{{background:#16162a;padding:8px 12px;border-radius:4px;word-break:break-all;display:block;margin-top:8px}}
+body{{font-family:'IBM Plex Mono',Consolas,monospace;background:#050507;color:#e5e5ea;margin:0;padding:24px}}
+.container{{max-width:640px;margin:0 auto;background:#0a0a0c;border:1px solid #1c1c1e;border-radius:12px;overflow:hidden}}
+.header{{padding:24px 26px;background:linear-gradient(135deg,#ff2d55,#ff6b35);color:#fff;font-weight:800;font-size:20px;letter-spacing:.3px}}
+.content{{padding:24px 26px}}
+.title{{margin:0 0 10px 0;color:#fff;font-size:18px}}
+.txt{{margin:0 0 12px 0;color:#b0b3bd;font-size:13px;line-height:1.7}}
+.btn{{display:inline-block;margin:12px 0 16px;background:#00d4ff;color:#050507 !important;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:700;font-size:13px}}
+.code{{display:block;background:#050507;border:1px solid #1c1c1e;border-radius:8px;padding:10px 12px;word-break:break-all;color:#00d4ff;font-size:12px}}
+.warn{{margin-top:14px;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,214,10,.35);background:rgba(255,214,10,.08);color:#ffd60a;font-size:12px}}
+.footer{{padding:14px 26px;border-top:1px solid #1c1c1e;color:#636366;font-size:11px}}
 </style></head><body>
 <div class="container">
-  <div class="header"><h1>🔐 VulnScan Pro</h1></div>
+  <div class="header">VulnScan</div>
   <div class="content">
-    <h2>Welcome, {username}!</h2>
-    <p>Thank you for registering. Click below to verify your email:</p>
-    <a href="{link}" class="button">VERIFY EMAIL ADDRESS</a>
-    <p style="text-align:center;color:#5a5a8a;font-size:12px">Or copy this link:<code>{link}</code></p>
-    <div class="warning">⏰ <strong>Link expires in 24 hours.</strong> If you did not register, ignore this email.</div>
+    <h2 class="title">Welcome, {username}</h2>
+    <p class="txt">Confirm your email address to activate your account.</p>
+    <a href="{link}" class="btn">VERIFY EMAIL</a>
+    <p class="txt">If the button does not work, open this link:</p>
+    <code class="code">{link}</code>
+    <div class="warn">⏰ Verification link expires in 10 minutes.</div>
   </div>
-  <div class="footer"><p>© 2024 VulnScan Pro. Security Intelligence Platform.</p></div>
+  <div class="footer">This message was sent by VulnScan Security Platform.</div>
 </div></body></html>"""
         return send_mail(email, subject, body, is_html=True)
     except ImportError:
@@ -209,6 +209,7 @@ def register_auth_routes(app):
         if get_user_by_email(email): return jsonify({"error": "Email already registered"}), 409
 
         token = gen_token()
+        verify_expires = (datetime.utcnow() + timedelta(minutes=10)).isoformat()
         ph = hash_password(password)
 
         from database import get_db
@@ -220,7 +221,7 @@ def register_auth_routes(app):
         # This ensures every registration triggers verification email delivery.
         is_verified = 0
 
-        ok, msg = create_user(username, email, ph, full_name, role, is_verified, token)
+        ok, msg = create_user(username, email, ph, full_name, role, is_verified, token, verify_expires)
         if not ok: return jsonify({"error": msg}), 409
 
         verification_email_sent = send_verification_email(email, username, token)
@@ -297,8 +298,8 @@ def register_auth_routes(app):
 
     @app.route("/api/verify/<token>")
     def api_verify(token):
+        user = get_user_by_token(token)
         if verify_user(token):
-            user = get_user_by_token(token)
             if user: audit(user["id"], user["username"], "EMAIL_VERIFIED", ip=request.remote_addr)
             return jsonify({"success": True, "message": "Email verified! You can now login."})
         return jsonify({"error": "Invalid or expired verification link"}), 400
