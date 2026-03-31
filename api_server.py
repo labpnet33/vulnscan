@@ -12,7 +12,7 @@ PROXYCHAINS CONFIG (/etc/proxychains4.conf or /etc/proxychains.conf):
   [ProxyList]
   socks5 127.0.0.1 9050
 """
-import json, re, sys, os, subprocess, io, sqlite3, secrets, hashlib, threading, shlex, time, shutil
+import json, re, sys, os, subprocess, io, sqlite3, secrets, hashlib, threading, shlex, time, shutil, socket
 from urllib.parse import urlparse
 from flask import Flask, request, jsonify, Response, send_file, send_from_directory
 from flask_cors import CORS
@@ -549,11 +549,6 @@ body.dark .auth-box{box-shadow:0 4px 36px rgba(0,220,100,0.06),0 2px 16px rgba(0
 #page-home .card[onclick]:hover{transform:translateY(-4px);box-shadow:0 8px 22px rgba(0,0,0,0.08)}
 #page-home .card[onclick]:active{transform:translateY(-1px) scale(0.99)}
 body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)}
-#page-home .home-cat{border:1px solid var(--border);border-radius:10px;background:var(--bg2);padding:10px 12px}
-#page-home .home-cat>summary{cursor:pointer;list-style:none;font-family:var(--mono);font-size:12px;letter-spacing:0.6px;color:var(--text2);font-weight:700}
-#page-home .home-cat>summary::-webkit-details-marker{display:none}
-#page-home .home-cat>summary::before{content:'▸ ';color:var(--accent)}
-#page-home .home-cat[open]>summary::before{content:'▾ '}
 @keyframes vs-page-enter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .page.active{animation:vs-page-enter 0.24s var(--ease-out) both}
 @keyframes vs-brand-breathe{0%,100%{opacity:1}50%{opacity:0.65}}
@@ -801,6 +796,14 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
         <button class="nav-item" id="ni-shellphish" onclick="pg('shellphish',this)"><span class="ni">&#9675;</span> ShellPhish</button>
       </div>
       <div class="nav-section">
+        <div class="nav-label">C2 / PIVOTING</div>
+        <button class="nav-item" id="ni-netcat" onclick="pg('netcat',this)"><span class="ni">&#9675;</span> Netcat</button>
+        <button class="nav-item" id="ni-ncat" onclick="pg('ncat',this)"><span class="ni">&#9675;</span> Ncat</button>
+        <button class="nav-item" id="ni-socat" onclick="pg('socat',this)"><span class="ni">&#9675;</span> Socat</button>
+        <button class="nav-item" id="ni-sliver" onclick="pg('sliver',this)"><span class="ni">&#9675;</span> Sliver</button>
+        <button class="nav-item" id="ni-empire" onclick="pg('empire',this)"><span class="ni">&#9675;</span> Empire</button>
+      </div>
+      <div class="nav-section">
         <div class="nav-label">AUDITING</div>
         <button class="nav-item" id="ni-lynis" onclick="pg('lynis',this)"><span class="ni">&#9675;</span> Lynis</button>
       </div>
@@ -839,51 +842,43 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
           <div class="stat"><div class="stat-val" id="hs-scans">--</div><div class="stat-lbl">TOTAL SCANS</div></div>
           <div class="stat"><div class="stat-val" id="hs-cves">--</div><div class="stat-lbl">CVEs FOUND</div></div>
           <div class="stat"><div class="stat-val" id="hs-ports">--</div><div class="stat-lbl">OPEN PORTS</div></div>
-          <div class="stat"><div class="stat-val">16</div><div class="stat-lbl">TOOLS</div></div>
+          <div class="stat"><div class="stat-val">21</div><div class="stat-lbl">TOOLS</div></div>
         </div>
-        <details open class="home-cat">
-          <summary>Recon &amp; Web Testing</summary>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-top:10px">
-            <div class="card" style="cursor:pointer" onclick="pg('scan',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-              <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Network Scanner</div><div style="font-size:12px;color:var(--text3)">Port scan &middot; CVE lookup &middot; SSL analysis &middot; DNS &middot; Headers</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">nmap</span><span class="tag">CVE</span><span class="tag">SSL</span></div></div>
-            </div>
-            <div class="card" style="cursor:pointer" onclick="pg('harvester',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-              <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">theHarvester</div><div style="font-size:12px;color:var(--text3)">OSINT emails, subdomains, IPs from public sources</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">OSINT</span><span class="tag">emails</span></div></div>
-            </div>
-            <div class="card" style="cursor:pointer" onclick="pg('sub',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-              <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Subdomain Finder</div><div style="font-size:12px;color:var(--text3)">DNS brute-force + crt.sh + HackerTarget passive</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">DNS</span><span class="tag">brute-force</span></div></div>
-            </div>
-            <div class="card" style="cursor:pointer" onclick="pg('nikto',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-              <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Nikto</div><div style="font-size:12px;color:var(--text3)">Web vulnerability scanner &middot; 6700+ checks</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">web</span><span class="tag">CVE</span></div></div>
-            </div>
-            <div class="card" style="cursor:pointer" onclick="pg('webdeep',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-              <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Deep Web Audit</div><div style="font-size:12px;color:var(--text3)">Nmap + Nikto + Dir Enum + Headers + DNS + optional WPScan in one run</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">full-audit</span><span class="tag">report</span></div></div>
-            </div>
-            <div class="card" style="cursor:pointer" onclick="pg('dir',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-              <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Directory Buster</div><div style="font-size:12px;color:var(--text3)">Hidden paths, admin panels, sensitive files</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">HTTP</span><span class="tag">fuzzing</span></div></div>
-            </div>
-            <div class="card" style="cursor:pointer" onclick="pg('lynis',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-              <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Lynis</div><div style="font-size:12px;color:var(--text3)">System audit &middot; hardening &middot; compliance</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">local</span><span class="tag">CIS</span></div></div>
-            </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
+          <div class="card" style="cursor:pointer" onclick="pg('scan',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Network Scanner</div><div style="font-size:12px;color:var(--text3)">Port scan &middot; CVE lookup &middot; SSL analysis &middot; DNS &middot; Headers</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">nmap</span><span class="tag">CVE</span><span class="tag">SSL</span></div></div>
           </div>
-        </details>
-        <details open class="home-cat" style="margin-top:10px">
-          <summary>Social Engineering &amp; Red Team Simulation</summary>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-top:10px">
-            <div class="card" style="cursor:pointer" onclick="pg('setoolkit',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-              <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Social-Engineer Toolkit</div><div style="font-size:12px;color:var(--text3)">Interactive social engineering simulation framework</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">phishing</span><span class="tag">payloads</span></div></div>
-            </div>
-            <div class="card" style="cursor:pointer" onclick="pg('gophish',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-              <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Gophish</div><div style="font-size:12px;color:var(--text3)">Phishing campaign manager with landing pages and tracking</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">campaign</span><span class="tag">awareness</span></div></div>
-            </div>
-            <div class="card" style="cursor:pointer" onclick="pg('evilginx2',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-              <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Evilginx2</div><div style="font-size:12px;color:var(--text3)">Reverse-proxy phishing simulation for MFA resilience testing</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">MFA</span><span class="tag">proxy</span></div></div>
-            </div>
-            <div class="card" style="cursor:pointer" onclick="pg('shellphish',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-              <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">ShellPhish</div><div style="font-size:12px;color:var(--text3)">Template-driven phishing simulation framework for labs</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">templates</span><span class="tag">ngrok</span></div></div>
-            </div>
+          <div class="card" style="cursor:pointer" onclick="pg('harvester',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">theHarvester</div><div style="font-size:12px;color:var(--text3)">OSINT emails, subdomains, IPs from public sources</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">OSINT</span><span class="tag">emails</span></div></div>
           </div>
-        </details>
+          <div class="card" style="cursor:pointer" onclick="pg('sub',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Subdomain Finder</div><div style="font-size:12px;color:var(--text3)">DNS brute-force + crt.sh + HackerTarget passive</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">DNS</span><span class="tag">brute-force</span></div></div>
+          </div>
+          <div class="card" style="cursor:pointer" onclick="pg('nikto',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Nikto</div><div style="font-size:12px;color:var(--text3)">Web vulnerability scanner &middot; 6700+ checks</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">web</span><span class="tag">CVE</span></div></div>
+          </div>
+          <div class="card" style="cursor:pointer" onclick="pg('webdeep',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Deep Web Audit</div><div style="font-size:12px;color:var(--text3)">Nmap + Nikto + Dir Enum + Headers + DNS + optional WPScan in one run</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">full-audit</span><span class="tag">report</span></div></div>
+          </div>
+          <div class="card" style="cursor:pointer" onclick="pg('dir',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Directory Buster</div><div style="font-size:12px;color:var(--text3)">Hidden paths, admin panels, sensitive files</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">HTTP</span><span class="tag">fuzzing</span></div></div>
+          </div>
+          <div class="card" style="cursor:pointer" onclick="pg('lynis',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Lynis</div><div style="font-size:12px;color:var(--text3)">System audit &middot; hardening &middot; compliance</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">local</span><span class="tag">CIS</span></div></div>
+          </div>
+          <div class="card" style="cursor:pointer" onclick="pg('setoolkit',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Social-Engineer Toolkit</div><div style="font-size:12px;color:var(--text3)">Interactive social engineering simulation framework</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">phishing</span><span class="tag">payloads</span></div></div>
+          </div>
+          <div class="card" style="cursor:pointer" onclick="pg('gophish',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Gophish</div><div style="font-size:12px;color:var(--text3)">Phishing campaign manager with landing pages and tracking</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">campaign</span><span class="tag">awareness</span></div></div>
+          </div>
+          <div class="card" style="cursor:pointer" onclick="pg('evilginx2',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Evilginx2</div><div style="font-size:12px;color:var(--text3)">Reverse-proxy phishing simulation for MFA resilience testing</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">MFA</span><span class="tag">proxy</span></div></div>
+          </div>
+          <div class="card" style="cursor:pointer" onclick="pg('shellphish',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">ShellPhish</div><div style="font-size:12px;color:var(--text3)">Template-driven phishing simulation framework for labs</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">templates</span><span class="tag">ngrok</span></div></div>
+          </div>
+        </div>
         <div class="notice" style="margin-top:18px">&#9888; <strong>Authorized use only.</strong> Only scan systems you own or have explicit written permission to assess.</div>
       </div>
 
@@ -1414,6 +1409,103 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
         </div>
       </div>
 
+      <!-- C2 / PIVOTING TOOLS -->
+      <div class="page" id="page-netcat">
+        <div class="page-hd"><div class="page-title">Netcat</div><div class="page-desc">Build listener/connect commands and run netcat on server</div></div>
+        <div class="notice">&#9888; Authorized red-team/lab use only.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>MODE</label><select class="inp inp-mono" id="nc-mode"><option value="connect">Connect</option><option value="listen">Listen</option></select></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="nc-timeout" type="number" value="90" min="10" max="600"/></div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TARGET HOST</label><input class="inp inp-mono" id="nc-host" type="text" placeholder="127.0.0.1"/></div>
+            <div class="fg"><label>PORT</label><input class="inp inp-mono" id="nc-port" type="number" value="4444" min="1" max="65535"/></div>
+          </div>
+          <div class="fg"><label>EXTRA ARGUMENTS</label><input class="inp inp-mono" id="nc-extra" type="text" placeholder="-v -n"/></div>
+          <button class="btn btn-primary" id="nc-btn" onclick="runNetcat()">RUN NETCAT</button>
+        </div>
+        <div class="progress-wrap" id="nc-prog"><div class="progress-bar" id="nc-pb" style="width:0%"></div></div>
+        <div class="terminal" id="nc-term"></div>
+        <div class="err-box" id="nc-err"></div>
+        <div id="nc-res"></div>
+      </div>
+
+      <div class="page" id="page-ncat">
+        <div class="page-hd"><div class="page-title">Ncat</div><div class="page-desc">Run ncat with validated arguments</div></div>
+        <div class="notice">&#9888; Authorized red-team/lab use only.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>MODE</label><select class="inp inp-mono" id="nct-mode"><option value="connect">Connect</option><option value="listen">Listen</option></select></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="nct-timeout" type="number" value="90" min="10" max="600"/></div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TARGET HOST</label><input class="inp inp-mono" id="nct-host" type="text" placeholder="127.0.0.1"/></div>
+            <div class="fg"><label>PORT</label><input class="inp inp-mono" id="nct-port" type="number" value="4444" min="1" max="65535"/></div>
+          </div>
+          <div class="fg"><label>EXTRA ARGUMENTS</label><input class="inp inp-mono" id="nct-extra" type="text" placeholder="-v -n"/></div>
+          <button class="btn btn-primary" id="nct-btn" onclick="runNcat()">RUN NCAT</button>
+        </div>
+        <div class="progress-wrap" id="nct-prog"><div class="progress-bar" id="nct-pb" style="width:0%"></div></div>
+        <div class="terminal" id="nct-term"></div>
+        <div class="err-box" id="nct-err"></div>
+        <div id="nct-res"></div>
+      </div>
+
+      <div class="page" id="page-socat">
+        <div class="page-hd"><div class="page-title">Socat</div><div class="page-desc">Bridge two sockets/channels with socat</div></div>
+        <div class="notice">&#9888; Authorized red-team/lab use only.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>LEFT ADDRESS</label><input class="inp inp-mono" id="sc-left" type="text" placeholder="TCP-LISTEN:4444,reuseaddr,fork"/></div>
+            <div class="fg"><label>RIGHT ADDRESS</label><input class="inp inp-mono" id="sc-right" type="text" placeholder="TCP:127.0.0.1:22"/></div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="sc-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>EXTRA ARGUMENTS</label><input class="inp inp-mono" id="sc-extra" type="text" placeholder="-d -d"/></div>
+          </div>
+          <button class="btn btn-primary" id="sc-btn" onclick="runSocat()">RUN SOCAT</button>
+        </div>
+        <div class="progress-wrap" id="sc-prog"><div class="progress-bar" id="sc-pb" style="width:0%"></div></div>
+        <div class="terminal" id="sc-term"></div>
+        <div class="err-box" id="sc-err"></div>
+        <div id="sc-res"></div>
+      </div>
+
+      <div class="page" id="page-sliver">
+        <div class="page-hd"><div class="page-title">Sliver</div><div class="page-desc">Run Sliver client/server binary commands</div></div>
+        <div class="notice">&#9888; Authorized red-team engagements only.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>OPERATION</label><select class="inp inp-mono" id="sv-op"><option value="help">Help / capability check</option><option value="version">Version check</option><option value="custom">Custom arguments</option></select></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="sv-timeout" type="number" value="90" min="10" max="600"/></div>
+          </div>
+          <div class="fg"><label>CUSTOM ARGUMENTS</label><input class="inp inp-mono" id="sv-args" type="text" placeholder="version"/></div>
+          <button class="btn btn-primary" id="sv-btn" onclick="runSliver()">RUN SLIVER</button>
+        </div>
+        <div class="progress-wrap" id="sv-prog"><div class="progress-bar" id="sv-pb" style="width:0%"></div></div>
+        <div class="terminal" id="sv-term"></div>
+        <div class="err-box" id="sv-err"></div>
+        <div id="sv-res"></div>
+      </div>
+
+      <div class="page" id="page-empire">
+        <div class="page-hd"><div class="page-title">Empire</div><div class="page-desc">Run Empire framework CLI checks/commands</div></div>
+        <div class="notice">&#9888; Authorized red-team engagements only.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>OPERATION</label><select class="inp inp-mono" id="em-op"><option value="help">Help / capability check</option><option value="version">Version check</option><option value="custom">Custom arguments</option></select></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="em-timeout" type="number" value="90" min="10" max="600"/></div>
+          </div>
+          <div class="fg"><label>CUSTOM ARGUMENTS</label><input class="inp inp-mono" id="em-args" type="text" placeholder="server --help"/></div>
+          <button class="btn btn-primary" id="em-btn" onclick="runEmpire()">RUN EMPIRE</button>
+        </div>
+        <div class="progress-wrap" id="em-prog"><div class="progress-bar" id="em-pb" style="width:0%"></div></div>
+        <div class="terminal" id="em-term"></div>
+        <div class="err-box" id="em-err"></div>
+        <div id="em-res"></div>
+      </div>
+
       <!-- NETWORK DISCOVERY -->
       <div class="page" id="page-disc">
         <div class="page-hd"><div class="page-title">Network Discovery</div><div class="page-desc">Discover live hosts on a subnet</div></div>
@@ -1631,7 +1723,7 @@ async function fetchWithTimeout(url,options,timeoutMs,prefix){
 }
 
 /* ==== PAGE NAV ==== */
-var PAGE_TITLES={home:'Home',scan:'Network Scanner',webdeep:'Deep Web Audit',harvester:'theHarvester',dnsrecon:'DNSRecon',nikto:'Nikto',wpscan:'WPScan',lynis:'Lynis',legion:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',brute:'Brute Force',setoolkit:'Social-Engineer Toolkit',gophish:'Gophish',evilginx2:'Evilginx2',shellphish:'ShellPhish',disc:'Network Discovery',hist:'Scan History',dash:'Dashboard',profile:'Profile',admin:'Admin Console'};
+var PAGE_TITLES={home:'Home',scan:'Network Scanner',webdeep:'Deep Web Audit',harvester:'theHarvester',dnsrecon:'DNSRecon',nikto:'Nikto',wpscan:'WPScan',lynis:'Lynis',legion:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',brute:'Brute Force',setoolkit:'Social-Engineer Toolkit',gophish:'Gophish',evilginx2:'Evilginx2',shellphish:'ShellPhish',netcat:'Netcat',ncat:'Ncat',socat:'Socat',sliver:'Sliver',empire:'Empire',disc:'Network Discovery',hist:'Scan History',dash:'Dashboard',profile:'Profile',admin:'Admin Console'};
 function saveCurrentPage(id){try{sessionStorage.setItem('vs-page',id);}catch(e){}}
 function pg(id,el){
   document.querySelectorAll('.page').forEach(function(e){e.classList.remove('active');});
@@ -1886,7 +1978,7 @@ function mkTool(prefix){
     res:function(html){var e=document.getElementById(prefix+'-res');if(e){e.innerHTML=html;e.style.display='block';}}
   };
 }
-var hvTool=mkTool('hv'),drTool=mkTool('dr'),nkTool=mkTool('nk'),wpTool=mkTool('wp'),lyTool=mkTool('ly'),lgTool=mkTool('lg'),wdTool=mkTool('wd'),setTool=mkTool('set'),gpTool=mkTool('gp'),egTool=mkTool('eg'),spTool=mkTool('sp');
+var hvTool=mkTool('hv'),drTool=mkTool('dr'),nkTool=mkTool('nk'),wpTool=mkTool('wp'),lyTool=mkTool('ly'),lgTool=mkTool('lg'),wdTool=mkTool('wd'),setTool=mkTool('set'),gpTool=mkTool('gp'),egTool=mkTool('eg'),spTool=mkTool('sp'),ncTool=mkTool('nc'),nctTool=mkTool('nct'),scTool=mkTool('sc'),svTool=mkTool('sv'),emTool=mkTool('em');
 
 /* ==== DEEP WEB AUDIT ==== */
 var _wdES=null;
@@ -2077,7 +2169,8 @@ function _setSetStatus(label, color, showKill) {
   if (dot)    dot.style.background = color;
   if (lbl)    lbl.textContent      = label;
   if (kill)   kill.style.display   = showKill ? 'inline-flex' : 'none';
-  if (launch) launch.disabled      = showKill;
+  // Keep launch enabled so clicking LAUNCH SET always restarts a fresh session.
+  if (launch) launch.disabled      = false;
 }
 
 async function setLaunch() {
@@ -2262,6 +2355,64 @@ async function runShellPhish(){
     var d=await r.json();spTool.end();if(d.error){spTool.err(d.error);}else{spTool.log('ShellPhish command completed','s');renderSocialTool(spTool,d);}
   }catch(e){spTool.end();spTool.err(e.message);}
   finally{btn.disabled=false;btn.innerHTML='RUN SHELLPHISH';}
+}
+async function runNetcat(){
+  var mode=document.getElementById('nc-mode').value, host=document.getElementById('nc-host').value.trim(), port=parseInt(document.getElementById('nc-port').value||'0',10), extra=document.getElementById('nc-extra').value.trim(), timeout=parseInt(document.getElementById('nc-timeout').value||'90',10);
+  if(!port||port<1||port>65535){alert('Enter a valid port');return;}
+  if(mode==='connect'&&!host){alert('Enter target host for connect mode');return;}
+  var args=(mode==='listen'?('-l -p '+port):((host+' '+port)))+(extra?' '+extra:'');
+  var btn=document.getElementById('nc-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  ncTool.start();ncTool.log('Executing netcat mode: '+mode,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'netcat',operation:'custom',args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'nc');
+    var d=await r.json();ncTool.end();if(d.error){ncTool.err(d.error);}else{ncTool.log('Netcat command completed','s');renderSocialTool(ncTool,d);}
+  }catch(e){ncTool.end();ncTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN NETCAT';}
+}
+async function runNcat(){
+  var mode=document.getElementById('nct-mode').value, host=document.getElementById('nct-host').value.trim(), port=parseInt(document.getElementById('nct-port').value||'0',10), extra=document.getElementById('nct-extra').value.trim(), timeout=parseInt(document.getElementById('nct-timeout').value||'90',10);
+  if(!port||port<1||port>65535){alert('Enter a valid port');return;}
+  if(mode==='connect'&&!host){alert('Enter target host for connect mode');return;}
+  var args=(mode==='listen'?('-l -p '+port):((host+' '+port)))+(extra?' '+extra:'');
+  var btn=document.getElementById('nct-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  nctTool.start();nctTool.log('Executing ncat mode: '+mode,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'ncat',operation:'custom',args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'nct');
+    var d=await r.json();nctTool.end();if(d.error){nctTool.err(d.error);}else{nctTool.log('Ncat command completed','s');renderSocialTool(nctTool,d);}
+  }catch(e){nctTool.end();nctTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN NCAT';}
+}
+async function runSocat(){
+  var left=document.getElementById('sc-left').value.trim(), right=document.getElementById('sc-right').value.trim(), extra=document.getElementById('sc-extra').value.trim(), timeout=parseInt(document.getElementById('sc-timeout').value||'90',10);
+  if(!left||!right){alert('Enter both left and right addresses');return;}
+  var args=(extra?extra+' ':'')+left+' '+right;
+  var btn=document.getElementById('sc-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  scTool.start();scTool.log('Executing socat bridge','i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'socat',operation:'custom',args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'sc');
+    var d=await r.json();scTool.end();if(d.error){scTool.err(d.error);}else{scTool.log('Socat command completed','s');renderSocialTool(scTool,d);}
+  }catch(e){scTool.end();scTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN SOCAT';}
+}
+async function runSliver(){
+  var op=document.getElementById('sv-op').value, args=document.getElementById('sv-args').value.trim(), timeout=parseInt(document.getElementById('sv-timeout').value||'90',10);
+  var btn=document.getElementById('sv-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  svTool.start();svTool.log('Executing Sliver operation: '+op,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'sliver',operation:op,args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'sv');
+    var d=await r.json();svTool.end();if(d.error){svTool.err(d.error);}else{svTool.log('Sliver command completed','s');renderSocialTool(svTool,d);}
+  }catch(e){svTool.end();svTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN SLIVER';}
+}
+async function runEmpire(){
+  var op=document.getElementById('em-op').value, args=document.getElementById('em-args').value.trim(), timeout=parseInt(document.getElementById('em-timeout').value||'90',10);
+  var btn=document.getElementById('em-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  emTool.start();emTool.log('Executing Empire operation: '+op,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'empire',operation:op,args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'em');
+    var d=await r.json();emTool.end();if(d.error){emTool.err(d.error);}else{emTool.log('Empire command completed','s');renderSocialTool(emTool,d);}
+  }catch(e){emTool.end();emTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN EMPIRE';}
 }
 
 /* ==== LYNIS ==== */
@@ -2949,16 +3100,45 @@ def auto_install(pkg, binary=None):
 
 
 TOOL_INSTALL_MAP = {
+    # Core existing tools
     "nmap":         ("nmap",         "nmap"),
     "nikto":        ("nikto",        "nikto"),
     "lynis":        ("lynis",        "lynis"),
     "dnsrecon":     ("dnsrecon",     "dnsrecon"),
     "legion":       ("legion",       "legion"),
     "theharvester": ("theharvester", "theHarvester"),
-    "wpscan":       (None,           "wpscan"),
+    "wpscan":       (None,            "wpscan"),
     "dig":          ("dnsutils",     "dig"),
     "proxychains4": ("proxychains4", "proxychains4"),
     "tor":          ("tor",          "tor"),
+
+    # Added tools (categorized in setup/install script)
+    "wapiti":       ("wapiti",       "wapiti"),
+    "whatweb":      ("whatweb",      "whatweb"),
+    "medusa":       ("medusa",       "medusa"),
+    "hashcat":      ("hashcat",      "hashcat"),
+    "john":         ("john",         "john"),
+    "openvas":      ("openvas",      "openvas"),
+    "chkrootkit":   ("chkrootkit",   "chkrootkit"),
+    "rkhunter":     ("rkhunter",     "rkhunter"),
+    "searchsploit": ("exploitdb",    "searchsploit"),
+    "hping3":       ("hping3",       "hping3"),
+    "scapy":        ("python3-scapy", "scapy"),
+    "yersinia":     ("yersinia",     "yersinia"),
+    "ffuf":         ("ffuf",         "ffuf"),
+    "dalfox":       ("dalfox",       "dalfox"),
+    "sqlmap":       ("sqlmap",       "sqlmap"),
+    "kxss":         (None,            "kxss"),
+    "seclists":     ("seclists",     "seclists"),
+    "nuclei":       ("nuclei",       "nuclei"),
+    "grype":        ("grype",        "grype"),
+    "msfvenom":     ("metasploit-framework", "msfvenom"),
+    "pwncat":       ("pwncat",       "pwncat"),
+    "rlwrap":       ("rlwrap",       "rlwrap"),
+    "radare2":      ("radare2",      "radare2"),
+    "ligolo-ng":    ("ligolo-ng",    "ligolo-ng"),
+    "chisel":       ("chisel",       "chisel"),
+    "pspy":         (None,            "pspy"),
 }
 
 
@@ -3303,6 +3483,16 @@ def _social_tool_binary(tool_name: str, script_path: str = ""):
             if os.path.isfile(p):
                 return "/bin/bash", [p]
         return None, []
+    if tool_name == "netcat":
+        return shutil.which("netcat") or shutil.which("nc"), []
+    if tool_name == "ncat":
+        return shutil.which("ncat"), []
+    if tool_name == "socat":
+        return shutil.which("socat"), []
+    if tool_name == "sliver":
+        return shutil.which("sliver-client") or shutil.which("sliver"), []
+    if tool_name == "empire":
+        return shutil.which("empire"), []
     return None, []
 
 
@@ -3414,6 +3604,27 @@ def set_session_new():
             "clone from https://github.com/trustedsec/social-engineer-toolkit"
         )}), 404
 
+    launch_cmd = [binary]
+    launch_display = binary
+    if hasattr(os, "geteuid") and os.geteuid() != 0:
+        sudo_bin = _sh.which("sudo")
+        if not sudo_bin:
+            return jsonify({"error": "SET must run as root. 'sudo' is not installed on this server."}), 500
+        # Force target user to root so SET always runs with effective UID 0.
+        # Mirrors host-side validation pattern: sudo -u www-data sudo setoolkit
+        launch_cmd = [sudo_bin, "-u", "root", binary]
+        launch_display = f"{sudo_bin} -u root {binary}"
+        sudo_check = subprocess.run([sudo_bin, "-n", "-v"], capture_output=True, text=True)
+        if sudo_check.returncode != 0:
+            return jsonify({
+                "error": (
+                    "SET must run as root. Passwordless sudo is required for the web service user. "
+                    "Configure sudoers to allow launching setoolkit without a TTY/password."
+                )
+            }), 403
+        launch_cmd = [sudo_bin, "-n", binary]
+        launch_display = f"{sudo_bin} -n {binary}"
+
     _reap_old_set_sessions()
 
     sid = str(_uuid.uuid4())
@@ -3424,10 +3635,19 @@ def set_session_new():
         winsize = _struct.pack("HHHH", 40, 220, 0, 0)
         _fcntl.ioctl(slave_fd, _termios.TIOCSWINSZ, winsize)
 
+        def _set_pty_preexec():
+            # Ensure child has a controlling TTY so sudo/SET interactive flows work.
+            os.setsid()
+            try:
+                _fcntl.ioctl(slave_fd, _termios.TIOCSCTTY, 0)
+            except Exception:
+                pass
+
         proc = subprocess.Popen(
-            [binary],
+            launch_cmd,
             stdin=slave_fd, stdout=slave_fd, stderr=slave_fd,
             close_fds=True,
+            preexec_fn=_set_pty_preexec,
             env={**os.environ, "TERM": "xterm-256color", "COLUMNS": "220", "LINES": "40"},
         )
         os.close(slave_fd)
@@ -3441,7 +3661,7 @@ def set_session_new():
             "output_q":   output_q,
             "alive":      True,
             "created":    datetime.now(timezone.utc).timestamp(),
-            "binary":     binary,
+            "binary":     launch_display,
             "user":       u["username"],
         }
         with _SET_SESSIONS_LOCK:
@@ -3455,9 +3675,9 @@ def set_session_new():
         t.start()
 
         audit(u["id"], u["username"], "SET_SESSION_START",
-              ip=request.remote_addr, details=f"binary={binary}")
+              ip=request.remote_addr, details=f"binary={launch_display}")
 
-        return jsonify({"session_id": sid, "ok": True, "binary": binary})
+        return jsonify({"session_id": sid, "ok": True, "binary": launch_display})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -3596,8 +3816,8 @@ def social_tool_run():
     timeout = int(data.get("timeout") or 90)
     timeout = max(10, min(600, timeout))
 
-    if tool not in {"setoolkit", "gophish", "evilginx2", "shellphish"}:
-        return jsonify({"error": "Unsupported social engineering tool."}), 400
+    if tool not in {"setoolkit", "gophish", "evilginx2", "shellphish", "netcat", "ncat", "socat", "sliver", "empire"}:
+        return jsonify({"error": "Unsupported tool."}), 400
     if operation not in {"help", "version", "custom"}:
         operation = "help"
 
@@ -5872,10 +6092,36 @@ def server_stats():
 
     return jsonify(stats)
 
+def _pick_available_port(start_port: int, host: str = "0.0.0.0", attempts: int = 20) -> int:
+    """Return the first available TCP port starting at start_port."""
+    for port in range(start_port, start_port + max(1, attempts)):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.bind((host, port))
+            return port
+        except OSError:
+            continue
+        finally:
+            sock.close()
+    raise OSError(f"No free port found in range {start_port}-{start_port + max(1, attempts) - 1}")
+
+
 if __name__ == "__main__":
+    host = os.environ.get("VULNSCAN_HOST", "0.0.0.0")
+    requested_port = int(os.environ.get("PORT") or os.environ.get("VULNSCAN_PORT") or "5000")
+    try:
+        port = _pick_available_port(requested_port, host=host, attempts=20)
+    except OSError as e:
+        print(f"[!] Failed to find open listen port: {e}")
+        raise
+
+    if port != requested_port:
+        print(f"[!] Port {requested_port} is busy; using {port} instead.")
+
     print("[*] VulnScan Pro v3.7 starting (Tor mode)")
     print(f"[*] Tor SOCKS5: {TOR_SOCKS_HOST}:{TOR_SOCKS_PORT}")
-    print("[*] Open: http://localhost:5000")
-    print("[*] Health check: http://localhost:5000/health")
+    print(f"[*] Open: http://localhost:{port}")
+    print(f"[*] Health check: http://localhost:{port}/health")
     print("[*] Verify Tor is running: systemctl status tor")
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    app.run(host=host, port=port, debug=False)
