@@ -362,7 +362,7 @@ select.inp:not([multiple]){
 .terminal{
   background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
   padding:12px 14px;overflow-y:auto;font-family:var(--mono);
-  font-size:12px;line-height:1.8;display:none;margin:12px 0;
+  font-size:12px;line-height:1.8;display:none;margin:12px 0;max-height:260px;
   position:relative;z-index:2;
 }
 .terminal.visible{display:block}
@@ -1216,9 +1216,17 @@ document.addEventListener('DOMContentLoaded',navRestore);
               <button class="btn btn-outline btn-sm" onclick="copyLynisInstallCmd()">COPY</button>
             </div>
           </div>
+          <div class="fg" style="margin-bottom:10px">
+            <label>ONE-LINE AGENT INSTALL (Windows PowerShell + WSL)</label>
+            <div class="scan-bar">
+              <input class="inp inp-mono" id="ly-install-cmd-win" type="text" readonly value="powershell -ExecutionPolicy Bypass -Command &quot;iwr -UseBasicParsing http://161.118.189.254:5000/agent/install.ps1 | iex&quot;"/>
+              <button class="btn btn-outline btn-sm" onclick="copyLynisInstallCmdWin()">COPY</button>
+            </div>
+          </div>
           <div class="card card-p" style="border:1px dashed var(--border2);margin-bottom:12px">
             <div class="card-title" style="margin-bottom:8px">Connected Agent Systems</div>
             <div id="ly-agents" style="color:var(--text3);font-size:12px">Loading agents...</div>
+            <div id="ly-selected-agent" style="font-size:11px;color:var(--text3);margin-top:8px">No remote agent selected (local scan mode).</div>
           </div>
           <div class="row2" style="margin-bottom:12px">
             <div class="fg"><label>AUDIT PROFILE</label><select class="inp inp-mono" id="ly-profile"><option value="system">Full System Audit</option><option value="quick">Quick Scan</option><option value="forensics">Forensics Mode</option></select></div>
@@ -3188,8 +3196,17 @@ async function runEmpire(){
 var _lyAgentTimer=null;
 var _lySelectedAgentId='';
 var _lyCurrentJobId=null;
+var _lyHasConnectedAgents=false;
+var _lyLastStatusSig='';
+var _lyLastStatusLogTs=0;
 function copyLynisInstallCmd(){
   var el=document.getElementById('ly-install-cmd');
+  if(!el)return;
+  el.select();el.setSelectionRange(0,99999);
+  try{document.execCommand('copy');}catch(e){}
+}
+function copyLynisInstallCmdWin(){
+  var el=document.getElementById('ly-install-cmd-win');
   if(!el)return;
   el.select();el.setSelectionRange(0,99999);
   try{document.execCommand('copy');}catch(e){}
@@ -3199,7 +3216,8 @@ async function loadLynisAgents(){
   try{
     var r=await fetchWithTimeout('/api/agents',{},15000,'ly');
     var d=await r.json();var agents=d.agents||[];
-    if(!agents.length){box.innerHTML='<div style="color:var(--text3)">No agent connected yet. Install with the command above.</div>';return;}
+    _lyHasConnectedAgents=agents.length>0;
+    if(!agents.length){box.innerHTML='<div style="color:var(--text3)">No agent connected yet. Install with the command above.</div>';updateLynisAgentBadge();return;}
     var html='<div style="display:flex;flex-direction:column;gap:6px">';
     agents.forEach(function(a){
       var st=(a.status||'unknown').toLowerCase();var col=st==='online'?'var(--green)':'var(--orange)';
@@ -3247,9 +3265,16 @@ function startLynisAgentWatcher(){
 async function doLynis(){
   var profile=document.getElementById('ly-profile').value;var category=document.getElementById('ly-category').value;var compliance=document.getElementById('ly-compliance').value;
   var clientId=_lySelectedAgentId;
+  if(_lyHasConnectedAgents&&!clientId){
+    lyTool.err('Please select a system from "Connected Agent Systems" before starting the audit.');
+    lyTool.log('Audit not started: no connected system selected.','w');
+    return;
+  }
   var useRemote=!!clientId;
   var btn=document.getElementById('ly-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Auditing...';
   lyTool.start();lyTool.log('Lynis audit starting...','i');lyTool.log('Profile: '+profile+(compliance?' - Compliance: '+compliance:''),'w');
+  _lyLastStatusSig='';
+  _lyLastStatusLogTs=0;
   try{
     if(useRemote){
       lyTool.log('Queueing remote job for client: '+clientId,'i');
@@ -3275,7 +3300,19 @@ async function pollLynisJob(jobId){
     var r=await fetchWithTimeout('/api/job-status/'+jobId,{},15000,'ly');
     var d=await r.json();if(d.error)throw new Error(d.error);
     var pct=parseInt(d.progress_pct||0);lyTool.pct(pct);
-    if(d.message)lyTool.log('['+d.status+'] '+d.message,(d.status==='completed'?'s':(d.status==='cancelled'?'w':'i')));
+    var msg=(d.message||'').trim();
+    if(msg){
+      var sig=(d.status||'')+'|'+pct+'|'+msg;
+      var now=Date.now();
+      var statusChanged=(sig!==_lyLastStatusSig);
+      var finalState=(d.status==='completed'||d.status==='cancelled'||d.status==='failed');
+      var periodic=(now-_lyLastStatusLogTs)>=8000;
+      if(statusChanged&&(finalState||periodic)){
+        lyTool.log('['+d.status+'] '+msg,(d.status==='completed'?'s':(d.status==='cancelled'||d.status==='failed'?'w':'i')));
+        _lyLastStatusSig=sig;
+        _lyLastStatusLogTs=now;
+      }
+    }
     if(d.status==='completed'){
       lyTool.end();
       renderLynis(d);
@@ -5500,11 +5537,47 @@ echo "[+] Agent installed. Refresh Lynis dashboard: new system should appear sho
 """
     return Response(script, mimetype="text/x-shellscript")
 
+@app.route("/agent/install.ps1", methods=["GET"])
+def agent_install_script_ps1():
+    script = f"""param(
+  [string]$ClientId = "",
+  [string]$Token = "",
+  [string]$ServerUrl = "{AGENT_SERVER_URL}"
+)
+$ErrorActionPreference = "Stop"
+function Write-Info($m) {{ Write-Host "[*] $m" -ForegroundColor Cyan }}
+function Write-Ok($m) {{ Write-Host "[+] $m" -ForegroundColor Green }}
+function Write-Err($m) {{ Write-Host "[x] $m" -ForegroundColor Red }}
+Write-Info "Preparing VulnScan Lynis agent install for Windows host"
+Write-Info "This installer runs the Linux agent through WSL (required by Lynis)."
+if (-not (Get-Command wsl.exe -ErrorAction SilentlyContinue)) {{
+  Write-Err "WSL is not installed. Install it first: wsl --install"
+  exit 1
+}}
+if ([string]::IsNullOrWhiteSpace($ClientId)) {{
+  $hostname = $env:COMPUTERNAME
+  $rand = -join ((48..57) + (97..122) | Get-Random -Count 8 | ForEach-Object {{[char]$_}})
+  $ClientId = "$hostname-$rand".ToLower()
+}}
+Write-Info "Testing server connectivity: $ServerUrl"
+Invoke-WebRequest -UseBasicParsing -Uri "$ServerUrl/health" -TimeoutSec 15 | Out-Null
+Write-Ok "Connected to VulnScan server"
+$cmd = "curl -fsSL '$ServerUrl/agent/install.sh' | bash -s -- '$ClientId' '$Token' '$ServerUrl'"
+Write-Info "Running Linux installer in WSL..."
+wsl.exe bash -lc $cmd
+if ($LASTEXITCODE -ne 0) {{
+  Write-Err "WSL install command failed."
+  exit $LASTEXITCODE
+}}
+Write-Ok "Agent install command completed in WSL."
+"""
+    return Response(script, mimetype="text/plain; charset=utf-8")
+
 
 @app.route("/agent/<path:filename>", methods=["GET"])
 def agent_file(filename):
     agent_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent")
-    if filename not in {"install_agent.sh", "lynis_pull_agent.py"}:
+    if filename not in {"install_agent.sh", "install_agent.ps1", "lynis_pull_agent.py"}:
         return jsonify({"error": "Not found"}), 404
     return send_from_directory(agent_dir, filename, as_attachment=False)
 
