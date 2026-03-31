@@ -27,6 +27,7 @@ def init_db():
                 is_verified     INTEGER DEFAULT 0,
                 is_active       INTEGER DEFAULT 1,
                 verify_token    TEXT,
+                verify_expires  TEXT,
                 reset_token     TEXT,
                 reset_expires   TEXT,
                 created_at      TEXT DEFAULT (datetime('now')),
@@ -75,6 +76,11 @@ def init_db():
             );
         """)
         con.commit()
+        # Lightweight migrations for existing DBs
+        cols = {r["name"] for r in con.execute("PRAGMA table_info(users)").fetchall()}
+        if "verify_expires" not in cols:
+            con.execute("ALTER TABLE users ADD COLUMN verify_expires TEXT")
+            con.commit()
 
         # Migrate old scans.db if exists
         old_db = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scans.db")
@@ -108,12 +114,12 @@ def init_db():
         raise
 
 # ── User functions ─────────────────────────────
-def create_user(username, email, password_hash, full_name="", role="user", is_verified=0, verify_token=""):
+def create_user(username, email, password_hash, full_name="", role="user", is_verified=0, verify_token="", verify_expires=None):
     con = get_db()
     try:
         con.execute(
-            "INSERT INTO users(username,email,password_hash,full_name,role,is_verified,verify_token) VALUES(?,?,?,?,?,?,?)",
-            (username.lower().strip(), email.lower().strip(), password_hash, full_name, role, is_verified, verify_token))
+            "INSERT INTO users(username,email,password_hash,full_name,role,is_verified,verify_token,verify_expires) VALUES(?,?,?,?,?,?,?,?)",
+            (username.lower().strip(), email.lower().strip(), password_hash, full_name, role, is_verified, verify_token, verify_expires))
         con.commit()
         return True, "User created"
     except sqlite3.IntegrityError as e:
@@ -154,7 +160,16 @@ def verify_user(token):
     if not row:
         con.close()
         return False
-    con.execute("UPDATE users SET is_verified=1, verify_token=NULL WHERE id=?", (row["id"],))
+    verify_expires = row["verify_expires"]
+    if verify_expires:
+        try:
+            if datetime.utcnow() > datetime.fromisoformat(verify_expires):
+                con.close()
+                return False
+        except Exception:
+            con.close()
+            return False
+    con.execute("UPDATE users SET is_verified=1, verify_token=NULL, verify_expires=NULL WHERE id=?", (row["id"],))
     con.commit()
     con.close()
     return True

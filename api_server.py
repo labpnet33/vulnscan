@@ -268,6 +268,19 @@ body{
 .sidebar-footer{margin-top:auto;padding:12px 10px;border-top:1px solid var(--border)}
 .tb-title{font-size:14px;font-weight:500;color:var(--text);letter-spacing:-0.2px}
 .tb-right{display:flex;align-items:center;gap:10px}
+.notif-wrap{position:relative;display:none}
+.notif-btn{width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:none;color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;font-size:14px}
+.notif-btn:hover{background:var(--bg2);border-color:var(--border2)}
+.notif-badge{position:absolute;top:-5px;right:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:10px;background:var(--red);color:#fff;font-family:var(--mono);font-size:9px;display:none;align-items:center;justify-content:center}
+.notif-menu{position:absolute;top:38px;right:0;width:320px;max-height:360px;overflow-y:auto;z-index:120;background:var(--bg);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-md);display:none}
+.notif-menu.open{display:block}
+.notif-head{padding:10px 12px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:1px}
+.notif-item{padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer}
+.notif-item:last-child{border-bottom:none}
+.notif-item:hover{background:var(--bg2)}
+.notif-title{font-size:12px;color:var(--text);font-weight:500}
+.notif-meta{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:3px}
+.notif-empty{padding:12px;color:var(--text3);font-size:12px}
 .theme-toggle{
   width:36px;height:20px;background:var(--border2);border-radius:10px;
   position:relative;cursor:pointer;border:none;
@@ -362,7 +375,7 @@ select.inp:not([multiple]){
 .terminal{
   background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
   padding:12px 14px;overflow-y:auto;font-family:var(--mono);
-  font-size:12px;line-height:1.8;display:none;margin:12px 0;
+  font-size:12px;line-height:1.8;display:none;margin:12px 0;max-height:260px;
   position:relative;z-index:2;
 }
 .terminal.visible{display:block}
@@ -981,6 +994,13 @@ document.addEventListener('DOMContentLoaded',navRestore);
       <div class="tb-title" id="topbar-title">Home</div>
       <div class="tb-right">
         <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle dark/light theme" aria-label="Toggle theme"></button>
+        <div class="notif-wrap" id="notif-wrap">
+          <button class="notif-btn" id="notif-btn" onclick="toggleNotifications()" title="Scan notifications" aria-label="Scan notifications">&#128276;<span class="notif-badge" id="notif-badge">0</span></button>
+          <div class="notif-menu" id="notif-menu">
+            <div class="notif-head">SCAN NOTIFICATIONS</div>
+            <div id="notif-list"></div>
+          </div>
+        </div>
         <div class="user-chip" id="user-chip" onclick="pg('profile',null)" style="display:none">
           <div class="user-av" id="user-avatar">?</div>
           <div><div class="user-name" id="user-name-disp">User</div><div class="user-role" id="user-role-disp">user</div></div>
@@ -1216,9 +1236,17 @@ document.addEventListener('DOMContentLoaded',navRestore);
               <button class="btn btn-outline btn-sm" onclick="copyLynisInstallCmd()">COPY</button>
             </div>
           </div>
+          <div class="fg" style="margin-bottom:10px">
+            <label>ONE-LINE AGENT INSTALL (Windows PowerShell + WSL)</label>
+            <div class="scan-bar">
+              <input class="inp inp-mono" id="ly-install-cmd-win" type="text" readonly value="powershell -ExecutionPolicy Bypass -Command &quot;iwr -UseBasicParsing http://161.118.189.254:5000/agent/install.ps1 | iex&quot;"/>
+              <button class="btn btn-outline btn-sm" onclick="copyLynisInstallCmdWin()">COPY</button>
+            </div>
+          </div>
           <div class="card card-p" style="border:1px dashed var(--border2);margin-bottom:12px">
             <div class="card-title" style="margin-bottom:8px">Connected Agent Systems</div>
             <div id="ly-agents" style="color:var(--text3);font-size:12px">Loading agents...</div>
+            <div id="ly-selected-agent" style="font-size:11px;color:var(--text3);margin-top:8px">No remote agent selected (local scan mode).</div>
           </div>
           <div class="row2" style="margin-bottom:12px">
             <div class="fg"><label>AUDIT PROFILE</label><select class="inp inp-mono" id="ly-profile"><option value="system">Full System Audit</option><option value="quick">Quick Scan</option><option value="forensics">Forensics Mode</option></select></div>
@@ -2434,16 +2462,76 @@ var toast=showToast;
 
 /* ==== CANCEL SCAN ==== */
 var scanControllers={};
+var _vsNotifUnread=0;
+var _vsRecentCompleted=[];
+var _vsKnownCompleted={};
+var _vsNotifPollTimer=null;
+var _vsToolPages={scan:'scan',wd:'webdeep',hv:'harvester',dr:'dnsrecon',nk:'nikto',wp:'wpscan',ly:'lynis',lg:'legion'};
+var _vsToolNames={scan:'Network Scanner',wd:'Deep Web Audit',hv:'theHarvester',dr:'DNSRecon',nk:'Nikto',wp:'WPScan',ly:'Lynis',lg:'Legion'};
+function updateNotificationBadge(){
+  var badge=document.getElementById('notif-badge');if(!badge)return;
+  var ongoing=Object.keys(scanControllers).length;
+  var total=ongoing+_vsNotifUnread;
+  if(total>0){badge.style.display='inline-flex';badge.textContent=total>99?'99+':String(total);}
+  else badge.style.display='none';
+}
+function toggleNotifications(){
+  var menu=document.getElementById('notif-menu');if(!menu)return;
+  menu.classList.toggle('open');
+  if(menu.classList.contains('open')){_vsNotifUnread=0;renderNotifications();}
+  updateNotificationBadge();
+}
+function openNotificationPage(pageId,scanId){
+  var menu=document.getElementById('notif-menu');if(menu)menu.classList.remove('open');
+  if(scanId){loadScan(scanId);return;}
+  pg(pageId||'scan',null);
+}
+function renderNotifications(){
+  var out=document.getElementById('notif-list');if(!out)return;
+  var html='';
+  Object.keys(scanControllers).forEach(function(k){
+    var nm=_vsToolNames[k]||k.toUpperCase();
+    var pgid=_vsToolPages[k]||'scan';
+    html+='<div class="notif-item" onclick="openNotificationPage(\''+pgid+'\',null)"><div class="notif-title">Ongoing: '+nm+'</div><div class="notif-meta">In progress - click to open tool</div></div>';
+  });
+  _vsRecentCompleted.forEach(function(s){
+    var t=((s.scan_time||'').replace('T',' ').substring(0,19))||'--';
+    html+='<div class="notif-item" onclick="openNotificationPage(\'scan\','+s.id+')"><div class="notif-title">Completed: '+(s.target||'scan')+'</div><div class="notif-meta">#'+s.id+' · '+t+' · '+(s.total_cves||0)+' CVEs</div></div>';
+  });
+  if(!html)html='<div class="notif-empty">No active or recent scan notifications.</div>';
+  out.innerHTML=html;
+}
+async function refreshNotifications(){
+  if(!currentUser)return;
+  try{
+    var r=await fetch('/history');var d=await r.json();
+    var scans=Array.isArray(d)?d:(d.scans||[]);
+    var latest=scans.slice(0,8);
+    latest.forEach(function(s){
+      if(!_vsKnownCompleted[s.id]){
+        if(Object.keys(_vsKnownCompleted).length>0)_vsNotifUnread++;
+        _vsKnownCompleted[s.id]=1;
+      }
+    });
+    _vsRecentCompleted=latest;
+  }catch(e){}
+  renderNotifications();
+  updateNotificationBadge();
+}
 function cancelScan(prefix){
   if(prefix==='wd'&&_wdES){_wdES.close();_wdES=null;_wdReset();}
   if(scanControllers[prefix]){scanControllers[prefix].abort();delete scanControllers[prefix];}
   var id=prefix==='scan'?'sbtn-cancel':prefix+'-cancel';
   var b=document.getElementById(id);if(b)b.style.display='none';
+  updateNotificationBadge();
+  renderNotifications();
   showToast('Cancelled','Scan stopped by user.','warning',3000);
 }
 function setScanRunning(prefix,running){
   var id=prefix==='scan'?'sbtn-cancel':prefix+'-cancel';
   var b=document.getElementById(id);if(b)b.style.display=running?'inline-flex':'none';
+  updateNotificationBadge();
+  renderNotifications();
 }
 async function fetchWithTimeout(url,options,timeoutMs,prefix){
   if(!options)options={};if(!timeoutMs)timeoutMs=300000;
@@ -2573,8 +2661,10 @@ async function doLogout(){
   currentUser=null;
   document.getElementById('auth-overlay').style.display='flex';
   document.getElementById('user-chip').style.display='none';
+  var nw=document.getElementById('notif-wrap');if(nw)nw.style.display='none';
   document.getElementById('logout-btn').style.display='none';
   var s=document.getElementById('admin-nav-section');if(s)s.style.display='none';
+  if(_vsNotifPollTimer){clearInterval(_vsNotifPollTimer);_vsNotifPollTimer=null;}
 }
 
 async function loadUser(){
@@ -2584,16 +2674,29 @@ async function loadUser(){
       currentUser=d;
       document.getElementById('auth-overlay').style.display='none';
       document.getElementById('user-chip').style.display='flex';
+      var nw=document.getElementById('notif-wrap');if(nw)nw.style.display='block';
       document.getElementById('logout-btn').style.display='flex';
       document.getElementById('user-avatar').textContent=d.username[0].toUpperCase();
       document.getElementById('user-name-disp').textContent=d.username;
       document.getElementById('user-role-disp').textContent=d.role==='admin'?'admin':'user';
       if(d.role==='admin'){var sec=document.getElementById('admin-nav-section');if(sec)sec.style.display='block';}
       loadProfileInfo(d);loadHomeStats();loadUserTheme();
+      _vsNotifUnread=0;_vsRecentCompleted=[];_vsKnownCompleted={};
+      refreshNotifications();
+      if(_vsNotifPollTimer)clearInterval(_vsNotifPollTimer);
+      _vsNotifPollTimer=setInterval(refreshNotifications,15000);
       pg('home',null);
       vsGreetUser(d.username);
-    }else{document.getElementById('auth-overlay').style.display='flex';}
-  }catch(e){document.getElementById('auth-overlay').style.display='flex';}
+    }else{
+      document.getElementById('auth-overlay').style.display='flex';
+      var nw2=document.getElementById('notif-wrap');if(nw2)nw2.style.display='none';
+      if(_vsNotifPollTimer){clearInterval(_vsNotifPollTimer);_vsNotifPollTimer=null;}
+    }
+  }catch(e){
+    document.getElementById('auth-overlay').style.display='flex';
+    var nw3=document.getElementById('notif-wrap');if(nw3)nw3.style.display='none';
+    if(_vsNotifPollTimer){clearInterval(_vsNotifPollTimer);_vsNotifPollTimer=null;}
+  }
 }
 
 function loadProfileInfo(u){
@@ -3188,8 +3291,17 @@ async function runEmpire(){
 var _lyAgentTimer=null;
 var _lySelectedAgentId='';
 var _lyCurrentJobId=null;
+var _lyHasConnectedAgents=false;
+var _lyLastStatusSig='';
+var _lyLastStatusLogTs=0;
 function copyLynisInstallCmd(){
   var el=document.getElementById('ly-install-cmd');
+  if(!el)return;
+  el.select();el.setSelectionRange(0,99999);
+  try{document.execCommand('copy');}catch(e){}
+}
+function copyLynisInstallCmdWin(){
+  var el=document.getElementById('ly-install-cmd-win');
   if(!el)return;
   el.select();el.setSelectionRange(0,99999);
   try{document.execCommand('copy');}catch(e){}
@@ -3199,7 +3311,8 @@ async function loadLynisAgents(){
   try{
     var r=await fetchWithTimeout('/api/agents',{},15000,'ly');
     var d=await r.json();var agents=d.agents||[];
-    if(!agents.length){box.innerHTML='<div style="color:var(--text3)">No agent connected yet. Install with the command above.</div>';return;}
+    _lyHasConnectedAgents=agents.length>0;
+    if(!agents.length){box.innerHTML='<div style="color:var(--text3)">No agent connected yet. Install with the command above.</div>';updateLynisAgentBadge();return;}
     var html='<div style="display:flex;flex-direction:column;gap:6px">';
     agents.forEach(function(a){
       var st=(a.status||'unknown').toLowerCase();var col=st==='online'?'var(--green)':'var(--orange)';
@@ -3247,9 +3360,16 @@ function startLynisAgentWatcher(){
 async function doLynis(){
   var profile=document.getElementById('ly-profile').value;var category=document.getElementById('ly-category').value;var compliance=document.getElementById('ly-compliance').value;
   var clientId=_lySelectedAgentId;
+  if(_lyHasConnectedAgents&&!clientId){
+    lyTool.err('Please select a system from "Connected Agent Systems" before starting the audit.');
+    lyTool.log('Audit not started: no connected system selected.','w');
+    return;
+  }
   var useRemote=!!clientId;
   var btn=document.getElementById('ly-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Auditing...';
   lyTool.start();lyTool.log('Lynis audit starting...','i');lyTool.log('Profile: '+profile+(compliance?' - Compliance: '+compliance:''),'w');
+  _lyLastStatusSig='';
+  _lyLastStatusLogTs=0;
   try{
     if(useRemote){
       lyTool.log('Queueing remote job for client: '+clientId,'i');
@@ -3275,7 +3395,19 @@ async function pollLynisJob(jobId){
     var r=await fetchWithTimeout('/api/job-status/'+jobId,{},15000,'ly');
     var d=await r.json();if(d.error)throw new Error(d.error);
     var pct=parseInt(d.progress_pct||0);lyTool.pct(pct);
-    if(d.message)lyTool.log('['+d.status+'] '+d.message,(d.status==='completed'?'s':(d.status==='cancelled'?'w':'i')));
+    var msg=(d.message||'').trim();
+    if(msg){
+      var sig=(d.status||'')+'|'+pct+'|'+msg;
+      var now=Date.now();
+      var statusChanged=(sig!==_lyLastStatusSig);
+      var finalState=(d.status==='completed'||d.status==='cancelled'||d.status==='failed');
+      var periodic=(now-_lyLastStatusLogTs)>=8000;
+      if(statusChanged&&(finalState||periodic)){
+        lyTool.log('['+d.status+'] '+msg,(d.status==='completed'?'s':(d.status==='cancelled'||d.status==='failed'?'w':'i')));
+        _lyLastStatusSig=sig;
+        _lyLastStatusLogTs=now;
+      }
+    }
     if(d.status==='completed'){
       lyTool.end();
       renderLynis(d);
@@ -3618,6 +3750,12 @@ if(vt){fetch('/api/verify/'+vt).then(function(r){return r.json();}).then(functio
 document.addEventListener('keydown',function(e){
   if(e.key==='Escape'){closeAbout();document.getElementById('tos-modal').classList.remove('open');}
   if(e.key==='Enter'&&document.getElementById('l-pass')===document.activeElement)doLogin();
+});
+document.addEventListener('click',function(e){
+  var wrap=document.getElementById('notif-wrap');
+  var menu=document.getElementById('notif-menu');
+  if(!wrap||!menu)return;
+  if(!wrap.contains(e.target))menu.classList.remove('open');
 });
 
 /* ==== ANIMATION HELPERS ==== */
@@ -5500,11 +5638,47 @@ echo "[+] Agent installed. Refresh Lynis dashboard: new system should appear sho
 """
     return Response(script, mimetype="text/x-shellscript")
 
+@app.route("/agent/install.ps1", methods=["GET"])
+def agent_install_script_ps1():
+    script = f"""param(
+  [string]$ClientId = "",
+  [string]$Token = "",
+  [string]$ServerUrl = "{AGENT_SERVER_URL}"
+)
+$ErrorActionPreference = "Stop"
+function Write-Info($m) {{ Write-Host "[*] $m" -ForegroundColor Cyan }}
+function Write-Ok($m) {{ Write-Host "[+] $m" -ForegroundColor Green }}
+function Write-Err($m) {{ Write-Host "[x] $m" -ForegroundColor Red }}
+Write-Info "Preparing VulnScan Lynis agent install for Windows host"
+Write-Info "This installer runs the Linux agent through WSL (required by Lynis)."
+if (-not (Get-Command wsl.exe -ErrorAction SilentlyContinue)) {{
+  Write-Err "WSL is not installed. Install it first: wsl --install"
+  exit 1
+}}
+if ([string]::IsNullOrWhiteSpace($ClientId)) {{
+  $hostname = $env:COMPUTERNAME
+  $rand = -join ((48..57) + (97..122) | Get-Random -Count 8 | ForEach-Object {{[char]$_}})
+  $ClientId = "$hostname-$rand".ToLower()
+}}
+Write-Info "Testing server connectivity: $ServerUrl"
+Invoke-WebRequest -UseBasicParsing -Uri "$ServerUrl/health" -TimeoutSec 15 | Out-Null
+Write-Ok "Connected to VulnScan server"
+$cmd = "curl -fsSL '$ServerUrl/agent/install.sh' | bash -s -- '$ClientId' '$Token' '$ServerUrl'"
+Write-Info "Running Linux installer in WSL..."
+wsl.exe bash -lc $cmd
+if ($LASTEXITCODE -ne 0) {{
+  Write-Err "WSL install command failed."
+  exit $LASTEXITCODE
+}}
+Write-Ok "Agent install command completed in WSL."
+"""
+    return Response(script, mimetype="text/plain; charset=utf-8")
+
 
 @app.route("/agent/<path:filename>", methods=["GET"])
 def agent_file(filename):
     agent_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent")
-    if filename not in {"install_agent.sh", "lynis_pull_agent.py"}:
+    if filename not in {"install_agent.sh", "install_agent.ps1", "lynis_pull_agent.py"}:
         return jsonify({"error": "Not found"}), 404
     return send_from_directory(agent_dir, filename, as_attachment=False)
 
@@ -5929,7 +6103,16 @@ def report():
     except ImportError:
         return jsonify({"error": "reportlab not installed: pip3 install reportlab --break-system-packages"}), 500
 
-    data = request.get_json() or {}
+    def _pdf_safe(obj):
+        if isinstance(obj, dict):
+            return {k: _pdf_safe(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [_pdf_safe(v) for v in obj]
+        if isinstance(obj, str):
+            return obj.encode("latin-1", "replace").decode("latin-1")
+        return obj
+
+    data = _pdf_safe(request.get_json() or {})
     target     = data.get("target", "unknown")
     scan_time  = data.get("scan_time", "")[:19].replace("T", " ")
     summary    = data.get("summary", {})
