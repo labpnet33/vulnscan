@@ -268,6 +268,19 @@ body{
 .sidebar-footer{margin-top:auto;padding:12px 10px;border-top:1px solid var(--border)}
 .tb-title{font-size:14px;font-weight:500;color:var(--text);letter-spacing:-0.2px}
 .tb-right{display:flex;align-items:center;gap:10px}
+.notif-wrap{position:relative;display:none}
+.notif-btn{width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:none;color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;font-size:14px}
+.notif-btn:hover{background:var(--bg2);border-color:var(--border2)}
+.notif-badge{position:absolute;top:-5px;right:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:10px;background:var(--red);color:#fff;font-family:var(--mono);font-size:9px;display:none;align-items:center;justify-content:center}
+.notif-menu{position:absolute;top:38px;right:0;width:320px;max-height:360px;overflow-y:auto;z-index:120;background:var(--bg);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-md);display:none}
+.notif-menu.open{display:block}
+.notif-head{padding:10px 12px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:1px}
+.notif-item{padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer}
+.notif-item:last-child{border-bottom:none}
+.notif-item:hover{background:var(--bg2)}
+.notif-title{font-size:12px;color:var(--text);font-weight:500}
+.notif-meta{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:3px}
+.notif-empty{padding:12px;color:var(--text3);font-size:12px}
 .theme-toggle{
   width:36px;height:20px;background:var(--border2);border-radius:10px;
   position:relative;cursor:pointer;border:none;
@@ -981,6 +994,13 @@ document.addEventListener('DOMContentLoaded',navRestore);
       <div class="tb-title" id="topbar-title">Home</div>
       <div class="tb-right">
         <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle dark/light theme" aria-label="Toggle theme"></button>
+        <div class="notif-wrap" id="notif-wrap">
+          <button class="notif-btn" id="notif-btn" onclick="toggleNotifications()" title="Scan notifications" aria-label="Scan notifications">&#128276;<span class="notif-badge" id="notif-badge">0</span></button>
+          <div class="notif-menu" id="notif-menu">
+            <div class="notif-head">SCAN NOTIFICATIONS</div>
+            <div id="notif-list"></div>
+          </div>
+        </div>
         <div class="user-chip" id="user-chip" onclick="pg('profile',null)" style="display:none">
           <div class="user-av" id="user-avatar">?</div>
           <div><div class="user-name" id="user-name-disp">User</div><div class="user-role" id="user-role-disp">user</div></div>
@@ -2442,16 +2462,76 @@ var toast=showToast;
 
 /* ==== CANCEL SCAN ==== */
 var scanControllers={};
+var _vsNotifUnread=0;
+var _vsRecentCompleted=[];
+var _vsKnownCompleted={};
+var _vsNotifPollTimer=null;
+var _vsToolPages={scan:'scan',wd:'webdeep',hv:'harvester',dr:'dnsrecon',nk:'nikto',wp:'wpscan',ly:'lynis',lg:'legion'};
+var _vsToolNames={scan:'Network Scanner',wd:'Deep Web Audit',hv:'theHarvester',dr:'DNSRecon',nk:'Nikto',wp:'WPScan',ly:'Lynis',lg:'Legion'};
+function updateNotificationBadge(){
+  var badge=document.getElementById('notif-badge');if(!badge)return;
+  var ongoing=Object.keys(scanControllers).length;
+  var total=ongoing+_vsNotifUnread;
+  if(total>0){badge.style.display='inline-flex';badge.textContent=total>99?'99+':String(total);}
+  else badge.style.display='none';
+}
+function toggleNotifications(){
+  var menu=document.getElementById('notif-menu');if(!menu)return;
+  menu.classList.toggle('open');
+  if(menu.classList.contains('open')){_vsNotifUnread=0;renderNotifications();}
+  updateNotificationBadge();
+}
+function openNotificationPage(pageId,scanId){
+  var menu=document.getElementById('notif-menu');if(menu)menu.classList.remove('open');
+  if(scanId){loadScan(scanId);return;}
+  pg(pageId||'scan',null);
+}
+function renderNotifications(){
+  var out=document.getElementById('notif-list');if(!out)return;
+  var html='';
+  Object.keys(scanControllers).forEach(function(k){
+    var nm=_vsToolNames[k]||k.toUpperCase();
+    var pgid=_vsToolPages[k]||'scan';
+    html+='<div class="notif-item" onclick="openNotificationPage(\''+pgid+'\',null)"><div class="notif-title">Ongoing: '+nm+'</div><div class="notif-meta">In progress - click to open tool</div></div>';
+  });
+  _vsRecentCompleted.forEach(function(s){
+    var t=((s.scan_time||'').replace('T',' ').substring(0,19))||'--';
+    html+='<div class="notif-item" onclick="openNotificationPage(\'scan\','+s.id+')"><div class="notif-title">Completed: '+(s.target||'scan')+'</div><div class="notif-meta">#'+s.id+' · '+t+' · '+(s.total_cves||0)+' CVEs</div></div>';
+  });
+  if(!html)html='<div class="notif-empty">No active or recent scan notifications.</div>';
+  out.innerHTML=html;
+}
+async function refreshNotifications(){
+  if(!currentUser)return;
+  try{
+    var r=await fetch('/history');var d=await r.json();
+    var scans=Array.isArray(d)?d:(d.scans||[]);
+    var latest=scans.slice(0,8);
+    latest.forEach(function(s){
+      if(!_vsKnownCompleted[s.id]){
+        if(Object.keys(_vsKnownCompleted).length>0)_vsNotifUnread++;
+        _vsKnownCompleted[s.id]=1;
+      }
+    });
+    _vsRecentCompleted=latest;
+  }catch(e){}
+  renderNotifications();
+  updateNotificationBadge();
+}
 function cancelScan(prefix){
   if(prefix==='wd'&&_wdES){_wdES.close();_wdES=null;_wdReset();}
   if(scanControllers[prefix]){scanControllers[prefix].abort();delete scanControllers[prefix];}
   var id=prefix==='scan'?'sbtn-cancel':prefix+'-cancel';
   var b=document.getElementById(id);if(b)b.style.display='none';
+  updateNotificationBadge();
+  renderNotifications();
   showToast('Cancelled','Scan stopped by user.','warning',3000);
 }
 function setScanRunning(prefix,running){
   var id=prefix==='scan'?'sbtn-cancel':prefix+'-cancel';
   var b=document.getElementById(id);if(b)b.style.display=running?'inline-flex':'none';
+  updateNotificationBadge();
+  renderNotifications();
 }
 async function fetchWithTimeout(url,options,timeoutMs,prefix){
   if(!options)options={};if(!timeoutMs)timeoutMs=300000;
@@ -2581,8 +2661,10 @@ async function doLogout(){
   currentUser=null;
   document.getElementById('auth-overlay').style.display='flex';
   document.getElementById('user-chip').style.display='none';
+  var nw=document.getElementById('notif-wrap');if(nw)nw.style.display='none';
   document.getElementById('logout-btn').style.display='none';
   var s=document.getElementById('admin-nav-section');if(s)s.style.display='none';
+  if(_vsNotifPollTimer){clearInterval(_vsNotifPollTimer);_vsNotifPollTimer=null;}
 }
 
 async function loadUser(){
@@ -2592,16 +2674,29 @@ async function loadUser(){
       currentUser=d;
       document.getElementById('auth-overlay').style.display='none';
       document.getElementById('user-chip').style.display='flex';
+      var nw=document.getElementById('notif-wrap');if(nw)nw.style.display='block';
       document.getElementById('logout-btn').style.display='flex';
       document.getElementById('user-avatar').textContent=d.username[0].toUpperCase();
       document.getElementById('user-name-disp').textContent=d.username;
       document.getElementById('user-role-disp').textContent=d.role==='admin'?'admin':'user';
       if(d.role==='admin'){var sec=document.getElementById('admin-nav-section');if(sec)sec.style.display='block';}
       loadProfileInfo(d);loadHomeStats();loadUserTheme();
+      _vsNotifUnread=0;_vsRecentCompleted=[];_vsKnownCompleted={};
+      refreshNotifications();
+      if(_vsNotifPollTimer)clearInterval(_vsNotifPollTimer);
+      _vsNotifPollTimer=setInterval(refreshNotifications,15000);
       pg('home',null);
       vsGreetUser(d.username);
-    }else{document.getElementById('auth-overlay').style.display='flex';}
-  }catch(e){document.getElementById('auth-overlay').style.display='flex';}
+    }else{
+      document.getElementById('auth-overlay').style.display='flex';
+      var nw2=document.getElementById('notif-wrap');if(nw2)nw2.style.display='none';
+      if(_vsNotifPollTimer){clearInterval(_vsNotifPollTimer);_vsNotifPollTimer=null;}
+    }
+  }catch(e){
+    document.getElementById('auth-overlay').style.display='flex';
+    var nw3=document.getElementById('notif-wrap');if(nw3)nw3.style.display='none';
+    if(_vsNotifPollTimer){clearInterval(_vsNotifPollTimer);_vsNotifPollTimer=null;}
+  }
 }
 
 function loadProfileInfo(u){
@@ -3655,6 +3750,12 @@ if(vt){fetch('/api/verify/'+vt).then(function(r){return r.json();}).then(functio
 document.addEventListener('keydown',function(e){
   if(e.key==='Escape'){closeAbout();document.getElementById('tos-modal').classList.remove('open');}
   if(e.key==='Enter'&&document.getElementById('l-pass')===document.activeElement)doLogin();
+});
+document.addEventListener('click',function(e){
+  var wrap=document.getElementById('notif-wrap');
+  var menu=document.getElementById('notif-menu');
+  if(!wrap||!menu)return;
+  if(!wrap.contains(e.target))menu.classList.remove('open');
 });
 
 /* ==== ANIMATION HELPERS ==== */
@@ -6002,7 +6103,16 @@ def report():
     except ImportError:
         return jsonify({"error": "reportlab not installed: pip3 install reportlab --break-system-packages"}), 500
 
-    data = request.get_json() or {}
+    def _pdf_safe(obj):
+        if isinstance(obj, dict):
+            return {k: _pdf_safe(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [_pdf_safe(v) for v in obj]
+        if isinstance(obj, str):
+            return obj.encode("latin-1", "replace").decode("latin-1")
+        return obj
+
+    data = _pdf_safe(request.get_json() or {})
     target     = data.get("target", "unknown")
     scan_time  = data.get("scan_time", "")[:19].replace("T", " ")
     summary    = data.get("summary", {})
