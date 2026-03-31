@@ -375,7 +375,7 @@ select.inp:not([multiple]){
 .terminal{
   background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
   padding:12px 14px;overflow-y:auto;font-family:var(--mono);
-  font-size:12px;line-height:1.8;display:none;margin:12px 0;max-height:260px;
+  font-size:12px;line-height:1.8;display:none;margin:12px 0;
   position:relative;z-index:2;
 }
 .terminal.visible{display:block}
