@@ -12,7 +12,7 @@ PROXYCHAINS CONFIG (/etc/proxychains4.conf or /etc/proxychains.conf):
   [ProxyList]
   socks5 127.0.0.1 9050
 """
-import json, re, sys, os, subprocess, io, sqlite3, secrets, hashlib, threading, shlex, time, shutil
+import json, re, sys, os, subprocess, io, sqlite3, secrets, hashlib, threading, shlex, time, shutil, socket
 from urllib.parse import urlparse
 from flask import Flask, request, jsonify, Response, send_file, send_from_directory
 from flask_cors import CORS
@@ -3100,16 +3100,45 @@ def auto_install(pkg, binary=None):
 
 
 TOOL_INSTALL_MAP = {
+    # Core existing tools
     "nmap":         ("nmap",         "nmap"),
     "nikto":        ("nikto",        "nikto"),
     "lynis":        ("lynis",        "lynis"),
     "dnsrecon":     ("dnsrecon",     "dnsrecon"),
     "legion":       ("legion",       "legion"),
     "theharvester": ("theharvester", "theHarvester"),
-    "wpscan":       (None,           "wpscan"),
+    "wpscan":       (None,            "wpscan"),
     "dig":          ("dnsutils",     "dig"),
     "proxychains4": ("proxychains4", "proxychains4"),
     "tor":          ("tor",          "tor"),
+
+    # Added tools (categorized in setup/install script)
+    "wapiti":       ("wapiti",       "wapiti"),
+    "whatweb":      ("whatweb",      "whatweb"),
+    "medusa":       ("medusa",       "medusa"),
+    "hashcat":      ("hashcat",      "hashcat"),
+    "john":         ("john",         "john"),
+    "openvas":      ("openvas",      "openvas"),
+    "chkrootkit":   ("chkrootkit",   "chkrootkit"),
+    "rkhunter":     ("rkhunter",     "rkhunter"),
+    "searchsploit": ("exploitdb",    "searchsploit"),
+    "hping3":       ("hping3",       "hping3"),
+    "scapy":        ("python3-scapy", "scapy"),
+    "yersinia":     ("yersinia",     "yersinia"),
+    "ffuf":         ("ffuf",         "ffuf"),
+    "dalfox":       ("dalfox",       "dalfox"),
+    "sqlmap":       ("sqlmap",       "sqlmap"),
+    "kxss":         (None,            "kxss"),
+    "seclists":     ("seclists",     "seclists"),
+    "nuclei":       ("nuclei",       "nuclei"),
+    "grype":        ("grype",        "grype"),
+    "msfvenom":     ("metasploit-framework", "msfvenom"),
+    "pwncat":       ("pwncat",       "pwncat"),
+    "rlwrap":       ("rlwrap",       "rlwrap"),
+    "radare2":      ("radare2",      "radare2"),
+    "ligolo-ng":    ("ligolo-ng",    "ligolo-ng"),
+    "chisel":       ("chisel",       "chisel"),
+    "pspy":         (None,            "pspy"),
 }
 
 
@@ -6063,10 +6092,36 @@ def server_stats():
 
     return jsonify(stats)
 
+def _pick_available_port(start_port: int, host: str = "0.0.0.0", attempts: int = 20) -> int:
+    """Return the first available TCP port starting at start_port."""
+    for port in range(start_port, start_port + max(1, attempts)):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.bind((host, port))
+            return port
+        except OSError:
+            continue
+        finally:
+            sock.close()
+    raise OSError(f"No free port found in range {start_port}-{start_port + max(1, attempts) - 1}")
+
+
 if __name__ == "__main__":
+    host = os.environ.get("VULNSCAN_HOST", "0.0.0.0")
+    requested_port = int(os.environ.get("PORT") or os.environ.get("VULNSCAN_PORT") or "5000")
+    try:
+        port = _pick_available_port(requested_port, host=host, attempts=20)
+    except OSError as e:
+        print(f"[!] Failed to find open listen port: {e}")
+        raise
+
+    if port != requested_port:
+        print(f"[!] Port {requested_port} is busy; using {port} instead.")
+
     print("[*] VulnScan Pro v3.7 starting (Tor mode)")
     print(f"[*] Tor SOCKS5: {TOR_SOCKS_HOST}:{TOR_SOCKS_PORT}")
-    print("[*] Open: http://localhost:5000")
-    print("[*] Health check: http://localhost:5000/health")
+    print(f"[*] Open: http://localhost:{port}")
+    print(f"[*] Health check: http://localhost:{port}/health")
     print("[*] Verify Tor is running: systemctl status tor")
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    app.run(host=host, port=port, debug=False)
