@@ -762,6 +762,26 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
       </div>
     </div>
     <nav>
+
+      <!-- VulnScan Nav Search v2 -->
+      <div style="padding:8px 10px 2px">
+        <div style="position:relative">
+          <span id="nav-search-icon" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:12px;pointer-events:none">&#128269;</span>
+          <input
+            id="nav-search-input"
+            class="inp inp-mono"
+            type="text"
+            placeholder="Search tools..."
+            autocomplete="off"
+            spellcheck="false"
+            oninput="vsNavSearch(this.value)"
+            onkeydown="vsNavSearchKey(event)"
+            style="width:100%;padding:6px 10px 6px 28px;font-size:11px;background:var(--bg3);border-color:var(--border)"
+          />
+        </div>
+        <div id="nav-search-results" style="display:none;margin-top:3px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);overflow:hidden;max-height:260px;overflow-y:auto;position:relative;z-index:100"></div>
+      </div>
+      <!-- /VulnScan Nav Search v2 -->
       <style>
 .nav-section{padding:4px 10px}
 .nav-cat-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:6px 8px;border-radius:var(--radius);user-select:none}
@@ -790,7 +810,8 @@ function navRestore(){
     var arrow=document.getElementById('na-'+id);
     if(!items)return;
     var stored;try{stored=localStorage.getItem('vs-nav-'+id);}catch(e){}
-    var open=(stored===null)?1:(stored==='1'?1:0);
+    // Default is NOW CLOSED (0) — user preference overrides on repeat visits
+    var open=(stored===null)?0:(stored==='1'?1:0);
     items.classList.toggle('collapsed',!open);
     items.classList.toggle('expanded',!!open);
     if(arrow)arrow.classList.toggle('open',!!open);
@@ -949,7 +970,7 @@ document.addEventListener('DOMContentLoaded',navRestore);
         </div>
       </div>
     </nav>
-    <div class="sidebar-footer">
+<div class="sidebar-footer">
       <button class="nav-item" onclick="showAbout()"><span class="ni">&#9432;</span> About</button>
       <button class="nav-item" id="logout-btn" onclick="doLogout()" style="display:none;color:var(--red)"><span class="ni">&#10005;</span> Logout</button>
     </div>

@@ -1,594 +1,455 @@
 #!/usr/bin/env python3
 """
-VulnScan Pro — Patch Script
-Adds new tools to their respective nav categories,
-makes all nav categories collapsible, and injects
-stub pages + route stubs for the new tools.
+VulnScan Pro — Nav Patch v2 (robust)
+  • All nav categories collapsed by default
+  • Working live search bar above nav
+  • Uses regex for reliable matching instead of exact string anchors
 
-Run from project root:  python3 vulnscan_patch.py
+Run from project root:  python3 apply_nav_patch_v2.py
 """
 
-import os
-import re
-import sys
-import shutil
+import os, sys, re, shutil, subprocess
 from datetime import datetime
 
-# ── Colours ──────────────────────────────────────────────────
-G = "\033[92m"
-R = "\033[91m"
-C = "\033[96m"
-Y = "\033[93m"
-D = "\033[2m"
-B = "\033[1m"
-X = "\033[0m"
+G = "\033[92m"; R = "\033[91m"; C = "\033[96m"
+Y = "\033[93m"; D = "\033[2m";  B = "\033[1m"; X = "\033[0m"
 
 ok   = lambda m: print(f"  {G}✓{X}  {m}")
 fail = lambda m: print(f"  {R}✗{X}  {m}")
 info = lambda m: print(f"  {C}→{X}  {m}")
 warn = lambda m: print(f"  {Y}!{X}  {m}")
+skip = lambda m: print(f"  {D}·{X}  {m}")
 
-RESULTS = {"applied": 0, "skipped": 0, "failed": 0, "files": [], "restart": False}
-
-# ─────────────────────────────────────────────────────────────
-# Helpers
-# ─────────────────────────────────────────────────────────────
+RESULTS = {"applied": 0, "skipped": 0, "failed": 0}
 
 def backup(path):
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    shutil.copy2(path, f"{path}.{ts}.bak")
-
-
-def apply(path, changes):
-    """Apply list of (label, old, new) to file. Returns True if any applied."""
-    if not os.path.isfile(path):
-        fail(f"File not found: {path}")
-        RESULTS["failed"] += len(changes)
-        return False
-
-    with open(path, "r", encoding="utf-8") as fh:
-        src = fh.read()
-
-    modified = src
-    applied = 0
-
-    for label, old, new in changes:
-        if old in modified:
-            modified = modified.replace(old, new, 1)
-            ok(label)
-            applied += 1
-            RESULTS["applied"] += 1
-        elif new in modified:
-            print(f"  {D}·{X}  {label} (already applied)")
-            RESULTS["skipped"] += 1
-        else:
-            fail(f"{label} — anchor not found in {path}")
-            RESULTS["failed"] += 1
-
-    if applied:
-        backup(path)
-        with open(path, "w", encoding="utf-8") as fh:
-            fh.write(modified)
-        if path not in RESULTS["files"]:
-            RESULTS["files"].append(path)
-        RESULTS["restart"] = True
-
-    return applied > 0
-
+    dst = f"{path}.{ts}.bak"
+    shutil.copy2(path, dst)
+    return dst
 
 def syntax_check(path):
-    import subprocess
     r = subprocess.run([sys.executable, "-m", "py_compile", path],
                        capture_output=True, text=True)
     return r.returncode == 0, r.stderr.strip()
 
+# ── Read the file ─────────────────────────────────────────────
+TARGET = "api_server.py"
 
-# ─────────────────────────────────────────────────────────────
-# PATCH 1 — Replace entire <nav> block in api_server.py HTML
-#           with collapsible categories + new tools
-# ─────────────────────────────────────────────────────────────
+def load():
+    with open(TARGET, "r", encoding="utf-8") as f:
+        return f.read()
 
-OLD_NAV = """      <div class="nav-section">
-        <div class="nav-label">OVERVIEW</div>
-        <button class="nav-item" id="ni-home" onclick="pg('home',this)"><span class="ni">&#9700;</span> Home</button>
-        <button class="nav-item" id="ni-dash" onclick="pg('dash',this)"><span class="ni">&#9636;</span> Dashboard</button>
-        <button class="nav-item" id="ni-hist" onclick="pg('hist',this)"><span class="ni">&#9632;</span> History</button>
-      </div>
-      <div class="nav-section">
-        <div class="nav-label">INFORMATION</div>
-        <button class="nav-item" id="ni-scan" onclick="pg('scan',this)"><span class="ni">&#9675;</span> Network Scanner</button>
-        <button class="nav-item" id="ni-dnsrecon" onclick="pg('dnsrecon',this)"><span class="ni">&#9675;</span> DNSRecon</button>
-        <button class="nav-item" id="ni-disc" onclick="pg('disc',this)"><span class="ni">&#9675;</span> Net Discovery</button>
-        <button class="nav-item" id="ni-harvester" onclick="pg('harvester',this)"><span class="ni">&#9675;</span> theHarvester</button>
-        <button class="nav-item" id="ni-sub" onclick="pg('sub',this)"><span class="ni">&#9675;</span> Subdomain Finder</button>
-        <button class="nav-item" id="ni-legion" onclick="pg('legion',this)"><span class="ni">&#9675;</span> Legion</button>
-      </div>
-      <div class="nav-section">
-        <div class="nav-label">WEB TESTING</div>
-        <button class="nav-item" id="ni-webdeep" onclick="pg('webdeep',this)"><span class="ni">&#9675;</span> Deep Web Audit</button>
-        <button class="nav-item" id="ni-nikto" onclick="pg('nikto',this)"><span class="ni">&#9675;</span> Nikto</button>
-        <button class="nav-item" id="ni-wpscan" onclick="pg('wpscan',this)"><span class="ni">&#9675;</span> WPScan</button>
-        <button class="nav-item" id="ni-dir" onclick="pg('dir',this)"><span class="ni">&#9675;</span> Dir Buster</button>
-      </div>
-      <div class="nav-section">
-        <div class="nav-label">ATTACKS</div>
-        <button class="nav-item" id="ni-brute" onclick="pg('brute',this)"><span class="ni">&#9675;</span> Brute Force</button>
-      </div>
-      <div class="nav-section">
-        <div class="nav-label">SOCIAL ENGINEERING</div>
-        <button class="nav-item" id="ni-setoolkit" onclick="pg('setoolkit',this)"><span class="ni">&#9675;</span> Social-Engineer Toolkit</button>
-        <button class="nav-item" id="ni-gophish" onclick="pg('gophish',this)"><span class="ni">&#9675;</span> Gophish</button>
-        <button class="nav-item" id="ni-evilginx2" onclick="pg('evilginx2',this)"><span class="ni">&#9675;</span> Evilginx2</button>
-        <button class="nav-item" id="ni-shellphish" onclick="pg('shellphish',this)"><span class="ni">&#9675;</span> ShellPhish</button>
-      </div>
-      <div class="nav-section">
-        <div class="nav-label">C2 / PIVOTING</div>
-        <button class="nav-item" id="ni-netcat" onclick="pg('netcat',this)"><span class="ni">&#9675;</span> Netcat</button>
-        <button class="nav-item" id="ni-ncat" onclick="pg('ncat',this)"><span class="ni">&#9675;</span> Ncat</button>
-        <button class="nav-item" id="ni-socat" onclick="pg('socat',this)"><span class="ni">&#9675;</span> Socat</button>
-        <button class="nav-item" id="ni-sliver" onclick="pg('sliver',this)"><span class="ni">&#9675;</span> Sliver</button>
-        <button class="nav-item" id="ni-empire" onclick="pg('empire',this)"><span class="ni">&#9675;</span> Empire</button>
-      </div>
-      <div class="nav-section">
-        <div class="nav-label">AUDITING</div>
-        <button class="nav-item" id="ni-lynis" onclick="pg('lynis',this)"><span class="ni">&#9675;</span> Lynis</button>
-      </div>
-      <div class="nav-section" id="admin-nav-section" style="display:none">
-        <div class="nav-label">ADMIN</div>
-        <button class="nav-item" id="ni-admin" onclick="pg('admin',this)"><span class="ni">&#9632;</span> Admin Console</button>
-      </div>"""
+def save(src):
+    with open(TARGET, "w", encoding="utf-8") as f:
+        f.write(src)
 
-NEW_NAV = """      <style>
-.nav-section{padding:4px 10px}
-.nav-cat-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:6px 8px;border-radius:var(--radius);user-select:none}
-.nav-cat-toggle:hover{background:var(--bg3)}
-.nav-cat-label{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;font-weight:500}
-.nav-cat-arrow{font-size:9px;color:var(--text3);transition:transform 0.2s}
-.nav-cat-arrow.open{transform:rotate(180deg)}
-.nav-cat-items{overflow:hidden;transition:max-height 0.25s ease,opacity 0.2s}
-.nav-cat-items.collapsed{max-height:0!important;opacity:0;pointer-events:none}
-.nav-cat-items.expanded{opacity:1}
-      </style>
-      <script>
-function navToggle(id){
-  var items=document.getElementById('nc-'+id);
-  var arrow=document.getElementById('na-'+id);
-  if(!items)return;
-  var collapsed=items.classList.contains('collapsed');
-  items.classList.toggle('collapsed',!collapsed);
-  items.classList.toggle('expanded',collapsed);
-  if(arrow)arrow.classList.toggle('open',collapsed);
-  try{localStorage.setItem('vs-nav-'+id,collapsed?'1':'0');}catch(e){}
-}
-function navRestore(){
-  ['overview','information','webtesting','attacks','webapp','passwords','recon','exploitation','auditing','c2','social','reverseeng','tunneling','admin'].forEach(function(id){
-    var items=document.getElementById('nc-'+id);
-    var arrow=document.getElementById('na-'+id);
-    if(!items)return;
-    var stored;try{stored=localStorage.getItem('vs-nav-'+id);}catch(e){}
-    var open=(stored===null)?1:(stored==='1'?1:0);
-    items.classList.toggle('collapsed',!open);
-    items.classList.toggle('expanded',!!open);
-    if(arrow)arrow.classList.toggle('open',!!open);
-  });
-}
-document.addEventListener('DOMContentLoaded',navRestore);
-      </script>
+# ═════════════════════════════════════════════════════════════
+# PATCH A — Make all categories start CLOSED by default
+#
+# Strategy: find the navRestore function and change the default
+# open value from 1 to 0.  We look for the pattern:
+#   var open=(stored===null)?1:
+# and change the ?1: to ?0:
+# ═════════════════════════════════════════════════════════════
 
-      <div class="nav-section">
-        <div class="nav-cat-toggle" onclick="navToggle('overview')">
-          <span class="nav-cat-label">OVERVIEW</span>
-          <span class="nav-cat-arrow open" id="na-overview">&#9660;</span>
-        </div>
-        <div class="nav-cat-items expanded" id="nc-overview" style="max-height:200px">
-          <button class="nav-item" id="ni-home" onclick="pg('home',this)"><span class="ni">&#9700;</span> Home</button>
-          <button class="nav-item" id="ni-dash" onclick="pg('dash',this)"><span class="ni">&#9636;</span> Dashboard</button>
-          <button class="nav-item" id="ni-hist" onclick="pg('hist',this)"><span class="ni">&#9632;</span> History</button>
-        </div>
-      </div>
+def patch_default_closed(src):
+    # Pattern: default open value in navRestore
+    pattern = r'(var open=\(stored===null\)\?)1(:)'
+    replacement = r'\g<1>0\2'
+    
+    if 'var open=(stored===null)?0:' in src:
+        skip("Default-closed: already applied")
+        RESULTS["skipped"] += 1
+        return src
+    
+    new_src, count = re.subn(pattern, replacement, src)
+    if count:
+        ok(f"Default-closed: changed {count} occurrence(s) — categories now start collapsed")
+        RESULTS["applied"] += 1
+        return new_src
+    else:
+        fail("Default-closed: pattern not found — skipping")
+        RESULTS["failed"] += 1
+        return src
 
-      <div class="nav-section">
-        <div class="nav-cat-toggle" onclick="navToggle('information')">
-          <span class="nav-cat-label">INFORMATION</span>
-          <span class="nav-cat-arrow open" id="na-information">&#9660;</span>
-        </div>
-        <div class="nav-cat-items expanded" id="nc-information" style="max-height:400px">
-          <button class="nav-item" id="ni-scan" onclick="pg('scan',this)"><span class="ni">&#9675;</span> Network Scanner</button>
-          <button class="nav-item" id="ni-dnsrecon" onclick="pg('dnsrecon',this)"><span class="ni">&#9675;</span> DNSRecon</button>
-          <button class="nav-item" id="ni-disc" onclick="pg('disc',this)"><span class="ni">&#9675;</span> Net Discovery</button>
-          <button class="nav-item" id="ni-harvester" onclick="pg('harvester',this)"><span class="ni">&#9675;</span> theHarvester</button>
-          <button class="nav-item" id="ni-sub" onclick="pg('sub',this)"><span class="ni">&#9675;</span> Subdomain Finder</button>
-          <button class="nav-item" id="ni-legion" onclick="pg('legion',this)"><span class="ni">&#9675;</span> Legion</button>
-          <button class="nav-item" id="ni-searchsploit" onclick="pg('searchsploit',this)"><span class="ni">&#9675;</span> SearchSploit</button>
-          <button class="nav-item" id="ni-seclists" onclick="pg('seclists',this)"><span class="ni">&#9675;</span> SecLists</button>
-        </div>
-      </div>
+# ═════════════════════════════════════════════════════════════
+# PATCH B — Remove any broken search injection from v1 patch
+#
+# The v1 patch may have inserted a broken search block.
+# We strip it out so we can inject fresh.
+# ═════════════════════════════════════════════════════════════
 
-      <div class="nav-section">
-        <div class="nav-cat-toggle" onclick="navToggle('webtesting')">
-          <span class="nav-cat-label">WEB TESTING</span>
-          <span class="nav-cat-arrow open" id="na-webtesting">&#9660;</span>
-        </div>
-        <div class="nav-cat-items expanded" id="nc-webtesting" style="max-height:500px">
-          <button class="nav-item" id="ni-webdeep" onclick="pg('webdeep',this)"><span class="ni">&#9675;</span> Deep Web Audit</button>
-          <button class="nav-item" id="ni-nikto" onclick="pg('nikto',this)"><span class="ni">&#9675;</span> Nikto</button>
-          <button class="nav-item" id="ni-wpscan" onclick="pg('wpscan',this)"><span class="ni">&#9675;</span> WPScan</button>
-          <button class="nav-item" id="ni-dir" onclick="pg('dir',this)"><span class="ni">&#9675;</span> Dir Buster</button>
-          <button class="nav-item" id="ni-ffuf" onclick="pg('ffuf',this)"><span class="ni">&#9675;</span> ffuf</button>
-          <button class="nav-item" id="ni-nuclei" onclick="pg('nuclei',this)"><span class="ni">&#9675;</span> Nuclei</button>
-          <button class="nav-item" id="ni-whatweb" onclick="pg('whatweb',this)"><span class="ni">&#9675;</span> WhatWeb</button>
-          <button class="nav-item" id="ni-wapiti" onclick="pg('wapiti',this)"><span class="ni">&#9675;</span> Wapiti</button>
-          <button class="nav-item" id="ni-dalfox" onclick="pg('dalfox',this)"><span class="ni">&#9675;</span> Dalfox</button>
-          <button class="nav-item" id="ni-sqlmap" onclick="pg('sqlmap',this)"><span class="ni">&#9675;</span> SQLMap</button>
-          <button class="nav-item" id="ni-kxss" onclick="pg('kxss',this)"><span class="ni">&#9675;</span> kxss</button>
-        </div>
-      </div>
-
-      <div class="nav-section">
-        <div class="nav-cat-toggle" onclick="navToggle('attacks')">
-          <span class="nav-cat-label">ATTACKS</span>
-          <span class="nav-cat-arrow open" id="na-attacks">&#9660;</span>
-        </div>
-        <div class="nav-cat-items expanded" id="nc-attacks" style="max-height:300px">
-          <button class="nav-item" id="ni-brute" onclick="pg('brute',this)"><span class="ni">&#9675;</span> Brute Force</button>
-          <button class="nav-item" id="ni-medusa" onclick="pg('medusa',this)"><span class="ni">&#9675;</span> Medusa</button>
-          <button class="nav-item" id="ni-hping3" onclick="pg('hping3',this)"><span class="ni">&#9675;</span> hping3</button>
-          <button class="nav-item" id="ni-scapy" onclick="pg('scapy',this)"><span class="ni">&#9675;</span> Scapy</button>
-          <button class="nav-item" id="ni-yersinia" onclick="pg('yersinia',this)"><span class="ni">&#9675;</span> Yersinia</button>
-        </div>
-      </div>
-
-      <div class="nav-section">
-        <div class="nav-cat-toggle" onclick="navToggle('passwords')">
-          <span class="nav-cat-label">PASSWORD ATTACKS</span>
-          <span class="nav-cat-arrow open" id="na-passwords">&#9660;</span>
-        </div>
-        <div class="nav-cat-items expanded" id="nc-passwords" style="max-height:200px">
-          <button class="nav-item" id="ni-hashcat" onclick="pg('hashcat',this)"><span class="ni">&#9675;</span> Hashcat</button>
-          <button class="nav-item" id="ni-john" onclick="pg('john',this)"><span class="ni">&#9675;</span> John the Ripper</button>
-        </div>
-      </div>
-
-      <div class="nav-section">
-        <div class="nav-cat-toggle" onclick="navToggle('social')">
-          <span class="nav-cat-label">SOCIAL ENGINEERING</span>
-          <span class="nav-cat-arrow open" id="na-social">&#9660;</span>
-        </div>
-        <div class="nav-cat-items expanded" id="nc-social" style="max-height:300px">
-          <button class="nav-item" id="ni-setoolkit" onclick="pg('setoolkit',this)"><span class="ni">&#9675;</span> Social-Engineer Toolkit</button>
-          <button class="nav-item" id="ni-gophish" onclick="pg('gophish',this)"><span class="ni">&#9675;</span> Gophish</button>
-          <button class="nav-item" id="ni-evilginx2" onclick="pg('evilginx2',this)"><span class="ni">&#9675;</span> Evilginx2</button>
-          <button class="nav-item" id="ni-shellphish" onclick="pg('shellphish',this)"><span class="ni">&#9675;</span> ShellPhish</button>
-        </div>
-      </div>
-
-      <div class="nav-section">
-        <div class="nav-cat-toggle" onclick="navToggle('c2')">
-          <span class="nav-cat-label">C2 / PIVOTING</span>
-          <span class="nav-cat-arrow open" id="na-c2">&#9660;</span>
-        </div>
-        <div class="nav-cat-items expanded" id="nc-c2" style="max-height:400px">
-          <button class="nav-item" id="ni-netcat" onclick="pg('netcat',this)"><span class="ni">&#9675;</span> Netcat</button>
-          <button class="nav-item" id="ni-ncat" onclick="pg('ncat',this)"><span class="ni">&#9675;</span> Ncat</button>
-          <button class="nav-item" id="ni-socat" onclick="pg('socat',this)"><span class="ni">&#9675;</span> Socat</button>
-          <button class="nav-item" id="ni-sliver" onclick="pg('sliver',this)"><span class="ni">&#9675;</span> Sliver</button>
-          <button class="nav-item" id="ni-empire" onclick="pg('empire',this)"><span class="ni">&#9675;</span> Empire</button>
-          <button class="nav-item" id="ni-ligolo" onclick="pg('ligolo',this)"><span class="ni">&#9675;</span> Ligolo-ng</button>
-          <button class="nav-item" id="ni-chisel" onclick="pg('chisel',this)"><span class="ni">&#9675;</span> Chisel</button>
-          <button class="nav-item" id="ni-rlwrap" onclick="pg('rlwrap',this)"><span class="ni">&#9675;</span> rlwrap</button>
-          <button class="nav-item" id="ni-pspy" onclick="pg('pspy',this)"><span class="ni">&#9675;</span> pspy</button>
-        </div>
-      </div>
-
-      <div class="nav-section">
-        <div class="nav-cat-toggle" onclick="navToggle('exploitation')">
-          <span class="nav-cat-label">EXPLOIT / PAYLOAD</span>
-          <span class="nav-cat-arrow open" id="na-exploitation">&#9660;</span>
-        </div>
-        <div class="nav-cat-items expanded" id="nc-exploitation" style="max-height:200px">
-          <button class="nav-item" id="ni-msfvenom" onclick="pg('msfvenom',this)"><span class="ni">&#9675;</span> msfvenom</button>
-          <button class="nav-item" id="ni-pwncat" onclick="pg('pwncat',this)"><span class="ni">&#9675;</span> pwncat</button>
-          <button class="nav-item" id="ni-grype" onclick="pg('grype',this)"><span class="ni">&#9675;</span> Grype</button>
-        </div>
-      </div>
-
-      <div class="nav-section">
-        <div class="nav-cat-toggle" onclick="navToggle('reverseeng')">
-          <span class="nav-cat-label">REVERSE ENGINEERING</span>
-          <span class="nav-cat-arrow open" id="na-reverseeng">&#9660;</span>
-        </div>
-        <div class="nav-cat-items expanded" id="nc-reverseeng" style="max-height:200px">
-          <button class="nav-item" id="ni-radare2" onclick="pg('radare2',this)"><span class="ni">&#9675;</span> Radare2</button>
-        </div>
-      </div>
-
-      <div class="nav-section">
-        <div class="nav-cat-toggle" onclick="navToggle('auditing')">
-          <span class="nav-cat-label">AUDITING</span>
-          <span class="nav-cat-arrow open" id="na-auditing">&#9660;</span>
-        </div>
-        <div class="nav-cat-items expanded" id="nc-auditing" style="max-height:300px">
-          <button class="nav-item" id="ni-lynis" onclick="pg('lynis',this)"><span class="ni">&#9675;</span> Lynis</button>
-          <button class="nav-item" id="ni-openvas" onclick="pg('openvas',this)"><span class="ni">&#9675;</span> OpenVAS</button>
-          <button class="nav-item" id="ni-chkrootkit" onclick="pg('chkrootkit',this)"><span class="ni">&#9675;</span> chkrootkit</button>
-          <button class="nav-item" id="ni-rkhunter" onclick="pg('rkhunter',this)"><span class="ni">&#9675;</span> rkhunter</button>
-        </div>
-      </div>
-
-      <div class="nav-section" id="admin-nav-section" style="display:none">
-        <div class="nav-cat-toggle" onclick="navToggle('admin')">
-          <span class="nav-cat-label">ADMIN</span>
-          <span class="nav-cat-arrow open" id="na-admin">&#9660;</span>
-        </div>
-        <div class="nav-cat-items expanded" id="nc-admin" style="max-height:100px">
-          <button class="nav-item" id="ni-admin" onclick="pg('admin',this)"><span class="ni">&#9632;</span> Admin Console</button>
-        </div>
-      </div>"""
-
-
-# ─────────────────────────────────────────────────────────────
-# PATCH 2 — Add PAGE_TITLES entries for new tools
-# ─────────────────────────────────────────────────────────────
-
-OLD_TITLES = "var PAGE_TITLES={home:'Home',scan:'Network Scanner',webdeep:'Deep Web Audit',harvester:'theHarvester',dnsrecon:'DNSRecon',nikto:'Nikto',wpscan:'WPScan',lynis:'Lynis',legion:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',brute:'Brute Force',setoolkit:'Social-Engineer Toolkit',gophish:'Gophish',evilginx2:'Evilginx2',shellphish:'ShellPhish',netcat:'Netcat',ncat:'Ncat',socat:'Socat',sliver:'Sliver',empire:'Empire',disc:'Network Discovery',hist:'Scan History',dash:'Dashboard',profile:'Profile',admin:'Admin Console'};"
-
-NEW_TITLES = "var PAGE_TITLES={home:'Home',scan:'Network Scanner',webdeep:'Deep Web Audit',harvester:'theHarvester',dnsrecon:'DNSRecon',nikto:'Nikto',wpscan:'WPScan',lynis:'Lynis',legion:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',brute:'Brute Force',setoolkit:'Social-Engineer Toolkit',gophish:'Gophish',evilginx2:'Evilginx2',shellphish:'ShellPhish',netcat:'Netcat',ncat:'Ncat',socat:'Socat',sliver:'Sliver',empire:'Empire',disc:'Network Discovery',hist:'Scan History',dash:'Dashboard',profile:'Profile',admin:'Admin Console',ffuf:'ffuf',nuclei:'Nuclei',whatweb:'WhatWeb',wapiti:'Wapiti',dalfox:'Dalfox',sqlmap:'SQLMap',kxss:'kxss',medusa:'Medusa',hping3:'hping3',scapy:'Scapy',yersinia:'Yersinia',hashcat:'Hashcat',john:'John the Ripper',searchsploit:'SearchSploit',seclists:'SecLists',ligolo:'Ligolo-ng',chisel:'Chisel',rlwrap:'rlwrap',pspy:'pspy',msfvenom:'msfvenom',pwncat:'pwncat',grype:'Grype',radare2:'Radare2',openvas:'OpenVAS',chkrootkit:'chkrootkit',rkhunter:'rkhunter'};"
-
-
-# ─────────────────────────────────────────────────────────────
-# PATCH 3 — Insert stub pages for all new tools into the HTML
-#           (placed just before the closing </div> of .content)
-# ─────────────────────────────────────────────────────────────
-
-# We anchor on the last existing page block closing tag before </div></div>
-# Pick the ADMIN page block end as the anchor
-OLD_PAGES_ANCHOR = """      <!-- ADMIN -->
-      <div class="page" id="page-admin">"""
-
-# Build compact generic page HTML for every new tool
-def _stub_page(page_id, title, desc, tool_bin, install_cmd, category, notice_text=None):
-    notice = notice_text or f"&#9888; Authorized use only. Only run {title} on systems you own or have explicit written permission to test."
-    return f"""
-      <!-- {title.upper()} -->
-      <div class="page" id="page-{page_id}">
-        <div class="page-hd"><div class="page-title">{title}</div><div class="page-desc">{desc}</div></div>
-        <div class="notice">{notice}</div>
-        <div class="card card-p" style="margin-bottom:14px">
-          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="{page_id}-args" type="text" placeholder="--help"/></div>
-          <div class="row2" style="margin-bottom:12px">
-            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="{page_id}-timeout" type="number" value="90" min="10" max="600"/></div>
-            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="{page_id}-bin" type="text" value="{tool_bin}"/></div>
-          </div>
-          <button class="btn btn-primary" id="{page_id}-btn" onclick="runGenericTool('{page_id}','{tool_bin}')">RUN {title.upper()}</button>
-        </div>
-        <div class="progress-wrap" id="{page_id}-prog"><div class="progress-bar" id="{page_id}-pb" style="width:0%"></div></div>
-        <div class="terminal" id="{page_id}-term"></div>
-        <div class="err-box" id="{page_id}-err"></div>
-        <div id="{page_id}-res"></div>
-        <div class="card card-p" style="margin-top:10px">
-          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
-          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">{install_cmd}</div>
-          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">{category}</span><span class="tag">{tool_bin}</span></div>
-        </div>
-      </div>"""
-
-NEW_TOOL_STUBS = ""
-
-_new_tools = [
-    ("ffuf",        "ffuf",               "Fast web fuzzer for content discovery and parameter fuzzing",         "ffuf",          "sudo apt install ffuf",                     "web-testing"),
-    ("nuclei",      "Nuclei",             "Template-based vulnerability scanner with thousands of community checks", "nuclei",     "sudo apt install nuclei",                   "web-testing"),
-    ("whatweb",     "WhatWeb",            "Web technology fingerprinter — identify CMS, frameworks, servers",   "whatweb",       "sudo apt install whatweb",                  "web-testing"),
-    ("wapiti",      "Wapiti",             "Web application vulnerability scanner (SQLi, XSS, file disclosure)", "wapiti",        "sudo apt install wapiti",                   "web-testing"),
-    ("dalfox",      "Dalfox",             "XSS parameter analysis and scanning tool",                           "dalfox",        "go install github.com/hahwul/dalfox/v2@latest", "web-testing"),
-    ("sqlmap",      "SQLMap",             "Automatic SQL injection detection and exploitation tool",             "sqlmap",        "sudo apt install sqlmap",                   "web-testing"),
-    ("kxss",        "kxss",               "XSS parameter finder and reflection checker",                        "kxss",          "go install github.com/Emoe/kxss@latest",    "web-testing"),
-    ("medusa",      "Medusa",             "Fast parallel network login auditor (multi-protocol brute force)",   "medusa",        "sudo apt install medusa",                   "attacks"),
-    ("hping3",      "hping3",             "TCP/IP packet assembler and analyzer for network testing",           "hping3",        "sudo apt install hping3",                   "network-attack"),
-    ("scapy",       "Scapy",              "Interactive packet manipulation and network analysis framework",      "scapy",         "sudo apt install python3-scapy",             "network-attack"),
-    ("yersinia",    "Yersinia",           "Network protocol attacks (STP, CDP, DTP, DHCP, 802.1Q, VTP, HSRP)", "yersinia",      "sudo apt install yersinia",                 "network-attack"),
-    ("hashcat",     "Hashcat",            "World's fastest GPU-based password recovery utility",                "hashcat",       "sudo apt install hashcat",                  "passwords"),
-    ("john",        "John the Ripper",    "Versatile password cracker supporting many hash formats",            "john",          "sudo apt install john",                     "passwords"),
-    ("searchsploit","SearchSploit",       "Command-line search tool for Exploit-DB offline archive",            "searchsploit",  "sudo apt install exploitdb",                "information"),
-    ("seclists",    "SecLists",           "Collection of security wordlists for fuzzing and enumeration",       "seclists",      "sudo apt install seclists",                 "information"),
-    ("ligolo",      "Ligolo-ng",          "Advanced tunneling tool for network pivoting via TUN interface",     "ligolo-ng",     "sudo apt install ligolo-ng",                "tunneling"),
-    ("chisel",      "Chisel",             "Fast TCP/UDP tunnel over HTTP using SSH transport",                  "chisel",        "sudo apt install chisel",                   "tunneling"),
-    ("rlwrap",      "rlwrap",             "Readline wrapper — adds command history to any CLI tool",            "rlwrap",        "sudo apt install rlwrap",                   "tunneling"),
-    ("pspy",        "pspy",               "Process spy — monitor Linux processes without root privileges",      "pspy",          "Download from github.com/DominicBreuker/pspy", "tunneling"),
-    ("msfvenom",    "msfvenom",           "Metasploit payload generator and encoder",                           "msfvenom",      "sudo apt install metasploit-framework",      "exploit"),
-    ("pwncat",      "pwncat",             "Feature-rich reverse/bind shell handler with post-exploitation",     "pwncat",        "pip3 install pwncat-cs --break-system-packages", "exploit"),
-    ("grype",       "Grype",              "Vulnerability scanner for container images and filesystems",         "grype",         "curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh", "exploit"),
-    ("radare2",     "Radare2",            "Reverse engineering framework — disassembly, analysis, debugging",   "radare2",       "sudo apt install radare2",                  "reverse-eng"),
-    ("openvas",     "OpenVAS",            "Open vulnerability assessment system — comprehensive network scanner","openvas",      "sudo apt install openvas",                  "auditing"),
-    ("chkrootkit",  "chkrootkit",         "Local rootkit detector — checks for known rootkit signatures",       "chkrootkit",    "sudo apt install chkrootkit",               "auditing"),
-    ("rkhunter",    "rkhunter",           "Rootkit Hunter — scans for rootkits, backdoors, and exploits",       "rkhunter",      "sudo apt install rkhunter",                 "auditing"),
+BROKEN_SEARCH_MARKERS = [
+    # The wrapper div injected by v1
+    '<!-- ── Tool Search ──────────────────────────── -->',
+    '<div id="nav-all-categories">',
+    '<!-- /#nav-all-categories -->',
+    '// ── Nav tool search ─────────────────────────────────────────',
+    'function navSearch(',
+    'function navSearchSelect(',
+    'function _buildNavIndex(',
 ]
 
-for args in _new_tools:
-    NEW_TOOL_STUBS += _stub_page(*args)
+def remove_v1_search(src):
+    """Remove the broken v1 search injection if present."""
+    if '<!-- ── Tool Search' not in src and 'function navSearch(' not in src:
+        return src, False
 
-NEW_PAGES_ANCHOR = NEW_TOOL_STUBS + "\n\n      <!-- ADMIN -->\n      <div class=\"page\" id=\"page-admin\">"
+    info("Removing v1 search injection (will re-inject cleanly)...")
 
+    # Remove the search bar HTML block
+    src = re.sub(
+        r'\s*<!-- ── Tool Search ──.*?<!-- ── End Tool Search ─.*?-->\s*',
+        '\n',
+        src, flags=re.DOTALL
+    )
 
-# ─────────────────────────────────────────────────────────────
-# PATCH 4 — Add runGenericTool() JS helper before loadUser()
-# ─────────────────────────────────────────────────────────────
+    # Remove the nav-all-categories wrapper open tag
+    src = src.replace('      <div id="nav-all-categories">\n', '')
+    src = src.replace('<div id="nav-all-categories">', '')
 
-OLD_JS_LOADUSER = "loadUser();"
+    # Remove the nav-all-categories wrapper close tag
+    src = re.sub(r'\s*</div><!-- /#nav-all-categories -->\s*', '\n', src)
 
-NEW_JS_LOADUSER = """/* ==== GENERIC TOOL RUNNER ==== */
-async function runGenericTool(pageId, toolBin){
-  var argsEl=document.getElementById(pageId+'-args');
-  var timeoutEl=document.getElementById(pageId+'-timeout');
-  var binEl=document.getElementById(pageId+'-bin');
-  var btn=document.getElementById(pageId+'-btn');
-  if(!argsEl||!btn)return;
-  var args=(argsEl.value||'--help').trim();
-  var timeout=parseInt((timeoutEl&&timeoutEl.value)||'90',10);
-  var bin=(binEl&&binEl.value)||toolBin;
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
-  var t=mkTool(pageId);t.start();t.log('Running: '+bin+' '+args,'i');
-  try{
-    var r=await fetchWithTimeout('/social-tools/run',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({tool:pageId==='john'?'john':bin,operation:'custom',args:args,timeout:timeout})
-    },Math.max(20000,timeout*1000+5000),pageId);
-    var d=await r.json();t.end();
-    if(d.error){t.err(d.error);}
-    else{t.log('Command completed (exit '+d.exit_code+')','s');
-      var html='<div class="card card-p"><div class="card-title" style="margin-bottom:8px">Output</div>'
-        +'<pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'
-        +(d.stdout||'(no stdout)')+'</pre>'
-        +(d.stderr?'<div class="card-title" style="margin:8px 0">Stderr</div><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--orange)">'+d.stderr+'</pre>':'')
-        +'</div>';
-      t.res(html);}
-  }catch(e){t.end();t.err(e.message);}
-  finally{btn.disabled=false;btn.innerHTML='RUN '+bin.toUpperCase();}
-}
-/* ==== BRUTE AUTOLOAD ==== */
-function bfAutoLoad(){
-  var um=document.getElementById('bf-user-mode');
-  var pm=document.getElementById('bf-pass-mode');
-  if(um&&um.value!=='manual')bfWordlistMode('user');
-  if(pm&&pm.value!=='manual')bfWordlistMode('pass');
-}
+    # Remove the navSearch/navSearchSelect/buildNavIndex JS block
+    # It starts after "document.addEventListener('DOMContentLoaded',navRestore);"
+    # and runs until the end of that <script> block.
+    # Strategy: find the block between the navRestore listener and </script>
+    # and strip the injected JS from it.
+    src = re.sub(
+        r'(document\.addEventListener\(\'DOMContentLoaded\',navRestore\);)\s*\n// ── Nav tool search.*?(\s*</script>)',
+        r'\1\2',
+        src, flags=re.DOTALL
+    )
 
-loadUser();"""
+    # Also strip standalone navSearch function if it ended up outside
+    src = re.sub(
+        r'\n// ── Nav tool search ─+.*?(?=\nfunction [a-zA-Z]|\n/\* ====|\Z)',
+        '',
+        src, flags=re.DOTALL
+    )
 
+    return src, True
 
-# ─────────────────────────────────────────────────────────────
-# PATCH 5 — Extend /social-tools/run allowed tools list
-# ─────────────────────────────────────────────────────────────
+# ═════════════════════════════════════════════════════════════
+# PATCH C — Inject clean search bar HTML
+#
+# We inject just before the first nav-section div inside <nav>.
+# Anchor: the <nav> open tag followed by whitespace and <style>
+# ═════════════════════════════════════════════════════════════
 
-OLD_TOOL_ALLOW = '    if tool not in {"setoolkit", "gophish", "evilginx2", "shellphish", "netcat", "ncat", "socat", "sliver", "empire"}:'
+SEARCH_HTML = '''      <!-- VulnScan Nav Search v2 -->
+      <div style="padding:8px 10px 2px">
+        <div style="position:relative">
+          <span id="nav-search-icon" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:12px;pointer-events:none">&#128269;</span>
+          <input
+            id="nav-search-input"
+            class="inp inp-mono"
+            type="text"
+            placeholder="Search tools..."
+            autocomplete="off"
+            spellcheck="false"
+            oninput="vsNavSearch(this.value)"
+            onkeydown="vsNavSearchKey(event)"
+            style="width:100%;padding:6px 10px 6px 28px;font-size:11px;background:var(--bg3);border-color:var(--border)"
+          />
+        </div>
+        <div id="nav-search-results" style="display:none;margin-top:3px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);overflow:hidden;max-height:260px;overflow-y:auto;position:relative;z-index:100"></div>
+      </div>
+      <!-- /VulnScan Nav Search v2 -->
+'''
 
-NEW_TOOL_ALLOW = '    if tool not in {"setoolkit", "gophish", "evilginx2", "shellphish", "netcat", "ncat", "socat", "sliver", "empire", "ffuf", "nuclei", "whatweb", "wapiti", "dalfox", "sqlmap", "kxss", "medusa", "hping3", "scapy", "yersinia", "hashcat", "john", "searchsploit", "seclists", "ligolo-ng", "chisel", "rlwrap", "pspy", "msfvenom", "pwncat", "grype", "radare2", "openvas", "chkrootkit", "rkhunter"}:'
+def patch_search_html(src):
+    if 'VulnScan Nav Search v2' in src:
+        skip("Search HTML: already applied")
+        RESULTS["skipped"] += 1
+        return src
 
+    # Find <nav> then the first <div class="nav-section"> inside it
+    # We insert our search bar between <nav> and the first nav-section
+    pattern = r'(<nav>\s*\n)([ \t]*<(?:style|div class="nav-section"|script))'
+    
+    def replacer(m):
+        return m.group(1) + SEARCH_HTML + m.group(2)
+    
+    new_src, count = re.subn(pattern, replacer, src, count=1)
+    if count:
+        ok("Search HTML: injected search bar above nav categories")
+        RESULTS["applied"] += 1
+        return new_src
+    else:
+        fail("Search HTML: could not find <nav> anchor")
+        RESULTS["failed"] += 1
+        return src
 
-# ─────────────────────────────────────────────────────────────
-# PATCH 6 — Extend _social_tool_binary() for new tools
-# ─────────────────────────────────────────────────────────────
+# ═════════════════════════════════════════════════════════════
+# PATCH D — Inject search JS
+#
+# Injected just before the closing </script> tag of the
+# navToggle/navRestore block (which is inside <nav>).
+# We find that script block by looking for navRestore and its
+# closing </script>.
+# ═════════════════════════════════════════════════════════════
 
-OLD_TOOL_BINARY_END = '    return None, []'
+SEARCH_JS = '''
+// ── VulnScan Nav Search v2 ──────────────────────────────────
+var _vsNavIdx = null;
 
-NEW_TOOL_BINARY_END = '''    # Generic tool passthrough — binary name == tool name
-    generic_tools = {
-        "ffuf": "ffuf", "nuclei": "nuclei", "whatweb": "whatweb",
-        "wapiti": "wapiti", "dalfox": "dalfox", "sqlmap": "sqlmap",
-        "kxss": "kxss", "medusa": "medusa", "hping3": "hping3",
-        "scapy": "scapy3", "yersinia": "yersinia", "hashcat": "hashcat",
-        "john": "john", "searchsploit": "searchsploit", "seclists": "ls",
-        "ligolo-ng": "ligolo-ng", "chisel": "chisel", "rlwrap": "rlwrap",
-        "pspy": "pspy", "msfvenom": "msfvenom", "pwncat": "pwncat",
-        "grype": "grype", "radare2": "r2", "openvas": "openvas",
-        "chkrootkit": "chkrootkit", "rkhunter": "rkhunter",
+function _vsNavBuild() {
+  if (_vsNavIdx) return _vsNavIdx;
+  _vsNavIdx = [];
+  // Walk every nav-item button in the sidebar
+  var sidebar = document.querySelector('.sidebar nav');
+  if (!sidebar) return _vsNavIdx;
+  sidebar.querySelectorAll('button.nav-item').forEach(function(btn) {
+    var raw = btn.textContent || '';
+    // strip leading icon chars and whitespace
+    var label = raw.replace(/^[\\s\\u25CB\\u25CF\\u25A0\\u25A1\\u2022\\u26A1\\u2699\\u25B6\\u25BA\\u25B8\\u27A4\\u2714\\u2716\\u00B7]+/u, '').trim();
+    var oc = btn.getAttribute('onclick') || '';
+    var m = oc.match(/pg\\(['"]([^'"]+)['"]/);
+    var pageId = m ? m[1] : '';
+    if (label && pageId && label !== 'Home' && label !== 'Dashboard' && label !== 'History' && label !== 'Admin Console' && label !== 'About' && label !== 'Logout') {
+      _vsNavIdx.push({ label: label, pageId: pageId });
     }
-    if tool_name in generic_tools:
-        return shutil.which(generic_tools[tool_name]) or generic_tools[tool_name], []
-    return None, []'''
+  });
+  return _vsNavIdx;
+}
 
+function vsNavSearch(query) {
+  var results = document.getElementById('nav-search-results');
+  if (!results) return;
 
-# ─────────────────────────────────────────────────────────────
-# PATCH 7 — Remove duplicate bfAutoLoad definition
-#           (it was inside pg() before — now in generic runner)
-# ─────────────────────────────────────────────────────────────
+  query = (query || '').trim();
 
-OLD_BFAUTO = "  if(id==='brute')setTimeout(bfAutoLoad,300);"
-NEW_BFAUTO = "  if(id==='brute')setTimeout(function(){bfAutoLoad&&bfAutoLoad();},300);"
+  if (!query) {
+    results.style.display = 'none';
+    results.innerHTML = '';
+    return;
+  }
 
+  var ql = query.toLowerCase();
+  var idx = _vsNavBuild();
+  var hits = idx.filter(function(item) {
+    return item.label.toLowerCase().indexOf(ql) !== -1 ||
+           item.pageId.toLowerCase().indexOf(ql) !== -1;
+  });
 
-# ─────────────────────────────────────────────────────────────
+  if (!hits.length) {
+    results.innerHTML = '<div style="padding:9px 12px;font-size:11px;color:var(--text3);font-family:var(--mono)">No tools match</div>';
+    results.style.display = 'block';
+    return;
+  }
+
+  results.innerHTML = hits.slice(0, 20).map(function(item) {
+    var label = item.label;
+    var i = label.toLowerCase().indexOf(ql);
+    var hl = i >= 0
+      ? label.substring(0, i)
+        + '<mark style="background:rgba(255,214,10,0.32);color:inherit;border-radius:2px;padding:0 1px">'
+        + label.substring(i, i + query.length)
+        + '</mark>'
+        + label.substring(i + query.length)
+      : label;
+    return '<button class="nav-item" style="width:100%;border-radius:0;padding:7px 12px;text-align:left" '
+         + 'onclick="vsNavSelect(\'' + item.pageId + '\')" '
+         + 'data-page="' + item.pageId + '">'
+         + '<span class="ni">&#9675;</span> ' + hl + '</button>';
+  }).join('');
+
+  results.style.display = 'block';
+}
+
+function vsNavSelect(pageId) {
+  // Clear search
+  var input   = document.getElementById('nav-search-input');
+  var results = document.getElementById('nav-search-results');
+  if (input)   { input.value = ''; }
+  if (results) { results.innerHTML = ''; results.style.display = 'none'; }
+
+  // Navigate
+  pg(pageId, null);
+
+  // Expand the parent category
+  var sidebar = document.querySelector('.sidebar nav');
+  if (sidebar) {
+    sidebar.querySelectorAll('button.nav-item').forEach(function(btn) {
+      var oc = btn.getAttribute('onclick') || '';
+      if (oc.indexOf("'" + pageId + "'") !== -1 || oc.indexOf('"' + pageId + '"') !== -1) {
+        var section = btn.closest('.nav-cat-items');
+        if (section) {
+          var catId = section.id.replace('nc-', '');
+          var arrow = document.getElementById('na-' + catId);
+          section.classList.remove('collapsed');
+          section.classList.add('expanded');
+          if (arrow) arrow.classList.add('open');
+          try { localStorage.setItem('vs-nav-' + catId, '1'); } catch(e) {}
+        }
+        setTimeout(function() { btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 80);
+      }
+    });
+  }
+  _vsNavIdx = null; // rebuild next time
+}
+
+function vsNavSearchKey(e) {
+  var results = document.getElementById('nav-search-results');
+  var input   = document.getElementById('nav-search-input');
+  if (!results || results.style.display === 'none') return;
+  var btns = Array.from(results.querySelectorAll('button.nav-item'));
+  if (!btns.length) return;
+  var fi = btns.indexOf(document.activeElement);
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    (fi < btns.length - 1 ? btns[fi + 1] : btns[0]).focus();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (fi <= 0) { input && input.focus(); }
+    else btns[fi - 1].focus();
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    if (input) input.value = '';
+    results.innerHTML = ''; results.style.display = 'none';
+    if (input) input.blur();
+  } else if (e.key === 'Enter' && fi >= 0) {
+    e.preventDefault();
+    btns[fi].click();
+  }
+}
+
+// Dismiss search on outside click
+document.addEventListener('click', function(e) {
+  var input   = document.getElementById('nav-search-input');
+  var results = document.getElementById('nav-search-results');
+  if (!input || !results) return;
+  if (results.style.display === 'none') return;
+  if (!input.contains(e.target) && !results.contains(e.target)) {
+    if (input) input.value = '';
+    results.innerHTML = ''; results.style.display = 'none';
+  }
+});
+// ── /VulnScan Nav Search v2 ─────────────────────────────────
+'''
+
+def patch_search_js(src):
+    if 'VulnScan Nav Search v2' in src:
+        skip("Search JS: already applied")
+        RESULTS["skipped"] += 1
+        return src
+
+    # Find the navRestore addEventListener line + the closing </script>
+    # that belongs to the same inline <script> inside <nav>
+    # Pattern: the DOMContentLoaded navRestore listener followed (possibly
+    # after whitespace) by </script>
+    pattern = r"(document\.addEventListener\('DOMContentLoaded',navRestore\);)([ \t]*\n[ \t]*</script>)"
+    
+    replacement = r'\1' + SEARCH_JS + r'\2'
+    
+    new_src, count = re.subn(pattern, replacement, src, count=1)
+    if count:
+        ok("Search JS: injected vsNavSearch / vsNavSelect / keyboard handlers")
+        RESULTS["applied"] += 1
+        return new_src
+    else:
+        fail("Search JS: could not find navRestore addEventListener anchor")
+        RESULTS["failed"] += 1
+        return src
+
+# ═════════════════════════════════════════════════════════════
 # MAIN
-# ─────────────────────────────────────────────────────────────
+# ═════════════════════════════════════════════════════════════
 
 def main():
     print()
     print(B+C+"╔══════════════════════════════════════════════════════╗"+X)
-    print(B+C+"║  VulnScan Pro — Collapsible Nav + New Tools Patch   ║"+X)
+    print(B+C+"║  VulnScan Pro — Nav Patch v2 (robust re-apply)      ║"+X)
     print(B+C+"╚══════════════════════════════════════════════════════╝"+X)
     print()
 
-    missing = [f for f in ["api_server.py", "backend.py"] if not os.path.isfile(f)]
-    if missing:
-        print(R+B+f"  ERROR: Must be run from the VulnScan project root."+X)
-        print(f"  Missing: {', '.join(missing)}")
+    if not os.path.isfile(TARGET):
+        print(R+B+"  ERROR: api_server.py not found."+X)
+        print("  Run from the VulnScan project root:  cd ~/vulnscan")
         sys.exit(1)
 
-    info(f"Project root: {os.getcwd()}")
+    info(f"Project root : {os.getcwd()}")
+    info(f"Target file  : {TARGET} ({os.path.getsize(TARGET)//1024} KB)")
     print()
 
-    TARGET = "api_server.py"
-    print(B+f"  ── Patching {TARGET}"+X)
+    src = load()
 
-    apply(TARGET, [
-        ("Nav: collapsible categories + new tool entries",
-         OLD_NAV, NEW_NAV),
-        ("JS: PAGE_TITLES expanded with new tools",
-         OLD_TITLES, NEW_TITLES),
-        ("HTML: stub pages for all new tools",
-         OLD_PAGES_ANCHOR, NEW_PAGES_ANCHOR),
-        ("JS: runGenericTool() helper + loadUser()",
-         OLD_JS_LOADUSER, NEW_JS_LOADUSER),
-        ("Route: /social-tools/run allowed tools expanded",
-         OLD_TOOL_ALLOW, NEW_TOOL_ALLOW),
-        ("_social_tool_binary: generic tool passthrough",
-         OLD_TOOL_BINARY_END, NEW_TOOL_BINARY_END),
-        ("pg(): safe bfAutoLoad call",
-         OLD_BFAUTO, NEW_BFAUTO),
-    ])
-
-    print()
-
-    # Syntax check
-    if RESULTS["files"]:
-        print(B+"  Syntax checks:"+X)
-        all_ok = True
-        for path in RESULTS["files"]:
-            passed, err = syntax_check(path)
-            if passed:
-                ok(f"{path} — syntax OK")
-            else:
-                fail(f"{path} — SYNTAX ERROR: {err}")
-                all_ok = False
-        print()
-        if not all_ok:
-            warn("Syntax error detected. Restore with:  cp api_server.py.*.bak api_server.py")
+    # Step 1 — remove any broken v1 artifacts
+    print(B+"  ── Step 1: Clean up v1 injection (if present)"+X)
+    src, cleaned = remove_v1_search(src)
+    if cleaned:
+        ok("Removed v1 search artifacts")
     else:
-        if RESULTS["skipped"]:
-            info("All patches already applied — nothing to do.")
-        elif RESULTS["failed"]:
-            warn("No files modified (all patches failed to find their anchors).")
+        skip("No v1 artifacts found")
+    print()
+
+    # Step 2 — patch default closed
+    print(B+"  ── Step 2: Collapse categories by default"+X)
+    src = patch_default_closed(src)
+    print()
+
+    # Step 3 — inject search HTML
+    print(B+"  ── Step 3: Inject search bar HTML"+X)
+    src = patch_search_html(src)
+    print()
+
+    # Step 4 — inject search JS
+    print(B+"  ── Step 4: Inject search JavaScript"+X)
+    src = patch_search_js(src)
+    print()
+
+    # Save
+    if RESULTS["applied"] > 0:
+        bak = backup(TARGET)
+        save(src)
+        info(f"Backup: {bak}")
+        print()
+
+        # Syntax check
+        print(B+"  ── Syntax check"+X)
+        passed, err = syntax_check(TARGET)
+        if passed:
+            ok(f"{TARGET} — syntax OK")
+        else:
+            fail(f"SYNTAX ERROR — restore backup!\n    {err}")
+            print()
+            warn(f"Restore with:  cp {bak} {TARGET}")
+            sys.exit(1)
+    else:
+        info("No changes written (all skipped or failed)")
 
     # Summary
+    print()
     print(B+C+"══════════════════════════════════════════════════════"+X)
+    fc = RESULTS["failed"]
     print(
         f"  Applied : {G}{RESULTS['applied']}{X}  |  "
         f"Skipped : {D}{RESULTS['skipped']}{X}  |  "
-        f"Failed  : {(R if RESULTS['failed'] else D)}{RESULTS['failed']}{X}"
+        f"Failed  : {(R if fc else D)}{fc}{X}"
     )
     print()
 
-    for path in RESULTS["files"]:
-        print(f"  {G}✓{X}  Modified : {path}  {D}(backup saved){X}")
-
-    if RESULTS["restart"]:
+    if RESULTS["applied"] > 0:
+        print(f"  {G}Changes applied:{X}")
+        print(f"    {G}✓{X}  All nav categories start COLLAPSED by default")
+        print(f"    {G}✓{X}  Search bar above categories — type any tool name")
+        print(f"    {G}✓{X}  Arrow ↑↓ to navigate results, Escape to close")
+        print(f"    {G}✓{X}  Selecting a result auto-expands its category")
         print()
-        print(f"  {Y}Restart server to apply changes:{X}")
+        print(f"  {Y}Restart to activate:{X}")
         print(f"    python3 api_server.py")
         print(f"    OR: sudo systemctl restart vulnscan")
-        print()
-        print(f"  {G}What changed:{X}")
-        print(f"    {G}✓{X}  All nav categories are now collapsible (state persisted in localStorage)")
-        print(f"    {G}✓{X}  26 new tools added across Information, Web Testing, Attacks,")
-        print(f"         Password Attacks, Auditing, Exploit/Payload, Reverse Engineering,")
-        print(f"         C2/Pivoting (new) categories")
-        print(f"    {G}✓{X}  Each new tool gets a stub page with args input + output terminal")
-        print(f"    {G}✓{X}  /social-tools/run endpoint accepts all new tool names")
-        print(f"    {G}✓{X}  runGenericTool() JS helper handles all new tool pages uniformly")
-    elif RESULTS["skipped"]:
-        print(f"  {G}Already up to date.{X}")
+    elif RESULTS["failed"] > 0:
+        print(f"  {R}Some patches failed — see messages above.{X}")
+        print(f"  The file was NOT modified.")
+    else:
+        print(f"  {G}All patches already applied — no restart needed.{X}")
 
     print()
-
 
 if __name__ == "__main__":
     main()
