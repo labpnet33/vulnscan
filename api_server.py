@@ -762,54 +762,191 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
       </div>
     </div>
     <nav>
+      <style>
+.nav-section{padding:4px 10px}
+.nav-cat-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:6px 8px;border-radius:var(--radius);user-select:none}
+.nav-cat-toggle:hover{background:var(--bg3)}
+.nav-cat-label{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;font-weight:500}
+.nav-cat-arrow{font-size:9px;color:var(--text3);transition:transform 0.2s}
+.nav-cat-arrow.open{transform:rotate(180deg)}
+.nav-cat-items{overflow:hidden;transition:max-height 0.25s ease,opacity 0.2s}
+.nav-cat-items.collapsed{max-height:0!important;opacity:0;pointer-events:none}
+.nav-cat-items.expanded{opacity:1}
+      </style>
+      <script>
+function navToggle(id){
+  var items=document.getElementById('nc-'+id);
+  var arrow=document.getElementById('na-'+id);
+  if(!items)return;
+  var collapsed=items.classList.contains('collapsed');
+  items.classList.toggle('collapsed',!collapsed);
+  items.classList.toggle('expanded',collapsed);
+  if(arrow)arrow.classList.toggle('open',collapsed);
+  try{localStorage.setItem('vs-nav-'+id,collapsed?'1':'0');}catch(e){}
+}
+function navRestore(){
+  ['overview','information','webtesting','attacks','webapp','passwords','recon','exploitation','auditing','c2','social','reverseeng','tunneling','admin'].forEach(function(id){
+    var items=document.getElementById('nc-'+id);
+    var arrow=document.getElementById('na-'+id);
+    if(!items)return;
+    var stored;try{stored=localStorage.getItem('vs-nav-'+id);}catch(e){}
+    var open=(stored===null)?1:(stored==='1'?1:0);
+    items.classList.toggle('collapsed',!open);
+    items.classList.toggle('expanded',!!open);
+    if(arrow)arrow.classList.toggle('open',!!open);
+  });
+}
+document.addEventListener('DOMContentLoaded',navRestore);
+      </script>
+
       <div class="nav-section">
-        <div class="nav-label">OVERVIEW</div>
-        <button class="nav-item" id="ni-home" onclick="pg('home',this)"><span class="ni">&#9700;</span> Home</button>
-        <button class="nav-item" id="ni-dash" onclick="pg('dash',this)"><span class="ni">&#9636;</span> Dashboard</button>
-        <button class="nav-item" id="ni-hist" onclick="pg('hist',this)"><span class="ni">&#9632;</span> History</button>
+        <div class="nav-cat-toggle" onclick="navToggle('overview')">
+          <span class="nav-cat-label">OVERVIEW</span>
+          <span class="nav-cat-arrow open" id="na-overview">&#9660;</span>
+        </div>
+        <div class="nav-cat-items expanded" id="nc-overview" style="max-height:200px">
+          <button class="nav-item" id="ni-home" onclick="pg('home',this)"><span class="ni">&#9700;</span> Home</button>
+          <button class="nav-item" id="ni-dash" onclick="pg('dash',this)"><span class="ni">&#9636;</span> Dashboard</button>
+          <button class="nav-item" id="ni-hist" onclick="pg('hist',this)"><span class="ni">&#9632;</span> History</button>
+        </div>
       </div>
+
       <div class="nav-section">
-        <div class="nav-label">INFORMATION</div>
-        <button class="nav-item" id="ni-scan" onclick="pg('scan',this)"><span class="ni">&#9675;</span> Network Scanner</button>
-        <button class="nav-item" id="ni-dnsrecon" onclick="pg('dnsrecon',this)"><span class="ni">&#9675;</span> DNSRecon</button>
-        <button class="nav-item" id="ni-disc" onclick="pg('disc',this)"><span class="ni">&#9675;</span> Net Discovery</button>
-        <button class="nav-item" id="ni-harvester" onclick="pg('harvester',this)"><span class="ni">&#9675;</span> theHarvester</button>
-        <button class="nav-item" id="ni-sub" onclick="pg('sub',this)"><span class="ni">&#9675;</span> Subdomain Finder</button>
-        <button class="nav-item" id="ni-legion" onclick="pg('legion',this)"><span class="ni">&#9675;</span> Legion</button>
+        <div class="nav-cat-toggle" onclick="navToggle('information')">
+          <span class="nav-cat-label">INFORMATION</span>
+          <span class="nav-cat-arrow open" id="na-information">&#9660;</span>
+        </div>
+        <div class="nav-cat-items expanded" id="nc-information" style="max-height:400px">
+          <button class="nav-item" id="ni-scan" onclick="pg('scan',this)"><span class="ni">&#9675;</span> Network Scanner</button>
+          <button class="nav-item" id="ni-dnsrecon" onclick="pg('dnsrecon',this)"><span class="ni">&#9675;</span> DNSRecon</button>
+          <button class="nav-item" id="ni-disc" onclick="pg('disc',this)"><span class="ni">&#9675;</span> Net Discovery</button>
+          <button class="nav-item" id="ni-harvester" onclick="pg('harvester',this)"><span class="ni">&#9675;</span> theHarvester</button>
+          <button class="nav-item" id="ni-sub" onclick="pg('sub',this)"><span class="ni">&#9675;</span> Subdomain Finder</button>
+          <button class="nav-item" id="ni-legion" onclick="pg('legion',this)"><span class="ni">&#9675;</span> Legion</button>
+          <button class="nav-item" id="ni-searchsploit" onclick="pg('searchsploit',this)"><span class="ni">&#9675;</span> SearchSploit</button>
+          <button class="nav-item" id="ni-seclists" onclick="pg('seclists',this)"><span class="ni">&#9675;</span> SecLists</button>
+        </div>
       </div>
+
       <div class="nav-section">
-        <div class="nav-label">WEB TESTING</div>
-        <button class="nav-item" id="ni-webdeep" onclick="pg('webdeep',this)"><span class="ni">&#9675;</span> Deep Web Audit</button>
-        <button class="nav-item" id="ni-nikto" onclick="pg('nikto',this)"><span class="ni">&#9675;</span> Nikto</button>
-        <button class="nav-item" id="ni-wpscan" onclick="pg('wpscan',this)"><span class="ni">&#9675;</span> WPScan</button>
-        <button class="nav-item" id="ni-dir" onclick="pg('dir',this)"><span class="ni">&#9675;</span> Dir Buster</button>
+        <div class="nav-cat-toggle" onclick="navToggle('webtesting')">
+          <span class="nav-cat-label">WEB TESTING</span>
+          <span class="nav-cat-arrow open" id="na-webtesting">&#9660;</span>
+        </div>
+        <div class="nav-cat-items expanded" id="nc-webtesting" style="max-height:500px">
+          <button class="nav-item" id="ni-webdeep" onclick="pg('webdeep',this)"><span class="ni">&#9675;</span> Deep Web Audit</button>
+          <button class="nav-item" id="ni-nikto" onclick="pg('nikto',this)"><span class="ni">&#9675;</span> Nikto</button>
+          <button class="nav-item" id="ni-wpscan" onclick="pg('wpscan',this)"><span class="ni">&#9675;</span> WPScan</button>
+          <button class="nav-item" id="ni-dir" onclick="pg('dir',this)"><span class="ni">&#9675;</span> Dir Buster</button>
+          <button class="nav-item" id="ni-ffuf" onclick="pg('ffuf',this)"><span class="ni">&#9675;</span> ffuf</button>
+          <button class="nav-item" id="ni-nuclei" onclick="pg('nuclei',this)"><span class="ni">&#9675;</span> Nuclei</button>
+          <button class="nav-item" id="ni-whatweb" onclick="pg('whatweb',this)"><span class="ni">&#9675;</span> WhatWeb</button>
+          <button class="nav-item" id="ni-wapiti" onclick="pg('wapiti',this)"><span class="ni">&#9675;</span> Wapiti</button>
+          <button class="nav-item" id="ni-dalfox" onclick="pg('dalfox',this)"><span class="ni">&#9675;</span> Dalfox</button>
+          <button class="nav-item" id="ni-sqlmap" onclick="pg('sqlmap',this)"><span class="ni">&#9675;</span> SQLMap</button>
+          <button class="nav-item" id="ni-kxss" onclick="pg('kxss',this)"><span class="ni">&#9675;</span> kxss</button>
+        </div>
       </div>
+
       <div class="nav-section">
-        <div class="nav-label">ATTACKS</div>
-        <button class="nav-item" id="ni-brute" onclick="pg('brute',this)"><span class="ni">&#9675;</span> Brute Force</button>
+        <div class="nav-cat-toggle" onclick="navToggle('attacks')">
+          <span class="nav-cat-label">ATTACKS</span>
+          <span class="nav-cat-arrow open" id="na-attacks">&#9660;</span>
+        </div>
+        <div class="nav-cat-items expanded" id="nc-attacks" style="max-height:300px">
+          <button class="nav-item" id="ni-brute" onclick="pg('brute',this)"><span class="ni">&#9675;</span> Brute Force</button>
+          <button class="nav-item" id="ni-medusa" onclick="pg('medusa',this)"><span class="ni">&#9675;</span> Medusa</button>
+          <button class="nav-item" id="ni-hping3" onclick="pg('hping3',this)"><span class="ni">&#9675;</span> hping3</button>
+          <button class="nav-item" id="ni-scapy" onclick="pg('scapy',this)"><span class="ni">&#9675;</span> Scapy</button>
+          <button class="nav-item" id="ni-yersinia" onclick="pg('yersinia',this)"><span class="ni">&#9675;</span> Yersinia</button>
+        </div>
       </div>
+
       <div class="nav-section">
-        <div class="nav-label">SOCIAL ENGINEERING</div>
-        <button class="nav-item" id="ni-setoolkit" onclick="pg('setoolkit',this)"><span class="ni">&#9675;</span> Social-Engineer Toolkit</button>
-        <button class="nav-item" id="ni-gophish" onclick="pg('gophish',this)"><span class="ni">&#9675;</span> Gophish</button>
-        <button class="nav-item" id="ni-evilginx2" onclick="pg('evilginx2',this)"><span class="ni">&#9675;</span> Evilginx2</button>
-        <button class="nav-item" id="ni-shellphish" onclick="pg('shellphish',this)"><span class="ni">&#9675;</span> ShellPhish</button>
+        <div class="nav-cat-toggle" onclick="navToggle('passwords')">
+          <span class="nav-cat-label">PASSWORD ATTACKS</span>
+          <span class="nav-cat-arrow open" id="na-passwords">&#9660;</span>
+        </div>
+        <div class="nav-cat-items expanded" id="nc-passwords" style="max-height:200px">
+          <button class="nav-item" id="ni-hashcat" onclick="pg('hashcat',this)"><span class="ni">&#9675;</span> Hashcat</button>
+          <button class="nav-item" id="ni-john" onclick="pg('john',this)"><span class="ni">&#9675;</span> John the Ripper</button>
+        </div>
       </div>
+
       <div class="nav-section">
-        <div class="nav-label">C2 / PIVOTING</div>
-        <button class="nav-item" id="ni-netcat" onclick="pg('netcat',this)"><span class="ni">&#9675;</span> Netcat</button>
-        <button class="nav-item" id="ni-ncat" onclick="pg('ncat',this)"><span class="ni">&#9675;</span> Ncat</button>
-        <button class="nav-item" id="ni-socat" onclick="pg('socat',this)"><span class="ni">&#9675;</span> Socat</button>
-        <button class="nav-item" id="ni-sliver" onclick="pg('sliver',this)"><span class="ni">&#9675;</span> Sliver</button>
-        <button class="nav-item" id="ni-empire" onclick="pg('empire',this)"><span class="ni">&#9675;</span> Empire</button>
+        <div class="nav-cat-toggle" onclick="navToggle('social')">
+          <span class="nav-cat-label">SOCIAL ENGINEERING</span>
+          <span class="nav-cat-arrow open" id="na-social">&#9660;</span>
+        </div>
+        <div class="nav-cat-items expanded" id="nc-social" style="max-height:300px">
+          <button class="nav-item" id="ni-setoolkit" onclick="pg('setoolkit',this)"><span class="ni">&#9675;</span> Social-Engineer Toolkit</button>
+          <button class="nav-item" id="ni-gophish" onclick="pg('gophish',this)"><span class="ni">&#9675;</span> Gophish</button>
+          <button class="nav-item" id="ni-evilginx2" onclick="pg('evilginx2',this)"><span class="ni">&#9675;</span> Evilginx2</button>
+          <button class="nav-item" id="ni-shellphish" onclick="pg('shellphish',this)"><span class="ni">&#9675;</span> ShellPhish</button>
+        </div>
       </div>
+
       <div class="nav-section">
-        <div class="nav-label">AUDITING</div>
-        <button class="nav-item" id="ni-lynis" onclick="pg('lynis',this)"><span class="ni">&#9675;</span> Lynis</button>
+        <div class="nav-cat-toggle" onclick="navToggle('c2')">
+          <span class="nav-cat-label">C2 / PIVOTING</span>
+          <span class="nav-cat-arrow open" id="na-c2">&#9660;</span>
+        </div>
+        <div class="nav-cat-items expanded" id="nc-c2" style="max-height:400px">
+          <button class="nav-item" id="ni-netcat" onclick="pg('netcat',this)"><span class="ni">&#9675;</span> Netcat</button>
+          <button class="nav-item" id="ni-ncat" onclick="pg('ncat',this)"><span class="ni">&#9675;</span> Ncat</button>
+          <button class="nav-item" id="ni-socat" onclick="pg('socat',this)"><span class="ni">&#9675;</span> Socat</button>
+          <button class="nav-item" id="ni-sliver" onclick="pg('sliver',this)"><span class="ni">&#9675;</span> Sliver</button>
+          <button class="nav-item" id="ni-empire" onclick="pg('empire',this)"><span class="ni">&#9675;</span> Empire</button>
+          <button class="nav-item" id="ni-ligolo" onclick="pg('ligolo',this)"><span class="ni">&#9675;</span> Ligolo-ng</button>
+          <button class="nav-item" id="ni-chisel" onclick="pg('chisel',this)"><span class="ni">&#9675;</span> Chisel</button>
+          <button class="nav-item" id="ni-rlwrap" onclick="pg('rlwrap',this)"><span class="ni">&#9675;</span> rlwrap</button>
+          <button class="nav-item" id="ni-pspy" onclick="pg('pspy',this)"><span class="ni">&#9675;</span> pspy</button>
+        </div>
       </div>
+
+      <div class="nav-section">
+        <div class="nav-cat-toggle" onclick="navToggle('exploitation')">
+          <span class="nav-cat-label">EXPLOIT / PAYLOAD</span>
+          <span class="nav-cat-arrow open" id="na-exploitation">&#9660;</span>
+        </div>
+        <div class="nav-cat-items expanded" id="nc-exploitation" style="max-height:200px">
+          <button class="nav-item" id="ni-msfvenom" onclick="pg('msfvenom',this)"><span class="ni">&#9675;</span> msfvenom</button>
+          <button class="nav-item" id="ni-pwncat" onclick="pg('pwncat',this)"><span class="ni">&#9675;</span> pwncat</button>
+          <button class="nav-item" id="ni-grype" onclick="pg('grype',this)"><span class="ni">&#9675;</span> Grype</button>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-cat-toggle" onclick="navToggle('reverseeng')">
+          <span class="nav-cat-label">REVERSE ENGINEERING</span>
+          <span class="nav-cat-arrow open" id="na-reverseeng">&#9660;</span>
+        </div>
+        <div class="nav-cat-items expanded" id="nc-reverseeng" style="max-height:200px">
+          <button class="nav-item" id="ni-radare2" onclick="pg('radare2',this)"><span class="ni">&#9675;</span> Radare2</button>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-cat-toggle" onclick="navToggle('auditing')">
+          <span class="nav-cat-label">AUDITING</span>
+          <span class="nav-cat-arrow open" id="na-auditing">&#9660;</span>
+        </div>
+        <div class="nav-cat-items expanded" id="nc-auditing" style="max-height:300px">
+          <button class="nav-item" id="ni-lynis" onclick="pg('lynis',this)"><span class="ni">&#9675;</span> Lynis</button>
+          <button class="nav-item" id="ni-openvas" onclick="pg('openvas',this)"><span class="ni">&#9675;</span> OpenVAS</button>
+          <button class="nav-item" id="ni-chkrootkit" onclick="pg('chkrootkit',this)"><span class="ni">&#9675;</span> chkrootkit</button>
+          <button class="nav-item" id="ni-rkhunter" onclick="pg('rkhunter',this)"><span class="ni">&#9675;</span> rkhunter</button>
+        </div>
+      </div>
+
       <div class="nav-section" id="admin-nav-section" style="display:none">
-        <div class="nav-label">ADMIN</div>
-        <button class="nav-item" id="ni-admin" onclick="pg('admin',this)"><span class="ni">&#9632;</span> Admin Console</button>
+        <div class="nav-cat-toggle" onclick="navToggle('admin')">
+          <span class="nav-cat-label">ADMIN</span>
+          <span class="nav-cat-arrow open" id="na-admin">&#9660;</span>
+        </div>
+        <div class="nav-cat-items expanded" id="nc-admin" style="max-height:100px">
+          <button class="nav-item" id="ni-admin" onclick="pg('admin',this)"><span class="ni">&#9632;</span> Admin Console</button>
+        </div>
       </div>
     </nav>
     <div class="sidebar-footer">
@@ -1568,6 +1705,580 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
         </div>
       </div>
 
+
+      <!-- FFUF -->
+      <div class="page" id="page-ffuf">
+        <div class="page-hd"><div class="page-title">ffuf</div><div class="page-desc">Fast web fuzzer for content discovery and parameter fuzzing</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run ffuf on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="ffuf-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="ffuf-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="ffuf-bin" type="text" value="ffuf"/></div>
+          </div>
+          <button class="btn btn-primary" id="ffuf-btn" onclick="runGenericTool('ffuf','ffuf')">RUN FFUF</button>
+        </div>
+        <div class="progress-wrap" id="ffuf-prog"><div class="progress-bar" id="ffuf-pb" style="width:0%"></div></div>
+        <div class="terminal" id="ffuf-term"></div>
+        <div class="err-box" id="ffuf-err"></div>
+        <div id="ffuf-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install ffuf</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">web-testing</span><span class="tag">ffuf</span></div>
+        </div>
+      </div>
+      <!-- NUCLEI -->
+      <div class="page" id="page-nuclei">
+        <div class="page-hd"><div class="page-title">Nuclei</div><div class="page-desc">Template-based vulnerability scanner with thousands of community checks</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run Nuclei on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="nuclei-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="nuclei-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="nuclei-bin" type="text" value="nuclei"/></div>
+          </div>
+          <button class="btn btn-primary" id="nuclei-btn" onclick="runGenericTool('nuclei','nuclei')">RUN NUCLEI</button>
+        </div>
+        <div class="progress-wrap" id="nuclei-prog"><div class="progress-bar" id="nuclei-pb" style="width:0%"></div></div>
+        <div class="terminal" id="nuclei-term"></div>
+        <div class="err-box" id="nuclei-err"></div>
+        <div id="nuclei-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install nuclei</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">web-testing</span><span class="tag">nuclei</span></div>
+        </div>
+      </div>
+      <!-- WHATWEB -->
+      <div class="page" id="page-whatweb">
+        <div class="page-hd"><div class="page-title">WhatWeb</div><div class="page-desc">Web technology fingerprinter — identify CMS, frameworks, servers</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run WhatWeb on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="whatweb-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="whatweb-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="whatweb-bin" type="text" value="whatweb"/></div>
+          </div>
+          <button class="btn btn-primary" id="whatweb-btn" onclick="runGenericTool('whatweb','whatweb')">RUN WHATWEB</button>
+        </div>
+        <div class="progress-wrap" id="whatweb-prog"><div class="progress-bar" id="whatweb-pb" style="width:0%"></div></div>
+        <div class="terminal" id="whatweb-term"></div>
+        <div class="err-box" id="whatweb-err"></div>
+        <div id="whatweb-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install whatweb</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">web-testing</span><span class="tag">whatweb</span></div>
+        </div>
+      </div>
+      <!-- WAPITI -->
+      <div class="page" id="page-wapiti">
+        <div class="page-hd"><div class="page-title">Wapiti</div><div class="page-desc">Web application vulnerability scanner (SQLi, XSS, file disclosure)</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run Wapiti on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="wapiti-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="wapiti-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="wapiti-bin" type="text" value="wapiti"/></div>
+          </div>
+          <button class="btn btn-primary" id="wapiti-btn" onclick="runGenericTool('wapiti','wapiti')">RUN WAPITI</button>
+        </div>
+        <div class="progress-wrap" id="wapiti-prog"><div class="progress-bar" id="wapiti-pb" style="width:0%"></div></div>
+        <div class="terminal" id="wapiti-term"></div>
+        <div class="err-box" id="wapiti-err"></div>
+        <div id="wapiti-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install wapiti</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">web-testing</span><span class="tag">wapiti</span></div>
+        </div>
+      </div>
+      <!-- DALFOX -->
+      <div class="page" id="page-dalfox">
+        <div class="page-hd"><div class="page-title">Dalfox</div><div class="page-desc">XSS parameter analysis and scanning tool</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run Dalfox on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="dalfox-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="dalfox-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="dalfox-bin" type="text" value="dalfox"/></div>
+          </div>
+          <button class="btn btn-primary" id="dalfox-btn" onclick="runGenericTool('dalfox','dalfox')">RUN DALFOX</button>
+        </div>
+        <div class="progress-wrap" id="dalfox-prog"><div class="progress-bar" id="dalfox-pb" style="width:0%"></div></div>
+        <div class="terminal" id="dalfox-term"></div>
+        <div class="err-box" id="dalfox-err"></div>
+        <div id="dalfox-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">go install github.com/hahwul/dalfox/v2@latest</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">web-testing</span><span class="tag">dalfox</span></div>
+        </div>
+      </div>
+      <!-- SQLMAP -->
+      <div class="page" id="page-sqlmap">
+        <div class="page-hd"><div class="page-title">SQLMap</div><div class="page-desc">Automatic SQL injection detection and exploitation tool</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run SQLMap on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="sqlmap-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="sqlmap-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="sqlmap-bin" type="text" value="sqlmap"/></div>
+          </div>
+          <button class="btn btn-primary" id="sqlmap-btn" onclick="runGenericTool('sqlmap','sqlmap')">RUN SQLMAP</button>
+        </div>
+        <div class="progress-wrap" id="sqlmap-prog"><div class="progress-bar" id="sqlmap-pb" style="width:0%"></div></div>
+        <div class="terminal" id="sqlmap-term"></div>
+        <div class="err-box" id="sqlmap-err"></div>
+        <div id="sqlmap-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install sqlmap</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">web-testing</span><span class="tag">sqlmap</span></div>
+        </div>
+      </div>
+      <!-- KXSS -->
+      <div class="page" id="page-kxss">
+        <div class="page-hd"><div class="page-title">kxss</div><div class="page-desc">XSS parameter finder and reflection checker</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run kxss on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="kxss-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="kxss-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="kxss-bin" type="text" value="kxss"/></div>
+          </div>
+          <button class="btn btn-primary" id="kxss-btn" onclick="runGenericTool('kxss','kxss')">RUN KXSS</button>
+        </div>
+        <div class="progress-wrap" id="kxss-prog"><div class="progress-bar" id="kxss-pb" style="width:0%"></div></div>
+        <div class="terminal" id="kxss-term"></div>
+        <div class="err-box" id="kxss-err"></div>
+        <div id="kxss-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">go install github.com/Emoe/kxss@latest</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">web-testing</span><span class="tag">kxss</span></div>
+        </div>
+      </div>
+      <!-- MEDUSA -->
+      <div class="page" id="page-medusa">
+        <div class="page-hd"><div class="page-title">Medusa</div><div class="page-desc">Fast parallel network login auditor (multi-protocol brute force)</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run Medusa on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="medusa-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="medusa-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="medusa-bin" type="text" value="medusa"/></div>
+          </div>
+          <button class="btn btn-primary" id="medusa-btn" onclick="runGenericTool('medusa','medusa')">RUN MEDUSA</button>
+        </div>
+        <div class="progress-wrap" id="medusa-prog"><div class="progress-bar" id="medusa-pb" style="width:0%"></div></div>
+        <div class="terminal" id="medusa-term"></div>
+        <div class="err-box" id="medusa-err"></div>
+        <div id="medusa-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install medusa</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">attacks</span><span class="tag">medusa</span></div>
+        </div>
+      </div>
+      <!-- HPING3 -->
+      <div class="page" id="page-hping3">
+        <div class="page-hd"><div class="page-title">hping3</div><div class="page-desc">TCP/IP packet assembler and analyzer for network testing</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run hping3 on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="hping3-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="hping3-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="hping3-bin" type="text" value="hping3"/></div>
+          </div>
+          <button class="btn btn-primary" id="hping3-btn" onclick="runGenericTool('hping3','hping3')">RUN HPING3</button>
+        </div>
+        <div class="progress-wrap" id="hping3-prog"><div class="progress-bar" id="hping3-pb" style="width:0%"></div></div>
+        <div class="terminal" id="hping3-term"></div>
+        <div class="err-box" id="hping3-err"></div>
+        <div id="hping3-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install hping3</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">network-attack</span><span class="tag">hping3</span></div>
+        </div>
+      </div>
+      <!-- SCAPY -->
+      <div class="page" id="page-scapy">
+        <div class="page-hd"><div class="page-title">Scapy</div><div class="page-desc">Interactive packet manipulation and network analysis framework</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run Scapy on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="scapy-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="scapy-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="scapy-bin" type="text" value="scapy"/></div>
+          </div>
+          <button class="btn btn-primary" id="scapy-btn" onclick="runGenericTool('scapy','scapy')">RUN SCAPY</button>
+        </div>
+        <div class="progress-wrap" id="scapy-prog"><div class="progress-bar" id="scapy-pb" style="width:0%"></div></div>
+        <div class="terminal" id="scapy-term"></div>
+        <div class="err-box" id="scapy-err"></div>
+        <div id="scapy-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install python3-scapy</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">network-attack</span><span class="tag">scapy</span></div>
+        </div>
+      </div>
+      <!-- YERSINIA -->
+      <div class="page" id="page-yersinia">
+        <div class="page-hd"><div class="page-title">Yersinia</div><div class="page-desc">Network protocol attacks (STP, CDP, DTP, DHCP, 802.1Q, VTP, HSRP)</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run Yersinia on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="yersinia-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="yersinia-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="yersinia-bin" type="text" value="yersinia"/></div>
+          </div>
+          <button class="btn btn-primary" id="yersinia-btn" onclick="runGenericTool('yersinia','yersinia')">RUN YERSINIA</button>
+        </div>
+        <div class="progress-wrap" id="yersinia-prog"><div class="progress-bar" id="yersinia-pb" style="width:0%"></div></div>
+        <div class="terminal" id="yersinia-term"></div>
+        <div class="err-box" id="yersinia-err"></div>
+        <div id="yersinia-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install yersinia</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">network-attack</span><span class="tag">yersinia</span></div>
+        </div>
+      </div>
+      <!-- HASHCAT -->
+      <div class="page" id="page-hashcat">
+        <div class="page-hd"><div class="page-title">Hashcat</div><div class="page-desc">World's fastest GPU-based password recovery utility</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run Hashcat on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="hashcat-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="hashcat-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="hashcat-bin" type="text" value="hashcat"/></div>
+          </div>
+          <button class="btn btn-primary" id="hashcat-btn" onclick="runGenericTool('hashcat','hashcat')">RUN HASHCAT</button>
+        </div>
+        <div class="progress-wrap" id="hashcat-prog"><div class="progress-bar" id="hashcat-pb" style="width:0%"></div></div>
+        <div class="terminal" id="hashcat-term"></div>
+        <div class="err-box" id="hashcat-err"></div>
+        <div id="hashcat-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install hashcat</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">passwords</span><span class="tag">hashcat</span></div>
+        </div>
+      </div>
+      <!-- JOHN THE RIPPER -->
+      <div class="page" id="page-john">
+        <div class="page-hd"><div class="page-title">John the Ripper</div><div class="page-desc">Versatile password cracker supporting many hash formats</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run John the Ripper on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="john-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="john-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="john-bin" type="text" value="john"/></div>
+          </div>
+          <button class="btn btn-primary" id="john-btn" onclick="runGenericTool('john','john')">RUN JOHN THE RIPPER</button>
+        </div>
+        <div class="progress-wrap" id="john-prog"><div class="progress-bar" id="john-pb" style="width:0%"></div></div>
+        <div class="terminal" id="john-term"></div>
+        <div class="err-box" id="john-err"></div>
+        <div id="john-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install john</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">passwords</span><span class="tag">john</span></div>
+        </div>
+      </div>
+      <!-- SEARCHSPLOIT -->
+      <div class="page" id="page-searchsploit">
+        <div class="page-hd"><div class="page-title">SearchSploit</div><div class="page-desc">Command-line search tool for Exploit-DB offline archive</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run SearchSploit on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="searchsploit-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="searchsploit-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="searchsploit-bin" type="text" value="searchsploit"/></div>
+          </div>
+          <button class="btn btn-primary" id="searchsploit-btn" onclick="runGenericTool('searchsploit','searchsploit')">RUN SEARCHSPLOIT</button>
+        </div>
+        <div class="progress-wrap" id="searchsploit-prog"><div class="progress-bar" id="searchsploit-pb" style="width:0%"></div></div>
+        <div class="terminal" id="searchsploit-term"></div>
+        <div class="err-box" id="searchsploit-err"></div>
+        <div id="searchsploit-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install exploitdb</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">information</span><span class="tag">searchsploit</span></div>
+        </div>
+      </div>
+      <!-- SECLISTS -->
+      <div class="page" id="page-seclists">
+        <div class="page-hd"><div class="page-title">SecLists</div><div class="page-desc">Collection of security wordlists for fuzzing and enumeration</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run SecLists on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="seclists-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="seclists-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="seclists-bin" type="text" value="seclists"/></div>
+          </div>
+          <button class="btn btn-primary" id="seclists-btn" onclick="runGenericTool('seclists','seclists')">RUN SECLISTS</button>
+        </div>
+        <div class="progress-wrap" id="seclists-prog"><div class="progress-bar" id="seclists-pb" style="width:0%"></div></div>
+        <div class="terminal" id="seclists-term"></div>
+        <div class="err-box" id="seclists-err"></div>
+        <div id="seclists-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install seclists</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">information</span><span class="tag">seclists</span></div>
+        </div>
+      </div>
+      <!-- LIGOLO-NG -->
+      <div class="page" id="page-ligolo">
+        <div class="page-hd"><div class="page-title">Ligolo-ng</div><div class="page-desc">Advanced tunneling tool for network pivoting via TUN interface</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run Ligolo-ng on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="ligolo-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="ligolo-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="ligolo-bin" type="text" value="ligolo-ng"/></div>
+          </div>
+          <button class="btn btn-primary" id="ligolo-btn" onclick="runGenericTool('ligolo','ligolo-ng')">RUN LIGOLO-NG</button>
+        </div>
+        <div class="progress-wrap" id="ligolo-prog"><div class="progress-bar" id="ligolo-pb" style="width:0%"></div></div>
+        <div class="terminal" id="ligolo-term"></div>
+        <div class="err-box" id="ligolo-err"></div>
+        <div id="ligolo-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install ligolo-ng</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">tunneling</span><span class="tag">ligolo-ng</span></div>
+        </div>
+      </div>
+      <!-- CHISEL -->
+      <div class="page" id="page-chisel">
+        <div class="page-hd"><div class="page-title">Chisel</div><div class="page-desc">Fast TCP/UDP tunnel over HTTP using SSH transport</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run Chisel on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="chisel-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="chisel-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="chisel-bin" type="text" value="chisel"/></div>
+          </div>
+          <button class="btn btn-primary" id="chisel-btn" onclick="runGenericTool('chisel','chisel')">RUN CHISEL</button>
+        </div>
+        <div class="progress-wrap" id="chisel-prog"><div class="progress-bar" id="chisel-pb" style="width:0%"></div></div>
+        <div class="terminal" id="chisel-term"></div>
+        <div class="err-box" id="chisel-err"></div>
+        <div id="chisel-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install chisel</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">tunneling</span><span class="tag">chisel</span></div>
+        </div>
+      </div>
+      <!-- RLWRAP -->
+      <div class="page" id="page-rlwrap">
+        <div class="page-hd"><div class="page-title">rlwrap</div><div class="page-desc">Readline wrapper — adds command history to any CLI tool</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run rlwrap on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="rlwrap-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="rlwrap-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="rlwrap-bin" type="text" value="rlwrap"/></div>
+          </div>
+          <button class="btn btn-primary" id="rlwrap-btn" onclick="runGenericTool('rlwrap','rlwrap')">RUN RLWRAP</button>
+        </div>
+        <div class="progress-wrap" id="rlwrap-prog"><div class="progress-bar" id="rlwrap-pb" style="width:0%"></div></div>
+        <div class="terminal" id="rlwrap-term"></div>
+        <div class="err-box" id="rlwrap-err"></div>
+        <div id="rlwrap-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install rlwrap</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">tunneling</span><span class="tag">rlwrap</span></div>
+        </div>
+      </div>
+      <!-- PSPY -->
+      <div class="page" id="page-pspy">
+        <div class="page-hd"><div class="page-title">pspy</div><div class="page-desc">Process spy — monitor Linux processes without root privileges</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run pspy on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="pspy-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="pspy-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="pspy-bin" type="text" value="pspy"/></div>
+          </div>
+          <button class="btn btn-primary" id="pspy-btn" onclick="runGenericTool('pspy','pspy')">RUN PSPY</button>
+        </div>
+        <div class="progress-wrap" id="pspy-prog"><div class="progress-bar" id="pspy-pb" style="width:0%"></div></div>
+        <div class="terminal" id="pspy-term"></div>
+        <div class="err-box" id="pspy-err"></div>
+        <div id="pspy-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">Download from github.com/DominicBreuker/pspy</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">tunneling</span><span class="tag">pspy</span></div>
+        </div>
+      </div>
+      <!-- MSFVENOM -->
+      <div class="page" id="page-msfvenom">
+        <div class="page-hd"><div class="page-title">msfvenom</div><div class="page-desc">Metasploit payload generator and encoder</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run msfvenom on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="msfvenom-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="msfvenom-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="msfvenom-bin" type="text" value="msfvenom"/></div>
+          </div>
+          <button class="btn btn-primary" id="msfvenom-btn" onclick="runGenericTool('msfvenom','msfvenom')">RUN MSFVENOM</button>
+        </div>
+        <div class="progress-wrap" id="msfvenom-prog"><div class="progress-bar" id="msfvenom-pb" style="width:0%"></div></div>
+        <div class="terminal" id="msfvenom-term"></div>
+        <div class="err-box" id="msfvenom-err"></div>
+        <div id="msfvenom-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install metasploit-framework</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">exploit</span><span class="tag">msfvenom</span></div>
+        </div>
+      </div>
+      <!-- PWNCAT -->
+      <div class="page" id="page-pwncat">
+        <div class="page-hd"><div class="page-title">pwncat</div><div class="page-desc">Feature-rich reverse/bind shell handler with post-exploitation</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run pwncat on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="pwncat-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="pwncat-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="pwncat-bin" type="text" value="pwncat"/></div>
+          </div>
+          <button class="btn btn-primary" id="pwncat-btn" onclick="runGenericTool('pwncat','pwncat')">RUN PWNCAT</button>
+        </div>
+        <div class="progress-wrap" id="pwncat-prog"><div class="progress-bar" id="pwncat-pb" style="width:0%"></div></div>
+        <div class="terminal" id="pwncat-term"></div>
+        <div class="err-box" id="pwncat-err"></div>
+        <div id="pwncat-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">pip3 install pwncat-cs --break-system-packages</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">exploit</span><span class="tag">pwncat</span></div>
+        </div>
+      </div>
+      <!-- GRYPE -->
+      <div class="page" id="page-grype">
+        <div class="page-hd"><div class="page-title">Grype</div><div class="page-desc">Vulnerability scanner for container images and filesystems</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run Grype on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="grype-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="grype-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="grype-bin" type="text" value="grype"/></div>
+          </div>
+          <button class="btn btn-primary" id="grype-btn" onclick="runGenericTool('grype','grype')">RUN GRYPE</button>
+        </div>
+        <div class="progress-wrap" id="grype-prog"><div class="progress-bar" id="grype-pb" style="width:0%"></div></div>
+        <div class="terminal" id="grype-term"></div>
+        <div class="err-box" id="grype-err"></div>
+        <div id="grype-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">exploit</span><span class="tag">grype</span></div>
+        </div>
+      </div>
+      <!-- RADARE2 -->
+      <div class="page" id="page-radare2">
+        <div class="page-hd"><div class="page-title">Radare2</div><div class="page-desc">Reverse engineering framework — disassembly, analysis, debugging</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run Radare2 on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="radare2-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="radare2-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="radare2-bin" type="text" value="radare2"/></div>
+          </div>
+          <button class="btn btn-primary" id="radare2-btn" onclick="runGenericTool('radare2','radare2')">RUN RADARE2</button>
+        </div>
+        <div class="progress-wrap" id="radare2-prog"><div class="progress-bar" id="radare2-pb" style="width:0%"></div></div>
+        <div class="terminal" id="radare2-term"></div>
+        <div class="err-box" id="radare2-err"></div>
+        <div id="radare2-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install radare2</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">reverse-eng</span><span class="tag">radare2</span></div>
+        </div>
+      </div>
+      <!-- OPENVAS -->
+      <div class="page" id="page-openvas">
+        <div class="page-hd"><div class="page-title">OpenVAS</div><div class="page-desc">Open vulnerability assessment system — comprehensive network scanner</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run OpenVAS on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="openvas-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="openvas-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="openvas-bin" type="text" value="openvas"/></div>
+          </div>
+          <button class="btn btn-primary" id="openvas-btn" onclick="runGenericTool('openvas','openvas')">RUN OPENVAS</button>
+        </div>
+        <div class="progress-wrap" id="openvas-prog"><div class="progress-bar" id="openvas-pb" style="width:0%"></div></div>
+        <div class="terminal" id="openvas-term"></div>
+        <div class="err-box" id="openvas-err"></div>
+        <div id="openvas-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install openvas</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">auditing</span><span class="tag">openvas</span></div>
+        </div>
+      </div>
+      <!-- CHKROOTKIT -->
+      <div class="page" id="page-chkrootkit">
+        <div class="page-hd"><div class="page-title">chkrootkit</div><div class="page-desc">Local rootkit detector — checks for known rootkit signatures</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run chkrootkit on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="chkrootkit-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="chkrootkit-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="chkrootkit-bin" type="text" value="chkrootkit"/></div>
+          </div>
+          <button class="btn btn-primary" id="chkrootkit-btn" onclick="runGenericTool('chkrootkit','chkrootkit')">RUN CHKROOTKIT</button>
+        </div>
+        <div class="progress-wrap" id="chkrootkit-prog"><div class="progress-bar" id="chkrootkit-pb" style="width:0%"></div></div>
+        <div class="terminal" id="chkrootkit-term"></div>
+        <div class="err-box" id="chkrootkit-err"></div>
+        <div id="chkrootkit-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install chkrootkit</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">auditing</span><span class="tag">chkrootkit</span></div>
+        </div>
+      </div>
+      <!-- RKHUNTER -->
+      <div class="page" id="page-rkhunter">
+        <div class="page-hd"><div class="page-title">rkhunter</div><div class="page-desc">Rootkit Hunter — scans for rootkits, backdoors, and exploits</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run rkhunter on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ARGUMENTS / OPTIONS</label><input class="inp inp-mono" id="rkhunter-args" type="text" placeholder="--help"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="rkhunter-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>TOOL BINARY</label><input class="inp inp-mono" id="rkhunter-bin" type="text" value="rkhunter"/></div>
+          </div>
+          <button class="btn btn-primary" id="rkhunter-btn" onclick="runGenericTool('rkhunter','rkhunter')">RUN RKHUNTER</button>
+        </div>
+        <div class="progress-wrap" id="rkhunter-prog"><div class="progress-bar" id="rkhunter-pb" style="width:0%"></div></div>
+        <div class="terminal" id="rkhunter-term"></div>
+        <div class="err-box" id="rkhunter-err"></div>
+        <div id="rkhunter-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install rkhunter</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">auditing</span><span class="tag">rkhunter</span></div>
+        </div>
+      </div>
+
       <!-- ADMIN -->
       <div class="page" id="page-admin">
         <div class="page-hd" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px">
@@ -1723,7 +2434,7 @@ async function fetchWithTimeout(url,options,timeoutMs,prefix){
 }
 
 /* ==== PAGE NAV ==== */
-var PAGE_TITLES={home:'Home',scan:'Network Scanner',webdeep:'Deep Web Audit',harvester:'theHarvester',dnsrecon:'DNSRecon',nikto:'Nikto',wpscan:'WPScan',lynis:'Lynis',legion:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',brute:'Brute Force',setoolkit:'Social-Engineer Toolkit',gophish:'Gophish',evilginx2:'Evilginx2',shellphish:'ShellPhish',netcat:'Netcat',ncat:'Ncat',socat:'Socat',sliver:'Sliver',empire:'Empire',disc:'Network Discovery',hist:'Scan History',dash:'Dashboard',profile:'Profile',admin:'Admin Console'};
+var PAGE_TITLES={home:'Home',scan:'Network Scanner',webdeep:'Deep Web Audit',harvester:'theHarvester',dnsrecon:'DNSRecon',nikto:'Nikto',wpscan:'WPScan',lynis:'Lynis',legion:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',brute:'Brute Force',setoolkit:'Social-Engineer Toolkit',gophish:'Gophish',evilginx2:'Evilginx2',shellphish:'ShellPhish',netcat:'Netcat',ncat:'Ncat',socat:'Socat',sliver:'Sliver',empire:'Empire',disc:'Network Discovery',hist:'Scan History',dash:'Dashboard',profile:'Profile',admin:'Admin Console',ffuf:'ffuf',nuclei:'Nuclei',whatweb:'WhatWeb',wapiti:'Wapiti',dalfox:'Dalfox',sqlmap:'SQLMap',kxss:'kxss',medusa:'Medusa',hping3:'hping3',scapy:'Scapy',yersinia:'Yersinia',hashcat:'Hashcat',john:'John the Ripper',searchsploit:'SearchSploit',seclists:'SecLists',ligolo:'Ligolo-ng',chisel:'Chisel',rlwrap:'rlwrap',pspy:'pspy',msfvenom:'msfvenom',pwncat:'pwncat',grype:'Grype',radare2:'Radare2',openvas:'OpenVAS',chkrootkit:'chkrootkit',rkhunter:'rkhunter'};
 function saveCurrentPage(id){try{sessionStorage.setItem('vs-page',id);}catch(e){}}
 function pg(id,el){
   document.querySelectorAll('.page').forEach(function(e){e.classList.remove('active');});
@@ -1740,7 +2451,7 @@ function pg(id,el){
   if(id==='admin'){loadAdmin();setTimeout(initCliHeader,400);}
   if(id==='home'){setTimeout(loadHomeStats,80);if(currentUser)vsGreetUser(currentUser.username);}
   if(id==='profile'&&currentUser)loadProfileInfo(currentUser);
-  if(id==='brute')setTimeout(bfAutoLoad,300);
+  if(id==='brute')setTimeout(function(){bfAutoLoad&&bfAutoLoad();},300);
   if(id==='lynis'){loadLynisAgents();loadLynisJobs();startLynisAgentWatcher();}
 }
 
@@ -1769,7 +2480,44 @@ async function doLogin(){
   try{
     var r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,password:pass})});
     var d=await r.json();
-    if(d.success){authMsg('Welcome back, '+d.username+'!','ok');setTimeout(function(){document.getElementById('auth-overlay').style.display='none';loadUser();},700);}
+    if(d.success){authMsg('Welcome back, '+d.username+'!','ok');setTimeout(function(){document.getElementById('auth-overlay').style.display='none';/* ==== GENERIC TOOL RUNNER ==== */
+async function runGenericTool(pageId, toolBin){
+  var argsEl=document.getElementById(pageId+'-args');
+  var timeoutEl=document.getElementById(pageId+'-timeout');
+  var binEl=document.getElementById(pageId+'-bin');
+  var btn=document.getElementById(pageId+'-btn');
+  if(!argsEl||!btn)return;
+  var args=(argsEl.value||'--help').trim();
+  var timeout=parseInt((timeoutEl&&timeoutEl.value)||'90',10);
+  var bin=(binEl&&binEl.value)||toolBin;
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  var t=mkTool(pageId);t.start();t.log('Running: '+bin+' '+args,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({tool:pageId==='john'?'john':bin,operation:'custom',args:args,timeout:timeout})
+    },Math.max(20000,timeout*1000+5000),pageId);
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{t.log('Command completed (exit '+d.exit_code+')','s');
+      var html='<div class="card card-p"><div class="card-title" style="margin-bottom:8px">Output</div>'
+        +'<pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'
+        +(d.stdout||'(no stdout)')+'</pre>'
+        +(d.stderr?'<div class="card-title" style="margin:8px 0">Stderr</div><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--orange)">'+d.stderr+'</pre>':'')
+        +'</div>';
+      t.res(html);}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN '+bin.toUpperCase();}
+}
+/* ==== BRUTE AUTOLOAD ==== */
+function bfAutoLoad(){
+  var um=document.getElementById('bf-user-mode');
+  var pm=document.getElementById('bf-pass-mode');
+  if(um&&um.value!=='manual')bfWordlistMode('user');
+  if(pm&&pm.value!=='manual')bfWordlistMode('pass');
+}
+
+loadUser();},700);}
     else authMsg(d.error||'Login failed');
   }catch(e){authMsg('Connection error: '+e.message);}
   finally{btn.disabled=false;btn.innerHTML='LOGIN';}
@@ -3482,7 +4230,21 @@ def _social_tool_binary(tool_name: str, script_path: str = ""):
         ]:
             if os.path.isfile(p):
                 return "/bin/bash", [p]
-        return None, []
+        # Generic tool passthrough — binary name == tool name
+    generic_tools = {
+        "ffuf": "ffuf", "nuclei": "nuclei", "whatweb": "whatweb",
+        "wapiti": "wapiti", "dalfox": "dalfox", "sqlmap": "sqlmap",
+        "kxss": "kxss", "medusa": "medusa", "hping3": "hping3",
+        "scapy": "scapy3", "yersinia": "yersinia", "hashcat": "hashcat",
+        "john": "john", "searchsploit": "searchsploit", "seclists": "ls",
+        "ligolo-ng": "ligolo-ng", "chisel": "chisel", "rlwrap": "rlwrap",
+        "pspy": "pspy", "msfvenom": "msfvenom", "pwncat": "pwncat",
+        "grype": "grype", "radare2": "r2", "openvas": "openvas",
+        "chkrootkit": "chkrootkit", "rkhunter": "rkhunter",
+    }
+    if tool_name in generic_tools:
+        return shutil.which(generic_tools[tool_name]) or generic_tools[tool_name], []
+    return None, []
     if tool_name == "netcat":
         return shutil.which("netcat") or shutil.which("nc"), []
     if tool_name == "ncat":
@@ -3816,7 +4578,7 @@ def social_tool_run():
     timeout = int(data.get("timeout") or 90)
     timeout = max(10, min(600, timeout))
 
-    if tool not in {"setoolkit", "gophish", "evilginx2", "shellphish", "netcat", "ncat", "socat", "sliver", "empire"}:
+    if tool not in {"setoolkit", "gophish", "evilginx2", "shellphish", "netcat", "ncat", "socat", "sliver", "empire", "ffuf", "nuclei", "whatweb", "wapiti", "dalfox", "sqlmap", "kxss", "medusa", "hping3", "scapy", "yersinia", "hashcat", "john", "searchsploit", "seclists", "ligolo-ng", "chisel", "rlwrap", "pspy", "msfvenom", "pwncat", "grype", "radare2", "openvas", "chkrootkit", "rkhunter"}:
         return jsonify({"error": "Unsupported tool."}), 400
     if operation not in {"help", "version", "custom"}:
         operation = "help"
