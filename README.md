@@ -217,6 +217,8 @@ python3 api_server.py
 http://localhost:5000
 ```
 
+> If port `5000` is already in use, the API server will automatically choose the next available port and print it at startup.
+
 ---
 
 ## 🧩 Remote Lynis Agent (Pull Model)

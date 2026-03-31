@@ -549,6 +549,11 @@ body.dark .auth-box{box-shadow:0 4px 36px rgba(0,220,100,0.06),0 2px 16px rgba(0
 #page-home .card[onclick]:hover{transform:translateY(-4px);box-shadow:0 8px 22px rgba(0,0,0,0.08)}
 #page-home .card[onclick]:active{transform:translateY(-1px) scale(0.99)}
 body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)}
+#page-home .home-cat{border:1px solid var(--border);border-radius:10px;background:var(--bg2);padding:10px 12px}
+#page-home .home-cat>summary{cursor:pointer;list-style:none;font-family:var(--mono);font-size:12px;letter-spacing:0.6px;color:var(--text2);font-weight:700}
+#page-home .home-cat>summary::-webkit-details-marker{display:none}
+#page-home .home-cat>summary::before{content:'▸ ';color:var(--accent)}
+#page-home .home-cat[open]>summary::before{content:'▾ '}
 @keyframes vs-page-enter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .page.active{animation:vs-page-enter 0.24s var(--ease-out) both}
 @keyframes vs-brand-breathe{0%,100%{opacity:1}50%{opacity:0.65}}
@@ -844,41 +849,49 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
           <div class="stat"><div class="stat-val" id="hs-ports">--</div><div class="stat-lbl">OPEN PORTS</div></div>
           <div class="stat"><div class="stat-val">21</div><div class="stat-lbl">TOOLS</div></div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
-          <div class="card" style="cursor:pointer" onclick="pg('scan',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Network Scanner</div><div style="font-size:12px;color:var(--text3)">Port scan &middot; CVE lookup &middot; SSL analysis &middot; DNS &middot; Headers</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">nmap</span><span class="tag">CVE</span><span class="tag">SSL</span></div></div>
+        <details open class="home-cat">
+          <summary>Recon &amp; Web Testing</summary>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-top:10px">
+            <div class="card" style="cursor:pointer" onclick="pg('scan',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+              <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Network Scanner</div><div style="font-size:12px;color:var(--text3)">Port scan &middot; CVE lookup &middot; SSL analysis &middot; DNS &middot; Headers</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">nmap</span><span class="tag">CVE</span><span class="tag">SSL</span></div></div>
+            </div>
+            <div class="card" style="cursor:pointer" onclick="pg('harvester',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+              <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">theHarvester</div><div style="font-size:12px;color:var(--text3)">OSINT emails, subdomains, IPs from public sources</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">OSINT</span><span class="tag">emails</span></div></div>
+            </div>
+            <div class="card" style="cursor:pointer" onclick="pg('sub',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+              <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Subdomain Finder</div><div style="font-size:12px;color:var(--text3)">DNS brute-force + crt.sh + HackerTarget passive</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">DNS</span><span class="tag">brute-force</span></div></div>
+            </div>
+            <div class="card" style="cursor:pointer" onclick="pg('nikto',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+              <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Nikto</div><div style="font-size:12px;color:var(--text3)">Web vulnerability scanner &middot; 6700+ checks</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">web</span><span class="tag">CVE</span></div></div>
+            </div>
+            <div class="card" style="cursor:pointer" onclick="pg('webdeep',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+              <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Deep Web Audit</div><div style="font-size:12px;color:var(--text3)">Nmap + Nikto + Dir Enum + Headers + DNS + optional WPScan in one run</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">full-audit</span><span class="tag">report</span></div></div>
+            </div>
+            <div class="card" style="cursor:pointer" onclick="pg('dir',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+              <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Directory Buster</div><div style="font-size:12px;color:var(--text3)">Hidden paths, admin panels, sensitive files</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">HTTP</span><span class="tag">fuzzing</span></div></div>
+            </div>
+            <div class="card" style="cursor:pointer" onclick="pg('lynis',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+              <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Lynis</div><div style="font-size:12px;color:var(--text3)">System audit &middot; hardening &middot; compliance</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">local</span><span class="tag">CIS</span></div></div>
+            </div>
           </div>
-          <div class="card" style="cursor:pointer" onclick="pg('harvester',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">theHarvester</div><div style="font-size:12px;color:var(--text3)">OSINT emails, subdomains, IPs from public sources</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">OSINT</span><span class="tag">emails</span></div></div>
+        </details>
+        <details open class="home-cat" style="margin-top:10px">
+          <summary>Social Engineering &amp; Red Team Simulation</summary>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-top:10px">
+            <div class="card" style="cursor:pointer" onclick="pg('setoolkit',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+              <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Social-Engineer Toolkit</div><div style="font-size:12px;color:var(--text3)">Interactive social engineering simulation framework</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">phishing</span><span class="tag">payloads</span></div></div>
+            </div>
+            <div class="card" style="cursor:pointer" onclick="pg('gophish',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+              <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Gophish</div><div style="font-size:12px;color:var(--text3)">Phishing campaign manager with landing pages and tracking</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">campaign</span><span class="tag">awareness</span></div></div>
+            </div>
+            <div class="card" style="cursor:pointer" onclick="pg('evilginx2',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+              <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Evilginx2</div><div style="font-size:12px;color:var(--text3)">Reverse-proxy phishing simulation for MFA resilience testing</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">MFA</span><span class="tag">proxy</span></div></div>
+            </div>
+            <div class="card" style="cursor:pointer" onclick="pg('shellphish',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+              <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">ShellPhish</div><div style="font-size:12px;color:var(--text3)">Template-driven phishing simulation framework for labs</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">templates</span><span class="tag">ngrok</span></div></div>
+            </div>
           </div>
-          <div class="card" style="cursor:pointer" onclick="pg('sub',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Subdomain Finder</div><div style="font-size:12px;color:var(--text3)">DNS brute-force + crt.sh + HackerTarget passive</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">DNS</span><span class="tag">brute-force</span></div></div>
-          </div>
-          <div class="card" style="cursor:pointer" onclick="pg('nikto',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Nikto</div><div style="font-size:12px;color:var(--text3)">Web vulnerability scanner &middot; 6700+ checks</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">web</span><span class="tag">CVE</span></div></div>
-          </div>
-          <div class="card" style="cursor:pointer" onclick="pg('webdeep',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Deep Web Audit</div><div style="font-size:12px;color:var(--text3)">Nmap + Nikto + Dir Enum + Headers + DNS + optional WPScan in one run</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">full-audit</span><span class="tag">report</span></div></div>
-          </div>
-          <div class="card" style="cursor:pointer" onclick="pg('dir',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Directory Buster</div><div style="font-size:12px;color:var(--text3)">Hidden paths, admin panels, sensitive files</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">HTTP</span><span class="tag">fuzzing</span></div></div>
-          </div>
-          <div class="card" style="cursor:pointer" onclick="pg('lynis',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Lynis</div><div style="font-size:12px;color:var(--text3)">System audit &middot; hardening &middot; compliance</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">local</span><span class="tag">CIS</span></div></div>
-          </div>
-          <div class="card" style="cursor:pointer" onclick="pg('setoolkit',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Social-Engineer Toolkit</div><div style="font-size:12px;color:var(--text3)">Interactive social engineering simulation framework</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">phishing</span><span class="tag">payloads</span></div></div>
-          </div>
-          <div class="card" style="cursor:pointer" onclick="pg('gophish',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Gophish</div><div style="font-size:12px;color:var(--text3)">Phishing campaign manager with landing pages and tracking</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">campaign</span><span class="tag">awareness</span></div></div>
-          </div>
-          <div class="card" style="cursor:pointer" onclick="pg('evilginx2',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Evilginx2</div><div style="font-size:12px;color:var(--text3)">Reverse-proxy phishing simulation for MFA resilience testing</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">MFA</span><span class="tag">proxy</span></div></div>
-          </div>
-          <div class="card" style="cursor:pointer" onclick="pg('shellphish',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">ShellPhish</div><div style="font-size:12px;color:var(--text3)">Template-driven phishing simulation framework for labs</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">templates</span><span class="tag">ngrok</span></div></div>
-          </div>
-        </div>
+        </details>
         <div class="notice" style="margin-top:18px">&#9888; <strong>Authorized use only.</strong> Only scan systems you own or have explicit written permission to assess.</div>
       </div>
 
