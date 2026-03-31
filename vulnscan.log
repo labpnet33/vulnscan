@@ -1,0 +1,14 @@
+[*] Database ready: /home/vijay/vulnscan/vulnscan.db
+[*] VulnScan Pro v3.7 starting (Tor mode)
+[*] Tor SOCKS5: 127.0.0.1:9050
+[*] Open: http://localhost:5000
+[*] Health check: http://localhost:5000/health
+[*] Verify Tor is running: systemctl status tor
+ * Serving Flask app 'api_server' (lazy loading)
+ * Environment: production
+   WARNING: This is a development server. Do not use it in a production deployment.
+   Use a production WSGI server instead.
+ * Debug mode: off
+ * Running on all addresses.
+   WARNING: This is a development server. Do not use it in a production deployment.
+ * Running on http://10.0.0.91:5000/ (Press CTRL+C to quit)

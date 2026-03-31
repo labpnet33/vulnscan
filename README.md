@@ -38,9 +38,7 @@ VulnScan Pro is a free, open-source vulnerability assessment platform featuring 
 
 ## ✨ Features
 
-<details>
-<summary><strong>🌐 Information Gathering</strong></summary>
-
+### 🌐 Information Gathering
 | Tool | Description |
 |------|-------------|
 | **Network Scanner** | Deep port scan with nmap · CVE lookups via NVD · SSL analysis · DNS records · HTTP header auditing |
@@ -50,118 +48,22 @@ VulnScan Pro is a free, open-source vulnerability assessment platform featuring 
 | **theHarvester** | OSINT email/subdomain/IP harvesting from Google, Bing, LinkedIn, crt.sh |
 | **Subdomain Finder** | DNS brute-force + crt.sh + HackerTarget passive enumeration |
 
-</details>
-
-<details>
-<summary><strong>🌍 Web Application Testing</strong></summary>
-
+### 🌍 Web Application Testing
 | Tool | Description |
 |------|-------------|
 | **Nikto** | 6700+ web vulnerability checks · Outdated software · Misconfiguration detection |
 | **WPScan** | WordPress plugin/theme vulnerabilities · User enumeration · Config exposure |
 | **Directory Buster** | Hidden path & file enumeration · Admin panels · Sensitive file discovery |
 
-</details>
-
-<details>
-<summary><strong>🔐 Password Attacks</strong></summary>
-
+### 🔐 Password Attacks
 | Tool | Description |
 |------|-------------|
 | **Brute Force** | HTTP form login testing · SSH credential testing · Custom wordlists |
 
-</details>
-
-<details>
-<summary><strong>🛡️ System Auditing</strong></summary>
-
+### 🛡️ System Auditing
 | Tool | Description |
 |------|-------------|
 | **Lynis** | OS hardening audit · Package review · Firewall rules · Compliance posture (ISO27001, PCI-DSS, HIPAA, CIS) |
-
-</details>
-
-### 🧰 Extended Tool Catalog (Collapsible)
-
-<details>
-<summary><strong>Information Gathering</strong></summary>
-
-- nmap
-- dnsrecon
-- theHarvester
-- whatweb
-- searchsploit
-- seclists
-
-</details>
-
-<details>
-<summary><strong>Web Application Testing</strong></summary>
-
-- nikto
-- wpscan
-- ffuf
-- dalfox
-- sqlmap
-- wapiti
-- nuclei
-- kxss
-
-</details>
-
-<details>
-<summary><strong>Password Attacks</strong></summary>
-
-- medusa
-- hashcat
-- john
-
-</details>
-
-<details>
-<summary><strong>System Auditing</strong></summary>
-
-- lynis
-- openvas
-- chkrootkit
-- rkhunter
-- grype
-
-</details>
-
-<details>
-<summary><strong>Network Attack Simulation</strong></summary>
-
-- hping3
-- scapy
-- yersinia
-
-</details>
-
-<details>
-<summary><strong>Exploit / Payload / Post-Exploitation</strong></summary>
-
-- msfvenom
-- pwncat
-- pspy
-
-</details>
-
-<details>
-<summary><strong>Reverse Engineering</strong></summary>
-
-- radare2
-
-</details>
-
-<details>
-<summary><strong>Tunneling / Pivoting</strong></summary>
-
-- ligolo-ng
-- chisel
-- rlwrap
-
-</details>
 
 ### 👥 Platform Features
 - **Authentication** — Register/login, email verification, password reset, session management

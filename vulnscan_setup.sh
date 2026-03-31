@@ -94,91 +94,26 @@ done
 hdr "STEP 4 — Core Security Tools (apt)"
 # ════════════════════════════════════════════════════════════════
 
-# Existing + expanded tool categories
-INFO_GATHERING_TOOLS=(
+APT_TOOLS=(
   "nmap"
-  "dnsrecon"
-  "theharvester"
-  "whatweb"
-  "searchsploit"
-  "seclists"
-)
-
-WEB_APP_TESTING_TOOLS=(
   "nikto"
-  "wpscan"
-  "ffuf"
-  "dalfox"
-  "sqlmap"
-  "wapiti"
-  "nuclei"
-)
-
-PASSWORD_ATTACK_TOOLS=(
-  "medusa"
-  "hashcat"
-  "john"
-)
-
-SYSTEM_AUDIT_TOOLS=(
+  "dnsrecon"
   "lynis"
-  "chkrootkit"
-  "rkhunter"
-  "openvas"
-)
-
-NETWORK_ATTACK_SIM_TOOLS=(
-  "hping3"
-  "yersinia"
-)
-
-EXPLOIT_AND_POSTEXP_TOOLS=(
-  "msfvenom"
-  "pwncat"
-  "pspy"
-)
-
-BINARY_AND_REVERSE_TOOLS=(
-  "radare2"
-)
-
-TUNNELING_AND_PIVOTING_TOOLS=(
-  "ligolo-ng"
-  "chisel"
-  "rlwrap"
-)
-
-CORE_PLATFORM_TOOLS=(
   "dnsutils"        # provides dig
   "proxychains4"
   "tor"
+  "john"            # John the Ripper
+  "theharvester"
   "dirb"
-  "scapy"
 )
 
-TOOLS_BY_CATEGORY=(
-  "INFO_GATHERING_TOOLS"
-  "WEB_APP_TESTING_TOOLS"
-  "PASSWORD_ATTACK_TOOLS"
-  "SYSTEM_AUDIT_TOOLS"
-  "NETWORK_ATTACK_SIM_TOOLS"
-  "EXPLOIT_AND_POSTEXP_TOOLS"
-  "BINARY_AND_REVERSE_TOOLS"
-  "TUNNELING_AND_PIVOTING_TOOLS"
-  "CORE_PLATFORM_TOOLS"
-)
-
-for category in "${TOOLS_BY_CATEGORY[@]}"; do
-  info "Installing ${category}..."
-  eval "tools=("\${${category}[@]}")"
-  for tool in "${tools[@]}"; do
-    info "Installing $tool..."
-    if apt-get install -y -qq "$tool" 2>/dev/null; then
-      ok "$tool installed"
-    else
-      warn "$tool — apt install failed (may not be in repos, see manual steps below)"
-    fi
-  done
+for tool in "${APT_TOOLS[@]}"; do
+  info "Installing $tool..."
+  if apt-get install -y -qq "$tool" 2>/dev/null; then
+    ok "$tool installed"
+  else
+    warn "$tool — apt install failed (may not be in repos, see manual steps below)"
+  fi
 done
 
 
