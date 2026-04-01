@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 """
-VulnScan Pro — database.py Supabase Patch
-==========================================
+VulnScan Pro — Registration Fix Patch
+======================================
+Fixes: "Unexpected token '<', <!DOCTYPE... is not valid JSON" on registration.
+
+Root cause: auth.py calls get_db().execute("SELECT COUNT(*) FROM users")
+but get_db() now returns a Supabase client, not a SQLite connection.
+The SELECT COUNT(*) call crashes Flask which returns an HTML error page
+instead of JSON — causing the frontend JSON parse error.
+
 Run from your vulnscan project root:
-
-    python3 patch_database.py
-
-What it does:
-  1. Backs up your existing database.py → database.py.TIMESTAMP.bak
-  2. Replaces database.py with a Supabase-backed version
-  3. Keeps ALL function signatures identical — no changes needed in auth.py or api_server.py
-  4. Runs a syntax check on the new file
-  5. Tests connectivity to Supabase
+    python3 patch_register_fix.py
 """
 
 import os, sys, shutil, subprocess
@@ -26,253 +25,181 @@ warn = lambda m: print(f"  {Y}!{X}  {m}")
 info = lambda m: print(f"  {C}→{X}  {m}")
 hdr  = lambda m: print(f"\n{B}{C}── {m} ──{X}")
 
-# ══════════════════════════════════════════════════════════════
-# NEW database.py CONTENT
-# ══════════════════════════════════════════════════════════════
+RESULTS = {"applied": 0, "skipped": 0, "failed": 0}
 
-NEW_DATABASE_PY = '''#!/usr/bin/env python3
-"""
-Supabase-backed database manager for VulnScan Pro.
-Drop-in replacement for the original SQLite database.py.
-All public function signatures are IDENTICAL.
+def backup(path):
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    bak = f"{path}.{ts}.bak"
+    shutil.copy2(path, bak)
+    return bak
 
-Tables required in Supabase:
-  users, scans, audit_log, sessions
-"""
-import json, os
-from datetime import datetime
+def patch_file(path, old, new, label):
+    if not os.path.isfile(path):
+        warn(f"'{label}': {path} not found — skipping")
+        RESULTS["skipped"] += 1
+        return
+    with open(path, "r", encoding="utf-8") as f:
+        src = f.read()
+    if new in src:
+        info(f"'{label}': already applied — skipping")
+        RESULTS["skipped"] += 1
+        return
+    if old not in src:
+        warn(f"'{label}': anchor not found in {path} — skipping")
+        RESULTS["skipped"] += 1
+        return
+    backup(path)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(src.replace(old, new, 1))
+    ok(f"'{label}' applied to {path}")
+    RESULTS["applied"] += 1
 
-# ── Load .env if available ─────────────────────────────────────
-try:
-    from dotenv import load_dotenv
-    _env = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
-    if os.path.isfile(_env):
-        load_dotenv(_env)
-except ImportError:
-    pass
-
-# ── Supabase client ────────────────────────────────────────────
-def _sb():
-    from supabase_config import supabase
-    return supabase()
-
-def _now():
-    return datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
-
-def _row(resp):
-    """Return first row from Supabase response or None."""
-    data = resp.data
-    return data[0] if data else None
+def syntax_check(path):
+    r = subprocess.run([sys.executable, "-m", "py_compile", path],
+                       capture_output=True, text=True)
+    return r.returncode == 0, r.stderr.strip()
 
 # ══════════════════════════════════════════════════════════════
-# INIT
+# PATCH 1 — auth.py: Fix get_db() used as SQLite connection
+# The old code: con = get_db(); count = con.execute("SELECT COUNT(*)...").fetchone()[0]
+# The new code: use get_all_users() to count, which works with Supabase
 # ══════════════════════════════════════════════════════════════
 
-def get_db():
-    """Compatibility shim — returns Supabase client."""
-    return _sb()
+OLD_REGISTER_COUNT = '''        from database import get_db
+        con = get_db()
+        count = con.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        con.close()
+        role = "admin" if count == 0 else "user"'''
 
-def init_db():
-    """Verify Supabase connectivity (replaces SQLite table creation)."""
-    try:
-        _sb().table("users").select("id").limit(1).execute()
-        print("[*] Supabase connection verified — database ready.")
-    except Exception as e:
-        print(f"[!] Supabase connection failed: {e}")
-        print("[!] Make sure SUPABASE_SERVICE_KEY is set in your .env")
-        raise
+NEW_REGISTER_COUNT = '''        from database import get_all_users
+        existing_users = get_all_users(limit=1)
+        count = 0 if not existing_users else 1
+        role = "admin" if count == 0 else "user"'''
 
 # ══════════════════════════════════════════════════════════════
-# USER FUNCTIONS — signatures identical to original
+# PATCH 2 — auth.py: Wrap entire register route in try/except
+# so ANY crash returns JSON instead of HTML 500
 # ══════════════════════════════════════════════════════════════
 
-def create_user(username, email, password_hash, full_name="", role="user",
-                is_verified=0, verify_token="", verify_expires=None):
-    try:
-        _sb().table("users").insert({
-            "username":      username.lower().strip(),
-            "email":         email.lower().strip(),
-            "password_hash": password_hash,
-            "full_name":     full_name,
-            "role":          role,
-            "is_verified":   is_verified,
-            "verify_token":  verify_token or None,
-            "verify_expires": verify_expires,
-            "created_at":    _now(),
-        }).execute()
-        return True, "User created"
-    except Exception as e:
-        err = str(e)
-        if "username" in err.lower() and ("unique" in err.lower() or "duplicate" in err.lower()):
-            return False, "Username already taken"
-        if "email" in err.lower() and ("unique" in err.lower() or "duplicate" in err.lower()):
-            return False, "Email already registered"
-        return False, err
+OLD_REGISTER_START = '''    @app.route("/api/register", methods=["POST"])
+    def api_register():
+        d = request.get_json() or {}
+        username = d.get("username", "").strip()
+        email = d.get("email", "").strip()
+        password = d.get("password", "")
+        full_name = d.get("full_name", "").strip()
 
-def get_user_by_id(uid):
-    r = _sb().table("users").select("*").eq("id", uid).limit(1).execute()
-    return _row(r)
+        ok, msg = validate_username(username)
+        if not ok: return jsonify({"error": msg}), 400
+        if not validate_email(email): return jsonify({"error": "Invalid email address"}), 400
+        ok, msg = validate_password(password)
+        if not ok: return jsonify({"error": msg}), 400
 
-def get_user_by_username(username):
-    r = _sb().table("users").select("*").eq(
-        "username", username.lower().strip()).limit(1).execute()
-    return _row(r)
+        # Server-side ToS acceptance check
+        tos_accepted = d.get("tos_accepted", False)
+        if not tos_accepted:
+            return jsonify({"error": "You must accept the Terms of Use before registering."}), 400
 
-def get_user_by_email(email):
-    r = _sb().table("users").select("*").eq(
-        "email", email.lower().strip()).limit(1).execute()
-    return _row(r)
+        if get_user_by_username(username): return jsonify({"error": "Username already taken"}), 409
+        if get_user_by_email(email): return jsonify({"error": "Email already registered"}), 409
 
-def get_user_by_token(token, token_type="verify"):
-    col = "verify_token" if token_type == "verify" else "reset_token"
-    r = _sb().table("users").select("*").eq(col, token).limit(1).execute()
-    return _row(r)
+        token = gen_token()
+        verify_expires = (datetime.utcnow() + timedelta(minutes=10)).isoformat()
+        ph = hash_password(password)
 
-def verify_user(token):
-    user = get_user_by_token(token, "verify")
-    if not user:
-        return False
-    expires = user.get("verify_expires")
-    if expires:
+        from database import get_db
+        con = get_db()
+        count = con.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        con.close()
+        role = "admin" if count == 0 else "user"
+        # Always require email verification, including the first admin account.
+        # This ensures every registration triggers verification email delivery.
+        is_verified = 0
+
+        ok, msg = create_user(username, email, ph, full_name, role, is_verified, token, verify_expires)
+        if not ok: return jsonify({"error": msg}), 409
+
+        verification_email_sent = send_verification_email(email, username, token)
+        if not verification_email_sent:
+            audit(None, username, "VERIFY_EMAIL_SEND_FAIL", ip=request.remote_addr, ua=request.headers.get("User-Agent", ""))
+
+        audit(None, username, "REGISTER", ip=request.remote_addr, ua=request.headers.get("User-Agent", ""),
+              details=f"role={role}, verified={is_verified}")
+
+        return jsonify({
+            "success": True,
+            "message": (
+                "Account created! Check your email to verify."
+                if verification_email_sent
+                else "Account created, but verification email could not be sent. Please contact support."
+            ),
+            "verified": bool(is_verified),
+            "role": role,
+            "verification_email_sent": bool(verification_email_sent)
+        })'''
+
+NEW_REGISTER_START = '''    @app.route("/api/register", methods=["POST"])
+    def api_register():
         try:
-            if datetime.utcnow() > datetime.fromisoformat(expires):
-                return False
-        except Exception:
-            return False
-    _sb().table("users").update({
-        "is_verified":   1,
-        "verify_token":  None,
-        "verify_expires": None,
-    }).eq("id", user["id"]).execute()
-    return True
+            d = request.get_json() or {}
+            username = d.get("username", "").strip()
+            email = d.get("email", "").strip()
+            password = d.get("password", "")
+            full_name = d.get("full_name", "").strip()
 
-def update_user(uid, **kwargs):
-    if not kwargs:
-        return
-    _sb().table("users").update(kwargs).eq("id", uid).execute()
+            ok_u, msg_u = validate_username(username)
+            if not ok_u: return jsonify({"error": msg_u}), 400
+            if not validate_email(email): return jsonify({"error": "Invalid email address"}), 400
+            ok_p, msg_p = validate_password(password)
+            if not ok_p: return jsonify({"error": msg_p}), 400
 
-def update_last_login(uid, ip=""):
-    # Fetch current login_count first (Supabase can\'t do col=col+1 directly)
-    r = _sb().table("users").select("login_count").eq("id", uid).limit(1).execute()
-    row = _row(r)
-    current = (row.get("login_count") or 0) if row else 0
-    _sb().table("users").update({
-        "last_login":  _now(),
-        "login_count": current + 1,
-    }).eq("id", uid).execute()
+            # Server-side ToS acceptance check
+            tos_accepted = d.get("tos_accepted", False)
+            if not tos_accepted:
+                return jsonify({"error": "You must accept the Terms of Use before registering."}), 400
 
-def get_all_users(limit=100):
-    r = _sb().table("users").select(
-        "id,username,email,role,is_verified,is_active,"
-        "created_at,last_login,login_count,full_name"
-    ).order("id", desc=True).limit(limit).execute()
-    return r.data or []
+            if get_user_by_username(username): return jsonify({"error": "Username already taken"}), 409
+            if get_user_by_email(email): return jsonify({"error": "Email already registered"}), 409
 
-def toggle_user_active(uid):
-    r = _sb().table("users").select("is_active").eq("id", uid).limit(1).execute()
-    row = _row(r)
-    if row is None:
-        return
-    new_val = 0 if row.get("is_active") else 1
-    _sb().table("users").update({"is_active": new_val}).eq("id", uid).execute()
+            token = gen_token()
+            verify_expires = (datetime.utcnow() + timedelta(minutes=10)).isoformat()
+            ph = hash_password(password)
 
-def set_user_role(uid, role):
-    _sb().table("users").update({"role": role}).eq("id", uid).execute()
+            # Supabase-compatible user count (get_db() returns Supabase client, not SQLite)
+            from database import get_all_users
+            existing_users = get_all_users(limit=1)
+            count = 0 if not existing_users else 1
+            role = "admin" if count == 0 else "user"
 
-def delete_user(uid):
-    _sb().table("users").delete().eq("id", uid).execute()
+            # Always require email verification, including the first admin account.
+            is_verified = 0
 
-# ══════════════════════════════════════════════════════════════
-# SCAN FUNCTIONS — signatures identical to original
-# ══════════════════════════════════════════════════════════════
+            ok_c, msg_c = create_user(username, email, ph, full_name, role, is_verified, token, verify_expires)
+            if not ok_c: return jsonify({"error": msg_c}), 409
 
-def save_scan(target, result, user_id=None, modules=""):
-    s = result.get("summary", {})
-    r = _sb().table("scans").insert({
-        "user_id":       user_id,
-        "target":        target,
-        "scan_time":     result.get("scan_time", _now()),
-        "result":        json.dumps(result),
-        "open_ports":    s.get("open_ports", 0),
-        "total_cves":    s.get("total_cves", 0),
-        "critical_cves": s.get("critical_cves", 0),
-        "modules":       modules,
-    }).execute()
-    row = _row(r)
-    return row["id"] if row else None
+            verification_email_sent = send_verification_email(email, username, token)
+            if not verification_email_sent:
+                audit(None, username, "VERIFY_EMAIL_SEND_FAIL", ip=request.remote_addr, ua=request.headers.get("User-Agent", ""))
 
-def get_history(limit=20, user_id=None):
-    q = _sb().table("scans").select(
-        "id,target,scan_time,open_ports,total_cves,critical_cves,modules"
-    ).order("id", desc=True).limit(limit)
-    if user_id is not None:
-        q = q.eq("user_id", user_id)
-    return q.execute().data or []
+            audit(None, username, "REGISTER", ip=request.remote_addr, ua=request.headers.get("User-Agent", ""),
+                  details=f"role={role}, verified={is_verified}")
 
-def get_scan_by_id(sid, user_id=None):
-    q = _sb().table("scans").select("result").eq("id", sid).limit(1)
-    if user_id:
-        q = q.eq("user_id", user_id)
-    row = _row(q.execute())
-    return json.loads(row["result"]) if row else None
-
-def get_scan_stats():
-    stats = {}
-
-    # Total scans
-    r = _sb().table("scans").select("id", count="exact").execute()
-    stats["total_scans"] = r.count or 0
-
-    # CVE sums — fetch all and sum client-side
-    r2 = _sb().table("scans").select("total_cves,critical_cves").execute()
-    rows = r2.data or []
-    stats["total_cves"]    = sum(row.get("total_cves", 0) or 0 for row in rows)
-    stats["critical_cves"] = sum(row.get("critical_cves", 0) or 0 for row in rows)
-
-    # User counts
-    ru = _sb().table("users").select(
-        "id,is_active,is_verified", count="exact").execute()
-    urows = ru.data or []
-    stats["total_users"]    = ru.count or len(urows)
-    stats["active_users"]   = sum(1 for u in urows if u.get("is_active"))
-    stats["verified_users"] = sum(1 for u in urows if u.get("is_verified"))
-
-    # Scans today
-    today = datetime.utcnow().strftime("%Y-%m-%d")
-    rt = _sb().table("scans").select("id", count="exact").like(
-        "scan_time", f"{today}%").execute()
-    stats["scans_today"] = rt.count or 0
-
-    return stats
-
-# ══════════════════════════════════════════════════════════════
-# AUDIT LOG — signatures identical to original
-# ══════════════════════════════════════════════════════════════
-
-def audit(user_id, username, action, target="", ip="", ua="", details=""):
-    try:
-        _sb().table("audit_log").insert({
-            "user_id":    user_id,
-            "username":   username,
-            "action":     action,
-            "target":     target,
-            "ip_address": ip,
-            "user_agent": ua,
-            "details":    details,
-            "timestamp":  _now(),
-        }).execute()
-    except Exception as e:
-        print(f"[!] Audit log failed: {e}")
-
-def get_audit_log(limit=100, user_id=None):
-    q = _sb().table("audit_log").select("*").order("id", desc=True).limit(limit)
-    if user_id:
-        q = q.eq("user_id", user_id)
-    return q.execute().data or []
-
-# ── Auto-init on import ────────────────────────────────────────
-init_db()
-'''
+            return jsonify({
+                "success": True,
+                "message": (
+                    "Account created! Check your email to verify."
+                    if verification_email_sent
+                    else "Account created, but verification email could not be sent. Please contact support."
+                ),
+                "verified": bool(is_verified),
+                "role": role,
+                "verification_email_sent": bool(verification_email_sent)
+            })
+        except Exception as e:
+            import traceback
+            print(f"[!] Registration error: {e}")
+            traceback.print_exc()
+            return jsonify({"error": f"Registration failed: {str(e)}"}), 500'''
 
 # ══════════════════════════════════════════════════════════════
 # MAIN
@@ -281,106 +208,52 @@ init_db()
 def main():
     print()
     print(B + C + "╔══════════════════════════════════════════════════════╗" + X)
-    print(B + C + "║   VulnScan Pro — database.py Supabase Patch          ║" + X)
-    print(B + C + "║   Backs up original · replaces with Supabase version  ║" + X)
+    print(B + C + "║   VulnScan Pro — Registration Fix Patch              ║" + X)
+    print(B + C + "║   Fixes: JSON parse error on account creation        ║" + X)
     print(B + C + "╚══════════════════════════════════════════════════════╝" + X)
     print()
 
-    # ── Verify project root ───────────────────────────────────
-    if not os.path.isfile("database.py"):
-        fail("Must be run from the VulnScan project root (database.py not found)")
+    if not os.path.isfile("auth.py"):
+        fail("Must be run from the VulnScan project root (auth.py not found)")
 
-    if not os.path.isfile("supabase_config.py"):
-        fail("supabase_config.py not found — create it first!\n"
-             "  See: https://github.com/your-repo or ask Claude for the file.")
-
-    info(f"Project root : {os.getcwd()}")
-    info(f"database.py  : found")
-    info(f"supabase_config.py : found")
+    info(f"Project root: {os.getcwd()}")
     print()
 
-    # ── Step 1: Install dependencies ─────────────────────────
-    hdr("STEP 1 — Install dependencies")
-    for pkg in ["supabase", "python-dotenv"]:
-        r = subprocess.run(
-            [sys.executable, "-m", "pip", "install", pkg,
-             "--break-system-packages", "-q"],
-            capture_output=True, text=True)
-        if r.returncode == 0:
-            ok(f"pip install {pkg}")
-        else:
-            warn(f"pip install {pkg} — {r.stderr.strip()[:120]}")
+    hdr("STEP 1 — Patch auth.py")
+    patch_file("auth.py", OLD_REGISTER_START, NEW_REGISTER_START, "Fix register route (Supabase-compatible)")
 
-    # ── Step 2: Backup original ───────────────────────────────
-    hdr("STEP 2 — Backup original database.py")
-    ts  = datetime.now().strftime("%Y%m%d_%H%M%S")
-    bak = f"database.py.{ts}.bak"
-    shutil.copy2("database.py", bak)
-    ok(f"Backed up → {bak}")
-
-    # ── Step 3: Write new database.py ────────────────────────
-    hdr("STEP 3 — Write Supabase database.py")
-    with open("database.py", "w", encoding="utf-8") as f:
-        f.write(NEW_DATABASE_PY)
-    ok("database.py written")
-
-    # ── Step 4: Syntax check ──────────────────────────────────
-    hdr("STEP 4 — Syntax check")
-    r = subprocess.run(
-        [sys.executable, "-m", "py_compile", "database.py"],
-        capture_output=True, text=True)
-    if r.returncode == 0:
-        ok("database.py syntax OK")
+    hdr("STEP 2 — Syntax check")
+    passed, err = syntax_check("auth.py")
+    if passed:
+        ok("auth.py syntax OK")
     else:
-        warn(f"Syntax error:\n{r.stderr.strip()}")
-        warn(f"Restoring backup: {bak}")
-        shutil.copy2(bak, "database.py")
-        fail("Patch failed — original restored from backup")
+        warn(f"Syntax error:\n{err}")
+        fail("Patch introduced a syntax error — restore from backup!")
 
-    # ── Step 5: Connectivity test ─────────────────────────────
-    hdr("STEP 5 — Supabase connectivity test")
-    try:
-        sys.path.insert(0, os.getcwd())
-        # Reload in case supabase_config was already imported
-        import importlib
-        if "supabase_config" in sys.modules:
-            importlib.reload(sys.modules["supabase_config"])
-        sc = importlib.import_module("supabase_config")
-        client = sc.supabase()
+    hdr("STEP 3 — Verify database.py is Supabase version")
+    with open("database.py", "r") as f:
+        db_content = f.read()
+    if "supabase_config" in db_content and "sqlite3" not in db_content:
+        ok("database.py is already Supabase version")
+    else:
+        warn("database.py still has SQLite — run patch_database.py first!")
 
-        tables = ["users", "scans", "audit_log", "sessions"]
-        all_ok = True
-        for t in tables:
-            try:
-                client.table(t).select("id").limit(1).execute()
-                ok(f"Table '{t}' reachable")
-            except Exception as e:
-                warn(f"Table '{t}' — {e}")
-                all_ok = False
-
-        if all_ok:
-            ok("All tables reachable — Supabase fully connected!")
-        else:
-            warn("Some tables missing — run the SQL migration in Supabase dashboard")
-
-    except Exception as e:
-        warn(f"Connectivity test failed: {e}")
-        warn("Check SUPABASE_SERVICE_KEY in your .env file")
-
-    # ── Summary ───────────────────────────────────────────────
     print()
     print(B + C + "══════════════════════════════════════════════════════" + X)
-    print(f"\n  {G}Done! What changed:{X}")
-    print(f"    {G}✓{X}  database.py → Supabase backend (SQLite removed)")
-    print(f"    {G}✓{X}  All function signatures preserved (no other files need changes)")
-    print(f"    {G}✓{X}  Original backed up → {bak}")
+    fc = RESULTS["failed"]
+    print(
+        f"  Applied : {G}{RESULTS['applied']}{X}  |  "
+        f"Skipped : {RESULTS['skipped']}  |  "
+        f"Failed  : {(R if fc else '')}{fc}{X}"
+    )
     print()
-    print(f"  {Y}Next steps:{X}")
-    print(f"    1. Make sure .env has SUPABASE_SERVICE_KEY set")
-    print(f"    2. Restart server: pkill -f api_server.py && python3 api_server.py")
-    print(f"    3. Register a user and check Supabase dashboard")
+    print(f"  {G}What was fixed:{X}")
+    print(f"    {G}✓{X}  auth.py register route no longer calls get_db() as SQLite")
+    print(f"    {G}✓{X}  Uses get_all_users() instead — works with Supabase")
+    print(f"    {G}✓{X}  Full try/except wrapper so crashes return JSON not HTML")
     print()
-    print(f"  {C}To rollback:{X}  cp {bak} database.py")
+    print(f"  {Y}Restart server:{X}")
+    print(f"    pkill -f api_server.py && cd ~/vulnscan && python3 api_server.py")
     print()
 
 

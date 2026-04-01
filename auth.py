@@ -188,60 +188,66 @@ def register_auth_routes(app):
 
     @app.route("/api/register", methods=["POST"])
     def api_register():
-        d = request.get_json() or {}
-        username = d.get("username", "").strip()
-        email = d.get("email", "").strip()
-        password = d.get("password", "")
-        full_name = d.get("full_name", "").strip()
+        try:
+            d = request.get_json() or {}
+            username = d.get("username", "").strip()
+            email = d.get("email", "").strip()
+            password = d.get("password", "")
+            full_name = d.get("full_name", "").strip()
 
-        ok, msg = validate_username(username)
-        if not ok: return jsonify({"error": msg}), 400
-        if not validate_email(email): return jsonify({"error": "Invalid email address"}), 400
-        ok, msg = validate_password(password)
-        if not ok: return jsonify({"error": msg}), 400
+            ok_u, msg_u = validate_username(username)
+            if not ok_u: return jsonify({"error": msg_u}), 400
+            if not validate_email(email): return jsonify({"error": "Invalid email address"}), 400
+            ok_p, msg_p = validate_password(password)
+            if not ok_p: return jsonify({"error": msg_p}), 400
 
-        # Server-side ToS acceptance check
-        tos_accepted = d.get("tos_accepted", False)
-        if not tos_accepted:
-            return jsonify({"error": "You must accept the Terms of Use before registering."}), 400
+            # Server-side ToS acceptance check
+            tos_accepted = d.get("tos_accepted", False)
+            if not tos_accepted:
+                return jsonify({"error": "You must accept the Terms of Use before registering."}), 400
 
-        if get_user_by_username(username): return jsonify({"error": "Username already taken"}), 409
-        if get_user_by_email(email): return jsonify({"error": "Email already registered"}), 409
+            if get_user_by_username(username): return jsonify({"error": "Username already taken"}), 409
+            if get_user_by_email(email): return jsonify({"error": "Email already registered"}), 409
 
-        token = gen_token()
-        verify_expires = (datetime.utcnow() + timedelta(minutes=10)).isoformat()
-        ph = hash_password(password)
+            token = gen_token()
+            verify_expires = (datetime.utcnow() + timedelta(minutes=10)).isoformat()
+            ph = hash_password(password)
 
-        from database import get_db
-        con = get_db()
-        count = con.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-        con.close()
-        role = "admin" if count == 0 else "user"
-        # Always require email verification, including the first admin account.
-        # This ensures every registration triggers verification email delivery.
-        is_verified = 0
+            # Supabase-compatible user count (get_db() returns Supabase client, not SQLite)
+            from database import get_all_users
+            existing_users = get_all_users(limit=1)
+            count = 0 if not existing_users else 1
+            role = "admin" if count == 0 else "user"
 
-        ok, msg = create_user(username, email, ph, full_name, role, is_verified, token, verify_expires)
-        if not ok: return jsonify({"error": msg}), 409
+            # Always require email verification, including the first admin account.
+            is_verified = 0
 
-        verification_email_sent = send_verification_email(email, username, token)
-        if not verification_email_sent:
-            audit(None, username, "VERIFY_EMAIL_SEND_FAIL", ip=request.remote_addr, ua=request.headers.get("User-Agent", ""))
+            ok_c, msg_c = create_user(username, email, ph, full_name, role, is_verified, token, verify_expires)
+            if not ok_c: return jsonify({"error": msg_c}), 409
 
-        audit(None, username, "REGISTER", ip=request.remote_addr, ua=request.headers.get("User-Agent", ""),
-              details=f"role={role}, verified={is_verified}")
+            verification_email_sent = send_verification_email(email, username, token)
+            if not verification_email_sent:
+                audit(None, username, "VERIFY_EMAIL_SEND_FAIL", ip=request.remote_addr, ua=request.headers.get("User-Agent", ""))
 
-        return jsonify({
-            "success": True,
-            "message": (
-                "Account created! Check your email to verify."
-                if verification_email_sent
-                else "Account created, but verification email could not be sent. Please contact support."
-            ),
-            "verified": bool(is_verified),
-            "role": role,
-            "verification_email_sent": bool(verification_email_sent)
-        })
+            audit(None, username, "REGISTER", ip=request.remote_addr, ua=request.headers.get("User-Agent", ""),
+                  details=f"role={role}, verified={is_verified}")
+
+            return jsonify({
+                "success": True,
+                "message": (
+                    "Account created! Check your email to verify."
+                    if verification_email_sent
+                    else "Account created, but verification email could not be sent. Please contact support."
+                ),
+                "verified": bool(is_verified),
+                "role": role,
+                "verification_email_sent": bool(verification_email_sent)
+            })
+        except Exception as e:
+            import traceback
+            print(f"[!] Registration error: {e}")
+            traceback.print_exc()
+            return jsonify({"error": f"Registration failed: {str(e)}"}), 500
 
     @app.route("/api/login", methods=["POST"])
     def api_login():
