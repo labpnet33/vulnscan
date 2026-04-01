@@ -5603,9 +5603,15 @@ def subdomains():
         return jsonify({"error": "Invalid domain"}), 400
     user = get_current_user()
     audit(user["id"] if user else None, user["username"] if user else "anon",
-          "SUBDOMAIN_ENUM", target=domain, ip=request.remote_addr)
+          "SUBDOMAIN_ENUM", target=domain, ip=request.remote_addr,
+          details=f"size={size}")
     try:
-        return jsonify(run_backend("--subdomains", domain, size, timeout=TIMEOUT_SUBDOMAIN))
+        _sub_result = run_backend("--subdomains", domain, size, timeout=TIMEOUT_SUBDOMAIN)
+        _sub_count = _sub_result.get("total", 0) if isinstance(_sub_result, dict) else 0
+        audit(user["id"] if user else None, user["username"] if user else "anon",
+              "SUBDOMAIN_ENUM_RESULT", target=domain, ip=request.remote_addr,
+              details=f"size={size};found={_sub_count}")
+        return jsonify(_sub_result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -5619,9 +5625,15 @@ def dirbust():
         return jsonify({"error": "No URL"}), 400
     user = get_current_user()
     audit(user["id"] if user else None, user["username"] if user else "anon",
-          "DIR_ENUM", target=url, ip=request.remote_addr)
+          "DIR_ENUM", target=url, ip=request.remote_addr,
+          details=f"size={size};ext={ext}")
     try:
-        return jsonify(run_backend("--dirbust", url, size, ext, timeout=TIMEOUT_DIRBUST))
+        _dir_result = run_backend("--dirbust", url, size, ext, timeout=TIMEOUT_DIRBUST)
+        _dir_found = _dir_result.get("total", 0) if isinstance(_dir_result, dict) else 0
+        audit(user["id"] if user else None, user["username"] if user else "anon",
+              "DIR_ENUM_RESULT", target=url, ip=request.remote_addr,
+              details=f"size={size};ext={ext};found={_dir_found}")
+        return jsonify(_dir_result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -5633,15 +5645,23 @@ def brute_http():
     if not url:
         return jsonify({"error": "No URL"}), 400
     user = get_current_user()
+    _bh_users = d.get("users", [])[:10]
+    _bh_pwds  = d.get("passwords", [])[:50]
     audit(user["id"] if user else None, user["username"] if user else "anon",
-          "BRUTE_HTTP", target=url, ip=request.remote_addr)
-    users = ",".join(d.get("users", [])[:10])
-    pwds = ",".join(d.get("passwords", [])[:50])
+          "BRUTE_HTTP", target=url, ip=request.remote_addr,
+          details=f"users={len(_bh_users)};passwords={len(_bh_pwds)}")
+    users = ",".join(_bh_users)
+    pwds  = ",".join(_bh_pwds)
     uf = d.get("user_field", "username")
     pf = d.get("pass_field", "password")
     try:
-        return jsonify(run_backend("--brute-http", url, users, pwds, uf, pf,
-                                   timeout=TIMEOUT_BRUTE))
+        _bh_result = run_backend("--brute-http", url, users, pwds, uf, pf,
+                                  timeout=TIMEOUT_BRUTE)
+        _bh_found = len(_bh_result.get("found", [])) if isinstance(_bh_result, dict) else 0
+        audit(user["id"] if user else None, user["username"] if user else "anon",
+              "BRUTE_HTTP_RESULT", target=url, ip=request.remote_addr,
+              details=f"attempts={_bh_result.get('attempts',0) if isinstance(_bh_result,dict) else 0};found={_bh_found}")
+        return jsonify(_bh_result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -5654,13 +5674,21 @@ def brute_ssh():
     if not host:
         return jsonify({"error": "No host"}), 400
     user = get_current_user()
+    _bs_users = d.get("users", [])[:5]
+    _bs_pwds  = d.get("passwords", [])[:20]
     audit(user["id"] if user else None, user["username"] if user else "anon",
-          "BRUTE_SSH", target=host, ip=request.remote_addr)
-    users = ",".join(d.get("users", [])[:5])
-    pwds = ",".join(d.get("passwords", [])[:20])
+          "BRUTE_SSH", target=host, ip=request.remote_addr,
+          details=f"port={port};users={len(_bs_users)};passwords={len(_bs_pwds)}")
+    users = ",".join(_bs_users)
+    pwds  = ",".join(_bs_pwds)
     try:
-        return jsonify(run_backend("--brute-ssh", host, port, users, pwds,
-                                   timeout=TIMEOUT_BRUTE))
+        _bs_result = run_backend("--brute-ssh", host, port, users, pwds,
+                                  timeout=TIMEOUT_BRUTE)
+        _bs_found = len(_bs_result.get("found", [])) if isinstance(_bs_result, dict) else 0
+        audit(user["id"] if user else None, user["username"] if user else "anon",
+              "BRUTE_SSH_RESULT", target=host, ip=request.remote_addr,
+              details=f"port={port};attempts={_bs_result.get('attempts',0) if isinstance(_bs_result,dict) else 0};found={_bs_found}")
+        return jsonify(_bs_result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -6001,7 +6029,8 @@ def set_session_kill(sid):
         return jsonify({"error": "Login required"}), 401
     _kill_set_session(sid)
     audit(u["id"], u["username"], "SET_SESSION_KILL",
-          ip=request.remote_addr, details=f"sid={sid}")
+          target="set_terminal", ip=request.remote_addr,
+          details=f"sid={sid}")
     return jsonify({"ok": True})
 
 
@@ -6058,12 +6087,15 @@ def social_tool_run():
     user = get_current_user()
     audit(user["id"] if user else None, user["username"] if user else "anon",
           "SOCIAL_TOOL_RUN", target=tool, ip=request.remote_addr,
-          details=f"operation={operation};cmd={' '.join(cmd[:5])}")
+          details=f"operation={operation};args={args_text[:120]};cmd={' '.join(cmd[:5])}")
 
     start = time.monotonic()
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
         elapsed = int((time.monotonic() - start) * 1000)
+        audit(user["id"] if user else None, user["username"] if user else "anon",
+              "SOCIAL_TOOL_RESULT", target=tool, ip=request.remote_addr,
+              details=f"exit_code={proc.returncode};duration_ms={elapsed};operation={operation}")
         return jsonify({
             "tool": tool,
             "operation": operation,
@@ -6096,8 +6128,19 @@ def discover():
         return jsonify({"error": "No subnet"}), 400
     if not re.match(r'^[0-9./]+$', subnet):
         return jsonify({"error": "Invalid subnet"}), 400
+    _disc_user = get_current_user()
+    audit(_disc_user["id"] if _disc_user else None,
+          _disc_user["username"] if _disc_user else "anon",
+          "NETWORK_DISCOVER", target=subnet, ip=request.remote_addr,
+          details=f"subnet={subnet}")
     try:
-        return jsonify(run_backend("--discover", subnet, timeout=TIMEOUT_DISCOVER))
+        _disc_result = run_backend("--discover", subnet, timeout=TIMEOUT_DISCOVER)
+        _disc_hosts = _disc_result.get("total", 0) if isinstance(_disc_result, dict) else 0
+        audit(_disc_user["id"] if _disc_user else None,
+              _disc_user["username"] if _disc_user else "anon",
+              "NETWORK_DISCOVER_RESULT", target=subnet, ip=request.remote_addr,
+              details=f"subnet={subnet};hosts_found={_disc_hosts}")
+        return jsonify(_disc_result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -6106,7 +6149,11 @@ def discover():
 def history():
     user = get_current_user()
     uid = user["id"] if user else None
-    return jsonify(get_history(int(request.args.get("limit", 20)), user_id=uid))
+    limit = int(request.args.get("limit", 20))
+    audit(uid, user["username"] if user else "anon",
+          "HISTORY_ACCESS", target="scan_history", ip=request.remote_addr,
+          details=f"limit={limit}")
+    return jsonify(get_history(limit, user_id=uid))
 
 
 @app.route("/scan/<int:sid>")
@@ -6114,6 +6161,9 @@ def get_scan_route(sid):
     user = get_current_user()
     uid = user["id"] if user else None
     role = user["role"] if user else "user"
+    audit(uid, user["username"] if user else "anon",
+          "SCAN_VIEW", target=str(sid), ip=request.remote_addr,
+          details=f"scan_id={sid};role={role}")
     d = get_scan_by_id(sid, user_id=None if role == "admin" else uid)
     return jsonify(d) if d else (jsonify({"error": "Not found"}), 404)
 
@@ -6244,6 +6294,9 @@ def dnsrecon_route():
             except Exception:
                 pass
 
+    audit(user["id"] if user else None, user["username"] if user else "anon",
+          "DNSRECON_RESULT", target=target, ip=request.remote_addr,
+          details=f"type={scan_type};records={len(records)};method={method_used}")
     return jsonify({
         "target":     target,
         "records":    records,
@@ -6295,6 +6348,11 @@ def nikto_route():
 
     # Route Nikto through proxychains
     # Also pass -useproxy pointing to Tor SOCKS5 as a secondary proxy option
+    _nk_user = get_current_user()
+    audit(_nk_user["id"] if _nk_user else None,
+          _nk_user["username"] if _nk_user else "anon",
+          "NIKTO_SCAN", target=target, ip=request.remote_addr,
+          details=f"port={port};ssl={ssl_flag};tuning={tuning}")
     cmd = [
         px, "-q",
         binary,
@@ -6348,6 +6406,11 @@ def nikto_route():
         if os.path.exists(out_file):
             os.unlink(out_file)
 
+        _nk_user2 = get_current_user()
+        audit(_nk_user2["id"] if _nk_user2 else None,
+              _nk_user2["username"] if _nk_user2 else "anon",
+              "NIKTO_RESULT", target=target, ip=request.remote_addr,
+              details=f"port={port};findings={len(findings)};server={server[:40]}")
         return jsonify({
             "target": target,
             "port": port,
@@ -6375,6 +6438,12 @@ def wpscan_route():
 
     if not target:
         return jsonify({"error": "No target specified"})
+
+    _wp_user = get_current_user()
+    audit(_wp_user["id"] if _wp_user else None,
+          _wp_user["username"] if _wp_user else "anon",
+          "WPSCAN", target=target, ip=request.remote_addr,
+          details=f"enum={enum_flags};mode={mode}")
 
     binary = shutil.which("wpscan")
     if not binary:
@@ -6459,6 +6528,12 @@ def lynis_route():
     profile = (data.get("profile") or "system").strip().lower()
     category = (data.get("category") or "").strip()
     compliance = (data.get("compliance") or "").strip()
+
+    _ly_user = get_current_user()
+    audit(_ly_user["id"] if _ly_user else None,
+          _ly_user["username"] if _ly_user else "anon",
+          "LYNIS_SCAN", target="localhost", ip=request.remote_addr,
+          details=f"profile={profile};category={category};compliance={compliance}")
 
     binary = shutil.which("lynis")
     if not binary:
@@ -6553,6 +6628,13 @@ def lynis_route():
                         if "suggestion[" in ln.lower() or "suggestion:" in ln.lower():
                             suggestions.append(ln.strip())
 
+        audit(_ly_user["id"] if _ly_user else None,
+              _ly_user["username"] if _ly_user else "anon",
+              "LYNIS_RESULT", target="localhost", ip=request.remote_addr,
+              details=(f"profile={profile};compliance={compliance};"
+                       f"hardening_index={hardening_index};"
+                       f"warnings={len(warnings)};suggestions={len(suggestions)};"
+                       f"tests_performed={tests_performed}"))
         return jsonify({
             "hardening_index": hardening_index,
             "warnings": sorted(set(filter(None, warnings)))[:120],
@@ -6598,6 +6680,9 @@ def register_agent():
         """, (client_id, token_hash, hostname, os_info, request.remote_addr or "", "online"))
         con.commit()
         con.close()
+    audit(None, "agent", "AGENT_REGISTER", target=client_id,
+          ip=request.remote_addr,
+          details=f"hostname={hostname};os_info={os_info[:60]}")
     return jsonify({"client_id": client_id, "token": token, "api_base": request.url_root.rstrip("/")})
 
 
@@ -6636,6 +6721,11 @@ def create_lynis_job():
         jid = cur.lastrowid
         con.commit()
         con.close()
+    _cj_user = get_current_user()
+    audit(_cj_user["id"] if _cj_user else None,
+          _cj_user["username"] if _cj_user else "anon",
+          "LYNIS_JOB_CREATED", target=client_id, ip=request.remote_addr,
+          details=f"job_id={jid};profile={profile};compliance={compliance};category={category}")
     return jsonify({"job_id": jid, "status": "pending"})
 
 
@@ -6743,6 +6833,11 @@ def upload_job_report():
         """, (status, message, hardening_index, json.dumps(warnings), json.dumps(suggestions), tests_performed, raw_report, job_id, client_id))
         con.commit()
         con.close()
+    audit(None, f"agent:{client_id}", "LYNIS_JOB_UPLOAD",
+          target=str(job_id), ip=request.remote_addr,
+          details=(f"job_id={job_id};status={status};"
+                   f"hardening_index={hardening_index};"
+                   f"warnings={len(warnings)};suggestions={len(suggestions)}"))
     return jsonify({"ok": True})
 
 
@@ -6828,6 +6923,11 @@ def disconnect_agent(client_id):
         con.execute("DELETE FROM agent_clients WHERE client_id=?", (client_id,))
         con.commit()
         con.close()
+    _dc_user = get_current_user()
+    audit(_dc_user["id"] if _dc_user else None,
+          _dc_user["username"] if _dc_user else "anon",
+          "AGENT_DISCONNECT", target=client_id, ip=request.remote_addr,
+          details=f"client_id={client_id}")
     return jsonify({"ok": True, "client_id": client_id, "status": "disconnected", "removed": True})
 
 
@@ -6872,6 +6972,11 @@ def cancel_job(job_id):
             """, (job_id,))
         con.commit()
         con.close()
+    _cancel_user = get_current_user()
+    audit(_cancel_user["id"] if _cancel_user else None,
+          _cancel_user["username"] if _cancel_user else "anon",
+          "LYNIS_JOB_CANCEL", target=str(job_id), ip=request.remote_addr,
+          details=f"job_id={job_id};status={status}")
     return jsonify({"ok": True, "job_id": job_id})
 
 
@@ -6890,6 +6995,11 @@ def delete_job(job_id):
         con.execute("DELETE FROM lynis_jobs WHERE id=?", (job_id,))
         con.commit()
         con.close()
+    _del_user = get_current_user()
+    audit(_del_user["id"] if _del_user else None,
+          _del_user["username"] if _del_user else "anon",
+          "LYNIS_JOB_DELETED", target=str(job_id), ip=request.remote_addr,
+          details=f"job_id={job_id}")
     return jsonify({"ok": True, "job_id": job_id, "deleted": True})
 
 
@@ -6901,6 +7011,11 @@ def download_job_report(job_id):
         con.close()
     if not row:
         return jsonify({"error": "Job not found"}), 404
+    _dl_user = get_current_user()
+    audit(_dl_user["id"] if _dl_user else None,
+          _dl_user["username"] if _dl_user else "anon",
+          "LYNIS_REPORT_DOWNLOAD", target=str(job_id), ip=request.remote_addr,
+          details=f"job_id={job_id}")
     report = row["raw_report"] or "No report content."
     buf = io.BytesIO(report.encode("utf-8", errors="ignore"))
     return send_file(buf, as_attachment=True, download_name=f"lynis-job-{job_id}.txt", mimetype="text/plain")
@@ -6991,6 +7106,12 @@ def legion_route():
     if not target:
         return jsonify({"error": "No target specified"})
 
+    _lg_user = get_current_user()
+    audit(_lg_user["id"] if _lg_user else None,
+          _lg_user["username"] if _lg_user else "anon",
+          "LEGION_SCAN", target=target, ip=request.remote_addr,
+          details=f"intensity={intensity};modules={','.join(modules)}")
+
     px = proxychains_cmd()
     results, open_ports, total_issues, modules_run = [], 0, 0, 0
 
@@ -7069,6 +7190,10 @@ def legion_route():
             "summary": f"{len(findings)} findings"
         })
 
+    audit(_lg_user["id"] if _lg_user else None,
+          _lg_user["username"] if _lg_user else "anon",
+          "LEGION_RESULT", target=target, ip=request.remote_addr,
+          details=f"open_ports={open_ports};issues={total_issues};modules_run={modules_run}")
     return jsonify({
         "target": target,
         "open_ports": open_ports,
@@ -7156,6 +7281,10 @@ def harvester():
             subdomains = list(set(subdomains))
             ips = list(set(ips))
 
+            audit(user["id"] if user else None, user["username"] if user else "anon",
+              "HARVESTER_RESULT", target=target, ip=request.remote_addr,
+              details=(f"sources={sources};emails={len(emails)};"
+                       f"hosts={len(hosts)};subdomains={len(subdomains)};ips={len(ips)}"))
         return jsonify({
             "target": target,
             "sources": sources,
@@ -7410,6 +7539,11 @@ def report():
     data = _pdf_safe(request.get_json() or {})
     target     = data.get("target", "unknown")
     scan_time  = data.get("scan_time", "")[:19].replace("T", " ")
+    _rpt_user = get_current_user()
+    audit(_rpt_user["id"] if _rpt_user else None,
+          _rpt_user["username"] if _rpt_user else "anon",
+          "PDF_REPORT_GENERATED", target=target, ip=request.remote_addr,
+          details=f"scan_time={scan_time};open_ports={data.get('summary',{}).get('open_ports',0)};total_cves={data.get('summary',{}).get('total_cves',0)}")
     summary    = data.get("summary", {})
     modules    = data.get("modules", {})
     hosts      = modules.get("ports", {}).get("hosts", [])
@@ -8035,8 +8169,18 @@ def auto_install_route():
     pkg, binary = TOOL_INSTALL_MAP[tool]
     if not pkg:
         return jsonify({"error": f"{tool} requires manual install (not via apt)"})
-    ok, msg = auto_install(pkg, binary)
-    return jsonify({"ok": ok, "message": msg, "installed": bool(shutil.which(binary))})
+    _ai_user = get_current_user()
+    audit(_ai_user["id"] if _ai_user else None,
+          _ai_user["username"] if _ai_user else "anon",
+          "AUTO_INSTALL", target=tool, ip=request.remote_addr,
+          details=f"pkg={pkg};binary={binary}")
+    ok_flag, msg = auto_install(pkg, binary)
+    _ai_installed = bool(shutil.which(binary))
+    audit(_ai_user["id"] if _ai_user else None,
+          _ai_user["username"] if _ai_user else "anon",
+          "AUTO_INSTALL_RESULT", target=tool, ip=request.remote_addr,
+          details=f"pkg={pkg};success={ok_flag};installed={_ai_installed};msg={msg[:80]}")
+    return jsonify({"ok": ok_flag, "message": msg, "installed": _ai_installed})
 
 
 # ── Theme API ──────────────────────────────────────────────────────────────────
@@ -8047,7 +8191,13 @@ def theme_api():
     global _global_theme
     if request.method == "POST":
         data = request.get_json() or {}
+        _theme_old = _global_theme.get("theme", "unknown")
         _global_theme["theme"] = data.get("theme", "cyberpunk")
+        _theme_user = get_current_user()
+        audit(_theme_user["id"] if _theme_user else None,
+              _theme_user["username"] if _theme_user else "anon",
+              "THEME_CHANGE", target="ui", ip=request.remote_addr,
+              details=f"from={_theme_old};to={_global_theme['theme']}")
         return jsonify({"ok": True, "theme": _global_theme["theme"]})
     return jsonify({"theme": _global_theme["theme"]})
 
@@ -8084,11 +8234,17 @@ def cli_route():
     first_word = cmd_str.split()[0]
     if first_word not in ALLOWED_CLI_COMMANDS:
         return jsonify({"error": f"Command '{first_word}' not in allowlist. Allowed: {', '.join(sorted(ALLOWED_CLI_COMMANDS))}"})
+    audit(u["id"], u["username"], "CLI_EXEC", target="server",
+          ip=request.remote_addr,
+          details=f"cmd={cmd_str[:200]}")
     try:
         r = subprocess.run(
             cmd_str, shell=True, capture_output=True, text=True,
             timeout=30, cwd=os.path.expanduser("~")
         )
+        audit(u["id"], u["username"], "CLI_EXEC_RESULT", target="server",
+              ip=request.remote_addr,
+              details=f"cmd={cmd_str[:200]};exit_code={r.returncode}")
         return jsonify({
             "output": r.stdout[:8000],
             "error": r.stderr[:2000],
@@ -8111,6 +8267,9 @@ def wordlist_api():
 
     path = request.args.get("path", "").strip()
     limit = min(int(request.args.get("limit", "1000")), 5000)
+    audit(user["id"], user["username"], "WORDLIST_ACCESS",
+          target=path, ip=request.remote_addr,
+          details=f"path={path};limit={limit}")
 
     ALLOWED_DIRS = [
         "/usr/share/wordlists/",
@@ -8209,6 +8368,8 @@ def server_stats():
     u = get_current_user()
     if not u or u.get("role") != "admin":
         return jsonify({"error": "Admin access required"}), 403
+    audit(u["id"], u["username"], "SERVER_STATS_ACCESS",
+          target="server", ip=request.remote_addr)
     import time as _time
 
     stats = {}
