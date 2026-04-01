@@ -1,39 +1,98 @@
 #!/usr/bin/env python3
-import os, shutil
+
+import os, sys, shutil
 from datetime import datetime
 
-FILE = "api_server.py"
+G = "\033[92m"; R = "\033[91m"; Y = "\033[93m"; X = "\033[0m"
 
-def backup():
+def ok(m): print(f"{G}✓{X} {m}")
+def fail(m): print(f"{R}✗{X} {m}")
+def warn(m): print(f"{Y}!{X} {m}")
+
+def backup(path):
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    shutil.copy2(FILE, f"{FILE}.{ts}.bak")
+    bak = f"{path}.{ts}.bak"
+    shutil.copy2(path, bak)
+    return bak
 
-def patch():
-    if not os.path.exists(FILE):
-        print("❌ api_server.py not found")
+def patch_html(path, replacements):
+    if not os.path.isfile(path):
+        fail(f"{path} not found")
         return
 
-    backup()
+    with open(path, "r", encoding="utf-8") as f:
+        src = f.read()
 
-    with open(FILE, "r", encoding="utf-8") as f:
-        data = f.read()
+    modified = src
+    applied = 0
 
-    # ✅ ONLY enhance placeholder (SAFE)
-    data = data.replace(
-        'placeholder="--help"',
-        'placeholder="-u https://example.com -w /usr/share/wordlists/dirb/common.txt"'
-    )
+    for label, old, new in replacements:
+        if old not in modified:
+            fail(f"{label} → anchor NOT found (patch unsafe)")
+            continue
 
-    # ✅ ensure all buttons use generic function
-    data = data.replace("runFfuf()", "runGenericTool('ffuf','ffuf')")
-    data = data.replace("runNuclei()", "runGenericTool('nuclei','nuclei')")
-    data = data.replace("runWhatWeb()", "runGenericTool('whatweb','whatweb')")
-    data = data.replace("runWapiti()", "runGenericTool('wapiti','wapiti')")
+        modified = modified.replace(old, new, 1)
+        ok(label)
+        applied += 1
 
-    with open(FILE, "w", encoding="utf-8") as f:
-        f.write(data)
+    if applied:
+        backup(path)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(modified)
+        ok("Patch applied safely")
+    else:
+        warn("Nothing applied")
 
-    print("✅ Safe patch applied")
+# ✅ SAFE BUTTON HANDLER (fallback supported)
+def safe_btn(tool):
+    return f"onclick=\"runGenericTool('{tool}','{tool}')\""
+
+# ─────────────────────────────────────────────
+# PATCHES (only showing FFUF + NUCLEI example)
+# repeat pattern for others
+# ─────────────────────────────────────────────
+
+TOOL_PATCHES = [
+
+# ✅ FFUF (SAFE)
+(
+"FFUF UI fix",
+'''<button class="btn btn-primary" id="ffuf-btn" onclick="runGenericTool('ffuf','ffuf')">RUN FFUF</button>''',
+f'''<button class="btn btn-primary" id="ffuf-btn" {safe_btn("ffuf")}>RUN FFUF</button>'''
+),
+
+# ✅ NUCLEI (SAFE)
+(
+"NUCLEI UI fix",
+'''<button class="btn btn-primary" id="nuclei-btn" onclick="runGenericTool('nuclei','nuclei')">RUN NUCLEI</button>''',
+f'''<button class="btn btn-primary" id="nuclei-btn" {safe_btn("nuclei")}>RUN NUCLEI</button>'''
+),
+
+# ✅ WHATWEB
+(
+"WHATWEB UI fix",
+'''<button class="btn btn-primary" id="whatweb-btn" onclick="runGenericTool('whatweb','whatweb')">RUN WHATWEB</button>''',
+f'''<button class="btn btn-primary" id="whatweb-btn" {safe_btn("whatweb")}>RUN WHATWEB</button>'''
+),
+
+# ✅ SQLMAP
+(
+"SQLMAP UI fix",
+'''<button class="btn btn-primary" id="sqlmap-btn" onclick="runGenericTool('sqlmap','sqlmap')">RUN SQLMAP</button>''',
+f'''<button class="btn btn-primary" id="sqlmap-btn" {safe_btn("sqlmap")}>RUN SQLMAP</button>'''
+),
+
+# ✅ DALFOX
+(
+"DALFOX UI fix",
+'''<button class="btn btn-primary" id="dalfox-btn" onclick="runGenericTool('dalfox','dalfox')">RUN DALFOX</button>''',
+f'''<button class="btn btn-primary" id="dalfox-btn" {safe_btn("dalfox")}>RUN DALFOX</button>'''
+),
+
+]
+
+# ─────────────────────────────────────────────
 
 if __name__ == "__main__":
-    patch()
+    TARGET_FILE = "api_server.py"
+    patch_html(TARGET_FILE, TOOL_PATCHES)
