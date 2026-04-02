@@ -1,11 +1,30 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+const TOKENS = {
+  color: {
+    primary: "#00BD7D",
+    secondary: "#00BD7D",
+    success: "#16A34A",
+    warning: "#D97706",
+    danger: "#DC2626",
+    surface: "#FFFFFF",
+    text: "#111827",
+    neutral900: "#111827",
+    neutral800: "#1F2937",
+    neutral700: "#374151",
+    neutral200: "#E5E7EB",
+    neutral100: "#F3F4F6",
+  },
+  spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 },
+  radius: { sm: 8, md: 12, lg: 16 },
+};
 
 const SEVERITY_CONFIG = {
-  CRITICAL: { color: "#ff2d55", bg: "rgba(255,45,85,0.12)", label: "CRITICAL", icon: "☢" },
-  HIGH: { color: "#ff6b35", bg: "rgba(255,107,53,0.12)", label: "HIGH", icon: "⚠" },
-  MEDIUM: { color: "#ffd60a", bg: "rgba(255,214,10,0.12)", label: "MEDIUM", icon: "⚡" },
-  LOW: { color: "#30d158", bg: "rgba(48,209,88,0.12)", label: "LOW", icon: "✓" },
-  UNKNOWN: { color: "#636366", bg: "rgba(99,99,102,0.12)", label: "UNKNOWN", icon: "?" },
+  CRITICAL: { accent: "var(--danger)", bg: "#FEE2E2", label: "Critical" },
+  HIGH: { accent: "#EA580C", bg: "#FFEDD5", label: "High" },
+  MEDIUM: { accent: "var(--warning)", bg: "#FEF3C7", label: "Medium" },
+  LOW: { accent: "var(--success)", bg: "#DCFCE7", label: "Low" },
+  UNKNOWN: { accent: "#6B7280", bg: "#E5E7EB", label: "Unknown" },
 };
 
 const MOCK_SCAN_RESULT = {
@@ -28,7 +47,8 @@ const MOCK_SCAN_RESULT = {
           cves: [
             {
               id: "CVE-2023-38408",
-              description: "The PKCS#11 feature in ssh-agent in OpenSSH before 9.3p2 has an insufficiently trustworthy search path, leading to remote code execution.",
+              description:
+                "The PKCS#11 feature in ssh-agent in OpenSSH before 9.3p2 has an insufficiently trustworthy search path, leading to remote code execution.",
               score: 9.8,
               severity: "CRITICAL",
               published: "2023-07-20",
@@ -36,7 +56,8 @@ const MOCK_SCAN_RESULT = {
             },
             {
               id: "CVE-2023-28531",
-              description: "ssh-add in OpenSSH before 9.3 applies destination constraints to smartcard keys even if they are not supported.",
+              description:
+                "ssh-add in OpenSSH before 9.3 applies destination constraints to smartcard keys even if they are not supported.",
               score: 7.8,
               severity: "HIGH",
               published: "2023-03-17",
@@ -44,12 +65,11 @@ const MOCK_SCAN_RESULT = {
             },
           ],
           mitigations: [
-            "⚠️ URGENT: 2 critical/high CVEs found - patch immediately",
-            "Upgrade OpenSSH to version 9.3p2 or later",
-            "Disable root login (PermitRootLogin no)",
-            "Use SSH key authentication instead of passwords",
-            "Implement fail2ban to prevent brute-force attacks",
-            "Restrict SSH access to specific IP ranges",
+            "Urgent: patch OpenSSH immediately.",
+            "Upgrade OpenSSH to version 9.3p2 or later.",
+            "Disable root login (PermitRootLogin no).",
+            "Use SSH key authentication instead of passwords.",
+            "Restrict SSH access to specific IP ranges.",
           ],
         },
         {
@@ -64,7 +84,8 @@ const MOCK_SCAN_RESULT = {
           cves: [
             {
               id: "CVE-2021-41773",
-              description: "A flaw was found in a change made to path normalization in Apache HTTP Server 2.4.49. An attacker could use a path traversal attack to map URLs to files outside the directories.",
+              description:
+                "A flaw in path normalization in Apache HTTP Server 2.4.49 enables path traversal and file mapping outside configured directories.",
               score: 9.8,
               severity: "CRITICAL",
               published: "2021-10-05",
@@ -72,11 +93,10 @@ const MOCK_SCAN_RESULT = {
             },
           ],
           mitigations: [
-            "⚠️ URGENT: Immediately upgrade Apache to 2.4.52 or later",
-            "Enable HTTPS and redirect all HTTP traffic to HTTPS",
-            "Implement Content Security Policy (CSP) headers",
-            "Add X-Frame-Options, X-Content-Type-Options headers",
-            "Disable directory listing and server version disclosure",
+            "Upgrade Apache to 2.4.52 or later.",
+            "Enable HTTPS and redirect all HTTP traffic.",
+            "Add security headers (CSP, X-Frame-Options).",
+            "Disable directory listing.",
           ],
         },
         {
@@ -91,7 +111,8 @@ const MOCK_SCAN_RESULT = {
           cves: [
             {
               id: "CVE-2022-21417",
-              description: "Vulnerability in the MySQL Server product of Oracle MySQL. Easily exploitable vulnerability allows high privileged attacker to cause hang or crash.",
+              description:
+                "Vulnerability in Oracle MySQL Server allows high privileged attackers to cause server hang or crash.",
               score: 4.9,
               severity: "MEDIUM",
               published: "2022-04-19",
@@ -99,11 +120,9 @@ const MOCK_SCAN_RESULT = {
             },
           ],
           mitigations: [
-            "Never expose MySQL directly to the internet",
-            "Bind MySQL to localhost (127.0.0.1) only",
-            "Use strong passwords and principle of least privilege",
-            "Upgrade to MySQL 8.0 LTS",
-            "Enable MySQL audit logging",
+            "Never expose MySQL directly to the internet.",
+            "Bind MySQL to localhost only.",
+            "Upgrade to MySQL 8.0 LTS.",
           ],
         },
       ],
@@ -112,59 +131,21 @@ const MOCK_SCAN_RESULT = {
   scan_info: { elapsed: "12.34", summary: "Nmap done: 1 IP address (1 host up)" },
 };
 
-function TerminalLine({ text, delay = 0, type = "info" }) {
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(true), delay);
-    return () => clearTimeout(t);
-  }, [delay]);
-
-  const colors = { info: "#00d4ff", success: "#30d158", warn: "#ffd60a", error: "#ff2d55" };
-  const prefixes = { info: "[*]", success: "[+]", warn: "[!]", error: "[x]" };
-
-  if (!visible) return null;
-  return (
-    <div style={{ fontFamily: "monospace", fontSize: 13, lineHeight: 1.6, color: "#a0a0a0" }}>
-      <span style={{ color: colors[type] }}>{prefixes[type]} </span>
-      {text}
-    </div>
-  );
-}
-
 function SeverityBadge({ level }) {
   const config = SEVERITY_CONFIG[level] || SEVERITY_CONFIG.UNKNOWN;
   return (
-    <span style={{
-      background: config.bg,
-      color: config.color,
-      border: `1px solid ${config.color}40`,
-      borderRadius: 4,
-      padding: "2px 8px",
-      fontSize: 11,
-      fontWeight: 700,
-      letterSpacing: 1,
-      fontFamily: "monospace",
-    }}>
-      {config.icon} {config.label}
+    <span className="severity-badge" style={{ background: config.bg, color: config.accent }}>
+      {config.label}
     </span>
   );
 }
 
-function ScoreRing({ score }) {
-  if (!score) return <span style={{ color: "#636366", fontSize: 12 }}>N/A</span>;
+function ScorePill({ score }) {
   const config = score >= 9 ? SEVERITY_CONFIG.CRITICAL : score >= 7 ? SEVERITY_CONFIG.HIGH : score >= 4 ? SEVERITY_CONFIG.MEDIUM : SEVERITY_CONFIG.LOW;
-  const pct = (score / 10) * 100;
-  const r = 18, c = 2 * Math.PI * r;
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <svg width={44} height={44} style={{ transform: "rotate(-90deg)" }}>
-        <circle cx={22} cy={22} r={r} fill="none" stroke="#1c1c1e" strokeWidth={4} />
-        <circle cx={22} cy={22} r={r} fill="none" stroke={config.color} strokeWidth={4}
-          strokeDasharray={c} strokeDashoffset={c - (pct / 100) * c} strokeLinecap="round"
-          style={{ transition: "stroke-dashoffset 1s ease" }} />
-      </svg>
-      <span style={{ color: config.color, fontWeight: 700, fontSize: 16, fontFamily: "monospace" }}>{score}</span>
-    </div>
+    <span className="score-pill" style={{ borderColor: config.accent, color: config.accent }}>
+      CVSS {score ?? "N/A"}
+    </span>
   );
 }
 
@@ -173,170 +154,111 @@ function PortCard({ port }) {
   const config = SEVERITY_CONFIG[port.risk_level] || SEVERITY_CONFIG.UNKNOWN;
 
   return (
-    <div style={{
-      border: `1px solid ${config.color}30`,
-      borderLeft: `3px solid ${config.color}`,
-      borderRadius: 8,
-      background: "rgba(255,255,255,0.02)",
-      marginBottom: 12,
-      overflow: "hidden",
-      transition: "all 0.2s",
-    }}>
-      <div onClick={() => setOpen(!open)} style={{
-        padding: "14px 18px",
-        cursor: "pointer",
-        display: "flex",
-        alignItems: "center",
-        gap: 16,
-        flexWrap: "wrap",
-      }}>
-        <div style={{
-          background: config.bg,
-          color: config.color,
-          padding: "6px 14px",
-          borderRadius: 6,
-          fontFamily: "monospace",
-          fontWeight: 700,
-          fontSize: 18,
-          minWidth: 70,
-          textAlign: "center",
-        }}>
+    <section className="port-card" style={{ borderColor: `${config.accent}50` }}>
+      <button
+        type="button"
+        className="port-summary"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        <div className="port-number" style={{ color: config.accent, background: config.bg }}>
           {port.port}
         </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ color: "#fff", fontWeight: 600, fontSize: 15 }}>
-            {port.product || port.service} {port.version && <span style={{ color: "#636366", fontSize: 13 }}>v{port.version}</span>}
-          </div>
-          <div style={{ color: "#636366", fontSize: 12, marginTop: 2 }}>
-            {port.protocol.toUpperCase()} · {port.service} {port.extrainfo && `· ${port.extrainfo}`}
-          </div>
+        <div className="port-meta">
+          <h4>
+            {port.product || port.service} {port.version && <span>v{port.version}</span>}
+          </h4>
+          <p>
+            {port.protocol.toUpperCase()} · {port.service}
+            {port.extrainfo ? ` · ${port.extrainfo}` : ""}
+          </p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <ScoreRing score={port.risk_score} />
+        <div className="port-state">
+          <ScorePill score={port.risk_score} />
           <SeverityBadge level={port.risk_level} />
-          <span style={{ color: "#636366", fontSize: 18, transition: "transform 0.2s", transform: open ? "rotate(180deg)" : "none" }}>▼</span>
         </div>
-      </div>
+      </button>
 
       {open && (
-        <div style={{ padding: "0 18px 18px", borderTop: "1px solid #1c1c1e" }}>
-          {/* CVEs */}
-          {port.cves?.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <div style={{ color: "#636366", fontSize: 11, letterSpacing: 2, fontWeight: 700, marginBottom: 10, fontFamily: "monospace" }}>
-                VULNERABILITIES ({port.cves.length})
-              </div>
-              {port.cves.map(cve => (
-                <div key={cve.id} style={{
-                  background: "#0a0a0c",
-                  border: "1px solid #1c1c1e",
-                  borderRadius: 6,
-                  padding: 12,
-                  marginBottom: 8,
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                    <a href={cve.references?.[0] || `https://nvd.nist.gov/vuln/detail/${cve.id}`}
-                      target="_blank" rel="noopener noreferrer"
-                      style={{ color: "#00d4ff", fontFamily: "monospace", fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
-                      {cve.id}
-                    </a>
-                    <SeverityBadge level={cve.severity} />
-                    {cve.score && <span style={{ color: SEVERITY_CONFIG[cve.severity]?.color || "#fff", fontWeight: 700, fontSize: 13 }}>CVSS {cve.score}</span>}
-                    <span style={{ color: "#636366", fontSize: 11, marginLeft: "auto" }}>{cve.published}</span>
-                  </div>
-                  <div style={{ color: "#8e8e93", fontSize: 12, lineHeight: 1.6 }}>{cve.description}</div>
+        <div className="port-details">
+          <div className="detail-block">
+            <h5>Vulnerabilities ({port.cves?.length || 0})</h5>
+            {port.cves?.map((cve) => (
+              <article key={cve.id} className="cve-card">
+                <div className="cve-top">
+                  <a href={cve.references?.[0] || `https://nvd.nist.gov/vuln/detail/${cve.id}`} target="_blank" rel="noreferrer">
+                    {cve.id}
+                  </a>
+                  <SeverityBadge level={cve.severity} />
+                  <ScorePill score={cve.score} />
+                  <time>{cve.published}</time>
                 </div>
+                <p>{cve.description}</p>
+              </article>
+            ))}
+          </div>
+
+          <div className="detail-block">
+            <h5>Mitigation recommendations</h5>
+            <ul>
+              {port.mitigations?.map((item, idx) => (
+                <li key={`${port.port}-mit-${idx}`}>{item}</li>
+              ))}
+            </ul>
+          </div>
+
+          {port.cpe?.length ? (
+            <div className="cpe-list">
+              {port.cpe.map((cpe, idx) => (
+                <code key={`${cpe}-${idx}`}>{cpe}</code>
               ))}
             </div>
-          )}
-
-          {/* Mitigations */}
-          {port.mitigations?.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <div style={{ color: "#636366", fontSize: 11, letterSpacing: 2, fontWeight: 700, marginBottom: 10, fontFamily: "monospace" }}>
-                MITIGATION RECOMMENDATIONS
-              </div>
-              <div style={{ background: "#0a0a0c", border: "1px solid #1c1c1e", borderRadius: 6, padding: 12 }}>
-                {port.mitigations.map((m, i) => (
-                  <div key={i} style={{
-                    display: "flex", gap: 10, padding: "6px 0",
-                    borderBottom: i < port.mitigations.length - 1 ? "1px solid #1c1c1e" : "none",
-                  }}>
-                    <span style={{ color: "#30d158", fontFamily: "monospace", fontSize: 13, marginTop: 1 }}>›</span>
-                    <span style={{ color: "#c7c7cc", fontSize: 13, lineHeight: 1.6 }}>{m}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* CPE */}
-          {port.cpe?.length > 0 && (
-            <div style={{ marginTop: 10 }}>
-              {port.cpe.map((c, i) => (
-                <span key={i} style={{ background: "#1c1c1e", color: "#636366", borderRadius: 4, padding: "2px 8px", fontSize: 11, fontFamily: "monospace", marginRight: 6 }}>
-                  {c}
-                </span>
-              ))}
-            </div>
-          )}
+          ) : null}
         </div>
       )}
-    </div>
+    </section>
   );
 }
 
 function ScanResults({ results }) {
-  if (!results || !results.hosts) return null;
+  if (!results?.hosts?.length) return null;
 
-  const allPorts = results.hosts.flatMap(h => h.ports || []);
-  const critCount = allPorts.filter(p => p.risk_level === "CRITICAL").length;
-  const highCount = allPorts.filter(p => p.risk_level === "HIGH").length;
+  const allPorts = results.hosts.flatMap((host) => host.ports || []);
+  const stats = [
+    { label: "Open ports", value: allPorts.length },
+    { label: "Critical", value: allPorts.filter((p) => p.risk_level === "CRITICAL").length },
+    { label: "High", value: allPorts.filter((p) => p.risk_level === "HIGH").length },
+    { label: "CVEs", value: allPorts.reduce((sum, p) => sum + (p.cves?.length || 0), 0) },
+  ];
 
   return (
-    <div style={{ marginTop: 32, width: "100%", flex: 1 }}>
-      {/* Summary bar */}
-      <div style={{
-        display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 24,
-        padding: 18, background: "#0a0a0c", borderRadius: 10, border: "1px solid #1c1c1e",
-        overflowX: "auto",
-      }}>
-        {[
-          { label: "Open Ports", value: allPorts.length, color: "#00d4ff" },
-          { label: "Critical", value: critCount, color: "#ff2d55" },
-          { label: "High", value: highCount, color: "#ff6b35" },
-          { label: "Total CVEs", value: allPorts.reduce((a, p) => a + (p.cves?.length || 0), 0), color: "#ffd60a" },
-        ].map(stat => (
-          <div key={stat.label} style={{ flex: 1, minWidth: 100, textAlign: "center" }}>
-            <div style={{ color: stat.color, fontSize: 28, fontWeight: 800, fontFamily: "monospace" }}>{stat.value}</div>
-            <div style={{ color: "#636366", fontSize: 11, letterSpacing: 1 }}>{stat.label}</div>
-          </div>
+    <section className="results-layer" aria-live="polite">
+      <div className="stats-grid">
+        {stats.map((stat) => (
+          <article key={stat.label} className="stat-card">
+            <div>{stat.value}</div>
+            <p>{stat.label}</p>
+          </article>
         ))}
       </div>
 
-      {/* Host results */}
-      {results.hosts.map((host, i) => (
-        <div key={i}>
-          <div style={{
-            display: "flex", alignItems: "center", gap: 12, marginBottom: 16, flexWrap: "wrap",
-          }}>
-            <span style={{ color: "#00d4ff", fontFamily: "monospace", fontSize: 13, background: "rgba(0,212,255,0.08)", padding: "4px 12px", borderRadius: 4, border: "1px solid rgba(0,212,255,0.2)" }}>
-              {host.ip}
-            </span>
-            {host.hostnames?.[0] && <span style={{ color: "#636366", fontFamily: "monospace", fontSize: 12 }}>{host.hostnames[0]}</span>}
-            <span style={{ color: "#30d158", fontSize: 12 }}>● {host.status}</span>
-            {host.vendor && <span style={{ color: "#636366", fontSize: 12 }}>{host.vendor}</span>}
-          </div>
-          {host.ports?.map(port => <PortCard key={port.port} port={port} />)}
-        </div>
+      {results.hosts.map((host) => (
+        <section key={host.ip} className="host-layer">
+          <header>
+            <h3>{host.ip}</h3>
+            <p>{host.hostnames?.[0] || "No hostname"}</p>
+            <span>{host.status === "up" ? "Host up" : "Host down"}</span>
+          </header>
+          {host.ports?.map((port) => (
+            <PortCard key={`${host.ip}-${port.port}`} port={port} />
+          ))}
+        </section>
       ))}
 
-      {results.scan_info?.summary && (
-        <div style={{ color: "#636366", fontSize: 11, fontFamily: "monospace", textAlign: "center", marginTop: 16 }}>
-          {results.scan_info.summary} · {results.scan_info.elapsed}s
-        </div>
-      )}
-    </div>
+      <footer className="scan-footer">
+        {results.scan_info?.summary} · {results.scan_info?.elapsed}s
+      </footer>
+    </section>
   );
 }
 
@@ -349,10 +271,10 @@ export default function VulnScanner() {
   const [demoMode, setDemoMode] = useState(false);
   const logRef = useRef(null);
 
+  const canScan = useMemo(() => Boolean(target.trim()) && !scanning, [target, scanning]);
+
   const addLog = (text, type = "info", delay = 0) => {
-    setTimeout(() => {
-      setLogs(prev => [...prev, { text, type, id: Date.now() + Math.random() }]);
-    }, delay);
+    setTimeout(() => setLogs((prev) => [...prev, { id: Date.now() + Math.random(), text, type }]), delay);
   };
 
   useEffect(() => {
@@ -369,47 +291,32 @@ export default function VulnScanner() {
     setScanning(true);
     setTarget("192.168.1.1");
 
-    const demoLogs = [
-      { text: "Initializing scanner engine...", type: "info", d: 0 },
-      { text: `Starting nmap scan on: 192.168.1.1`, type: "info", d: 400 },
-      { text: "Running SYN stealth scan (-sV -sC -T4)...", type: "info", d: 900 },
-      { text: "Discovered open port 22/tcp on 192.168.1.1", type: "success", d: 1500 },
-      { text: "Discovered open port 80/tcp on 192.168.1.1", type: "success", d: 2000 },
-      { text: "Discovered open port 3306/tcp on 192.168.1.1", type: "warn", d: 2400 },
-      { text: "Running version detection scripts...", type: "info", d: 2800 },
-      { text: "Service detected: OpenSSH 7.4 on port 22", type: "info", d: 3200 },
-      { text: "Service detected: Apache httpd 2.4.51 on port 80", type: "info", d: 3600 },
-      { text: "Service detected: MySQL 5.7.38 on port 3306", type: "info", d: 4000 },
-      { text: "Querying NVD database for CVEs...", type: "info", d: 4400 },
-      { text: "Found 2 CVEs for OpenSSH 7.4 (max CVSS: 9.8 CRITICAL)", type: "error", d: 5000 },
-      { text: "Found 1 CVE for Apache httpd 2.4.51 (CVSS: 9.8 CRITICAL)", type: "error", d: 5600 },
-      { text: "Found 1 CVE for MySQL 5.7.38 (CVSS: 4.9 MEDIUM)", type: "warn", d: 6200 },
-      { text: "Generating mitigation recommendations...", type: "info", d: 6800 },
-      { text: "Scan complete. 3 open ports, 4 CVEs found.", type: "success", d: 7400 },
-    ];
-
-    demoLogs.forEach(({ text, type, d }) => addLog(text, type, d));
+    [
+      ["Initializing scanner pipeline...", "info", 0],
+      ["Preparing layered host graph...", "info", 500],
+      ["Collecting open services and CVEs...", "info", 1200],
+      ["Critical exposure found on port 80.", "error", 2600],
+      ["Mitigations generated.", "success", 4000],
+      ["Scan complete.", "success", 4800],
+    ].forEach(([text, type, delay]) => addLog(text, type, delay));
 
     setTimeout(() => {
       setResults(MOCK_SCAN_RESULT);
       setScanning(false);
-    }, 8000);
+    }, 5400);
   };
 
   const runRealScan = async () => {
     if (!target.trim()) return;
+    setDemoMode(false);
     setError(null);
     setResults(null);
     setLogs([]);
     setScanning(true);
-    setDemoMode(false);
 
-    addLog(`Target: ${target}`, "info", 0);
-    addLog("This tool requires Python + nmap on your system.", "warn", 200);
-    addLog("Run: python3 backend.py " + target, "info", 400);
-    addLog("Copy the JSON output and paste below, or integrate with a local API server.", "info", 800);
+    addLog(`Target queued: ${target}`, "info", 0);
+    addLog("Attempting local API bridge at localhost:5000", "info", 250);
 
-    // Attempt to call a local backend if running
     try {
       const resp = await fetch(`http://localhost:5000/scan?target=${encodeURIComponent(target)}`, {
         signal: AbortSignal.timeout(5000),
@@ -419,184 +326,270 @@ export default function VulnScanner() {
         setError(data.error);
       } else {
         setResults(data);
-        addLog("Scan complete!", "success", 0);
+        addLog("Scan complete.", "success", 100);
       }
     } catch {
-      addLog("Local backend not available (localhost:5000). Showing demo mode.", "warn", 1200);
-      addLog("To run real scans, start the Flask API server included below.", "info", 1600);
-      setTimeout(() => {
-        setScanning(false);
-        setError("Local scanner backend not running. Use demo mode or start the Flask server. See the Python files for setup instructions.");
-      }, 2000);
+      addLog("No local backend detected.", "warn", 800);
+      setError("Local scanner backend is offline. Start api_server.py or run demo mode.");
+    } finally {
+      setScanning(false);
     }
   };
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "#050507",
-      color: "#e5e5ea",
-      fontFamily: "'IBM Plex Mono', 'Courier New', monospace",
-      padding: "0",
-      overflow: "auto",
-    }}>
-      {/* Header */}
-      <div style={{
-        background: "linear-gradient(180deg, #0a0a0f 0%, #050507 100%)",
-        borderBottom: "1px solid #1c1c1e",
-        padding: "24px 32px",
-      }}>
-        <div style={{ maxWidth: 900, margin: "0 auto" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 6 }}>
-            <div style={{
-              width: 36, height: 36,
-              background: "linear-gradient(135deg, #ff2d55, #ff6b35)",
-              borderRadius: 8,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 18, flexShrink: 0,
-            }}>⚡</div>
-            <div>
-              <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: -0.5, color: "#fff" }}>
-                VulnScan
-              </h1>
-              <div style={{ color: "#636366", fontSize: 11, letterSpacing: 2, marginTop: 2 }}>
-                PORT SCANNER + CVE INTELLIGENCE
-              </div>
-            </div>
-          </div>
+    <div className="app-shell">
+      <header className="hero-layer">
+        <div className="hero-content">
+          <p>Perspective Security Workspace</p>
+          <h1>VulnScan Depth Console</h1>
+          <span>Isometric layers, strict hierarchy, and high-contrast remediation workflows.</span>
         </div>
-      </div>
+      </header>
 
-      <div style={{ maxWidth: 900, margin: "0 auto", padding: "32px 24px", minHeight: "calc(100vh - 120px)", display: "flex", flexDirection: "column" }}>
-        {/* Input */}
-        <div style={{
-          background: "#0a0a0c",
-          border: "1px solid #1c1c1e",
-          borderRadius: 12,
-          padding: 20,
-          marginBottom: 24,
-        }}>
-          <div style={{ color: "#636366", fontSize: 11, letterSpacing: 2, marginBottom: 12 }}>TARGET</div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+      <main className="main-grid">
+        <section className="panel panel-elevated">
+          <label htmlFor="target">Scan target</label>
+          <div className="input-row">
             <input
+              id="target"
               value={target}
-              onChange={e => setTarget(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && runRealScan()}
-              placeholder="Enter IP address or URL (e.g. 192.168.1.1)"
-              style={{
-                flex: 1, minWidth: 200,
-                background: "#050507",
-                border: "1px solid #2c2c2e",
-                borderRadius: 8,
-                color: "#00d4ff",
-                padding: "10px 14px",
-                fontSize: 14,
-                fontFamily: "inherit",
-                outline: "none",
-              }}
+              onChange={(event) => setTarget(event.target.value)}
+              onKeyDown={(event) => event.key === "Enter" && canScan && runRealScan()}
+              placeholder="IP, domain, or URL"
             />
-            <button onClick={runRealScan} disabled={scanning || !target.trim()} style={{
-              background: scanning ? "#1c1c1e" : "linear-gradient(135deg, #ff2d55, #c02030)",
-              color: "#fff",
-              border: "none",
-              borderRadius: 8,
-              padding: "10px 20px",
-              cursor: scanning || !target.trim() ? "not-allowed" : "pointer",
-              fontFamily: "inherit",
-              fontWeight: 700,
-              fontSize: 13,
-              letterSpacing: 1,
-            }}>
-              {scanning ? "SCANNING..." : "SCAN"}
+            <button type="button" className="btn-primary" onClick={runRealScan} disabled={!canScan}>
+              {scanning ? "Scanning..." : "Run Scan"}
             </button>
-            <button onClick={runDemoScan} disabled={scanning} style={{
-              background: "transparent",
-              color: "#636366",
-              border: "1px solid #2c2c2e",
-              borderRadius: 8,
-              padding: "10px 16px",
-              cursor: scanning ? "not-allowed" : "pointer",
-              fontFamily: "inherit",
-              fontSize: 12,
-              letterSpacing: 1,
-            }}>
-              DEMO
+            <button type="button" className="btn-ghost" onClick={runDemoScan} disabled={scanning}>
+              Demo Data
             </button>
           </div>
-          {demoMode && (
-            <div style={{ marginTop: 10, color: "#ffd60a", fontSize: 11, padding: "6px 10px", background: "rgba(255,214,10,0.06)", borderRadius: 4 }}>
-              ⚡ Demo mode — showing sample scan results. For real scans, run the Python backend locally.
-            </div>
-          )}
-        </div>
+          {demoMode ? <p className="hint">Demo mode is active. Results are simulated.</p> : null}
+        </section>
 
-        {/* Terminal log */}
-        {logs.length > 0 && (
-          <div ref={logRef} style={{
-            background: "#050507",
-            border: "1px solid #1c1c1e",
-            borderRadius: 10,
-            padding: "14px 16px",
-            marginBottom: 24,
-            maxHeight: "auto",
-            minHeight: 180,
-            overflowY: "auto",
-          }}>
-            {logs.map((log, i) => (
-              <TerminalLine key={log.id} text={log.text} type={log.type} delay={0} />
+        {logs.length > 0 ? (
+          <section className="panel terminal-panel" ref={logRef}>
+            <h2>Activity stream</h2>
+            {logs.map((log) => (
+              <p key={log.id} className={`log-${log.type}`}>
+                {log.text}
+              </p>
             ))}
-            {scanning && (
-              <div style={{ color: "#00d4ff", fontFamily: "monospace", fontSize: 13, marginTop: 4 }}>
-                <span style={{ animation: "blink 1s infinite" }}>▋</span>
-              </div>
-            )}
-          </div>
-        )}
+          </section>
+        ) : null}
 
-        {/* Error */}
-        {error && (
-          <div style={{
-            background: "rgba(255,45,85,0.08)",
-            border: "1px solid rgba(255,45,85,0.3)",
-            borderRadius: 8,
-            padding: 14,
-            color: "#ff2d55",
-            fontSize: 13,
-            marginBottom: 24,
-          }}>
-            ☢ {error}
-          </div>
-        )}
+        {error ? <section className="panel error-panel">{error}</section> : null}
 
-        {/* Results */}
         <ScanResults results={results} />
 
-        {/* Setup instructions */}
-        <div style={{
-          marginTop: 40,
-          background: "#0a0a0c",
-          border: "1px solid #1c1c1e",
-          borderRadius: 10,
-          padding: 20,
-        }}>
-          <div style={{ color: "#636366", fontSize: 11, letterSpacing: 2, marginBottom: 14 }}>SETUP INSTRUCTIONS</div>
-          <div style={{ color: "#8e8e93", fontSize: 12, lineHeight: 2 }}>
-            <div><span style={{ color: "#ffd60a" }}>1.</span> Install nmap: <code style={{ color: "#00d4ff" }}>sudo apt-get install nmap</code></div>
-            <div><span style={{ color: "#ffd60a" }}>2.</span> Run direct scan: <code style={{ color: "#00d4ff" }}>python3 backend.py &lt;target-ip&gt;</code></div>
-            <div><span style={{ color: "#ffd60a" }}>3.</span> Or start Flask API: <code style={{ color: "#00d4ff" }}>python3 api_server.py</code> then use this UI</div>
-            <div><span style={{ color: "#ffd60a" }}>4.</span> CVE data sourced from <code style={{ color: "#00d4ff" }}>NVD (nvd.nist.gov)</code> — no API key required</div>
-          </div>
-        </div>
-      </div>
+        <section className="panel setup-panel">
+          <h2>Setup</h2>
+          <ol>
+            <li>Install nmap: <code>sudo apt-get install nmap</code></li>
+            <li>Run local scanner: <code>python3 backend.py &lt;target&gt;</code></li>
+            <li>Run API mode: <code>python3 api_server.py</code></li>
+          </ol>
+        </section>
+      </main>
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Poppins:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+        :root {
+          --primary: ${TOKENS.color.primary};
+          --success: ${TOKENS.color.success};
+          --warning: ${TOKENS.color.warning};
+          --danger: ${TOKENS.color.danger};
+          --surface: ${TOKENS.color.surface};
+          --text: ${TOKENS.color.text};
+          --neutral-900: ${TOKENS.color.neutral900};
+          --neutral-800: ${TOKENS.color.neutral800};
+          --neutral-700: ${TOKENS.color.neutral700};
+          --neutral-200: ${TOKENS.color.neutral200};
+          --neutral-100: ${TOKENS.color.neutral100};
+        }
         * { box-sizing: border-box; }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #050507; }
-        ::-webkit-scrollbar-thumb { background: #2c2c2e; border-radius: 3px; }
-        @keyframes blink { 0%,50% { opacity: 1 } 51%,100% { opacity: 0 } }
-        input::placeholder { color: #3a3a3c; }
+        body { margin: 0; }
+        .app-shell {
+          min-height: 100vh;
+          color: var(--text);
+          font-family: 'Poppins', system-ui, sans-serif;
+          background:
+            radial-gradient(circle at 20% 0%, #d1fae5 0%, #f8fafc 34%, #f3f4f6 100%);
+        }
+        .hero-layer {
+          padding: ${TOKENS.spacing.xxl}px;
+          background: linear-gradient(132deg, #111827 8%, #1f2937 65%, #111827 100%);
+          color: white;
+          clip-path: polygon(0 0, 100% 0, 100% 84%, 0 100%);
+        }
+        .hero-content { max-width: 1100px; margin: 0 auto; }
+        .hero-content p {
+          margin: 0;
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 12px;
+          letter-spacing: .08em;
+          color: #6ee7b7;
+        }
+        .hero-content h1 {
+          margin: ${TOKENS.spacing.sm}px 0;
+          font-family: 'Oswald', sans-serif;
+          font-size: 32px;
+          line-height: 1.1;
+          letter-spacing: .02em;
+        }
+        .hero-content span { font-size: 16px; color: #d1d5db; }
+        .main-grid {
+          max-width: 1100px;
+          margin: -18px auto 0;
+          padding: 0 ${TOKENS.spacing.xl}px ${TOKENS.spacing.xxl}px;
+          display: grid;
+          gap: ${TOKENS.spacing.lg}px;
+        }
+        .panel {
+          background: var(--surface);
+          border: 1px solid var(--neutral-200);
+          border-radius: ${TOKENS.radius.md}px;
+          padding: ${TOKENS.spacing.lg}px;
+          box-shadow: 0 6px 14px rgba(17,24,39,.06);
+        }
+        .panel-elevated {
+          box-shadow: 0 10px 0 #d1d5db, 0 20px 24px rgba(17,24,39,.12);
+          transform: perspective(1100px) rotateX(2deg);
+        }
+        label { display: block; font-size: 12px; font-weight: 600; margin-bottom: ${TOKENS.spacing.sm}px; }
+        .input-row { display: flex; gap: ${TOKENS.spacing.sm}px; flex-wrap: wrap; }
+        input {
+          flex: 1;
+          min-width: 220px;
+          font-size: 14px;
+          border: 1px solid var(--neutral-200);
+          border-radius: ${TOKENS.radius.sm}px;
+          padding: ${TOKENS.spacing.md}px;
+          font-family: 'Poppins', sans-serif;
+        }
+        input:focus-visible, button:focus-visible, .port-summary:focus-visible {
+          outline: 3px solid #93c5fd;
+          outline-offset: 2px;
+        }
+        .btn-primary, .btn-ghost {
+          border-radius: ${TOKENS.radius.sm}px;
+          border: 1px solid transparent;
+          padding: ${TOKENS.spacing.md}px ${TOKENS.spacing.lg}px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .btn-primary { background: var(--primary); color: #052e16; }
+        .btn-primary:hover:not(:disabled) { filter: brightness(0.94); }
+        .btn-ghost { background: white; border-color: var(--neutral-200); color: var(--neutral-800); }
+        .btn-ghost:hover:not(:disabled) { background: var(--neutral-100); }
+        button:disabled { opacity: .55; cursor: not-allowed; }
+        .hint { margin: ${TOKENS.spacing.sm}px 0 0; color: var(--neutral-700); font-size: 12px; }
+        .terminal-panel h2, .setup-panel h2 { margin: 0 0 ${TOKENS.spacing.sm}px; font-size: 16px; }
+        .terminal-panel { max-height: 260px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; }
+        .terminal-panel p { margin: 0 0 8px; font-size: 12px; }
+        .log-info { color: #1d4ed8; }
+        .log-success { color: var(--success); }
+        .log-warn { color: var(--warning); }
+        .log-error { color: var(--danger); }
+        .error-panel { color: var(--danger); border-color: #fecaca; background: #fef2f2; font-weight: 600; }
+        .results-layer { display: grid; gap: ${TOKENS.spacing.lg}px; }
+        .stats-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+          gap: ${TOKENS.spacing.sm}px;
+        }
+        .stat-card {
+          background: linear-gradient(160deg, white 0%, #f9fafb 70%);
+          border: 1px solid #e5e7eb;
+          border-radius: ${TOKENS.radius.sm}px;
+          padding: ${TOKENS.spacing.md}px;
+          text-align: center;
+          transform: translateZ(0);
+        }
+        .stat-card div { font-size: 24px; font-weight: 700; }
+        .stat-card p { margin: 4px 0 0; font-size: 12px; color: var(--neutral-700); }
+        .host-layer > header { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-bottom: 8px; }
+        .host-layer h3 { margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 16px; }
+        .host-layer p { margin: 0; font-size: 12px; color: var(--neutral-700); }
+        .host-layer span { font-size: 12px; color: var(--success); font-weight: 600; }
+        .port-card {
+          border: 1px solid;
+          border-radius: ${TOKENS.radius.md}px;
+          background: white;
+          margin-bottom: ${TOKENS.spacing.sm}px;
+          overflow: hidden;
+        }
+        .port-summary {
+          width: 100%;
+          border: 0;
+          background: transparent;
+          padding: ${TOKENS.spacing.md}px;
+          display: flex;
+          align-items: center;
+          gap: ${TOKENS.spacing.md}px;
+          text-align: left;
+          cursor: pointer;
+        }
+        .port-number {
+          min-width: 62px;
+          text-align: center;
+          font: 600 20px 'Oswald', sans-serif;
+          border-radius: ${TOKENS.radius.sm}px;
+          padding: 6px 10px;
+        }
+        .port-meta { flex: 1; min-width: 170px; }
+        .port-meta h4 { margin: 0; font-size: 16px; }
+        .port-meta h4 span { font-size: 14px; color: var(--neutral-700); }
+        .port-meta p { margin: 4px 0 0; font-size: 12px; color: var(--neutral-700); }
+        .port-state { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .severity-badge, .score-pill {
+          display: inline-flex;
+          align-items: center;
+          border-radius: 999px;
+          font-size: 12px;
+          font-weight: 600;
+          line-height: 1;
+          padding: 6px 10px;
+          white-space: nowrap;
+        }
+        .score-pill { border: 1px solid; background: white; }
+        .port-details {
+          border-top: 1px solid var(--neutral-200);
+          padding: ${TOKENS.spacing.md}px;
+          display: grid;
+          gap: ${TOKENS.spacing.md}px;
+        }
+        .detail-block h5 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+        .cve-card {
+          border: 1px solid var(--neutral-200);
+          border-radius: ${TOKENS.radius.sm}px;
+          padding: 10px;
+          margin-bottom: 8px;
+          background: #fcfcfd;
+        }
+        .cve-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .cve-top a { color: #0369a1; font: 600 12px 'JetBrains Mono', monospace; text-decoration: none; }
+        .cve-top time { margin-left: auto; font-size: 12px; color: var(--neutral-700); }
+        .cve-card p { margin: 8px 0 0; font-size: 13px; color: var(--neutral-900); }
+        ul { margin: 0; padding-left: 18px; }
+        li { margin-bottom: 6px; font-size: 13px; }
+        .cpe-list { display: flex; flex-wrap: wrap; gap: 6px; }
+        .cpe-list code {
+          font: 500 11px 'JetBrains Mono', monospace;
+          background: var(--neutral-100);
+          border: 1px solid var(--neutral-200);
+          border-radius: 6px;
+          padding: 4px 8px;
+        }
+        .scan-footer { text-align: center; font-size: 12px; color: var(--neutral-700); }
+        .setup-panel code { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+        @media (max-width: 720px) {
+          .hero-layer { padding: ${TOKENS.spacing.xl}px; }
+          .hero-content h1 { font-size: 24px; }
+          .main-grid { padding: 0 ${TOKENS.spacing.md}px ${TOKENS.spacing.xl}px; }
+          .port-summary { align-items: flex-start; }
+        }
       `}</style>
     </div>
   );
