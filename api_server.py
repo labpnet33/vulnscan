@@ -600,6 +600,12 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
 .host-card-ip{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--text)}
 .host-card-hn{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:3px}
 .found{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:20px;font-family:var(--mono);font-size:11px;color:var(--text2);position:relative;z-index:2}
+.home-cat-block{margin-bottom:18px}
+.home-cat-label{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--text2);letter-spacing:2px;padding:4px 0 4px 10px;border-left:3px solid var(--accent);margin-bottom:10px}
+.home-tools-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.home-tool-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;cursor:pointer;transition:border-color 0.15s ease,transform 0.15s ease,box-shadow 0.15s ease}
+.home-tool-card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.home-tool-card:active{transform:translateY(0) scale(0.98)}
 #toast-container{position:fixed;bottom:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
 .toast{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-size:12px;font-family:var(--mono);box-shadow:var(--shadow-md);pointer-events:all;display:flex;align-items:flex-start;gap:9px;max-width:320px;animation:toastIn 0.25s ease}
 .toast.leaving{animation:toastOut 0.2s ease forwards}
@@ -797,9 +803,9 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
       <!-- /VulnScan Nav Search v2 -->
       <style>
 .nav-section{padding:4px 10px}
-.nav-cat-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:6px 8px;border-radius:var(--radius);user-select:none;background:linear-gradient(180deg,rgba(127,140,141,.12),rgba(127,140,141,.06));border:1px solid rgba(127,140,141,.25)}
-.nav-cat-toggle:hover{background:linear-gradient(180deg,rgba(52,152,219,.16),rgba(52,152,219,.08));border-color:rgba(52,152,219,.35)}
-.nav-cat-label{font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:2px;font-weight:700}
+.nav-cat-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:6px 8px;border-radius:var(--radius);user-select:none}
+.nav-cat-toggle:hover{background:var(--bg3)}
+.nav-cat-label{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;font-weight:500}
 .nav-cat-arrow{font-size:9px;color:var(--text3);transition:transform 0.2s}
 .nav-cat-arrow.open{transform:rotate(180deg)}
 .nav-cat-items{overflow:hidden;transition:max-height 0.25s ease,opacity 0.2s}
@@ -812,24 +818,12 @@ function navToggle(id){
   var arrow=document.getElementById('na-'+id);
   if(!items)return;
   var collapsed=items.classList.contains('collapsed');
-  if(collapsed){
-    document.querySelectorAll('.nav-cat-items.expanded').forEach(function(openItems){
-      if(openItems.id===('nc-'+id))return;
-      openItems.classList.remove('expanded');
-      openItems.classList.add('collapsed');
-      var aid=openItems.id.replace(/^nc-/,'');
-      var ael=document.getElementById('na-'+aid);
-      if(ael)ael.classList.remove('open');
-      try{localStorage.setItem('vs-nav-'+aid,'0');}catch(e){}
-    });
-  }
   items.classList.toggle('collapsed',!collapsed);
   items.classList.toggle('expanded',collapsed);
   if(arrow)arrow.classList.toggle('open',collapsed);
   try{localStorage.setItem('vs-nav-'+id,collapsed?'1':'0');}catch(e){}
 }
 function navRestore(){
-  var openedOne=false;
   ['overview','information','webtesting','attacks','webapp','passwords','recon','exploitation','auditing','c2','social','reverseeng','tunneling','admin'].forEach(function(id){
     var items=document.getElementById('nc-'+id);
     var arrow=document.getElementById('na-'+id);
@@ -837,21 +831,12 @@ function navRestore(){
     var stored;try{stored=localStorage.getItem('vs-nav-'+id);}catch(e){}
     // Default is NOW CLOSED (0) — user preference overrides on repeat visits
     var open=(stored===null)?0:(stored==='1'?1:0);
-    if(openedOne&&open)open=0;
-    if(open)openedOne=true;
     items.classList.toggle('collapsed',!open);
     items.classList.toggle('expanded',!!open);
     if(arrow)arrow.classList.toggle('open',!!open);
   });
 }
-function navPruneSections(){
-  var overview=document.getElementById('nc-overview');
-  if(overview&&overview.closest('.nav-section'))overview.closest('.nav-section').style.display='none';
-  var adminSec=document.getElementById('admin-nav-section');
-  if(adminSec)adminSec.style.display='none';
-}
 document.addEventListener('DOMContentLoaded',navRestore);
-document.addEventListener('DOMContentLoaded',navPruneSections);
       </script>
 
       <div class="nav-section">
@@ -1014,7 +999,6 @@ document.addEventListener('DOMContentLoaded',navPruneSections);
     <header class="topbar">
       <div class="tb-title" id="topbar-title">Home</div>
       <div class="tb-right">
-        <button class="btn btn-outline btn-sm" id="admin-open-btn" onclick="pg('admin',null)" style="display:none">Admin Console</button>
         <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle dark/light theme" aria-label="Toggle theme"></button>
         <div class="notif-wrap" id="notif-wrap">
           <button class="notif-btn" id="notif-btn" onclick="toggleNotifications()" title="Scan notifications" aria-label="Scan notifications">&#128276;<span class="notif-badge" id="notif-badge">0</span></button>
@@ -1078,10 +1062,6 @@ document.addEventListener('DOMContentLoaded',navPruneSections);
           <div class="card" style="cursor:pointer" onclick="pg('shellphish',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
             <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">ShellPhish</div><div style="font-size:12px;color:var(--text3)">Template-driven phishing simulation framework for labs</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">templates</span><span class="tag">ngrok</span></div></div>
           </div>
-        </div>
-        <div class="card card-p" style="margin-top:14px">
-          <div class="card-title" style="margin-bottom:10px">All Tools by Category</div>
-          <div id="home-tool-catalog" style="display:grid;gap:12px"></div>
         </div>
         <div class="notice" style="margin-top:18px">&#9888; <strong>Authorized use only.</strong> Only scan systems you own or have explicit written permission to assess.</div>
       </div>
@@ -2929,32 +2909,47 @@ document.addEventListener('DOMContentLoaded',navPruneSections);
             <div class="card-p" id="admin-services-table" style="overflow-x:auto"></div>
           </div>
           <div class="card">
-            <div class="card-header"><div class="card-title">Add New Monitored Service</div></div>
+            <div class="card-header">
+              <div>
+                <div class="card-title" id="svc-form-title">Add New Monitored Service</div>
+                <div class="card-sub" id="svc-form-mode-lbl">NEW SERVICE</div>
+              </div>
+              <button class="btn btn-ghost btn-sm" id="svc-cancel-edit" onclick="cancelServiceEdit()" style="display:none">Cancel Edit</button>
+            </div>
             <div class="card-p">
-              <div class="grid3">
-                <div class="fg">
-                  <label>Quick Add</label>
-                  <select class="inp inp-mono" id="svc-preset" onchange="applyServicePreset()">
-                    <option value="">-- Select preset --</option>
-                    <option value="apache2">Apache service</option>
-                    <option value="supabase">Supabase connectivity</option>
-                  </select>
-                </div>
-                <div class="fg"><label>Display Name</label><input class="inp inp-mono" id="svc-label" type="text" placeholder="My Service"/></div>
-                <div class="fg"><label>Service Key</label><input class="inp inp-mono" id="svc-key" type="text" placeholder="my-service"/></div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+                <span style="font-size:11px;color:var(--text3)">Quick presets:</span>
+                <button class="btn btn-outline btn-sm" onclick="applyServicePreset('apache2')">Apache</button>
+                <button class="btn btn-outline btn-sm" onclick="applyServicePreset('supabase')">Supabase</button>
+                <button class="btn btn-outline btn-sm" onclick="applyServicePreset('nginx')">Nginx</button>
+                <button class="btn btn-outline btn-sm" onclick="applyServicePreset('clear')">Clear Form</button>
               </div>
-              <div class="grid3">
-                <div class="fg">
-                  <label>Service Type</label>
-                  <select class="inp inp-mono" id="svc-kind">
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+                <div class="fg"><label>DISPLAY NAME</label><input class="inp inp-mono" id="svc-label" type="text" placeholder="My Service"/></div>
+                <div class="fg"><label>SERVICE KEY (unique ID)</label><input class="inp inp-mono" id="svc-key" type="text" placeholder="my-service"/></div>
+                <div class="fg"><label>SERVICE TYPE</label>
+                  <select class="inp inp-mono" id="svc-kind" onchange="svcKindChange()">
                     <option value="systemctl">systemctl unit</option>
-                    <option value="command">custom command check</option>
+                    <option value="command">custom command</option>
                   </select>
                 </div>
-                <div class="fg"><label>Systemd Unit</label><input class="inp inp-mono" id="svc-unit" type="text" placeholder="apache2"/></div>
-                <div class="fg"><label>Check Command (command type)</label><input class="inp inp-mono" id="svc-check" type="text" placeholder="python3 health_check.py"/></div>
               </div>
-              <div style="margin-top:10px"><button class="btn btn-primary" onclick="addMonitoredService()">Add Service</button></div>
+              <div id="svc-systemctl-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                <div class="fg"><label>SYSTEMD UNIT NAME</label><input class="inp inp-mono" id="svc-unit" type="text" placeholder="apache2"/></div>
+                <div class="fg"><label>DESCRIPTION (optional)</label><input class="inp inp-mono" id="svc-desc" type="text" placeholder="Web server"/></div>
+              </div>
+              <div id="svc-command-fields" style="display:none;margin-bottom:10px">
+                <div class="fg"><label>CHECK COMMAND (runs to verify service health)</label><input class="inp inp-mono" id="svc-check" type="text" placeholder="python3 health_check.py  OR  curl -fs http://localhost:8080/health"/></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:8px">
+                  <div class="fg"><label>START COMMAND (optional)</label><input class="inp inp-mono" id="svc-start" type="text" placeholder="systemctl start my-service"/></div>
+                  <div class="fg"><label>STOP COMMAND (optional)</label><input class="inp inp-mono" id="svc-stop" type="text" placeholder="systemctl stop my-service"/></div>
+                  <div class="fg"><label>RESTART COMMAND (optional)</label><input class="inp inp-mono" id="svc-restart" type="text" placeholder="systemctl restart my-service"/></div>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:10px">
+                <button class="btn btn-primary" id="svc-submit-btn" onclick="submitServiceForm()">ADD SERVICE</button>
+                <button class="btn btn-ghost btn-sm" onclick="loadAdminServices()">Refresh List</button>
+              </div>
               <div id="svc-msg" style="margin-top:10px;color:var(--text3);font-size:12px"></div>
             </div>
           </div>
@@ -3010,11 +3005,10 @@ var toast=showToast;
 var scanControllers={};
 var _vsNotifUnread=0;
 var _vsRecentCompleted=[];
-var _vsRecentToolCompleted=[];
 var _vsKnownCompleted={};
 var _vsNotifPollTimer=null;
-var _vsToolPages={scan:'scan',wd:'webdeep',hv:'harvester',dr:'dnsrecon',nk:'nikto',wp:'wpscan',ly:'lynis',lg:'legion',ffuf:'ffuf',nuclei:'nuclei',whatweb:'whatweb',wapiti:'wapiti',dalfox:'dalfox',sqlmap:'sqlmap',kxss:'kxss',medusa:'medusa',hping3:'hping3',scapy:'scapy',yersinia:'yersinia',hashcat:'hashcat',john:'john',searchsploit:'searchsploit',seclists:'seclists',ligolo:'ligolo',chisel:'chisel',rlwrap:'rlwrap',pspy:'pspy',msfvenom:'msfvenom',pwncat:'pwncat',grype:'grype',radare2:'radare2',openvas:'openvas',chkrootkit:'chkrootkit',rkhunter:'rkhunter',gp:'gophish',eg:'evilginx2',sp:'shellphish',nc:'netcat',nct:'ncat',sc:'socat',sv:'sliver',em:'empire'};
-var _vsToolNames={scan:'Network Scanner',wd:'Deep Web Audit',hv:'theHarvester',dr:'DNSRecon',nk:'Nikto',wp:'WPScan',ly:'Lynis',lg:'Legion',ffuf:'ffuf',nuclei:'Nuclei',whatweb:'WhatWeb',wapiti:'Wapiti',dalfox:'Dalfox',sqlmap:'SQLMap',kxss:'kxss',medusa:'Medusa',hping3:'hping3',scapy:'Scapy',yersinia:'Yersinia',hashcat:'Hashcat',john:'John the Ripper',searchsploit:'SearchSploit',seclists:'SecLists',ligolo:'Ligolo-ng',chisel:'Chisel',rlwrap:'rlwrap',pspy:'pspy',msfvenom:'msfvenom',pwncat:'pwncat',grype:'Grype',radare2:'Radare2',openvas:'OpenVAS',chkrootkit:'chkrootkit',rkhunter:'rkhunter',gp:'Gophish',eg:'Evilginx2',sp:'ShellPhish',nc:'Netcat',nct:'Ncat',sc:'Socat',sv:'Sliver',em:'Empire'};
+var _vsToolPages={scan:'scan',wd:'webdeep',hv:'harvester',dr:'dnsrecon',nk:'nikto',wp:'wpscan',ly:'lynis',lg:'legion'};
+var _vsToolNames={scan:'Network Scanner',wd:'Deep Web Audit',hv:'theHarvester',dr:'DNSRecon',nk:'Nikto',wp:'WPScan',ly:'Lynis',lg:'Legion'};
 function updateNotificationBadge(){
   var badge=document.getElementById('notif-badge');if(!badge)return;
   var ongoing=Object.keys(scanControllers).length;
@@ -3045,36 +3039,8 @@ function renderNotifications(){
     var t=((s.scan_time||'').replace('T',' ').substring(0,19))||'--';
     html+='<div class="notif-item" onclick="openNotificationPage(\'scan\','+s.id+')"><div class="notif-title">Completed: '+(s.target||'scan')+'</div><div class="notif-meta">#'+s.id+' · '+t+' · '+(s.total_cves||0)+' CVEs</div></div>';
   });
-  _vsRecentToolCompleted.forEach(function(n){
-    html+='<div class="notif-item" onclick="openNotificationPage(\''+(n.pageId||'scan')+'\',null)"><div class="notif-title">Completed: '+(n.name||'Tool')+'</div><div class="notif-meta">'+(n.detail||'Execution finished')+'</div></div>';
-  });
   if(!html)html='<div class="notif-empty">No active or recent scan notifications.</div>';
   out.innerHTML=html;
-}
-function pushToolCompletion(prefix,url){
-  var name=_vsToolNames[prefix]||((prefix||'tool').toUpperCase());
-  var pageId=_vsToolPages[prefix]||'scan';
-  var detail=(url||'').split('?')[0].replace(/^\/+/,'/')+' · '+new Date().toLocaleTimeString();
-  _vsRecentToolCompleted.unshift({name:name,pageId:pageId,detail:detail});
-  if(_vsRecentToolCompleted.length>25)_vsRecentToolCompleted.length=25;
-  _vsNotifUnread++;
-  renderNotifications();
-  updateNotificationBadge();
-}
-function renderGlobalCancelButtons(){
-  var bar=document.getElementById('global-cancel-bar');
-  if(!bar){
-    bar=document.createElement('div');
-    bar.id='global-cancel-bar';
-    bar.style.cssText='position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;gap:6px;flex-wrap:wrap;max-width:50vw';
-    document.body.appendChild(bar);
-  }
-  var keys=Object.keys(scanControllers);
-  bar.innerHTML=keys.map(function(prefix){
-    var name=_vsToolNames[prefix]||prefix.toUpperCase();
-    return '<button class="btn btn-outline btn-sm" style="background:var(--bg2)" onclick="cancelScan(\\''+prefix+'\\')">Cancel '+name+'</button>';
-  }).join('');
-  bar.style.display=keys.length?'flex':'none';
 }
 async function refreshNotifications(){
   if(!currentUser)return;
@@ -3100,7 +3066,6 @@ function cancelScan(prefix){
   var b=document.getElementById(id);if(b)b.style.display='none';
   updateNotificationBadge();
   renderNotifications();
-  renderGlobalCancelButtons();
   showToast('Cancelled','Scan stopped by user.','warning',3000);
 }
 function setScanRunning(prefix,running){
@@ -3108,152 +3073,19 @@ function setScanRunning(prefix,running){
   var b=document.getElementById(id);if(b)b.style.display=running?'inline-flex':'none';
   updateNotificationBadge();
   renderNotifications();
-  renderGlobalCancelButtons();
 }
 async function fetchWithTimeout(url,options,timeoutMs,prefix){
   if(!options)options={};if(!timeoutMs)timeoutMs=300000;
   var controller=new AbortController();
-  if(prefix){scanControllers[prefix]=controller;setScanRunning(prefix,true);}
+  if(prefix)scanControllers[prefix]=controller;
   var timer=setTimeout(function(){controller.abort();},timeoutMs);
-  try{
-    var r=await fetch(url,Object.assign({},options,{signal:controller.signal}));
-    clearTimeout(timer);
-    if(prefix){delete scanControllers[prefix];setScanRunning(prefix,false);}
-    if(prefix&&r&&r.ok&&/^\/(scan|harvester|dnsrecon|nikto|wpscan|legion|subdomains|dirbust|discover|social-tools\/run|lynis)/.test((url||'')))pushToolCompletion(prefix,url);
-    return r;
-  }
-  catch(e){
-    clearTimeout(timer);
-    if(prefix){delete scanControllers[prefix];setScanRunning(prefix,false);}
-    if(e.name==='AbortError')throw new Error('Cancelled or timed out.');
-    throw e;
-  }
+  try{var r=await fetch(url,Object.assign({},options,{signal:controller.signal}));clearTimeout(timer);if(prefix)delete scanControllers[prefix];return r;}
+  catch(e){clearTimeout(timer);if(prefix)delete scanControllers[prefix];if(e.name==='AbortError')throw new Error('Cancelled or timed out.');throw e;}
 }
 
 /* ==== PAGE NAV ==== */
 var PAGE_TITLES={home:'Home',scan:'Network Scanner',webdeep:'Deep Web Audit',harvester:'theHarvester',dnsrecon:'DNSRecon',nikto:'Nikto',wpscan:'WPScan',lynis:'Lynis',legion:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',brute:'Brute Force',setoolkit:'Social-Engineer Toolkit',gophish:'Gophish',evilginx2:'Evilginx2',shellphish:'ShellPhish',netcat:'Netcat',ncat:'Ncat',socat:'Socat',sliver:'Sliver',empire:'Empire',disc:'Network Discovery',hist:'Scan History',dash:'Dashboard',profile:'Profile',admin:'Admin Console',ffuf:'ffuf',nuclei:'Nuclei',whatweb:'WhatWeb',wapiti:'Wapiti',dalfox:'Dalfox',sqlmap:'SQLMap',kxss:'kxss',medusa:'Medusa',hping3:'hping3',scapy:'Scapy',yersinia:'Yersinia',hashcat:'Hashcat',john:'John the Ripper',searchsploit:'SearchSploit',seclists:'SecLists',ligolo:'Ligolo-ng',chisel:'Chisel',rlwrap:'rlwrap',pspy:'pspy',msfvenom:'msfvenom',pwncat:'pwncat',grype:'Grype',radare2:'Radare2',openvas:'OpenVAS',chkrootkit:'chkrootkit',rkhunter:'rkhunter'};
-var _vsNavSearchState={matches:[],idx:-1,minChars:4,maxResults:12};
-function vsNavSearchHide(){
-  var box=document.getElementById('nav-search-results');
-  if(!box)return;
-  box.style.display='none';
-  box.innerHTML='';
-  _vsNavSearchState.matches=[];
-  _vsNavSearchState.idx=-1;
-}
-function _vsNavSearchRender(){
-  var box=document.getElementById('nav-search-results');
-  if(!box)return;
-  if(!_vsNavSearchState.matches.length){box.style.display='none';box.innerHTML='';return;}
-  var html=_vsNavSearchState.matches.map(function(m,i){
-    var active=i===_vsNavSearchState.idx?'background:var(--bg3);':'';
-    return '<div style="padding:7px 10px;border-bottom:1px solid var(--border);cursor:pointer;'+active+'" '+
-      'onmouseenter="_vsNavSearchState.idx='+i+';_vsNavSearchRender()" '+
-      'onclick="vsNavSearchGo(\\''+m.pageId+'\\')">'+
-      '<div style="font-size:12px;color:var(--text)">'+m.name+'</div>'+
-      '<div style="font-size:10px;color:var(--text3)">'+(m.cat||'Tool')+'</div>'+
-      '</div>';
-  }).join('');
-  box.innerHTML=html;
-  box.style.display='block';
-}
-function _vsNavSearchCandidates(){
-  return Array.from(document.querySelectorAll('.nav-item')).filter(function(btn){
-    if(!btn || !btn.id || btn.id.indexOf('ni-')!==0)return false;
-    if(btn.offsetParent===null)return false;
-    return true;
-  }).map(function(btn){
-    var pageId=btn.id.replace(/^ni-/,'');
-    var name=(btn.textContent||'').replace(/\s+/g,' ').trim();
-    var cat=(btn.closest('.nav-section')&&btn.closest('.nav-section').querySelector('.nav-cat-label'))?
-      btn.closest('.nav-section').querySelector('.nav-cat-label').textContent.trim():'';
-    return {pageId:pageId,name:name,cat:cat};
-  });
-}
-function vsNavSearch(raw){
-  var q=(raw||'').trim().toLowerCase();
-  if(q.length<_vsNavSearchState.minChars){vsNavSearchHide();return;}
-  var out=_vsNavSearchCandidates().map(function(item){
-    var n=item.name.toLowerCase();
-    var p=item.pageId.toLowerCase();
-    var c=(item.cat||'').toLowerCase();
-    var score=-1;
-    if(n===q||p===q)score=100;
-    else if(n.indexOf(q)===0||p.indexOf(q)===0)score=80;
-    else if(n.indexOf(q)!==-1||p.indexOf(q)!==-1)score=60;
-    else if(c.indexOf(q)!==-1)score=20;
-    if(score<0)return null;
-    return Object.assign({score:score},item);
-  }).filter(Boolean).sort(function(a,b){
-    if(b.score!==a.score)return b.score-a.score;
-    return a.name.localeCompare(b.name);
-  }).slice(0,_vsNavSearchState.maxResults);
-  _vsNavSearchState.matches=out;
-  _vsNavSearchState.idx=out.length?0:-1;
-  _vsNavSearchRender();
-}
-function vsNavSearchGo(pageId){
-  var input=document.getElementById('nav-search-input');
-  if(input)input.value='';
-  vsNavSearchHide();
-  pg(pageId,null);
-}
-function vsNavSearchKey(ev){
-  var box=document.getElementById('nav-search-results');
-  var shown=box&&box.style.display!=='none'&&_vsNavSearchState.matches.length>0;
-  if(!shown)return;
-  if(ev.key==='ArrowDown'){
-    ev.preventDefault();
-    _vsNavSearchState.idx=(_vsNavSearchState.idx+1)%_vsNavSearchState.matches.length;
-    _vsNavSearchRender();
-  }else if(ev.key==='ArrowUp'){
-    ev.preventDefault();
-    _vsNavSearchState.idx=(_vsNavSearchState.idx-1+_vsNavSearchState.matches.length)%_vsNavSearchState.matches.length;
-    _vsNavSearchRender();
-  }else if(ev.key==='Enter'){
-    ev.preventDefault();
-    var hit=_vsNavSearchState.matches[_vsNavSearchState.idx]||_vsNavSearchState.matches[0];
-    if(hit)vsNavSearchGo(hit.pageId);
-  }else if(ev.key==='Escape'){
-    ev.preventDefault();
-    vsNavSearchHide();
-  }
-}
-document.addEventListener('click',function(ev){
-  var inWrap=ev.target&&ev.target.closest&&ev.target.closest('#nav-search-input,#nav-search-results');
-  if(!inWrap)vsNavSearchHide();
-});
 function saveCurrentPage(id){try{sessionStorage.setItem('vs-page',id);}catch(e){}}
-function renderHomeToolCatalog(){
-  var out=document.getElementById('home-tool-catalog');
-  if(!out)return;
-  var sections=Array.from(document.querySelectorAll('.nav-section')).filter(function(sec){
-    if(sec.style.display==='none')return false;
-    var labelEl=sec.querySelector('.nav-cat-label');
-    var items=sec.querySelectorAll('.nav-item');
-    if(!labelEl||!items.length)return false;
-    return true;
-  });
-  out.innerHTML=sections.map(function(sec){
-    var label=sec.querySelector('.nav-cat-label').textContent.trim();
-    var tools=Array.from(sec.querySelectorAll('.nav-item')).map(function(btn){
-      var pid=btn.id.replace(/^ni-/,'');
-      var nm=(btn.textContent||'').replace(/\s+/g,' ').trim();
-      return '<button class="tag" style="cursor:pointer" onclick="pg(\\''+pid+'\\',null)">'+nm+'</button>';
-    }).join('');
-    return '<div style="border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--bg2)">'+
-      '<div style="font-size:11px;color:var(--text3);letter-spacing:1px;margin-bottom:8px">'+label+'</div>'+
-      '<div style="display:flex;gap:6px;flex-wrap:wrap">'+tools+'</div></div>';
-  }).join('');
-}
-function removeQuickInstallCards(){
-  document.querySelectorAll('.card .card-title').forEach(function(t){
-    if((t.textContent||'').trim().toLowerCase()==='quick install'){
-      var card=t.closest('.card');
-      if(card)card.remove();
-    }
-  });
-}
 function pg(id,el){
   document.querySelectorAll('.page').forEach(function(e){e.classList.remove('active');});
   document.querySelectorAll('.nav-item').forEach(function(e){e.classList.remove('active');});
@@ -3267,8 +3099,7 @@ function pg(id,el){
   if(id==='hist')loadHist();
   if(id==='dash')loadDash();
   if(id==='admin'){loadAdmin();setTimeout(initCliHeader,400);}
-  if(id==='home'){setTimeout(loadHomeStats,80);setTimeout(renderHomeToolCatalog,120);if(currentUser)vsGreetUser(currentUser.username);}
-  setTimeout(removeQuickInstallCards,50);
+  if(id==='home'){setTimeout(loadHomeStats,80);if(currentUser)vsGreetUser(currentUser.username);}
   if(id==='profile'&&currentUser)loadProfileInfo(currentUser);
   if(id==='brute')setTimeout(function(){bfAutoLoad&&bfAutoLoad();},300);
   if(id==='lynis'){loadLynisAgents();loadLynisJobs();startLynisAgentWatcher();}
@@ -3372,7 +3203,6 @@ async function doLogout(){
   document.getElementById('auth-overlay').style.display='flex';
   document.getElementById('user-chip').style.display='none';
   var nw=document.getElementById('notif-wrap');if(nw)nw.style.display='none';
-  var ab=document.getElementById('admin-open-btn');if(ab)ab.style.display='none';
   document.getElementById('logout-btn').style.display='none';
   var s=document.getElementById('admin-nav-section');if(s)s.style.display='none';
   if(_vsNotifPollTimer){clearInterval(_vsNotifPollTimer);_vsNotifPollTimer=null;}
@@ -3390,10 +3220,9 @@ async function loadUser(){
       document.getElementById('user-avatar').textContent=d.username[0].toUpperCase();
       document.getElementById('user-name-disp').textContent=d.username;
       document.getElementById('user-role-disp').textContent=d.role==='admin'?'admin':'user';
-      var ab=document.getElementById('admin-open-btn');if(ab)ab.style.display=(d.role==='admin'?'inline-flex':'none');
+      if(d.role==='admin'){var sec=document.getElementById('admin-nav-section');if(sec)sec.style.display='block';}
       loadProfileInfo(d);loadHomeStats();loadUserTheme();
-      removeQuickInstallCards();renderHomeToolCatalog();
-      _vsNotifUnread=0;_vsRecentCompleted=[];_vsRecentToolCompleted=[];_vsKnownCompleted={};
+      _vsNotifUnread=0;_vsRecentCompleted=[];_vsKnownCompleted={};
       refreshNotifications();
       if(_vsNotifPollTimer)clearInterval(_vsNotifPollTimer);
       _vsNotifPollTimer=setInterval(refreshNotifications,15000);
@@ -3553,11 +3382,40 @@ function swt(e,id){var p=document.getElementById('res');p.querySelectorAll('.tab
 /* ==== GENERIC TOOL RUNNER ==== */
 function mkTool(prefix){
   var logEl=null;
+  var _controller=null;
   return{
-    start:function(){logEl=document.getElementById(prefix+'-term');if(logEl){logEl.innerHTML='';logEl.classList.add('visible');}var e=document.getElementById(prefix+'-err');if(e){e.textContent='';e.classList.remove('visible');}var r=document.getElementById(prefix+'-res');if(r){r.innerHTML='';r.style.display='none';}startProg(prefix+'-prog');},
+    start:function(){
+      logEl=document.getElementById(prefix+'-term');
+      if(logEl){logEl.innerHTML='';logEl.classList.add('visible');}
+      var e=document.getElementById(prefix+'-err');if(e){e.textContent='';e.classList.remove('visible');}
+      var r=document.getElementById(prefix+'-res');if(r){r.innerHTML='';r.style.display='none';}
+      startProg(prefix+'-prog');
+      /* Show cancel button */
+      var cb=document.getElementById(prefix+'-cancel');
+      if(!cb){
+        /* Dynamically create cancel button next to run button */
+        var runBtn=document.getElementById(prefix+'-btn');
+        if(runBtn&&runBtn.parentNode){
+          cb=document.createElement('button');
+          cb.id=prefix+'-cancel';
+          cb.className='btn btn-outline btn-sm';
+          cb.style.cssText='color:var(--red);border-color:rgba(192,57,43,0.3);margin-left:8px';
+          cb.textContent='CANCEL';
+          cb.onclick=function(){cancelScan(prefix);};
+          runBtn.parentNode.insertBefore(cb,runBtn.nextSibling);
+        }
+      }
+      if(cb)cb.style.display='inline-flex';
+      setScanRunning(prefix,true);
+    },
     log:function(t,tp){if(!logEl)return;if(!tp)tp='i';var div=document.createElement('div');div.className='tl-'+tp;var pf={i:'[*]',s:'[+]',w:'[!]',e:'[x]'}[tp]||'[*]';div.innerHTML='<span class="tl-prefix">'+pf+'</span> '+t;logEl.appendChild(div);logEl.scrollTop=logEl.scrollHeight;},
     pct:function(v){var pw=document.getElementById(prefix+'-prog');var pb=document.getElementById(prefix+'-pb');if(pw)pw.classList.add('active');if(pb)pb.style.width=Math.max(0,Math.min(100,parseInt(v||0,10)))+'%';},
-    end:function(){endProg(prefix+'-prog');},
+    end:function(){
+      endProg(prefix+'-prog');
+      var cb=document.getElementById(prefix+'-cancel');
+      if(cb)cb.style.display='none';
+      setScanRunning(prefix,false);
+    },
     err:function(m){var e=document.getElementById(prefix+'-err');if(e){e.textContent='Error: '+m;e.classList.add('visible');}},
     res:function(html){var e=document.getElementById(prefix+'-res');if(e){e.innerHTML=html;e.style.display='block';}}
   };
@@ -4350,31 +4208,8 @@ async function loadDash(){
     var r=await fetch('/history?limit=100');var d=await r.json();
     if(!d.length){document.getElementById('dash-content').innerHTML='<div style="color:var(--text3)">Run some scans first.</div>';return;}
     var tc=d.reduce(function(a,s){return a+s.total_cves;},0),cr=d.reduce(function(a,s){return a+s.critical_cves;},0),tp=d.reduce(function(a,s){return a+s.open_ports;},0);
-    var avg=(tc/d.length)||0;
-    var risky=d.filter(function(s){return (s.critical_cves||0)>0;}).length;
-    var last=d[0]||{};
-    var recent7=d.slice(0,7).reduce(function(a,s){return a+s.total_cves;},0);
     var mx=Math.max.apply(null,d.map(function(s){return s.total_cves;}).concat([1]));
-    document.getElementById('dash-content').innerHTML=
-      '<div class="stats" style="margin-bottom:18px">'+
-        '<div class="stat"><div class="stat-val">'+d.length+'</div><div class="stat-lbl">SCANS</div></div>'+
-        '<div class="stat"><div class="stat-val">'+tc+'</div><div class="stat-lbl">TOTAL CVEs</div></div>'+
-        '<div class="stat"><div class="stat-val" style="color:var(--red)">'+cr+'</div><div class="stat-lbl">CRITICAL</div></div>'+
-        '<div class="stat"><div class="stat-val">'+tp+'</div><div class="stat-lbl">OPEN PORTS</div></div>'+
-        '<div class="stat"><div class="stat-val">'+avg.toFixed(1)+'</div><div class="stat-lbl">AVG CVE / SCAN</div></div>'+
-        '<div class="stat"><div class="stat-val">'+risky+'</div><div class="stat-lbl">RISKY TARGETS</div></div>'+
-      '</div>'+
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">'+
-        '<div class="card card-p"><div class="card-title" style="margin-bottom:12px">Top Targets by CVEs</div>'+d.slice(0,6).map(function(s){return'<div class="bar-row"><span class="bar-label">'+s.target.substring(0,16)+'</span><div class="bar-track"><div class="bar-fill" style="width:'+((s.total_cves/mx)*100)+'%"></div></div><span class="bar-val" style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+s.total_cves+'</span></div>';}).join('')+'</div>'+
-        '<div class="card card-p"><div class="card-title" style="margin-bottom:12px">Recent Activity</div>'+d.slice(0,10).map(function(s){return'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="font-family:var(--mono)">'+s.target+'</span><span style="color:'+(s.critical_cves>0?'var(--red)':'var(--text3)')+'">'+(s.critical_cves>0?s.critical_cves+' critical':s.total_cves+' CVEs')+'</span></div>';}).join('')+'</div>'+
-        '<div class="card card-p"><div class="card-title" style="margin-bottom:12px">Risk Summary</div>'+
-          '<div style="display:grid;gap:8px;font-size:12px">'+
-            '<div><span style="color:var(--text3)">Latest target:</span> <span style="font-family:var(--mono)">'+(last.target||'--')+'</span></div>'+
-            '<div><span style="color:var(--text3)">Latest scan:</span> '+((last.scan_time||'').replace('T',' ').substring(0,19)||'--')+'</div>'+
-            '<div><span style="color:var(--text3)">CVEs in last 7 scans:</span> '+recent7+'</div>'+
-            '<div><span style="color:var(--text3)">Critical rate:</span> '+((cr/Math.max(tc,1))*100).toFixed(1)+'%</div>'+
-          '</div></div>'+
-      '</div>';
+    document.getElementById('dash-content').innerHTML='<div class="stats" style="margin-bottom:18px"><div class="stat"><div class="stat-val">'+d.length+'</div><div class="stat-lbl">SCANS</div></div><div class="stat"><div class="stat-val">'+tc+'</div><div class="stat-lbl">TOTAL CVEs</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">'+cr+'</div><div class="stat-lbl">CRITICAL</div></div><div class="stat"><div class="stat-val">'+tp+'</div><div class="stat-lbl">OPEN PORTS</div></div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px"><div class="card card-p"><div class="card-title" style="margin-bottom:12px">Top Targets by CVEs</div>'+d.slice(0,6).map(function(s){return'<div class="bar-row"><span class="bar-label">'+s.target.substring(0,14)+'</span><div class="bar-track"><div class="bar-fill" style="width:'+((s.total_cves/mx)*100)+'%"></div></div><span class="bar-val" style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+s.total_cves+'</span></div>';}).join('')+'</div><div class="card card-p"><div class="card-title" style="margin-bottom:12px">Recent Activity</div>'+d.slice(0,8).map(function(s){return'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="font-family:var(--mono)">'+s.target+'</span><span style="color:'+(s.critical_cves>0?'var(--red)':'var(--text3)')+'">'+(s.critical_cves>0?s.critical_cves+' critical':s.total_cves+' CVEs')+'</span></div>';}).join('')+'</div></div>';
   }catch(e){document.getElementById('dash-content').innerHTML='<div style="color:var(--red)">'+e.message+'</div>';}
 }
 
@@ -8637,13 +8472,48 @@ def admin_services():
     rows = []
     for svc in MONITORED_SERVICES.values():
         st = _service_status(svc)
+        ctrl = svc.get("control_cmds") or {}
         rows.append({
             **_safe_service_row(svc),
             "status": st.get("status", "unknown"),
             "detail": st.get("detail", ""),
+            "check_cmd": svc.get("check_cmd", ""),
+            "start_cmd": ctrl.get("start", svc.get("start_cmd", "")),
+            "stop_cmd": ctrl.get("stop", svc.get("stop_cmd", "")),
+            "restart_cmd": ctrl.get("restart", svc.get("restart_cmd", "")),
         })
     audit(u["id"], u["username"], "ADMIN_SERVICES_VIEW", target="services", ip=request.remote_addr)
     return jsonify({"services": rows, "count": len(rows)})
+
+@app.route("/api/admin/services/<svc_key>", methods=["PUT"])
+def admin_edit_service(svc_key):
+    u = get_current_user()
+    if not u or u.get("role") != "admin":
+        return jsonify({"error": "Admin access required"}), 403
+    if svc_key not in MONITORED_SERVICES:
+        return jsonify({"error": "Service not found"}), 404
+    data = request.get_json() or {}
+    label = (data.get("label") or svc_key).strip()
+    kind = (data.get("kind") or "systemctl").strip().lower()
+    unit = (data.get("unit") or "").strip()
+    check_cmd = (data.get("check_cmd") or "").strip()
+    control_cmds = data.get("control_cmds") or {}
+    svc = MONITORED_SERVICES[svc_key]
+    svc["label"] = label
+    svc["kind"] = kind
+    if kind == "systemctl":
+        svc["unit"] = unit or svc_key
+    else:
+        svc["check_cmd"] = check_cmd
+        svc["control_cmds"] = control_cmds
+        # also expose individual cmds for JS data attrs
+        svc["start_cmd"] = control_cmds.get("start", "")
+        svc["stop_cmd"] = control_cmds.get("stop", "")
+        svc["restart_cmd"] = control_cmds.get("restart", "")
+    audit(u["id"], u["username"], "ADMIN_SERVICE_EDIT", target=svc_key,
+          ip=request.remote_addr, details=f"kind={kind}")
+    return jsonify({"ok": True})
+
 
 @app.route("/api/admin/services", methods=["POST"])
 def admin_add_service():
