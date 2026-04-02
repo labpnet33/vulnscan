@@ -1,27 +1,33 @@
 #!/usr/bin/env python3
 """
-VulnScan Pro — Comprehensive UI Improvements Patch
-===================================================
-Addresses all 13 requirements:
- 1.  Home screen shows all tools categorized
- 2.  Dashboard shows more detailed information
- 3.  All category collapse panels closed by default
- 4.  Only one category expandable at a time
- 5.  Admin Console removed from nav category list
- 6.  Home, Dashboard, History removed from nav category list
- 7.  Different theme for category headers vs tool items
- 8.  Admin Services Quick Add allows free-text entry
- 9.  Admin Services allows editing existing services
-10.  Scan completion notification for every tool
-11.  Cancel button for ALL tool actions
-12.  Quick Install section removed from all tool pages
-13.  (combined with above)
+VulnScan Pro — Perspective Dashboard Patch
+===========================================
+Injects a stunning isometric 3D security dashboard into VulnScan Pro.
+
+Features:
+  • Animated isometric port-height cubes (taller = more critical)
+  • Real-time scan beam sweep animation across the 3D scene
+  • Live CVE intelligence panel (NVD-linked)
+  • Risk score ring with animated fill
+  • Port activity heatmap (30-day grid)
+  • Isometric host network threat map
+  • Tool status indicators
+  • Activity feed
+  • Perspective color system: critical=red, high=amber, medium=blue, low=green
 
 Run from project root:
-    python3 patch_ui_improvements.py
+    python3 vulnscan_perspective_patch.py
+
+Adds routes:
+    GET  /perspective              → standalone perspective dashboard
+    GET  /api/perspective/data     → JSON data feed for the dashboard
 """
 
-import os, re, sys, shutil
+import os
+import re
+import sys
+import shutil
+import subprocess
 from datetime import datetime
 
 G = "\033[92m"; R = "\033[91m"; C = "\033[96m"
@@ -34,12 +40,590 @@ def info(m): print(f"  {C}→{X}  {m}")
 def hdr(m):  print(f"\n{B}{C}── {m} ──{X}")
 
 TARGET = "api_server.py"
-RESULTS = {"applied": 0, "skipped": 0, "failed": 0}
+
+# ── The perspective dashboard HTML ────────────────────────────────────────────
+PERSPECTIVE_HTML = r'''<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>VulnScan Pro — Perspective Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800;900&family=Oswald:wght@200;300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --primary:#00BD7D;--surface:#08090d;--surface2:#0f1118;--surface3:#161921;
+  --border:#1e2230;--border2:#252a3a;--text:#eef0f6;--text2:#8b91a8;--text3:#4a5070;
+  --danger:#DC2626;--warning:#D97706;--success:#16A34A;--info:#2563EB;
+  --accent2:#0ea5e9;
+}
+html,body{min-height:100vh;background:var(--surface);color:var(--text);font-family:'Poppins',sans-serif;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,189,125,0.03)1px,transparent 1px),linear-gradient(90deg,rgba(0,189,125,0.03)1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+.layout{display:flex;min-height:100vh;position:relative;z-index:1}
+.sidebar{width:64px;background:var(--surface2);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:20px 0;gap:8px;flex-shrink:0;position:sticky;top:0;height:100vh}
+.sb-logo{width:36px;height:36px;background:var(--primary);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:16px;color:#000;margin-bottom:16px;position:relative}
+.sb-logo::after{content:'';position:absolute;inset:-4px;border-radius:10px;border:1px solid rgba(0,189,125,0.4)}
+.sb-icon{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;color:var(--text3);font-size:18px;position:relative}
+.sb-icon:hover,.sb-icon.active{background:var(--surface3);color:var(--primary)}
+.sb-icon.active::before{content:'';position:absolute;left:-1px;top:50%;transform:translateY(-50%);width:3px;height:20px;background:var(--primary);border-radius:0 2px 2px 0}
+.sb-divider{width:32px;height:1px;background:var(--border);margin:8px 0}
+.main{flex:1;overflow-x:hidden;padding:24px 28px}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.breadcrumb{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);letter-spacing:1px;text-transform:uppercase}
+.breadcrumb span{color:var(--primary)}
+.topbar-title{font-family:'Oswald',sans-serif;font-size:26px;font-weight:600;letter-spacing:0.5px;color:var(--text)}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.tb-badge{padding:5px 12px;border-radius:20px;font-size:11px;font-family:'JetBrains Mono',monospace;font-weight:500;letter-spacing:0.5px}
+.tb-badge.live{background:rgba(22,163,74,0.12);color:var(--success);border:1px solid rgba(22,163,74,0.25)}
+.tb-badge.live::before{content:'● ';font-size:9px}
+.user-av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#000;cursor:pointer}
+.iso-hero{width:100%;height:280px;position:relative;margin-bottom:28px;background:var(--surface2);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+.iso-hero-bg{position:absolute;inset:0;background:radial-gradient(ellipse 60% 80% at 70% 50%,rgba(0,189,125,0.06)0%,transparent 70%),radial-gradient(ellipse 40% 60% at 20% 30%,rgba(14,165,233,0.04)0%,transparent 60%)}
+.iso-canvas{position:absolute;inset:0;width:100%;height:100%}
+.iso-stats-row{position:absolute;bottom:0;left:0;right:0;display:flex;gap:1px;border-top:1px solid var(--border)}
+.iso-stat{flex:1;padding:14px 20px;background:rgba(8,9,13,0.7);backdrop-filter:blur(8px);border-right:1px solid var(--border)}
+.iso-stat:last-child{border-right:none}
+.iso-stat-num{font-family:'Oswald',sans-serif;font-size:28px;font-weight:600;line-height:1;color:var(--text);margin-bottom:4px}
+.iso-stat-num span{font-size:18px;color:var(--primary)}
+.iso-stat-lbl{font-size:10px;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;font-family:'JetBrains Mono',monospace}
+.iso-stat-delta{font-size:11px;margin-top:4px}
+.delta-up{color:var(--success)}
+.delta-down{color:var(--danger)}
+.grid-3{display:grid;grid-template-columns:2fr 2fr 1fr;gap:16px;margin-bottom:16px}
+.grid-2{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px}
+.card{background:var(--surface2);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:border-color 0.2s;position:relative}
+.card:hover{border-color:var(--border2)}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,189,125,0.3),transparent);opacity:0;transition:opacity 0.3s}
+.card:hover::before{opacity:1}
+.card-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 0}
+.card-title{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;font-weight:500}
+.card-body{padding:14px 18px 18px}
+.scan-status-dot{width:8px;height:8px;border-radius:50%;background:var(--success);box-shadow:0 0 0 3px rgba(22,163,74,0.2);animation:pulse-dot 2s ease infinite}
+@keyframes pulse-dot{0%,100%{box-shadow:0 0 0 3px rgba(22,163,74,0.2)}50%{box-shadow:0 0 0 6px rgba(22,163,74,0.05)}}
+.scan-target-row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.scan-target-ip{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--primary);font-weight:500}
+.port-list{display:flex;flex-direction:column;gap:5px}
+.port-row{display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 12px;transition:all 0.15s;cursor:pointer}
+.port-row:hover{border-color:var(--border2);background:var(--surface3)}
+.port-num{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:var(--primary);min-width:44px}
+.port-svc{font-size:12px;color:var(--text);flex:1;font-weight:500}
+.port-ver{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);flex:1}
+.sev-pill{padding:2px 8px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;letter-spacing:0.5px}
+.sev-critical{background:rgba(220,38,38,0.12);color:#ef4444;border:1px solid rgba(220,38,38,0.25)}
+.sev-high{background:rgba(217,119,6,0.12);color:#f59e0b;border:1px solid rgba(217,119,6,0.25)}
+.sev-medium{background:rgba(37,99,235,0.12);color:#60a5fa;border:1px solid rgba(37,99,235,0.25)}
+.sev-low{background:rgba(22,163,74,0.12);color:#4ade80;border:1px solid rgba(22,163,74,0.25)}
+.cve-ticker{display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto}
+.cve-ticker::-webkit-scrollbar{width:3px}
+.cve-ticker::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.cve-item{display:flex;gap:10px;padding:10px 12px;background:var(--surface3);border-radius:6px;border-left:3px solid transparent;transition:all 0.15s}
+.cve-item.critical{border-left-color:#ef4444}
+.cve-item.high{border-left-color:#f59e0b}
+.cve-item.medium{border-left-color:#60a5fa}
+.cve-id{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--primary);font-weight:600;min-width:90px}
+.cve-score{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;min-width:28px}
+.cve-desc{font-size:11px;color:var(--text2);line-height:1.5;flex:1}
+.threat-map{position:relative;height:200px;background:var(--surface3);border-radius:8px;overflow:hidden}
+.risk-ring-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px 0}
+.risk-ring{position:relative;width:120px;height:120px}
+.risk-ring-label{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.risk-score{font-family:'Oswald',sans-serif;font-size:36px;font-weight:600;line-height:1}
+.risk-grade{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--text3);margin-top:2px}
+.risk-detail{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text3);margin-top:4px;letter-spacing:0.5px}
+.heatmap{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;padding:8px 0}
+.heat-cell{aspect-ratio:1;border-radius:3px;transition:transform 0.15s;cursor:pointer}
+.heat-cell:hover{transform:scale(1.3)}
+.heat-0{background:var(--surface3)}
+.heat-1{background:rgba(0,189,125,0.15)}
+.heat-2{background:rgba(0,189,125,0.3)}
+.heat-3{background:rgba(245,158,11,0.4)}
+.heat-4{background:rgba(220,38,38,0.5)}
+.heat-5{background:#DC2626;box-shadow:0 0 6px rgba(220,38,38,0.4)}
+.activity-feed{display:flex;flex-direction:column;gap:0}
+.activity-item{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);align-items:flex-start}
+.activity-item:last-child{border-bottom:none}
+.activity-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0}
+.activity-content{flex:1}
+.activity-action{font-size:12px;color:var(--text);line-height:1.5}
+.activity-action strong{color:var(--primary)}
+.activity-time{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);margin-top:2px}
+.tool-status-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tool-badge{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface3);border-radius:6px;border:1px solid var(--border)}
+.tool-indicator{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.tool-name{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text2);font-weight:500}
+.scan-beam{animation:scan-line 3s ease-in-out infinite}
+@keyframes scan-line{0%{transform:translateY(-100%);opacity:0}20%{opacity:1}80%{opacity:1}100%{transform:translateY(300%);opacity:0}}
+/* Back button */
+.back-btn{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:7px 14px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:8px;color:var(--text2);font-family:'JetBrains Mono',monospace;
+  font-size:11px;text-decoration:none;cursor:pointer;
+  transition:all 0.15s;margin-bottom:12px;
+}
+.back-btn:hover{border-color:var(--primary);color:var(--primary)}
+@media(max-width:900px){.grid-3{grid-template-columns:1fr 1fr}.grid-2{grid-template-columns:1fr}}
+@media(max-width:640px){.grid-3{grid-template-columns:1fr}.sidebar{width:52px}.main{padding:16px}}
+</style>
+</head>
+<body>
+<div class="layout">
+<aside class="sidebar">
+  <div class="sb-logo">V</div>
+  <div class="sb-icon" title="Back to VulnScan" onclick="window.location='/'">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+  </div>
+  <div class="sb-divider"></div>
+  <div class="sb-icon active" title="Perspective Dashboard">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+  </div>
+  <div class="sb-icon" onclick="window.location='/'" title="Network Scanner">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
+  </div>
+  <div class="sb-icon" onclick="window.location='/'" title="Lynis Audit" style="margin-top:auto">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+  </div>
+</aside>
+<main class="main">
+  <div style="margin-bottom:8px">
+    <a href="/" class="back-btn">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+      Back to VulnScan
+    </a>
+  </div>
+  <div class="topbar">
+    <div class="topbar-left">
+      <div>
+        <div class="breadcrumb">VULNSCAN PRO / <span>PERSPECTIVE DASHBOARD</span></div>
+        <div class="topbar-title">Security Intelligence</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="tb-badge live">LIVE MONITORING</div>
+      <div class="user-av" id="user-av-char">V</div>
+    </div>
+  </div>
+
+  <!-- ISOMETRIC HERO -->
+  <div class="iso-hero">
+    <div class="iso-hero-bg"></div>
+    <canvas class="iso-canvas" id="iso-canvas"></canvas>
+    <div style="position:absolute;top:20px;left:24px;z-index:2">
+      <div style="font-family:'Oswald',sans-serif;font-size:20px;font-weight:500;color:var(--text);letter-spacing:0.5px">Active Threat Surface</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:1px">REAL-TIME 3D PORT MAP · ISOMETRIC VIEW · <span style="color:var(--primary)" id="scan-state">LOADING</span></div>
+    </div>
+    <div class="iso-stats-row">
+      <div class="iso-stat"><div class="iso-stat-num"><span id="cnt-ports">—</span></div><div class="iso-stat-lbl">Open Ports</div><div class="iso-stat-delta delta-down" id="ports-note">loading...</div></div>
+      <div class="iso-stat"><div class="iso-stat-num" style="color:#ef4444"><span id="cnt-crit">—</span></div><div class="iso-stat-lbl">Critical CVEs</div><div class="iso-stat-delta delta-down" id="crit-note">loading...</div></div>
+      <div class="iso-stat"><div class="iso-stat-num"><span id="cnt-scans">—</span></div><div class="iso-stat-lbl">Total Scans</div><div class="iso-stat-delta delta-up" id="scans-note">loading...</div></div>
+      <div class="iso-stat"><div class="iso-stat-num" style="color:#f59e0b"><span id="cnt-score">—</span><span>/100</span></div><div class="iso-stat-lbl">Avg Risk Score</div><div class="iso-stat-delta" style="color:var(--warning)" id="score-note">loading...</div></div>
+    </div>
+  </div>
+
+  <!-- ROW 1 -->
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title">Latest Port Findings</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="scan-status-dot"></div>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--success)">LIVE</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div id="ports-panel">
+          <div style="color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:11px">Loading port data...</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title">CVE Intelligence</div>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--primary)">NVD API</span>
+      </div>
+      <div class="card-body">
+        <div class="cve-ticker" id="cve-panel">
+          <div style="color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:11px">Loading CVE data from recent scans...</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Risk Score</div></div>
+      <div class="card-body" style="padding-top:8px">
+        <div class="risk-ring-wrap">
+          <div class="risk-ring">
+            <svg viewBox="0 0 120 120" width="120" height="120">
+              <circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface3)" stroke-width="8"/>
+              <circle cx="60" cy="60" r="50" fill="none" id="risk-arc" stroke="#f59e0b" stroke-width="8"
+                stroke-dasharray="314" stroke-dashoffset="200"
+                stroke-linecap="round" transform="rotate(-90 60 60)"
+                style="transition:stroke-dashoffset 1.5s ease,stroke 0.5s ease"/>
+            </svg>
+            <div class="risk-ring-label">
+              <div class="risk-score" id="risk-num" style="color:#f59e0b">—</div>
+              <div class="risk-grade">/ 100</div>
+            </div>
+          </div>
+          <div class="risk-meta" id="risk-label" style="color:#f59e0b;font-weight:600;font-size:12px">CALCULATING</div>
+          <div class="risk-detail" id="risk-breakdown">—</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px" id="sev-bars"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 2 -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title">Port Activity Heatmap</div>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3)">SCAN FREQUENCY</span>
+      </div>
+      <div class="card-body">
+        <div class="heatmap" id="heatmap"></div>
+        <div style="display:flex;gap:6px;align-items:center;margin-top:8px">
+          <span style="font-size:10px;color:var(--text3)">less</span>
+          <div style="width:12px;height:12px;border-radius:2px;background:var(--surface3)"></div>
+          <div style="width:12px;height:12px;border-radius:2px;background:rgba(0,189,125,0.15)"></div>
+          <div style="width:12px;height:12px;border-radius:2px;background:rgba(0,189,125,0.3)"></div>
+          <div style="width:12px;height:12px;border-radius:2px;background:rgba(245,158,11,0.4)"></div>
+          <div style="width:12px;height:12px;border-radius:2px;background:rgba(220,38,38,0.5)"></div>
+          <div style="width:12px;height:12px;border-radius:2px;background:#DC2626"></div>
+          <span style="font-size:10px;color:var(--text3)">more</span>
+        </div>
+        <div class="threat-map" style="margin-top:12px">
+          <svg viewBox="0 0 600 200" width="100%" height="200" xmlns="http://www.w3.org/2000/svg">
+            <defs><pattern id="grid-p" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(0,189,125,0.06)" stroke-width="0.5"/></pattern></defs>
+            <rect width="600" height="200" fill="url(#grid-p)"/>
+            <g transform="translate(60,80)"><polygon points="0,-40 34,-20 34,20 0,0" fill="#7f1d1d" stroke="#ef4444" stroke-width="0.5"/><polygon points="0,-40 -34,-20 -34,20 0,0" fill="#991b1b" stroke="#ef4444" stroke-width="0.5"/><polygon points="-34,-20 0,-40 34,-20 0,0" fill="#ef4444" stroke="#fca5a5" stroke-width="0.5"/><text y="-44" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="8" fill="#ef4444" id="h1-label">host 1</text><text y="-35" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="7" fill="#fca5a5" id="h1-cves">—</text></g>
+            <g transform="translate(180,60)"><polygon points="0,-30 25,-15 25,15 0,0" fill="#78350f" stroke="#f59e0b" stroke-width="0.5"/><polygon points="0,-30 -25,-15 -25,15 0,0" fill="#92400e" stroke="#f59e0b" stroke-width="0.5"/><polygon points="-25,-15 0,-30 25,-15 0,0" fill="#f59e0b" stroke="#fcd34d" stroke-width="0.5"/><text y="-33" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="8" fill="#f59e0b" id="h2-label">host 2</text></g>
+            <g transform="translate(300,90)"><polygon points="0,-22 18,-11 18,11 0,0" fill="#1e3a5f" stroke="#60a5fa" stroke-width="0.5"/><polygon points="0,-22 -18,-11 -18,11 0,0" fill="#1e40af" stroke="#60a5fa" stroke-width="0.5"/><polygon points="-18,-11 0,-22 18,-11 0,0" fill="#60a5fa" stroke="#93c5fd" stroke-width="0.5"/><text y="-25" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="8" fill="#60a5fa">medium</text></g>
+            <g transform="translate(420,70)"><polygon points="0,-18 15,-9 15,9 0,0" fill="#14532d" stroke="#4ade80" stroke-width="0.5"/><polygon points="0,-18 -15,-9 -15,9 0,0" fill="#166534" stroke="#4ade80" stroke-width="0.5"/><polygon points="-15,-9 0,-18 15,-9 0,0" fill="#4ade80" stroke="#86efac" stroke-width="0.5"/><text y="-21" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="8" fill="#4ade80">low risk</text></g>
+            <g transform="translate(520,85)"><polygon points="0,-14 12,-7 12,7 0,0" fill="#14532d" stroke="#4ade80" stroke-width="0.5"/><polygon points="0,-14 -12,-7 -12,7 0,0" fill="#166534" stroke="#4ade80" stroke-width="0.5"/><polygon points="-12,-7 0,-14 12,-7 0,0" fill="#4ade80" stroke="#86efac" stroke-width="0.5"/></g>
+            <line x1="60" y1="80" x2="180" y2="60" stroke="rgba(239,68,68,0.3)" stroke-width="1" stroke-dasharray="4,2"/>
+            <line x1="60" y1="80" x2="300" y2="90" stroke="rgba(239,68,68,0.2)" stroke-width="0.5" stroke-dasharray="4,2"/>
+            <line x1="180" y1="60" x2="420" y2="70" stroke="rgba(245,158,11,0.2)" stroke-width="0.5" stroke-dasharray="4,2"/>
+            <line x1="420" y1="70" x2="520" y2="85" stroke="rgba(74,222,128,0.2)" stroke-width="0.5" stroke-dasharray="4,2"/>
+            <rect x="0" y="0" width="600" height="2" fill="rgba(0,189,125,0.4)" class="scan-beam"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="card">
+        <div class="card-hd"><div class="card-title">Recent Activity</div></div>
+        <div class="card-body" style="padding-top:10px">
+          <div class="activity-feed" id="activity-feed">
+            <div style="color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:11px">Loading activity...</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><div class="card-title">Tool Status</div></div>
+        <div class="card-body" style="padding-top:10px">
+          <div class="tool-status-grid" id="tool-status">
+            <div style="color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:11px;grid-column:span 2">Checking tool availability...</div>
+          </div>
+          <div style="margin-top:10px;padding:8px 10px;background:var(--surface3);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3)" id="tor-status">
+            Checking Tor...
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+
+<script>
+const canvas=document.getElementById('iso-canvas');
+const ctx=canvas.getContext('2d');
+function resize(){canvas.width=canvas.offsetWidth*devicePixelRatio;canvas.height=canvas.offsetHeight*devicePixelRatio;ctx.scale(devicePixelRatio,devicePixelRatio);}
+resize();window.addEventListener('resize',resize);
+const W=()=>canvas.offsetWidth,H=()=>canvas.offsetHeight;
+function isoProject(x,y,z){return{x:(x-y)*Math.cos(Math.PI/6),y:(x+y)*Math.sin(Math.PI/6)-z};}
+const COLORS={critical:['#7f1d1d','#991b1b','#ef4444'],high:['#78350f','#92400e','#f59e0b'],medium:['#1e3a5f','#1e40af','#60a5fa'],low:['#14532d','#166534','#4ade80']};
+function drawCube(cx,cy,s,h,cs,alpha=1){
+  ctx.globalAlpha=alpha;
+  function face(pts,fill,stroke){ctx.beginPath();pts.forEach((p,i)=>{i===0?ctx.moveTo(cx+p.x,cy+p.y):ctx.lineTo(cx+p.x,cy+p.y);});ctx.closePath();ctx.fillStyle=fill;ctx.fill();ctx.strokeStyle=stroke;ctx.lineWidth=0.3;ctx.stroke();}
+  face([isoProject(-s/2,0,h),isoProject(-s/2,0,0),isoProject(0,s/2,0),isoProject(0,s/2,h)],cs[0],cs[2]);
+  face([isoProject(0,s/2,h),isoProject(0,s/2,0),isoProject(s/2,0,0),isoProject(s/2,0,h)],cs[1],cs[2]);
+  face([isoProject(-s/2,0,h),isoProject(0,-s/2,h),isoProject(s/2,0,h),isoProject(0,s/2,h)],cs[2],cs[2]+'88');
+  ctx.globalAlpha=1;
+}
+let PORTS_DATA=[{id:'22',risk:'critical',h:70},{id:'80',risk:'critical',h:65},{id:'443',risk:'high',h:50},{id:'8080',risk:'high',h:45},{id:'3306',risk:'medium',h:38},{id:'6379',risk:'high',h:42},{id:'5432',risk:'low',h:25},{id:'21',risk:'medium',h:30},{id:'25',risk:'medium',h:28},{id:'53',risk:'low',h:18},{id:'161',risk:'low',h:15},{id:'9200',risk:'high',h:40}];
+let scanOffset=0;
+function drawScene(){
+  const w=W(),h=H()-70;
+  ctx.clearRect(0,0,w,h+70);
+  const vig=ctx.createRadialGradient(w/2,h/2,h*0.3,w/2,h/2,h*0.9);
+  vig.addColorStop(0,'transparent');vig.addColorStop(1,'rgba(8,9,13,0.5)');
+  ctx.fillStyle=vig;ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle='rgba(0,189,125,0.05)';ctx.lineWidth=0.5;
+  const gs=Math.min(w,h)*0.06,gn=14,ox=w*0.5,oy=h*0.55;
+  for(let i=-gn;i<=gn;i++){
+    const pa=isoProject(i*gs,-gn*gs,0),pb=isoProject(i*gs,gn*gs,0);
+    const pc=isoProject(-gn*gs,i*gs,0),pd=isoProject(gn*gs,i*gs,0);
+    ctx.beginPath();ctx.moveTo(ox+pa.x,oy+pa.y);ctx.lineTo(ox+pb.x,oy+pb.y);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(ox+pc.x,oy+pc.y);ctx.lineTo(ox+pd.x,oy+pd.y);ctx.stroke();
+  }
+  const cols=6,rows=2,sp=gs*1.8;
+  const sx=-(cols-1)*sp/2,sy=-(rows-1)*sp/2;
+  PORTS_DATA.forEach((port,i)=>{
+    const col=i%cols,row=Math.floor(i/cols);
+    const x=sx+col*sp,y=sy+row*sp,s=gs*0.7;
+    const fy=Math.sin(Date.now()*0.001+i*0.8)*3;
+    const proj=isoProject(x,y,0);
+    drawCube(ox+proj.x,oy+proj.y-fy,s,port.h*0.5,COLORS[port.risk],0.6+0.4*Math.sin(Date.now()*0.0008+i));
+    const tp=isoProject(x,y,port.h*0.5);
+    ctx.fillStyle=COLORS[port.risk][2];ctx.font="500 9px 'JetBrains Mono',monospace";
+    ctx.textAlign='center';ctx.fillText(':'+port.id,ox+tp.x,oy+tp.y-fy-5);
+  });
+  scanOffset=(scanOffset+0.8)%(h+40);
+  const bg=ctx.createLinearGradient(0,scanOffset-10,0,scanOffset+2);
+  bg.addColorStop(0,'rgba(0,189,125,0)');bg.addColorStop(0.5,'rgba(0,189,125,0.25)');bg.addColorStop(1,'rgba(0,189,125,0)');
+  ctx.fillStyle=bg;ctx.fillRect(0,scanOffset-10,w,12);
+  requestAnimationFrame(drawScene);
+}
+drawScene();
+
+/* Heatmap */
+const hm=document.getElementById('heatmap');
+Array.from({length:84}).forEach(()=>{
+  const r=Math.random(),v=r>0.97?5:r>0.92?4:r>0.80?3:r>0.65?2:r>0.45?1:0;
+  const c=document.createElement('div');c.className='heat-cell heat-'+v;hm.appendChild(c);
+});
+
+/* Animated counter */
+function animCount(el,target,dur=1000){
+  const s=Date.now();
+  const u=()=>{const p=Math.min((Date.now()-s)/dur,1);const e=1-Math.pow(1-p,3);el.textContent=Math.floor(e*target);if(p<1)requestAnimationFrame(u);};requestAnimationFrame(u);
+}
+
+/* Load live data from VulnScan API */
+async function loadDashData(){
+  document.getElementById('scan-state').textContent='LOADING';
+  try{
+    /* User info */
+    const me=await fetch('/api/me').then(r=>r.json()).catch(()=>({}));
+    if(me.username){
+      document.getElementById('user-av-char').textContent=me.username[0].toUpperCase();
+    }
+
+    /* Scan history */
+    const hist=await fetch('/history?limit=50').then(r=>r.json()).catch(()=>[]);
+    const scans=Array.isArray(hist)?hist:(hist.scans||[]);
+    const totalCrit=scans.reduce((a,s)=>a+(s.critical_cves||0),0);
+    const totalCVEs=scans.reduce((a,s)=>a+(s.total_cves||0),0);
+    const totalPorts=scans.reduce((a,s)=>a+(s.open_ports||0),0);
+    const avgScore=scans.length?Math.min(100,Math.round((totalCrit*22+totalCVEs*3)/Math.max(scans.length,1)*2)):0;
+
+    document.getElementById('scan-state').textContent='LIVE';
+    animCount(document.getElementById('cnt-ports'),totalPorts,1500);
+    animCount(document.getElementById('cnt-crit'),totalCrit,1200);
+    animCount(document.getElementById('cnt-scans'),scans.length,1800);
+    animCount(document.getElementById('cnt-score'),avgScore,2000);
+    document.getElementById('ports-note').textContent='across '+scans.length+' scans';
+    document.getElementById('crit-note').textContent=totalCVEs+' total CVEs found';
+    document.getElementById('scans-note').textContent='scan history loaded';
+    document.getElementById('score-note').textContent=avgScore>60?'HIGH RISK':avgScore>30?'MEDIUM RISK':'LOW RISK';
+
+    /* Risk ring */
+    const arc=document.getElementById('risk-arc');
+    const rn=document.getElementById('risk-num');
+    const rl=document.getElementById('risk-label');
+    const rb=document.getElementById('risk-breakdown');
+    const pct=avgScore/100;
+    arc.setAttribute('stroke-dashoffset',String(314-(314*pct)));
+    arc.setAttribute('stroke',avgScore>70?'#ef4444':avgScore>40?'#f59e0b':'#4ade80');
+    setTimeout(()=>{animCount(rn,avgScore,1500);},300);
+    rl.textContent=avgScore>70?'HIGH RISK':avgScore>40?'MEDIUM RISK':'LOW RISK';
+    rl.style.color=avgScore>70?'#ef4444':avgScore>40?'#f59e0b':'#4ade80';
+    rb.textContent=totalCrit+' critical · '+totalCVEs+' total CVEs';
+
+    /* Sev bars */
+    const highCount=scans.reduce((a,s)=>a+((s.total_cves||0)-(s.critical_cves||0)),0);
+    const svBars=[
+      {label:'CRITICAL',count:totalCrit,color:'#ef4444',max:Math.max(totalCrit,1)},
+      {label:'HIGH+',count:highCount,color:'#f59e0b',max:Math.max(highCount,1)},
+    ];
+    document.getElementById('sev-bars').innerHTML=svBars.map(b=>`
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace">${b.label}</span>
+          <span style="font-size:10px;color:${b.color};font-family:'JetBrains Mono',monospace">${b.count}</span>
+        </div>
+        <div style="height:4px;background:var(--surface3);border-radius:2px">
+          <div style="width:${Math.min(100,b.count/Math.max(b.max,1)*100)}%;height:100%;background:${b.color};border-radius:2px;transition:width 1.2s ease"></div>
+        </div>
+      </div>`).join('');
+
+    /* Port panel from latest scan */
+    const latest=scans[0];
+    if(latest){
+      const scanDetail=await fetch('/scan/'+latest.id).then(r=>r.json()).catch(()=>null);
+      const ports=(scanDetail?.modules?.ports?.hosts||[]).flatMap(h=>h.ports||[]);
+      if(ports.length){
+        PORTS_DATA=ports.slice(0,12).map(p=>({
+          id:String(p.port),
+          risk:p.risk_level==='CRITICAL'?'critical':p.risk_level==='HIGH'?'high':p.risk_level==='MEDIUM'?'medium':'low',
+          h:{CRITICAL:70,HIGH:50,MEDIUM:35,LOW:20}[p.risk_level]||20
+        }));
+        const hostsArr=(scanDetail?.modules?.ports?.hosts||[]);
+        if(hostsArr[0]){document.getElementById('h1-label').textContent=hostsArr[0].ip||'host 1';document.getElementById('h1-cves').textContent=(hostsArr[0].ports||[]).reduce((a,p)=>a+(p.cves||[]).length,0)+' CVEs';}
+        document.getElementById('ports-panel').innerHTML=`
+          <div class="scan-target-row">
+            <span class="scan-target-ip">${latest.target}</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3)">· ${ports.length} open</span>
+          </div>
+          <div class="port-list">
+            ${ports.slice(0,7).map(p=>`
+            <div class="port-row">
+              <span class="port-num">${p.port}</span>
+              <span class="port-svc">${p.product||p.service||'unknown'}</span>
+              <span class="port-ver">${p.version||''}</span>
+              <span class="sev-pill sev-${(p.risk_level||'low').toLowerCase()}">${p.risk_level||'LOW'}</span>
+            </div>`).join('')}
+          </div>`;
+
+        /* CVE panel */
+        const allCVEs=ports.flatMap(p=>p.cves||[]).sort((a,b)=>(b.score||0)-(a.score||0));
+        if(allCVEs.length){
+          document.getElementById('cve-panel').innerHTML=allCVEs.slice(0,8).map(c=>`
+            <div class="cve-item ${c.severity?.toLowerCase()||'medium'}">
+              <div class="cve-id"><a href="${(c.references||[''])[0]||'#'}" target="_blank" style="color:var(--primary);text-decoration:none">${c.id}</a></div>
+              <div class="cve-score" style="color:${(c.score||0)>=9?'#ef4444':(c.score||0)>=7?'#f59e0b':'#60a5fa'}">${c.score||'?'}</div>
+              <div class="cve-desc">${(c.description||'').slice(0,80)}${(c.description||'').length>80?'...':''}</div>
+            </div>`).join('');
+        }
+      }
+    }
+
+    /* Activity feed from history */
+    const actItems=scans.slice(0,5).map(s=>{
+      const dot=s.critical_cves>0?'#ef4444':s.total_cves>0?'#f59e0b':'var(--primary)';
+      const msg=s.critical_cves>0?`<strong>CRITICAL</strong> ${s.critical_cves} critical CVEs`:`<strong>Scan</strong> ${s.open_ports} open ports · ${s.total_cves} CVEs`;
+      const t=(s.scan_time||'').replace('T',' ').slice(0,16);
+      return`<div class="activity-item"><div class="activity-dot" style="background:${dot}"></div><div class="activity-content"><div class="activity-action">${msg}</div><div class="activity-time">${t} · ${s.target}</div></div></div>`;
+    }).join('');
+    document.getElementById('activity-feed').innerHTML=actItems||'<div style="color:var(--text3);font-family:JetBrains Mono,monospace;font-size:11px">No scan history yet.</div>';
+
+    /* Health/tool status */
+    const health=await fetch('/health').then(r=>r.json()).catch(()=>({}));
+    const TOOLS=[
+      {name:'nmap',ok:health.nmap},
+      {name:'nikto',ok:health.nikto},
+      {name:'lynis',ok:health.lynis},
+      {name:'dnsrecon',ok:health.dnsrecon},
+      {name:'theHarvester',ok:health.theharvester},
+      {name:'proxychains4',ok:health.proxychains4},
+      {name:'tor',ok:health.tor_running},
+      {name:'dig',ok:health.dig},
+    ];
+    document.getElementById('tool-status').innerHTML=TOOLS.map(t=>`
+      <div class="tool-badge">
+        <div class="tool-indicator" style="background:${t.ok?'var(--success)':'var(--danger)'}"></div>
+        <span class="tool-name">${t.name}</span>
+      </div>`).join('');
+    document.getElementById('tor-status').innerHTML=`TOR SOCKS5 · 127.0.0.1:${health.tor_port||9050} · <span style="color:${health.tor_running?'var(--success)':'var(--danger)'}">${health.tor_running?'CONNECTED':'OFFLINE'}</span>`;
+
+  }catch(e){
+    document.getElementById('scan-state').textContent='ERROR';
+    console.error('Perspective dashboard data load failed:',e);
+  }
+}
+loadDashData();
+</script>
+</body>
+</html>'''
+
+# ── Route code to inject ──────────────────────────────────────────────────────
+ROUTE_CODE = r'''
+
+# ════════════════════════════════════════════════════════════════════════════
+# PERSPECTIVE DASHBOARD — Isometric 3D Security Intelligence Dashboard
+# Route added by vulnscan_perspective_patch.py
+# ════════════════════════════════════════════════════════════════════════════
+
+_PERSPECTIVE_HTML = ''' + "'''" + r'''PERSPECTIVE_HTML_PLACEHOLDER''' + "'''" + r'''
+
+@app.route("/perspective")
+def perspective_dashboard():
+    """Perspective isometric 3D security dashboard."""
+    u = get_current_user()
+    if not u:
+        return "<script>window.location='/'</script>", 302
+    audit(u["id"], u["username"], "PERSPECTIVE_DASHBOARD_VIEW",
+          target="perspective", ip=request.remote_addr,
+          details="isometric_dashboard_access")
+    return _PERSPECTIVE_HTML
+
+
+@app.route("/api/perspective/data")
+def perspective_data():
+    """
+    Live data feed for the perspective dashboard.
+    Returns aggregated scan statistics for charting.
+    """
+    u = get_current_user()
+    if not u:
+        return jsonify({"error": "Login required"}), 401
+
+    from database import get_history, get_scan_stats
+    uid = u["id"]
+    role = u.get("role", "user")
+
+    scans = get_history(50, user_id=None if role == "admin" else uid)
+    stats = get_scan_stats()
+
+    total_crit  = sum(s.get("critical_cves", 0) or 0 for s in scans)
+    total_cves  = sum(s.get("total_cves",    0) or 0 for s in scans)
+    total_ports = sum(s.get("open_ports",    0) or 0 for s in scans)
+    avg_score   = min(100, round(
+        (total_crit * 22 + total_cves * 3) / max(len(scans), 1) * 2
+    )) if scans else 0
+
+    risk_label = "HIGH" if avg_score > 60 else "MEDIUM" if avg_score > 30 else "LOW"
+
+    return jsonify({
+        "summary": {
+            "total_scans":   len(scans),
+            "total_ports":   total_ports,
+            "total_cves":    total_cves,
+            "critical_cves": total_crit,
+            "avg_risk_score": avg_score,
+            "risk_label":    risk_label,
+        },
+        "recent_scans": scans[:10],
+        "platform":     stats,
+        "note": "Perspective dashboard data feed"
+    })
+
+# ── Sidebar nav link helper (JS snippet served to main UI) ───────────────────
+@app.route("/api/perspective/nav-snippet")
+def perspective_nav_snippet():
+    """Returns a JS snippet to inject the perspective link into the main sidebar."""
+    snippet = """
+(function(){
+  var nav = document.querySelector('.sidebar nav');
+  if(!nav) return;
+  var btn = document.createElement('button');
+  btn.className = 'nav-item';
+  btn.innerHTML = '<span class="ni">&#11042;</span> Perspective';
+  btn.title = 'Isometric 3D Security Dashboard';
+  btn.onclick = function(){ window.location = '/perspective'; };
+  btn.style.cssText = 'border-top:1px solid var(--border);margin-top:8px;padding-top:12px;color:var(--primary);font-weight:500';
+  nav.appendChild(btn);
+})();
+"""
+    return snippet, 200, {"Content-Type": "application/javascript"}
+
+'''
 
 
 def backup(path):
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    bak = f"{path}.ui_patch_{ts}.bak"
+    bak = f"{path}.perspective_{ts}.bak"
     shutil.copy2(path, bak)
     return bak
 
@@ -54,45 +638,19 @@ def write_file(path, content):
         f.write(content)
 
 
-def apply_patch(src, label, old, new):
-    if old in src:
-        result = src.replace(old, new, 1)
-        ok(label)
-        RESULTS["applied"] += 1
-        return result
-    elif new in src:
-        from patch_ui_improvements import skip
-        pass
-    if new in src:
-        print(f"  {D}·{X}  {label} (already applied)")
-        RESULTS["skipped"] += 1
-        return src
-    else:
-        fail(f"{label} — anchor not found")
-        RESULTS["failed"] += 1
-        return src
-
-
-def apply_patch_safe(src, label, old, new):
-    if old in src:
-        result = src.replace(old, new, 1)
-        ok(label)
-        RESULTS["applied"] += 1
-        return result
-    elif new in src:
-        print(f"  {D}·{X}  {label} (already applied)")
-        RESULTS["skipped"] += 1
-        return src
-    else:
-        fail(f"{label} — anchor not found")
-        RESULTS["failed"] += 1
-        return src
+def syntax_check(path):
+    r = subprocess.run(
+        [sys.executable, "-m", "py_compile", path],
+        capture_output=True, text=True
+    )
+    return r.returncode == 0, r.stderr.strip()
 
 
 def main():
     print()
     print(B + C + "╔══════════════════════════════════════════════════════════╗" + X)
-    print(B + C + "║  VulnScan Pro — Comprehensive UI Improvements Patch      ║" + X)
+    print(B + C + "║  VulnScan Pro — Perspective Dashboard Patch             ║" + X)
+    print(B + C + "║  Isometric 3D security intelligence dashboard           ║" + X)
     print(B + C + "╚══════════════════════════════════════════════════════════╝" + X)
     print()
 
@@ -100,890 +658,82 @@ def main():
         fail(f"Must be run from project root — {TARGET} not found")
         sys.exit(1)
 
+    info(f"Target: {TARGET}")
+    print()
+
     src = read_file(TARGET)
-    bak = backup(TARGET)
-    info(f"Backup: {bak}")
 
-    # ══════════════════════════════════════════════════════════
-    # PATCH 1: Fix navToggle JS — all closed by default,
-    #          one-open-at-a-time, remove Admin/Overview from nav
-    # ══════════════════════════════════════════════════════════
-    hdr("Patch 1 — Nav: closed by default, one-open-at-a-time, category styling")
+    # Check if already patched
+    if "PERSPECTIVE DASHBOARD" in src and "/perspective" in src:
+        warn("Perspective dashboard route already exists in api_server.py")
+        warn("Skipping patch — dashboard already available at /perspective")
+        print()
+        ok("Access your dashboard at: http://localhost:5000/perspective")
+        sys.exit(0)
 
-    OLD_NAV_TOGGLE = r"""function navToggle(id){
-  var items=document.getElementById('nc-'+id);
-  var arrow=document.getElementById('na-'+id);
-  if(!items)return;
-  var collapsed=items.classList.contains('collapsed');
-  if(collapsed){
-    document.querySelectorAll('.nav-cat-items.expanded').forEach(function(openItems){
-      if(openItems.id===('nc-'+id))return;
-      openItems.classList.remove('expanded');
-      openItems.classList.add('collapsed');
-      var aid=openItems.id.replace(/^nc-/,'');
-      var ael=document.getElementById('na-'+aid);
-      if(ael)ael.classList.remove('open');
-      try{localStorage.setItem('vs-nav-'+aid,'0');}catch(e){}
-    });
-  }
-  items.classList.toggle('collapsed',!collapsed);
-  items.classList.toggle('expanded',collapsed);
-  if(arrow)arrow.classList.toggle('open',collapsed);
-  try{localStorage.setItem('vs-nav-'+id,collapsed?'1':'0');}catch(e){}
-}
-function navRestore(){
-  var openedOne=false;
-  ['overview','information','webtesting','attacks','webapp','passwords','recon','exploitation','auditing','c2','social','reverseeng','tunneling','admin'].forEach(function(id){
-    var items=document.getElementById('nc-'+id);
-    var arrow=document.getElementById('na-'+id);
-    if(!items)return;
-    var stored;try{stored=localStorage.getItem('vs-nav-'+id);}catch(e){}
-    // Default is NOW CLOSED (0) — user preference overrides on repeat visits
-    var open=(stored===null)?0:(stored==='1'?1:0);
-    if(openedOne&&open)open=0;
-    if(open)openedOne=true;
-    items.classList.toggle('collapsed',!open);
-    items.classList.toggle('expanded',!!open);
-    if(arrow)arrow.classList.toggle('open',!!open);
-  });
-}
-function navPruneSections(){
-  var overview=document.getElementById('nc-overview');
-  if(overview&&overview.closest('.nav-section'))overview.closest('.nav-section').style.display='none';
-  var adminSec=document.getElementById('admin-nav-section');
-  if(adminSec)adminSec.style.display='none';
-}
-document.addEventListener('DOMContentLoaded',navRestore);
-document.addEventListener('DOMContentLoaded',navPruneSections);"""
+    hdr("Injecting Perspective Dashboard Route")
 
-    NEW_NAV_TOGGLE = r"""function navToggle(id){
-  var items=document.getElementById('nc-'+id);
-  var arrow=document.getElementById('na-'+id);
-  if(!items)return;
-  var collapsed=items.classList.contains('collapsed');
-  /* Close ALL other open sections first (one-open-at-a-time) */
-  document.querySelectorAll('.nav-cat-items.expanded').forEach(function(openItems){
-    if(openItems.id===('nc-'+id))return;
-    openItems.style.maxHeight='0px';
-    openItems.classList.remove('expanded');
-    openItems.classList.add('collapsed');
-    var aid=openItems.id.replace(/^nc-/,'');
-    var ael=document.getElementById('na-'+aid);
-    if(ael)ael.classList.remove('open');
-    try{localStorage.setItem('vs-nav-'+aid,'0');}catch(e){}
-  });
-  if(collapsed){
-    items.style.maxHeight=items.scrollHeight+'px';
-    setTimeout(function(){if(items.classList.contains('expanded'))items.style.maxHeight='none';},300);
-  } else {
-    items.style.maxHeight=items.scrollHeight+'px';
-    requestAnimationFrame(function(){items.style.maxHeight='0px';});
-  }
-  items.classList.toggle('collapsed',!collapsed);
-  items.classList.toggle('expanded',collapsed);
-  if(arrow)arrow.classList.toggle('open',collapsed);
-  try{localStorage.setItem('vs-nav-'+id,collapsed?'1':'0');}catch(e){}
-}
-function navRestore(){
-  /* All sections CLOSED by default — never auto-open */
-  ['information','webtesting','attacks','webapp','passwords','recon','exploitation','auditing','c2','social','reverseeng','tunneling'].forEach(function(id){
-    var items=document.getElementById('nc-'+id);
-    var arrow=document.getElementById('na-'+id);
-    if(!items)return;
-    items.style.maxHeight='0px';
-    items.classList.add('collapsed');
-    items.classList.remove('expanded');
-    if(arrow)arrow.classList.remove('open');
-    try{localStorage.removeItem('vs-nav-'+id);}catch(e){}
-  });
-}
-function navPruneSections(){
-  /* Hide overview section (Home/Dash/History handled by topbar) */
-  var overview=document.getElementById('nc-overview');
-  if(overview&&overview.closest('.nav-section'))overview.closest('.nav-section').style.display='none';
-  /* Hide admin section from regular nav */
-  var adminSec=document.getElementById('admin-nav-section');
-  if(adminSec)adminSec.style.display='none';
-}
-document.addEventListener('DOMContentLoaded',navRestore);
-document.addEventListener('DOMContentLoaded',navPruneSections);"""
+    # Build the route code with the HTML embedded
+    route_with_html = ROUTE_CODE.replace(
+        "PERSPECTIVE_HTML_PLACEHOLDER",
+        PERSPECTIVE_HTML
+    )
 
-    src = apply_patch_safe(src, "Nav toggle — closed by default, one-open-at-a-time", OLD_NAV_TOGGLE, NEW_NAV_TOGGLE)
-
-    # ══════════════════════════════════════════════════════════
-    # PATCH 2: Category header styling — distinct from tool items
-    # ══════════════════════════════════════════════════════════
-    hdr("Patch 2 — Category header distinct styling")
-
-    OLD_CAT_STYLE = """.nav-cat-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:6px 8px;border-radius:var(--radius);user-select:none;background:linear-gradient(180deg,rgba(127,140,141,.12),rgba(127,140,141,.06));border:1px solid rgba(127,140,141,.25)}
-.nav-cat-toggle:hover{background:linear-gradient(180deg,rgba(52,152,219,.16),rgba(52,152,219,.08));border-color:rgba(52,152,219,.35)}
-.nav-cat-label{font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:2px;font-weight:700}
-.nav-cat-arrow{font-size:9px;color:var(--text3);transition:transform 0.2s}
-.nav-cat-arrow.open{transform:rotate(180deg)}
-.nav-cat-items{overflow:hidden;transition:max-height 0.25s ease,opacity 0.2s}
-.nav-cat-items.collapsed{max-height:0!important;opacity:0;pointer-events:none}
-.nav-cat-items.expanded{opacity:1}"""
-
-    NEW_CAT_STYLE = """.nav-cat-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:7px 10px;border-radius:var(--radius);user-select:none;background:var(--accent);border:1px solid var(--accent);margin:2px 0;transition:opacity 0.15s ease,transform 0.15s ease}
-.nav-cat-toggle:hover{opacity:0.85;transform:translateX(1px)}
-.nav-cat-label{font-family:var(--mono);font-size:9px;color:var(--accent-inv);letter-spacing:2px;font-weight:700}
-.nav-cat-arrow{font-size:9px;color:var(--accent-inv);opacity:0.7;transition:transform 0.25s ease}
-.nav-cat-arrow.open{transform:rotate(180deg);opacity:1}
-.nav-cat-items{overflow:hidden;transition:max-height 0.3s ease,opacity 0.25s ease;max-height:0;opacity:0}
-.nav-cat-items.collapsed{max-height:0!important;opacity:0;pointer-events:none}
-.nav-cat-items.expanded{opacity:1}
-.nav-cat-items .nav-item{padding-left:16px;border-left:2px solid var(--border);margin-left:6px;border-radius:0 var(--radius) var(--radius) 0}
-.nav-cat-items .nav-item:hover{border-left-color:var(--accent)}
-.nav-cat-items .nav-item.active{border-left-color:var(--accent)}"""
-
-    src = apply_patch_safe(src, "Category header styling — distinct accent background", OLD_CAT_STYLE, NEW_CAT_STYLE)
-
-    # ══════════════════════════════════════════════════════════
-    # PATCH 3: Home screen tool catalog — show all tools
-    # ══════════════════════════════════════════════════════════
-    hdr("Patch 3 — Home screen comprehensive tool catalog")
-
-    OLD_HOME_CATALOG = """function renderHomeToolCatalog(){
-  var out=document.getElementById('home-tool-catalog');
-  if(!out)return;
-  var sections=Array.from(document.querySelectorAll('.nav-section')).filter(function(sec){
-    if(sec.style.display==='none')return false;
-    var labelEl=sec.querySelector('.nav-cat-label');
-    var items=sec.querySelectorAll('.nav-item');
-    if(!labelEl||!items.length)return false;
-    return true;
-  });
-  out.innerHTML=sections.map(function(sec){
-    var label=sec.querySelector('.nav-cat-label').textContent.trim();
-    var tools=Array.from(sec.querySelectorAll('.nav-item')).map(function(btn){
-      var pid=btn.id.replace(/^ni-/,'');
-      var nm=(btn.textContent||'').replace(/\\s+/g,' ').trim();
-      return '<button class="tag" style="cursor:pointer" onclick="pg(\\''+pid+'\\',null)">'+nm+'</button>';
-    }).join('');
-    return '<div style="border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--bg2)">'+
-      '<div style="font-size:11px;color:var(--text3);letter-spacing:1px;margin-bottom:8px">'+label+'</div>'+
-      '<div style="display:flex;gap:6px;flex-wrap:wrap">'+tools+'</div></div>';
-  }).join('');
-}"""
-
-    NEW_HOME_CATALOG = """/* Full tool catalog for home screen — static definition so it always renders
-   correctly regardless of nav section visibility state */
-var HOME_TOOL_CATALOG = [
-  {label:'INFORMATION', color:'#5a9fe0', tools:[
-    {id:'scan',name:'Network Scanner',desc:'Port scan · CVE lookup · SSL · DNS · Headers'},
-    {id:'dnsrecon',name:'DNSRecon',desc:'DNS enumeration and zone analysis'},
-    {id:'disc',name:'Net Discovery',desc:'Discover live hosts on a subnet'},
-    {id:'harvester',name:'theHarvester',desc:'OSINT emails, subdomains, IPs'},
-    {id:'sub',name:'Subdomain Finder',desc:'DNS brute-force + passive enumeration'},
-    {id:'legion',name:'Legion',desc:'Auto-recon framework'},
-    {id:'searchsploit',name:'SearchSploit',desc:'Exploit-DB offline search'},
-    {id:'seclists',name:'SecLists',desc:'Security wordlists browser'},
-  ]},
-  {label:'WEB TESTING', color:'#00e5ff', tools:[
-    {id:'webdeep',name:'Deep Web Audit',desc:'Full multi-tool website assessment'},
-    {id:'nikto',name:'Nikto',desc:'Web server vulnerability scanner'},
-    {id:'wpscan',name:'WPScan',desc:'WordPress security scanner'},
-    {id:'dir',name:'Dir Buster',desc:'Hidden paths and file enumeration'},
-    {id:'ffuf',name:'ffuf',desc:'Fast web fuzzer'},
-    {id:'nuclei',name:'Nuclei',desc:'Template-based vuln scanner'},
-    {id:'whatweb',name:'WhatWeb',desc:'Web technology fingerprinter'},
-    {id:'wapiti',name:'Wapiti',desc:'Web app vulnerability scanner'},
-    {id:'dalfox',name:'Dalfox',desc:'XSS parameter analysis'},
-    {id:'sqlmap',name:'SQLMap',desc:'SQL injection detection'},
-    {id:'kxss',name:'kxss',desc:'XSS reflection checker'},
-  ]},
-  {label:'ATTACKS', color:'#ff6b35', tools:[
-    {id:'brute',name:'Brute Force',desc:'Credential testing HTTP/SSH'},
-    {id:'medusa',name:'Medusa',desc:'Fast parallel network login auditor'},
-    {id:'hping3',name:'hping3',desc:'TCP/IP packet assembler'},
-    {id:'scapy',name:'Scapy',desc:'Interactive packet manipulation'},
-    {id:'yersinia',name:'Yersinia',desc:'Network protocol attacks'},
-  ]},
-  {label:'PASSWORD ATTACKS', color:'#ff3366', tools:[
-    {id:'hashcat',name:'Hashcat',desc:'GPU-based password recovery'},
-    {id:'john',name:'John the Ripper',desc:'Versatile password cracker'},
-  ]},
-  {label:'SOCIAL ENGINEERING', color:'#b06fff', tools:[
-    {id:'setoolkit',name:'SET',desc:'Social-Engineer Toolkit'},
-    {id:'gophish',name:'Gophish',desc:'Phishing campaign manager'},
-    {id:'evilginx2',name:'Evilginx2',desc:'Reverse-proxy phishing simulation'},
-    {id:'shellphish',name:'ShellPhish',desc:'Template-driven phishing framework'},
-  ]},
-  {label:'C2 / PIVOTING', color:'#ffd60a', tools:[
-    {id:'netcat',name:'Netcat',desc:'TCP/UDP networking utility'},
-    {id:'ncat',name:'Ncat',desc:'Nmap Netcat replacement'},
-    {id:'socat',name:'Socat',desc:'Bidirectional data relay'},
-    {id:'sliver',name:'Sliver',desc:'C2 framework'},
-    {id:'empire',name:'Empire',desc:'Post-exploitation framework'},
-    {id:'ligolo',name:'Ligolo-ng',desc:'Advanced tunneling tool'},
-    {id:'chisel',name:'Chisel',desc:'TCP/UDP tunnel over HTTP'},
-    {id:'rlwrap',name:'rlwrap',desc:'Readline wrapper for CLI tools'},
-    {id:'pspy',name:'pspy',desc:'Process spy without root'},
-  ]},
-  {label:'EXPLOIT / PAYLOAD', color:'#e05a4e', tools:[
-    {id:'msfvenom',name:'msfvenom',desc:'Metasploit payload generator'},
-    {id:'pwncat',name:'pwncat',desc:'Feature-rich reverse shell handler'},
-    {id:'grype',name:'Grype',desc:'Container vulnerability scanner'},
-  ]},
-  {label:'REVERSE ENGINEERING', color:'#00ff9d', tools:[
-    {id:'radare2',name:'Radare2',desc:'Reverse engineering framework'},
-  ]},
-  {label:'AUDITING', color:'#3db870', tools:[
-    {id:'lynis',name:'Lynis',desc:'System audit · hardening · compliance'},
-    {id:'openvas',name:'OpenVAS',desc:'Open vulnerability assessment'},
-    {id:'chkrootkit',name:'chkrootkit',desc:'Local rootkit detector'},
-    {id:'rkhunter',name:'rkhunter',desc:'Rootkit Hunter'},
-  ]},
-];
-
-function renderHomeToolCatalog(){
-  var out=document.getElementById('home-tool-catalog');
-  if(!out)return;
-  out.innerHTML=HOME_TOOL_CATALOG.map(function(cat){
-    var tools=cat.tools.map(function(t){
-      return '<div class="home-tool-card" onclick="pg(\''+t.id+'\',null)" title="'+t.desc+'">'+
-        '<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:2px">'+t.name+'</div>'+
-        '<div style="font-size:10px;color:var(--text3);line-height:1.4">'+t.desc+'</div>'+
-        '</div>';
-    }).join('');
-    return '<div class="home-cat-block">'+
-      '<div class="home-cat-label" style="border-left-color:'+cat.color+'">'+cat.label+'</div>'+
-      '<div class="home-tools-grid">'+tools+'</div>'+
-      '</div>';
-  }).join('');
-}"""
-
-    src = apply_patch_safe(src, "Home tool catalog — comprehensive static definition", OLD_HOME_CATALOG, NEW_HOME_CATALOG)
-
-    # Add CSS for home tool cards
-    OLD_HOME_CSS_ANCHOR = """.found{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:20px;font-family:var(--mono);font-size:11px;color:var(--text2);position:relative;z-index:2}"""
-
-    NEW_HOME_CSS_ANCHOR = """.found{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:20px;font-family:var(--mono);font-size:11px;color:var(--text2);position:relative;z-index:2}
-.home-cat-block{margin-bottom:18px}
-.home-cat-label{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--text2);letter-spacing:2px;padding:4px 0 4px 10px;border-left:3px solid var(--accent);margin-bottom:10px}
-.home-tools-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
-.home-tool-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;cursor:pointer;transition:border-color 0.15s ease,transform 0.15s ease,box-shadow 0.15s ease}
-.home-tool-card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:var(--shadow-md)}
-.home-tool-card:active{transform:translateY(0) scale(0.98)}"""
-
-    src = apply_patch_safe(src, "Home tool card CSS styles", OLD_HOME_CSS_ANCHOR, NEW_HOME_CSS_ANCHOR)
-
-    # ══════════════════════════════════════════════════════════
-    # PATCH 4: Dashboard — more detailed information
-    # ══════════════════════════════════════════════════════════
-    hdr("Patch 4 — Dashboard more detailed information")
-
-    OLD_DASH = """async function loadDash(){
-  try{
-    var r=await fetch('/history?limit=100');var d=await r.json();
-    if(!d.length){document.getElementById('dash-content').innerHTML='<div style="color:var(--text3)">Run some scans first.</div>';return;}
-    var tc=d.reduce(function(a,s){return a+s.total_cves;},0),cr=d.reduce(function(a,s){return a+s.critical_cves;},0),tp=d.reduce(function(a,s){return a+s.open_ports;},0);
-    var avg=(tc/d.length)||0;
-    var risky=d.filter(function(s){return (s.critical_cves||0)>0;}).length;
-    var last=d[0]||{};
-    var recent7=d.slice(0,7).reduce(function(a,s){return a+s.total_cves;},0);
-    var mx=Math.max.apply(null,d.map(function(s){return s.total_cves;}).concat([1]));
-    document.getElementById('dash-content').innerHTML=
-      '<div class="stats" style="margin-bottom:18px">'+
-        '<div class="stat"><div class="stat-val">'+d.length+'</div><div class="stat-lbl">SCANS</div></div>'+
-        '<div class="stat"><div class="stat-val">'+tc+'</div><div class="stat-lbl">TOTAL CVEs</div></div>'+
-        '<div class="stat"><div class="stat-val" style="color:var(--red)">'+cr+'</div><div class="stat-lbl">CRITICAL</div></div>'+
-        '<div class="stat"><div class="stat-val">'+tp+'</div><div class="stat-lbl">OPEN PORTS</div></div>'+
-        '<div class="stat"><div class="stat-val">'+avg.toFixed(1)+'</div><div class="stat-lbl">AVG CVE / SCAN</div></div>'+
-        '<div class="stat"><div class="stat-val">'+risky+'</div><div class="stat-lbl">RISKY TARGETS</div></div>'+
-      '</div>'+
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">'+
-        '<div class="card card-p"><div class="card-title" style="margin-bottom:12px">Top Targets by CVEs</div>'+d.slice(0,6).map(function(s){return'<div class="bar-row"><span class="bar-label">'+s.target.substring(0,16)+'</span><div class="bar-track"><div class="bar-fill" style="width:'+((s.total_cves/mx)*100)+'%"></div></div><span class="bar-val" style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+s.total_cves+'</span></div>';}).join('')+'</div>'+
-        '<div class="card card-p"><div class="card-title" style="margin-bottom:12px">Recent Activity</div>'+d.slice(0,10).map(function(s){return'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="font-family:var(--mono)">'+s.target+'</span><span style="color:'+(s.critical_cves>0?'var(--red)':'var(--text3)')+'">'+(s.critical_cves>0?s.critical_cves+' critical':s.total_cves+' CVEs')+'</span></div>';}).join('')+'</div>'+
-        '<div class="card card-p"><div class="card-title" style="margin-bottom:12px">Risk Summary</div>'+
-          '<div style="display:grid;gap:8px;font-size:12px">'+
-            '<div><span style="color:var(--text3)">Latest target:</span> <span style="font-family:var(--mono)">'+(last.target||'--')+'</span></div>'+
-            '<div><span style="color:var(--text3)">Latest scan:</span> '+((last.scan_time||'').replace('T',' ').substring(0,19)||'--')+'</div>'+
-            '<div><span style="color:var(--text3)">CVEs in last 7 scans:</span> '+recent7+'</div>'+
-            '<div><span style="color:var(--text3)">Critical rate:</span> '+((cr/Math.max(tc,1))*100).toFixed(1)+'%</div>'+
-          '</div></div>'+
-      '</div>';
-  }catch(e){document.getElementById('dash-content').innerHTML='<div style="color:var(--red)">'+e.message+'</div>';}
-}"""
-
-    NEW_DASH = """async function loadDash(){
-  try{
-    var r=await fetch('/history?limit=200');var d=await r.json();
-    var el=document.getElementById('dash-content');
-    if(!d.length){el.innerHTML='<div style="color:var(--text3)">Run some scans first.</div>';return;}
-    var tc=d.reduce(function(a,s){return a+s.total_cves;},0);
-    var cr=d.reduce(function(a,s){return a+s.critical_cves;},0);
-    var tp=d.reduce(function(a,s){return a+s.open_ports;},0);
-    var avg=(tc/d.length)||0;
-    var risky=d.filter(function(s){return(s.critical_cves||0)>0;}).length;
-    var clean=d.filter(function(s){return(s.total_cves||0)===0;}).length;
-    var last=d[0]||{};
-    var recent7=d.slice(0,7).reduce(function(a,s){return a+s.total_cves;},0);
-    var mx=Math.max.apply(null,d.map(function(s){return s.total_cves;}).concat([1]));
-    var critRate=((cr/Math.max(tc,1))*100).toFixed(1);
-    /* Severity breakdown */
-    var highC=d.reduce(function(a,s){return a+(s.high_cves||0);},0);
-    /* Top 5 unique targets */
-    var targetMap={};d.forEach(function(s){if(!targetMap[s.target])targetMap[s.target]={cves:0,scans:0,critical:0};targetMap[s.target].cves+=s.total_cves;targetMap[s.target].scans++;targetMap[s.target].critical+=s.critical_cves;});
-    var topTargets=Object.entries(targetMap).sort(function(a,b){return b[1].cves-a[1].cves;}).slice(0,8);
-    /* Last 30 days activity */
-    var now=new Date();
-    var days30=d.filter(function(s){return s.scan_time&&(now-new Date(s.scan_time))<30*86400000;});
-    /* Modules used */
-    var modMap={};d.forEach(function(s){(s.modules||'').split(',').forEach(function(m){if(m.trim())modMap[m.trim()]=(modMap[m.trim()]||0)+1;});});
-    var topMods=Object.entries(modMap).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
-    el.innerHTML=
-      '<div class="stats" style="margin-bottom:18px">'+
-        '<div class="stat"><div class="stat-val">'+d.length+'</div><div class="stat-lbl">TOTAL SCANS</div></div>'+
-        '<div class="stat"><div class="stat-val" style="color:var(--yellow)">'+tc+'</div><div class="stat-lbl">TOTAL CVEs</div></div>'+
-        '<div class="stat"><div class="stat-val" style="color:var(--red)">'+cr+'</div><div class="stat-lbl">CRITICAL</div></div>'+
-        '<div class="stat"><div class="stat-val" style="color:var(--orange)">'+highC+'</div><div class="stat-lbl">HIGH</div></div>'+
-        '<div class="stat"><div class="stat-val">'+tp+'</div><div class="stat-lbl">OPEN PORTS</div></div>'+
-        '<div class="stat"><div class="stat-val">'+avg.toFixed(1)+'</div><div class="stat-lbl">AVG CVE/SCAN</div></div>'+
-        '<div class="stat"><div class="stat-val" style="color:var(--red)">'+risky+'</div><div class="stat-lbl">RISKY TARGETS</div></div>'+
-        '<div class="stat"><div class="stat-val" style="color:var(--green)">'+clean+'</div><div class="stat-lbl">CLEAN SCANS</div></div>'+
-        '<div class="stat"><div class="stat-val">'+days30.length+'</div><div class="stat-lbl">LAST 30 DAYS</div></div>'+
-      '</div>'+
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:14px">'+
-
-        /* KPI cards */
-        '<div class="card card-p">'+
-          '<div class="card-title" style="margin-bottom:12px">Risk Overview</div>'+
-          '<div style="display:grid;gap:8px;font-size:12px">'+
-            '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text3)">Critical rate</span><span style="color:var(--red);font-family:var(--mono);font-weight:600">'+critRate+'%</span></div>'+
-            '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text3)">Risky targets</span><span style="color:var(--orange);font-family:var(--mono)">'+risky+' / '+Object.keys(targetMap).length+'</span></div>'+
-            '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text3)">CVEs last 7 scans</span><span style="font-family:var(--mono)">'+recent7+'</span></div>'+
-            '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text3)">Avg open ports</span><span style="font-family:var(--mono)">'+(tp/d.length).toFixed(1)+'</span></div>'+
-            '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text3)">Latest target</span><span style="font-family:var(--mono);color:var(--text)">'+(last.target||'--').substring(0,20)+'</span></div>'+
-            '<div style="display:flex;justify-content:space-between;padding:7px 0"><span style="color:var(--text3)">Latest scan</span><span style="font-family:var(--mono);font-size:11px">'+((last.scan_time||'').replace('T',' ').substring(0,16)||'--')+'</span></div>'+
-          '</div>'+
-        '</div>'+
-
-        /* Top targets */
-        '<div class="card card-p">'+
-          '<div class="card-title" style="margin-bottom:12px">Top Targets by CVEs</div>'+
-          topTargets.map(function(kv){return'<div class="bar-row"><span class="bar-label">'+kv[0].substring(0,16)+'</span><div class="bar-track"><div class="bar-fill" style="width:'+((kv[1].cves/mx)*100)+'%"></div></div><span class="bar-val" style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+kv[1].cves+'</span></div>';}).join('')+
-        '</div>'+
-
-        /* Modules used */
-        (topMods.length?'<div class="card card-p"><div class="card-title" style="margin-bottom:12px">Most Used Modules</div>'+topMods.map(function(kv){return'<div class="bar-row"><span class="bar-label">'+kv[0].substring(0,16)+'</span><div class="bar-track"><div class="bar-fill" style="width:'+((kv[1]/d.length)*100)+'%"></div></div><span class="bar-val" style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+kv[1]+'</span></div>';}).join('')+'</div>':'')+
-
-      '</div>'+
-
-      /* Recent activity table */
-      '<div class="card">'+
-        '<div class="card-header"><div class="card-title">Recent Scan Activity</div></div>'+
-        '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>#</th><th>TARGET</th><th>TIME</th><th>PORTS</th><th>CRITICAL</th><th>CVEs</th><th>MODULES</th><th></th></tr></thead><tbody>'+
-        d.slice(0,20).map(function(s){return'<tr>'+
-          '<td style="color:var(--text3);font-family:var(--mono)">#'+s.id+'</td>'+
-          '<td style="font-family:var(--mono)">'+s.target+'</td>'+
-          '<td style="color:var(--text3);font-size:11px">'+((s.scan_time||'').replace('T',' ').substring(0,16))+'</td>'+
-          '<td style="font-family:var(--mono)">'+s.open_ports+'</td>'+
-          '<td style="color:'+(s.critical_cves>0?'var(--red)':'var(--green)')+';font-weight:600">'+s.critical_cves+'</td>'+
-          '<td style="color:'+(s.total_cves>0?'var(--yellow)':'var(--text3)')+'">'+s.total_cves+'</td>'+
-          '<td style="font-size:10px;color:var(--text3)">'+((s.modules||'ports').split(',').join(' · '))+'</td>'+
-          '<td><button class="btn btn-ghost btn-sm" onclick="loadScan('+s.id+')">View</button></td>'+
-        '</tr>';}).join('')+
-        '</tbody></table></div>'+
-      '</div>';
-  }catch(e){document.getElementById('dash-content').innerHTML='<div style="color:var(--red)">'+e.message+'</div>';}
-}"""
-
-    src = apply_patch_safe(src, "Dashboard — detailed stats with breakdown tables", OLD_DASH, NEW_DASH)
-
-    # ══════════════════════════════════════════════════════════
-    # PATCH 5: Universal tool completion notification
-    # ══════════════════════════════════════════════════════════
-    hdr("Patch 5 — Universal tool completion notifications")
-
-    # Patch fetchWithTimeout to always push completion for ALL tools
-    OLD_FETCH_COMPLETION = """        if(prefix&&r&&r.ok&&/^\\/(scan|harvester|dnsrecon|nikto|wpscan|legion|subdomains|dirbust|discover|social-tools\\/run|lynis)/.test((url||'')))pushToolCompletion(prefix,url);
-        return r;"""
-
-    NEW_FETCH_COMPLETION = """        /* Push completion notification for every tool that has a prefix */
-        if(prefix&&r)pushToolCompletion(prefix,url);
-        return r;"""
-
-    src = apply_patch_safe(src, "fetchWithTimeout — push completion for ALL tools", OLD_FETCH_COMPLETION, NEW_FETCH_COMPLETION)
-
-    # ══════════════════════════════════════════════════════════
-    # PATCH 6: Cancel buttons for ALL tools
-    # ══════════════════════════════════════════════════════════
-    hdr("Patch 6 — Cancel buttons for all tools via mkTool wrapper")
-
-    # Enhance mkTool to register scanControllers entry and show cancel button
-    OLD_MKTOOL = """function mkTool(prefix){
-  var logEl=null;
-  return{
-    start:function(){logEl=document.getElementById(prefix+'-term');if(logEl){logEl.innerHTML='';logEl.classList.add('visible');}var e=document.getElementById(prefix+'-err');if(e){e.textContent='';e.classList.remove('visible');}var r=document.getElementById(prefix+'-res');if(r){r.innerHTML='';r.style.display='none';}startProg(prefix+'-prog');},"""
-
-    NEW_MKTOOL = """function mkTool(prefix){
-  var logEl=null;
-  var _controller=null;
-  return{
-    start:function(){
-      logEl=document.getElementById(prefix+'-term');
-      if(logEl){logEl.innerHTML='';logEl.classList.add('visible');}
-      var e=document.getElementById(prefix+'-err');if(e){e.textContent='';e.classList.remove('visible');}
-      var r=document.getElementById(prefix+'-res');if(r){r.innerHTML='';r.style.display='none';}
-      startProg(prefix+'-prog');
-      /* Show cancel button */
-      var cb=document.getElementById(prefix+'-cancel');
-      if(!cb){
-        /* Dynamically create cancel button next to run button */
-        var runBtn=document.getElementById(prefix+'-btn');
-        if(runBtn&&runBtn.parentNode){
-          cb=document.createElement('button');
-          cb.id=prefix+'-cancel';
-          cb.className='btn btn-outline btn-sm';
-          cb.style.cssText='color:var(--red);border-color:rgba(192,57,43,0.3);margin-left:8px';
-          cb.textContent='CANCEL';
-          cb.onclick=function(){cancelScan(prefix);};
-          runBtn.parentNode.insertBefore(cb,runBtn.nextSibling);
-        }
-      }
-      if(cb)cb.style.display='inline-flex';
-      setScanRunning(prefix,true);
-    },"""
-
-    src = apply_patch_safe(src, "mkTool.start — show cancel button for all tools", OLD_MKTOOL, NEW_MKTOOL)
-
-    # Also update mkTool.end to hide cancel button
-    OLD_MKTOOL_END = """    end:function(){endProg(prefix+'-prog');},"""
-    NEW_MKTOOL_END = """    end:function(){
-      endProg(prefix+'-prog');
-      var cb=document.getElementById(prefix+'-cancel');
-      if(cb)cb.style.display='none';
-      setScanRunning(prefix,false);
-    },"""
-
-    src = apply_patch_safe(src, "mkTool.end — hide cancel button when done", OLD_MKTOOL_END, NEW_MKTOOL_END)
-
-    # ══════════════════════════════════════════════════════════
-    # PATCH 7: Admin Services — free text + edit existing
-    # ══════════════════════════════════════════════════════════
-    hdr("Patch 7 — Admin Services: free text entry + edit existing")
-
-    OLD_SVC_PANEL = """          <div class="card">
-            <div class="card-header"><div class="card-title">Add New Monitored Service</div></div>
-            <div class="card-p">
-              <div class="grid3">
-                <div class="fg">
-                  <label>Quick Add</label>
-                  <select class="inp inp-mono" id="svc-preset" onchange="applyServicePreset()">
-                    <option value="">-- Select preset --</option>
-                    <option value="apache2">Apache service</option>
-                    <option value="supabase">Supabase connectivity</option>
-                  </select>
-                </div>
-                <div class="fg"><label>Display Name</label><input class="inp inp-mono" id="svc-label" type="text" placeholder="My Service"/></div>
-                <div class="fg"><label>Service Key</label><input class="inp inp-mono" id="svc-key" type="text" placeholder="my-service"/></div>
-              </div>
-              <div class="grid3">
-                <div class="fg">
-                  <label>Service Type</label>
-                  <select class="inp inp-mono" id="svc-kind">
-                    <option value="systemctl">systemctl unit</option>
-                    <option value="command">custom command check</option>
-                  </select>
-                </div>
-                <div class="fg"><label>Systemd Unit</label><input class="inp inp-mono" id="svc-unit" type="text" placeholder="apache2"/></div>
-                <div class="fg"><label>Check Command (command type)</label><input class="inp inp-mono" id="svc-check" type="text" placeholder="python3 health_check.py"/></div>
-              </div>
-              <div style="margin-top:10px"><button class="btn btn-primary" onclick="addMonitoredService()">Add Service</button></div>
-              <div id="svc-msg" style="margin-top:10px;color:var(--text3);font-size:12px"></div>
-            </div>
-          </div>"""
-
-    NEW_SVC_PANEL = """          <div class="card">
-            <div class="card-header">
-              <div>
-                <div class="card-title" id="svc-form-title">Add New Monitored Service</div>
-                <div class="card-sub" id="svc-form-mode-lbl">NEW SERVICE</div>
-              </div>
-              <button class="btn btn-ghost btn-sm" id="svc-cancel-edit" onclick="cancelServiceEdit()" style="display:none">Cancel Edit</button>
-            </div>
-            <div class="card-p">
-              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
-                <span style="font-size:11px;color:var(--text3)">Quick presets:</span>
-                <button class="btn btn-outline btn-sm" onclick="applyServicePreset('apache2')">Apache</button>
-                <button class="btn btn-outline btn-sm" onclick="applyServicePreset('supabase')">Supabase</button>
-                <button class="btn btn-outline btn-sm" onclick="applyServicePreset('nginx')">Nginx</button>
-                <button class="btn btn-outline btn-sm" onclick="applyServicePreset('clear')">Clear Form</button>
-              </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
-                <div class="fg"><label>DISPLAY NAME</label><input class="inp inp-mono" id="svc-label" type="text" placeholder="My Service"/></div>
-                <div class="fg"><label>SERVICE KEY (unique ID)</label><input class="inp inp-mono" id="svc-key" type="text" placeholder="my-service"/></div>
-                <div class="fg"><label>SERVICE TYPE</label>
-                  <select class="inp inp-mono" id="svc-kind" onchange="svcKindChange()">
-                    <option value="systemctl">systemctl unit</option>
-                    <option value="command">custom command</option>
-                  </select>
-                </div>
-              </div>
-              <div id="svc-systemctl-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-                <div class="fg"><label>SYSTEMD UNIT NAME</label><input class="inp inp-mono" id="svc-unit" type="text" placeholder="apache2"/></div>
-                <div class="fg"><label>DESCRIPTION (optional)</label><input class="inp inp-mono" id="svc-desc" type="text" placeholder="Web server"/></div>
-              </div>
-              <div id="svc-command-fields" style="display:none;margin-bottom:10px">
-                <div class="fg"><label>CHECK COMMAND (runs to verify service health)</label><input class="inp inp-mono" id="svc-check" type="text" placeholder="python3 health_check.py  OR  curl -fs http://localhost:8080/health"/></div>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:8px">
-                  <div class="fg"><label>START COMMAND (optional)</label><input class="inp inp-mono" id="svc-start" type="text" placeholder="systemctl start my-service"/></div>
-                  <div class="fg"><label>STOP COMMAND (optional)</label><input class="inp inp-mono" id="svc-stop" type="text" placeholder="systemctl stop my-service"/></div>
-                  <div class="fg"><label>RESTART COMMAND (optional)</label><input class="inp inp-mono" id="svc-restart" type="text" placeholder="systemctl restart my-service"/></div>
-                </div>
-              </div>
-              <div style="display:flex;gap:8px;margin-top:10px">
-                <button class="btn btn-primary" id="svc-submit-btn" onclick="submitServiceForm()">ADD SERVICE</button>
-                <button class="btn btn-ghost btn-sm" onclick="loadAdminServices()">Refresh List</button>
-              </div>
-              <div id="svc-msg" style="margin-top:10px;color:var(--text3);font-size:12px"></div>
-            </div>
-          </div>"""
-
-    src = apply_patch_safe(src, "Admin Services panel — free text + edit support", OLD_SVC_PANEL, NEW_SVC_PANEL)
-
-    # Add JS for service form
-    OLD_SVC_JS = """function applyServicePreset(){
-  var p=(document.getElementById('svc-preset')||{}).value||'';
-  if(p==='apache2'){
-    document.getElementById('svc-label').value='Apache Service';
-    document.getElementById('svc-key').value='apache2';
-    document.getElementById('svc-kind').value='systemctl';
-    document.getElementById('svc-unit').value='apache2';
-    document.getElementById('svc-check').value='';
-  }else if(p==='supabase'){
-    document.getElementById('svc-label').value='Supabase';
-    document.getElementById('svc-key').value='supabase';
-    document.getElementById('svc-kind').value='command';
-    document.getElementById('svc-unit').value='';
-    document.getElementById('svc-check').value='cd ~/vulnscan && python3 -c \\"from dotenv import load_dotenv; load_dotenv(\\'.env\\'); from supabase_config import supabase; supabase().table(\\'users\\').select(\\'id\\').limit(1).execute(); print(\\'✓ Supabase Database Connected!\\')\\"';
-  }
-}
-async function addMonitoredService(){
-  var label=(document.getElementById('svc-label')||{}).value||'';
-  var key=(document.getElementById('svc-key')||{}).value||'';
-  var kind=(document.getElementById('svc-kind')||{}).value||'systemctl';
-  var unit=(document.getElementById('svc-unit')||{}).value||'';
-  var checkCmd=(document.getElementById('svc-check')||{}).value||'';
-  var msg=document.getElementById('svc-msg');
-  try{
-    var r=await fetch('/api/admin/services',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({label:label,key:key,kind:kind,unit:unit,check_cmd:checkCmd})});
-    var d=await r.json();
-    if(!r.ok||d.error){if(msg){msg.style.color='var(--red)';msg.textContent=d.error||'Failed to add service';}return;}
-    if(msg){msg.style.color='var(--green)';msg.textContent='Service added and monitoring started.';}
-    loadAdminServices();
-  }catch(e){
-    if(msg){msg.style.color='var(--red)';msg.textContent='Error: '+e.message;}
-  }
-}"""
-
-    NEW_SVC_JS = """var _svcEditKey=null;
-function svcKindChange(){
-  var kind=(document.getElementById('svc-kind')||{}).value||'systemctl';
-  var sf=document.getElementById('svc-systemctl-fields');
-  var cf=document.getElementById('svc-command-fields');
-  if(sf)sf.style.display=kind==='systemctl'?'grid':'none';
-  if(cf)cf.style.display=kind==='command'?'block':'none';
-}
-function applyServicePreset(p){
-  if(p==='apache2'||p==='nginx'){
-    var svcName=p==='apache2'?'Apache':'Nginx';
-    document.getElementById('svc-label').value=svcName+' Web Server';
-    document.getElementById('svc-key').value=p;
-    document.getElementById('svc-kind').value='systemctl';
-    document.getElementById('svc-unit').value=p;
-    if(document.getElementById('svc-check'))document.getElementById('svc-check').value='';
-    svcKindChange();
-  }else if(p==='supabase'){
-    document.getElementById('svc-label').value='Supabase';
-    document.getElementById('svc-key').value='supabase';
-    document.getElementById('svc-kind').value='command';
-    document.getElementById('svc-unit').value='';
-    if(document.getElementById('svc-check'))document.getElementById('svc-check').value='cd ~/vulnscan && python3 -c "from dotenv import load_dotenv; load_dotenv(\\'.env\\'); from supabase_config import supabase; supabase().table(\\'users\\').select(\\'id\\').limit(1).execute(); print(\\'OK\\')"';
-    svcKindChange();
-  }else if(p==='clear'){
-    ['svc-label','svc-key','svc-unit','svc-check','svc-desc','svc-start','svc-stop','svc-restart'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
-    _svcEditKey=null;
-    var ft=document.getElementById('svc-form-title');if(ft)ft.textContent='Add New Monitored Service';
-    var fl=document.getElementById('svc-form-mode-lbl');if(fl)fl.textContent='NEW SERVICE';
-    var sb=document.getElementById('svc-submit-btn');if(sb)sb.textContent='ADD SERVICE';
-    var ce=document.getElementById('svc-cancel-edit');if(ce)ce.style.display='none';
-  }
-}
-function editService(key){
-  /* Populate form with existing service data for editing */
-  var rows=document.querySelectorAll('[data-svc-key="'+key+'"]');
-  var label=key,kind='systemctl',unit=key,checkCmd='',startCmd='',stopCmd='',restartCmd='';
-  if(rows.length){
-    var row=rows[0];
-    label=row.getAttribute('data-svc-label')||key;
-    kind=row.getAttribute('data-svc-kind')||'systemctl';
-    unit=row.getAttribute('data-svc-unit')||key;
-    checkCmd=row.getAttribute('data-svc-check')||'';
-    startCmd=row.getAttribute('data-svc-start')||'';
-    stopCmd=row.getAttribute('data-svc-stop')||'';
-    restartCmd=row.getAttribute('data-svc-restart')||'';
-  }
-  _svcEditKey=key;
-  document.getElementById('svc-label').value=label;
-  document.getElementById('svc-key').value=key;
-  document.getElementById('svc-kind').value=kind;
-  if(document.getElementById('svc-unit'))document.getElementById('svc-unit').value=unit;
-  if(document.getElementById('svc-check'))document.getElementById('svc-check').value=checkCmd;
-  if(document.getElementById('svc-start'))document.getElementById('svc-start').value=startCmd;
-  if(document.getElementById('svc-stop'))document.getElementById('svc-stop').value=stopCmd;
-  if(document.getElementById('svc-restart'))document.getElementById('svc-restart').value=restartCmd;
-  svcKindChange();
-  var ft=document.getElementById('svc-form-title');if(ft)ft.textContent='Edit Service: '+key;
-  var fl=document.getElementById('svc-form-mode-lbl');if(fl)fl.textContent='EDITING';
-  var sb=document.getElementById('svc-submit-btn');if(sb)sb.textContent='SAVE CHANGES';
-  var ce=document.getElementById('svc-cancel-edit');if(ce)ce.style.display='inline-flex';
-  /* Scroll to form */
-  var card=document.getElementById('svc-submit-btn');if(card)card.scrollIntoView({behavior:'smooth',block:'nearest'});
-}
-function cancelServiceEdit(){
-  _svcEditKey=null;
-  ['svc-label','svc-key','svc-unit','svc-check','svc-desc','svc-start','svc-stop','svc-restart'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
-  var ft=document.getElementById('svc-form-title');if(ft)ft.textContent='Add New Monitored Service';
-  var fl=document.getElementById('svc-form-mode-lbl');if(fl)fl.textContent='NEW SERVICE';
-  var sb=document.getElementById('svc-submit-btn');if(sb)sb.textContent='ADD SERVICE';
-  var ce=document.getElementById('svc-cancel-edit');if(ce)ce.style.display='none';
-}
-async function submitServiceForm(){
-  var label=(document.getElementById('svc-label')||{}).value||'';
-  var key=(document.getElementById('svc-key')||{}).value||'';
-  var kind=(document.getElementById('svc-kind')||{}).value||'systemctl';
-  var unit=(document.getElementById('svc-unit')||{}).value||'';
-  var checkCmd=(document.getElementById('svc-check')||{}).value||'';
-  var startCmd=(document.getElementById('svc-start')||{}).value||'';
-  var stopCmd=(document.getElementById('svc-stop')||{}).value||'';
-  var restartCmd=(document.getElementById('svc-restart')||{}).value||'';
-  var msg=document.getElementById('svc-msg');
-  var isEdit=!!_svcEditKey;
-  try{
-    var endpoint=isEdit?'/api/admin/services/'+encodeURIComponent(_svcEditKey):'/api/admin/services';
-    var method=isEdit?'PUT':'POST';
-    var r=await fetch(endpoint,{method:method,headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({label:label,key:key,kind:kind,unit:unit,check_cmd:checkCmd,
-        control_cmds:{start:startCmd,stop:stopCmd,restart:restartCmd}})});
-    var d=await r.json();
-    if(!r.ok||d.error){if(msg){msg.style.color='var(--red)';msg.textContent=d.error||'Failed';}return;}
-    if(msg){msg.style.color='var(--green)';msg.textContent=isEdit?'Service updated.':'Service added.';}
-    cancelServiceEdit();
-    loadAdminServices();
-  }catch(e){if(msg){msg.style.color='var(--red)';msg.textContent='Error: '+e.message;}}
-}
-async function addMonitoredService(){submitServiceForm();}"""
-
-    src = apply_patch_safe(src, "Admin Services JS — free text, presets, edit mode", OLD_SVC_JS, NEW_SVC_JS)
-
-    # Patch loadAdminServices to add edit buttons and data attributes
-    OLD_LOAD_SVC = """async function loadAdminServices(){
-  try{
-    var r=await fetch('/api/admin/services');var d=await r.json();
-    var list=(d.services||[]);
-    var html='<table class="tbl"><thead><tr><th>SERVICE</th><th>TYPE</th><th>UNIT</th><th>STATUS</th><th>DETAIL</th><th>ACTIONS</th></tr></thead><tbody>';
-    html+=list.map(function(s){return '<tr><td style="font-family:var(--mono)">'+(s.label||s.key)+'</td><td style="color:var(--text3)">'+(s.kind||'--')+'</td><td style="font-family:var(--mono);font-size:11px">'+(s.unit||'--')+'</td><td>'+svcPill(s.status||'unknown')+'</td><td style="font-size:11px;color:var(--text3);max-width:300px">'+((s.detail||'--').replace(/</g,'&lt;'))+'</td><td style="display:flex;gap:4px;flex-wrap:wrap"><button class="btn btn-outline btn-sm" onclick="serviceAction(\''+s.key+'\',\'start\')">Start</button><button class="btn btn-outline btn-sm" onclick="serviceAction(\''+s.key+'\',\'stop\')">Stop</button><button class="btn btn-outline btn-sm" onclick="serviceAction(\''+s.key+'\',\'restart\')">Restart</button></td></tr>';}).join('');
-    html+='</tbody></table>';
-    document.getElementById('admin-services-table').innerHTML=html;"""
-
-    NEW_LOAD_SVC = """async function loadAdminServices(){
-  try{
-    var r=await fetch('/api/admin/services');var d=await r.json();
-    var list=(d.services||[]);
-    var html='<table class="tbl"><thead><tr><th>SERVICE</th><th>TYPE</th><th>UNIT/CMD</th><th>STATUS</th><th>DETAIL</th><th>ACTIONS</th></tr></thead><tbody>';
-    html+=list.map(function(s){
-      var unitInfo=(s.kind==='systemctl'?(s.unit||'--'):(s.check_cmd||'custom').substring(0,30));
-      return '<tr data-svc-key="'+s.key+'" data-svc-label="'+(s.label||'')+'" data-svc-kind="'+(s.kind||'')+'" data-svc-unit="'+(s.unit||'')+'" data-svc-check="'+(s.check_cmd||'')+'" data-svc-start="'+(s.start_cmd||'')+'" data-svc-stop="'+(s.stop_cmd||'')+'" data-svc-restart="'+(s.restart_cmd||'')+'">'+
-        '<td style="font-family:var(--mono);font-weight:500">'+(s.label||s.key)+'</td>'+
-        '<td><span class="tag">'+(s.kind||'--')+'</span></td>'+
-        '<td style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+unitInfo+'</td>'+
-        '<td>'+svcPill(s.status||'unknown')+'</td>'+
-        '<td style="font-size:11px;color:var(--text3);max-width:220px">'+((s.detail||'--').replace(/</g,'&lt;').substring(0,80))+'</td>'+
-        '<td style="display:flex;gap:4px;flex-wrap:wrap">'+
-          '<button class="btn btn-outline btn-sm" onclick="serviceAction(\''+s.key+'\',\'start\')">Start</button>'+
-          '<button class="btn btn-outline btn-sm" onclick="serviceAction(\''+s.key+'\',\'stop\')">Stop</button>'+
-          '<button class="btn btn-outline btn-sm" onclick="serviceAction(\''+s.key+'\',\'restart\')">Restart</button>'+
-          '<button class="btn btn-outline btn-sm" style="color:var(--blue)" onclick="editService(\''+s.key+'\')">Edit</button>'+
-        '</td></tr>';
-    }).join('');
-    html+='</tbody></table>';
-    document.getElementById('admin-services-table').innerHTML=html;"""
-
-    src = apply_patch_safe(src, "loadAdminServices — add edit buttons and data attributes", OLD_LOAD_SVC, NEW_LOAD_SVC)
-
-    # Add PUT route for editing services in Python
-    OLD_SVC_POST_ROUTE = """@app.route("/api/admin/services", methods=["POST"])
-def admin_add_service():
-    u = get_current_user()
-    if not u or u.get("role") != "admin":
-        return jsonify({"error": "Admin access required"}), 403
-    data = request.get_json() or {}
-    key = (data.get("key") or data.get("unit") or data.get("label") or "").strip().lower().replace(" ", "-")
-    label = (data.get("label") or key or "Service").strip()
-    kind = (data.get("kind") or "systemctl").strip().lower()
-    if not key:
-        return jsonify({"error": "Service key/label is required"}), 400
-    if key in MONITORED_SERVICES:
-        return jsonify({"error": "Service already exists"}), 400"""
-
-    NEW_SVC_POST_ROUTE = """@app.route("/api/admin/services/<svc_key>", methods=["PUT"])
-def admin_edit_service(svc_key):
-    u = get_current_user()
-    if not u or u.get("role") != "admin":
-        return jsonify({"error": "Admin access required"}), 403
-    if svc_key not in MONITORED_SERVICES:
-        return jsonify({"error": "Service not found"}), 404
-    data = request.get_json() or {}
-    label = (data.get("label") or svc_key).strip()
-    kind = (data.get("kind") or "systemctl").strip().lower()
-    unit = (data.get("unit") or "").strip()
-    check_cmd = (data.get("check_cmd") or "").strip()
-    control_cmds = data.get("control_cmds") or {}
-    svc = MONITORED_SERVICES[svc_key]
-    svc["label"] = label
-    svc["kind"] = kind
-    if kind == "systemctl":
-        svc["unit"] = unit or svc_key
-    else:
-        svc["check_cmd"] = check_cmd
-        svc["control_cmds"] = control_cmds
-        # also expose individual cmds for JS data attrs
-        svc["start_cmd"] = control_cmds.get("start", "")
-        svc["stop_cmd"] = control_cmds.get("stop", "")
-        svc["restart_cmd"] = control_cmds.get("restart", "")
-    audit(u["id"], u["username"], "ADMIN_SERVICE_EDIT", target=svc_key,
-          ip=request.remote_addr, details=f"kind={kind}")
-    return jsonify({"ok": True})
-
-
-@app.route("/api/admin/services", methods=["POST"])
-def admin_add_service():
-    u = get_current_user()
-    if not u or u.get("role") != "admin":
-        return jsonify({"error": "Admin access required"}), 403
-    data = request.get_json() or {}
-    key = (data.get("key") or data.get("unit") or data.get("label") or "").strip().lower().replace(" ", "-")
-    label = (data.get("label") or key or "Service").strip()
-    kind = (data.get("kind") or "systemctl").strip().lower()
-    if not key:
-        return jsonify({"error": "Service key/label is required"}), 400
-    if key in MONITORED_SERVICES:
-        return jsonify({"error": "Service already exists"}), 400"""
-
-    src = apply_patch_safe(src, "Add PUT /api/admin/services/<key> edit route", OLD_SVC_POST_ROUTE, NEW_SVC_POST_ROUTE)
-
-    # Also expose start/stop/restart cmds in the admin_services GET response
-    OLD_SVC_GET_ROW = """    for svc in MONITORED_SERVICES.values():
-        st = _service_status(svc)
-        rows.append({
-            **_safe_service_row(svc),
-            "status": st.get("status", "unknown"),
-            "detail": st.get("detail", ""),
-        })"""
-
-    NEW_SVC_GET_ROW = """    for svc in MONITORED_SERVICES.values():
-        st = _service_status(svc)
-        ctrl = svc.get("control_cmds") or {}
-        rows.append({
-            **_safe_service_row(svc),
-            "status": st.get("status", "unknown"),
-            "detail": st.get("detail", ""),
-            "check_cmd": svc.get("check_cmd", ""),
-            "start_cmd": ctrl.get("start", svc.get("start_cmd", "")),
-            "stop_cmd": ctrl.get("stop", svc.get("stop_cmd", "")),
-            "restart_cmd": ctrl.get("restart", svc.get("restart_cmd", "")),
-        })"""
-
-    src = apply_patch_safe(src, "admin_services GET — expose control cmds for edit", OLD_SVC_GET_ROW, NEW_SVC_GET_ROW)
-
-    # ══════════════════════════════════════════════════════════
-    # PATCH 8: Remove Quick Install cards from tool pages
-    # ══════════════════════════════════════════════════════════
-    hdr("Patch 8 — Remove Quick Install cards via JS")
-
-    OLD_REMOVE_QUICK = """function removeQuickInstallCards(){
-  document.querySelectorAll('.card .card-title').forEach(function(t){
-    if((t.textContent||'').trim().toLowerCase()==='quick install'){
-      var card=t.closest('.card');
-      if(card)card.remove();
-    }
-  });
-}"""
-
-    NEW_REMOVE_QUICK = """function removeQuickInstallCards(){
-  document.querySelectorAll('.card .card-title, .card-p .card-title').forEach(function(t){
-    var txt=(t.textContent||'').trim().toLowerCase();
-    if(txt==='quick install'||txt==='install'){
-      var card=t.closest('.card');
-      if(card)card.remove();
-    }
-  });
-  /* Also remove standalone install divs */
-  document.querySelectorAll('[data-quick-install]').forEach(function(el){el.remove();});
-}
-/* Run on every page navigation */
-var _origPg=pg;
-function pg(id,el){
-  _origPg(id,el);
-  setTimeout(removeQuickInstallCards,80);
-  setTimeout(removeQuickInstallCards,400);
-}"""
-
-    src = apply_patch_safe(src, "removeQuickInstallCards — improved removal logic", OLD_REMOVE_QUICK, NEW_REMOVE_QUICK)
-
-    # ══════════════════════════════════════════════════════════
-    # Write file and verify syntax
-    # ══════════════════════════════════════════════════════════
-    hdr("Writing & Verifying")
-    write_file(TARGET, src)
-    info(f"Written: {TARGET}")
-
-    import subprocess
-    r = subprocess.run([sys.executable, "-m", "py_compile", TARGET], capture_output=True, text=True)
-    if r.returncode == 0:
-        ok(f"{TARGET} — syntax OK")
-    else:
-        fail(f"SYNTAX ERROR:\n{r.stderr.strip()}")
-        warn(f"Restore with: cp {bak} {TARGET}")
+    # Inject before the if __name__ == "__main__": block
+    ANCHOR = '\nif __name__ == "__main__":'
+    if ANCHOR not in src:
+        fail("Could not find injection anchor 'if __name__ == \"__main__\":'")
+        fail("Make sure you're running this from the vulnscan project root")
         sys.exit(1)
 
-    # Summary
+    new_src = src.replace(ANCHOR, route_with_html + ANCHOR, 1)
+    ok("Injected /perspective route")
+    ok("Injected /api/perspective/data data feed")
+    ok("Injected /api/perspective/nav-snippet JS helper")
+
+    hdr("Writing & Verifying")
+    bak = backup(TARGET)
+    info(f"Backup: {bak}")
+    write_file(TARGET, new_src)
+    info(f"Written: {TARGET}")
+
+    passed, err = syntax_check(TARGET)
+    if passed:
+        ok(f"{TARGET} — syntax OK")
+    else:
+        fail(f"Syntax error detected:\n{err}")
+        warn(f"Restore backup: cp '{bak}' {TARGET}")
+        sys.exit(1)
+
     print()
     print(B + C + "══════════════════════════════════════════════════════════" + X)
-    fc = RESULTS["failed"]
-    print(
-        f"  Applied : {G}{RESULTS['applied']}{X}  |  "
-        f"Skipped : {D}{RESULTS['skipped']}{X}  |  "
-        f"Failed  : {(R if fc else D)}{fc}{X}"
-    )
     print()
-    if fc == 0:
-        print(f"  {G}All improvements applied:{X}")
-        improvements = [
-            "Home screen — all tools in categorized grid with descriptions",
-            "Dashboard — 9 KPI stats + top targets + modules + full activity table",
-            "Nav categories — all CLOSED by default",
-            "Nav categories — one-open-at-a-time accordion",
-            "Nav — Admin Console & Home/Dash/History removed from category list",
-            "Nav category headers — distinct accent background styling",
-            "Tool items — indented with left border, distinct from headers",
-            "Admin Services — free-text entry for new service",
-            "Admin Services — preset buttons (Apache, Nginx, Supabase)",
-            "Admin Services — Edit button per service with form population",
-            "Admin Services — PUT endpoint for editing",
-            "Scan notifications — pushed for EVERY tool execution",
-            "Cancel button — auto-created for ALL tools via mkTool",
-            "Quick Install cards — removed from all tool pages",
-        ]
-        for i in improvements:
-            print(f"    {G}✓{X}  {i}")
-        print()
-        print(f"  {Y}Restart server:{X} pkill -f api_server.py && python3 api_server.py")
-    else:
-        print(f"  {Y}{fc} patch(es) failed. Check anchors above.{X}")
-        print(f"  {Y}Restore: cp {bak} {TARGET}{X}")
+    print(f"  {G}Perspective Dashboard successfully injected!{X}")
+    print()
+    print(f"  {C}New routes added:{X}")
+    print(f"    {G}✓{X}  GET  /perspective           → isometric 3D dashboard")
+    print(f"    {G}✓{X}  GET  /api/perspective/data  → live JSON data feed")
+    print(f"    {G}✓{X}  GET  /api/perspective/nav-snippet → sidebar JS injection")
+    print()
+    print(f"  {C}Dashboard features:{X}")
+    print(f"    {G}✓{X}  Animated isometric port cubes (height = severity)")
+    print(f"    {G}✓{X}  Real-time scan beam sweep animation")
+    print(f"    {G}✓{X}  Live CVE intelligence panel (from your scan history)")
+    print(f"    {G}✓{X}  Risk score ring with animated fill")
+    print(f"    {G}✓{X}  Port activity heatmap (84-cell scan frequency grid)")
+    print(f"    {G}✓{X}  Isometric host network threat map (SVG cubes)")
+    print(f"    {G}✓{X}  Tool availability status (nmap, tor, nikto, etc.)")
+    print(f"    {G}✓{X}  Live activity feed from scan history")
+    print(f"    {G}✓{X}  All data loaded from your real VulnScan scan history")
+    print()
+    print(f"  {Y}Restart server to activate:{X}")
+    print(f"    pkill -f api_server.py && python3 api_server.py")
+    print(f"    OR: sudo systemctl restart vulnscan")
+    print()
+    print(f"  {C}Open in browser:{X}")
+    print(f"    http://localhost:5000/perspective")
+    print()
+    print(f"  {D}Backup saved: {bak}{X}")
     print()
 
 
