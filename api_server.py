@@ -797,9 +797,9 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
       <!-- /VulnScan Nav Search v2 -->
       <style>
 .nav-section{padding:4px 10px}
-.nav-cat-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:6px 8px;border-radius:var(--radius);user-select:none}
-.nav-cat-toggle:hover{background:var(--bg3)}
-.nav-cat-label{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;font-weight:500}
+.nav-cat-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:6px 8px;border-radius:var(--radius);user-select:none;background:linear-gradient(180deg,rgba(127,140,141,.12),rgba(127,140,141,.06));border:1px solid rgba(127,140,141,.25)}
+.nav-cat-toggle:hover{background:linear-gradient(180deg,rgba(52,152,219,.16),rgba(52,152,219,.08));border-color:rgba(52,152,219,.35)}
+.nav-cat-label{font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:2px;font-weight:700}
 .nav-cat-arrow{font-size:9px;color:var(--text3);transition:transform 0.2s}
 .nav-cat-arrow.open{transform:rotate(180deg)}
 .nav-cat-items{overflow:hidden;transition:max-height 0.25s ease,opacity 0.2s}
@@ -812,12 +812,24 @@ function navToggle(id){
   var arrow=document.getElementById('na-'+id);
   if(!items)return;
   var collapsed=items.classList.contains('collapsed');
+  if(collapsed){
+    document.querySelectorAll('.nav-cat-items.expanded').forEach(function(openItems){
+      if(openItems.id===('nc-'+id))return;
+      openItems.classList.remove('expanded');
+      openItems.classList.add('collapsed');
+      var aid=openItems.id.replace(/^nc-/,'');
+      var ael=document.getElementById('na-'+aid);
+      if(ael)ael.classList.remove('open');
+      try{localStorage.setItem('vs-nav-'+aid,'0');}catch(e){}
+    });
+  }
   items.classList.toggle('collapsed',!collapsed);
   items.classList.toggle('expanded',collapsed);
   if(arrow)arrow.classList.toggle('open',collapsed);
   try{localStorage.setItem('vs-nav-'+id,collapsed?'1':'0');}catch(e){}
 }
 function navRestore(){
+  var openedOne=false;
   ['overview','information','webtesting','attacks','webapp','passwords','recon','exploitation','auditing','c2','social','reverseeng','tunneling','admin'].forEach(function(id){
     var items=document.getElementById('nc-'+id);
     var arrow=document.getElementById('na-'+id);
@@ -825,12 +837,21 @@ function navRestore(){
     var stored;try{stored=localStorage.getItem('vs-nav-'+id);}catch(e){}
     // Default is NOW CLOSED (0) — user preference overrides on repeat visits
     var open=(stored===null)?0:(stored==='1'?1:0);
+    if(openedOne&&open)open=0;
+    if(open)openedOne=true;
     items.classList.toggle('collapsed',!open);
     items.classList.toggle('expanded',!!open);
     if(arrow)arrow.classList.toggle('open',!!open);
   });
 }
+function navPruneSections(){
+  var overview=document.getElementById('nc-overview');
+  if(overview&&overview.closest('.nav-section'))overview.closest('.nav-section').style.display='none';
+  var adminSec=document.getElementById('admin-nav-section');
+  if(adminSec)adminSec.style.display='none';
+}
 document.addEventListener('DOMContentLoaded',navRestore);
+document.addEventListener('DOMContentLoaded',navPruneSections);
       </script>
 
       <div class="nav-section">
@@ -993,6 +1014,7 @@ document.addEventListener('DOMContentLoaded',navRestore);
     <header class="topbar">
       <div class="tb-title" id="topbar-title">Home</div>
       <div class="tb-right">
+        <button class="btn btn-outline btn-sm" id="admin-open-btn" onclick="pg('admin',null)" style="display:none">Admin Console</button>
         <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle dark/light theme" aria-label="Toggle theme"></button>
         <div class="notif-wrap" id="notif-wrap">
           <button class="notif-btn" id="notif-btn" onclick="toggleNotifications()" title="Scan notifications" aria-label="Scan notifications">&#128276;<span class="notif-badge" id="notif-badge">0</span></button>
@@ -1056,6 +1078,10 @@ document.addEventListener('DOMContentLoaded',navRestore);
           <div class="card" style="cursor:pointer" onclick="pg('shellphish',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
             <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">ShellPhish</div><div style="font-size:12px;color:var(--text3)">Template-driven phishing simulation framework for labs</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">templates</span><span class="tag">ngrok</span></div></div>
           </div>
+        </div>
+        <div class="card card-p" style="margin-top:14px">
+          <div class="card-title" style="margin-bottom:10px">All Tools by Category</div>
+          <div id="home-tool-catalog" style="display:grid;gap:12px"></div>
         </div>
         <div class="notice" style="margin-top:18px">&#9888; <strong>Authorized use only.</strong> Only scan systems you own or have explicit written permission to assess.</div>
       </div>
@@ -2984,10 +3010,11 @@ var toast=showToast;
 var scanControllers={};
 var _vsNotifUnread=0;
 var _vsRecentCompleted=[];
+var _vsRecentToolCompleted=[];
 var _vsKnownCompleted={};
 var _vsNotifPollTimer=null;
-var _vsToolPages={scan:'scan',wd:'webdeep',hv:'harvester',dr:'dnsrecon',nk:'nikto',wp:'wpscan',ly:'lynis',lg:'legion'};
-var _vsToolNames={scan:'Network Scanner',wd:'Deep Web Audit',hv:'theHarvester',dr:'DNSRecon',nk:'Nikto',wp:'WPScan',ly:'Lynis',lg:'Legion'};
+var _vsToolPages={scan:'scan',wd:'webdeep',hv:'harvester',dr:'dnsrecon',nk:'nikto',wp:'wpscan',ly:'lynis',lg:'legion',ffuf:'ffuf',nuclei:'nuclei',whatweb:'whatweb',wapiti:'wapiti',dalfox:'dalfox',sqlmap:'sqlmap',kxss:'kxss',medusa:'medusa',hping3:'hping3',scapy:'scapy',yersinia:'yersinia',hashcat:'hashcat',john:'john',searchsploit:'searchsploit',seclists:'seclists',ligolo:'ligolo',chisel:'chisel',rlwrap:'rlwrap',pspy:'pspy',msfvenom:'msfvenom',pwncat:'pwncat',grype:'grype',radare2:'radare2',openvas:'openvas',chkrootkit:'chkrootkit',rkhunter:'rkhunter',gp:'gophish',eg:'evilginx2',sp:'shellphish',nc:'netcat',nct:'ncat',sc:'socat',sv:'sliver',em:'empire'};
+var _vsToolNames={scan:'Network Scanner',wd:'Deep Web Audit',hv:'theHarvester',dr:'DNSRecon',nk:'Nikto',wp:'WPScan',ly:'Lynis',lg:'Legion',ffuf:'ffuf',nuclei:'Nuclei',whatweb:'WhatWeb',wapiti:'Wapiti',dalfox:'Dalfox',sqlmap:'SQLMap',kxss:'kxss',medusa:'Medusa',hping3:'hping3',scapy:'Scapy',yersinia:'Yersinia',hashcat:'Hashcat',john:'John the Ripper',searchsploit:'SearchSploit',seclists:'SecLists',ligolo:'Ligolo-ng',chisel:'Chisel',rlwrap:'rlwrap',pspy:'pspy',msfvenom:'msfvenom',pwncat:'pwncat',grype:'Grype',radare2:'Radare2',openvas:'OpenVAS',chkrootkit:'chkrootkit',rkhunter:'rkhunter',gp:'Gophish',eg:'Evilginx2',sp:'ShellPhish',nc:'Netcat',nct:'Ncat',sc:'Socat',sv:'Sliver',em:'Empire'};
 function updateNotificationBadge(){
   var badge=document.getElementById('notif-badge');if(!badge)return;
   var ongoing=Object.keys(scanControllers).length;
@@ -3018,8 +3045,36 @@ function renderNotifications(){
     var t=((s.scan_time||'').replace('T',' ').substring(0,19))||'--';
     html+='<div class="notif-item" onclick="openNotificationPage(\'scan\','+s.id+')"><div class="notif-title">Completed: '+(s.target||'scan')+'</div><div class="notif-meta">#'+s.id+' · '+t+' · '+(s.total_cves||0)+' CVEs</div></div>';
   });
+  _vsRecentToolCompleted.forEach(function(n){
+    html+='<div class="notif-item" onclick="openNotificationPage(\''+(n.pageId||'scan')+'\',null)"><div class="notif-title">Completed: '+(n.name||'Tool')+'</div><div class="notif-meta">'+(n.detail||'Execution finished')+'</div></div>';
+  });
   if(!html)html='<div class="notif-empty">No active or recent scan notifications.</div>';
   out.innerHTML=html;
+}
+function pushToolCompletion(prefix,url){
+  var name=_vsToolNames[prefix]||((prefix||'tool').toUpperCase());
+  var pageId=_vsToolPages[prefix]||'scan';
+  var detail=(url||'').split('?')[0].replace(/^\/+/,'/')+' · '+new Date().toLocaleTimeString();
+  _vsRecentToolCompleted.unshift({name:name,pageId:pageId,detail:detail});
+  if(_vsRecentToolCompleted.length>25)_vsRecentToolCompleted.length=25;
+  _vsNotifUnread++;
+  renderNotifications();
+  updateNotificationBadge();
+}
+function renderGlobalCancelButtons(){
+  var bar=document.getElementById('global-cancel-bar');
+  if(!bar){
+    bar=document.createElement('div');
+    bar.id='global-cancel-bar';
+    bar.style.cssText='position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;gap:6px;flex-wrap:wrap;max-width:50vw';
+    document.body.appendChild(bar);
+  }
+  var keys=Object.keys(scanControllers);
+  bar.innerHTML=keys.map(function(prefix){
+    var name=_vsToolNames[prefix]||prefix.toUpperCase();
+    return '<button class="btn btn-outline btn-sm" style="background:var(--bg2)" onclick="cancelScan(\\''+prefix+'\\')">Cancel '+name+'</button>';
+  }).join('');
+  bar.style.display=keys.length?'flex':'none';
 }
 async function refreshNotifications(){
   if(!currentUser)return;
@@ -3045,6 +3100,7 @@ function cancelScan(prefix){
   var b=document.getElementById(id);if(b)b.style.display='none';
   updateNotificationBadge();
   renderNotifications();
+  renderGlobalCancelButtons();
   showToast('Cancelled','Scan stopped by user.','warning',3000);
 }
 function setScanRunning(prefix,running){
@@ -3052,19 +3108,152 @@ function setScanRunning(prefix,running){
   var b=document.getElementById(id);if(b)b.style.display=running?'inline-flex':'none';
   updateNotificationBadge();
   renderNotifications();
+  renderGlobalCancelButtons();
 }
 async function fetchWithTimeout(url,options,timeoutMs,prefix){
   if(!options)options={};if(!timeoutMs)timeoutMs=300000;
   var controller=new AbortController();
-  if(prefix)scanControllers[prefix]=controller;
+  if(prefix){scanControllers[prefix]=controller;setScanRunning(prefix,true);}
   var timer=setTimeout(function(){controller.abort();},timeoutMs);
-  try{var r=await fetch(url,Object.assign({},options,{signal:controller.signal}));clearTimeout(timer);if(prefix)delete scanControllers[prefix];return r;}
-  catch(e){clearTimeout(timer);if(prefix)delete scanControllers[prefix];if(e.name==='AbortError')throw new Error('Cancelled or timed out.');throw e;}
+  try{
+    var r=await fetch(url,Object.assign({},options,{signal:controller.signal}));
+    clearTimeout(timer);
+    if(prefix){delete scanControllers[prefix];setScanRunning(prefix,false);}
+    if(prefix&&r&&r.ok&&/^\/(scan|harvester|dnsrecon|nikto|wpscan|legion|subdomains|dirbust|discover|social-tools\/run|lynis)/.test((url||'')))pushToolCompletion(prefix,url);
+    return r;
+  }
+  catch(e){
+    clearTimeout(timer);
+    if(prefix){delete scanControllers[prefix];setScanRunning(prefix,false);}
+    if(e.name==='AbortError')throw new Error('Cancelled or timed out.');
+    throw e;
+  }
 }
 
 /* ==== PAGE NAV ==== */
 var PAGE_TITLES={home:'Home',scan:'Network Scanner',webdeep:'Deep Web Audit',harvester:'theHarvester',dnsrecon:'DNSRecon',nikto:'Nikto',wpscan:'WPScan',lynis:'Lynis',legion:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',brute:'Brute Force',setoolkit:'Social-Engineer Toolkit',gophish:'Gophish',evilginx2:'Evilginx2',shellphish:'ShellPhish',netcat:'Netcat',ncat:'Ncat',socat:'Socat',sliver:'Sliver',empire:'Empire',disc:'Network Discovery',hist:'Scan History',dash:'Dashboard',profile:'Profile',admin:'Admin Console',ffuf:'ffuf',nuclei:'Nuclei',whatweb:'WhatWeb',wapiti:'Wapiti',dalfox:'Dalfox',sqlmap:'SQLMap',kxss:'kxss',medusa:'Medusa',hping3:'hping3',scapy:'Scapy',yersinia:'Yersinia',hashcat:'Hashcat',john:'John the Ripper',searchsploit:'SearchSploit',seclists:'SecLists',ligolo:'Ligolo-ng',chisel:'Chisel',rlwrap:'rlwrap',pspy:'pspy',msfvenom:'msfvenom',pwncat:'pwncat',grype:'Grype',radare2:'Radare2',openvas:'OpenVAS',chkrootkit:'chkrootkit',rkhunter:'rkhunter'};
+var _vsNavSearchState={matches:[],idx:-1,minChars:4,maxResults:12};
+function vsNavSearchHide(){
+  var box=document.getElementById('nav-search-results');
+  if(!box)return;
+  box.style.display='none';
+  box.innerHTML='';
+  _vsNavSearchState.matches=[];
+  _vsNavSearchState.idx=-1;
+}
+function _vsNavSearchRender(){
+  var box=document.getElementById('nav-search-results');
+  if(!box)return;
+  if(!_vsNavSearchState.matches.length){box.style.display='none';box.innerHTML='';return;}
+  var html=_vsNavSearchState.matches.map(function(m,i){
+    var active=i===_vsNavSearchState.idx?'background:var(--bg3);':'';
+    return '<div style="padding:7px 10px;border-bottom:1px solid var(--border);cursor:pointer;'+active+'" '+
+      'onmouseenter="_vsNavSearchState.idx='+i+';_vsNavSearchRender()" '+
+      'onclick="vsNavSearchGo(\\''+m.pageId+'\\')">'+
+      '<div style="font-size:12px;color:var(--text)">'+m.name+'</div>'+
+      '<div style="font-size:10px;color:var(--text3)">'+(m.cat||'Tool')+'</div>'+
+      '</div>';
+  }).join('');
+  box.innerHTML=html;
+  box.style.display='block';
+}
+function _vsNavSearchCandidates(){
+  return Array.from(document.querySelectorAll('.nav-item')).filter(function(btn){
+    if(!btn || !btn.id || btn.id.indexOf('ni-')!==0)return false;
+    if(btn.offsetParent===null)return false;
+    return true;
+  }).map(function(btn){
+    var pageId=btn.id.replace(/^ni-/,'');
+    var name=(btn.textContent||'').replace(/\s+/g,' ').trim();
+    var cat=(btn.closest('.nav-section')&&btn.closest('.nav-section').querySelector('.nav-cat-label'))?
+      btn.closest('.nav-section').querySelector('.nav-cat-label').textContent.trim():'';
+    return {pageId:pageId,name:name,cat:cat};
+  });
+}
+function vsNavSearch(raw){
+  var q=(raw||'').trim().toLowerCase();
+  if(q.length<_vsNavSearchState.minChars){vsNavSearchHide();return;}
+  var out=_vsNavSearchCandidates().map(function(item){
+    var n=item.name.toLowerCase();
+    var p=item.pageId.toLowerCase();
+    var c=(item.cat||'').toLowerCase();
+    var score=-1;
+    if(n===q||p===q)score=100;
+    else if(n.indexOf(q)===0||p.indexOf(q)===0)score=80;
+    else if(n.indexOf(q)!==-1||p.indexOf(q)!==-1)score=60;
+    else if(c.indexOf(q)!==-1)score=20;
+    if(score<0)return null;
+    return Object.assign({score:score},item);
+  }).filter(Boolean).sort(function(a,b){
+    if(b.score!==a.score)return b.score-a.score;
+    return a.name.localeCompare(b.name);
+  }).slice(0,_vsNavSearchState.maxResults);
+  _vsNavSearchState.matches=out;
+  _vsNavSearchState.idx=out.length?0:-1;
+  _vsNavSearchRender();
+}
+function vsNavSearchGo(pageId){
+  var input=document.getElementById('nav-search-input');
+  if(input)input.value='';
+  vsNavSearchHide();
+  pg(pageId,null);
+}
+function vsNavSearchKey(ev){
+  var box=document.getElementById('nav-search-results');
+  var shown=box&&box.style.display!=='none'&&_vsNavSearchState.matches.length>0;
+  if(!shown)return;
+  if(ev.key==='ArrowDown'){
+    ev.preventDefault();
+    _vsNavSearchState.idx=(_vsNavSearchState.idx+1)%_vsNavSearchState.matches.length;
+    _vsNavSearchRender();
+  }else if(ev.key==='ArrowUp'){
+    ev.preventDefault();
+    _vsNavSearchState.idx=(_vsNavSearchState.idx-1+_vsNavSearchState.matches.length)%_vsNavSearchState.matches.length;
+    _vsNavSearchRender();
+  }else if(ev.key==='Enter'){
+    ev.preventDefault();
+    var hit=_vsNavSearchState.matches[_vsNavSearchState.idx]||_vsNavSearchState.matches[0];
+    if(hit)vsNavSearchGo(hit.pageId);
+  }else if(ev.key==='Escape'){
+    ev.preventDefault();
+    vsNavSearchHide();
+  }
+}
+document.addEventListener('click',function(ev){
+  var inWrap=ev.target&&ev.target.closest&&ev.target.closest('#nav-search-input,#nav-search-results');
+  if(!inWrap)vsNavSearchHide();
+});
 function saveCurrentPage(id){try{sessionStorage.setItem('vs-page',id);}catch(e){}}
+function renderHomeToolCatalog(){
+  var out=document.getElementById('home-tool-catalog');
+  if(!out)return;
+  var sections=Array.from(document.querySelectorAll('.nav-section')).filter(function(sec){
+    if(sec.style.display==='none')return false;
+    var labelEl=sec.querySelector('.nav-cat-label');
+    var items=sec.querySelectorAll('.nav-item');
+    if(!labelEl||!items.length)return false;
+    return true;
+  });
+  out.innerHTML=sections.map(function(sec){
+    var label=sec.querySelector('.nav-cat-label').textContent.trim();
+    var tools=Array.from(sec.querySelectorAll('.nav-item')).map(function(btn){
+      var pid=btn.id.replace(/^ni-/,'');
+      var nm=(btn.textContent||'').replace(/\s+/g,' ').trim();
+      return '<button class="tag" style="cursor:pointer" onclick="pg(\\''+pid+'\\',null)">'+nm+'</button>';
+    }).join('');
+    return '<div style="border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--bg2)">'+
+      '<div style="font-size:11px;color:var(--text3);letter-spacing:1px;margin-bottom:8px">'+label+'</div>'+
+      '<div style="display:flex;gap:6px;flex-wrap:wrap">'+tools+'</div></div>';
+  }).join('');
+}
+function removeQuickInstallCards(){
+  document.querySelectorAll('.card .card-title').forEach(function(t){
+    if((t.textContent||'').trim().toLowerCase()==='quick install'){
+      var card=t.closest('.card');
+      if(card)card.remove();
+    }
+  });
+}
 function pg(id,el){
   document.querySelectorAll('.page').forEach(function(e){e.classList.remove('active');});
   document.querySelectorAll('.nav-item').forEach(function(e){e.classList.remove('active');});
@@ -3078,7 +3267,8 @@ function pg(id,el){
   if(id==='hist')loadHist();
   if(id==='dash')loadDash();
   if(id==='admin'){loadAdmin();setTimeout(initCliHeader,400);}
-  if(id==='home'){setTimeout(loadHomeStats,80);if(currentUser)vsGreetUser(currentUser.username);}
+  if(id==='home'){setTimeout(loadHomeStats,80);setTimeout(renderHomeToolCatalog,120);if(currentUser)vsGreetUser(currentUser.username);}
+  setTimeout(removeQuickInstallCards,50);
   if(id==='profile'&&currentUser)loadProfileInfo(currentUser);
   if(id==='brute')setTimeout(function(){bfAutoLoad&&bfAutoLoad();},300);
   if(id==='lynis'){loadLynisAgents();loadLynisJobs();startLynisAgentWatcher();}
@@ -3182,6 +3372,7 @@ async function doLogout(){
   document.getElementById('auth-overlay').style.display='flex';
   document.getElementById('user-chip').style.display='none';
   var nw=document.getElementById('notif-wrap');if(nw)nw.style.display='none';
+  var ab=document.getElementById('admin-open-btn');if(ab)ab.style.display='none';
   document.getElementById('logout-btn').style.display='none';
   var s=document.getElementById('admin-nav-section');if(s)s.style.display='none';
   if(_vsNotifPollTimer){clearInterval(_vsNotifPollTimer);_vsNotifPollTimer=null;}
@@ -3199,9 +3390,10 @@ async function loadUser(){
       document.getElementById('user-avatar').textContent=d.username[0].toUpperCase();
       document.getElementById('user-name-disp').textContent=d.username;
       document.getElementById('user-role-disp').textContent=d.role==='admin'?'admin':'user';
-      if(d.role==='admin'){var sec=document.getElementById('admin-nav-section');if(sec)sec.style.display='block';}
+      var ab=document.getElementById('admin-open-btn');if(ab)ab.style.display=(d.role==='admin'?'inline-flex':'none');
       loadProfileInfo(d);loadHomeStats();loadUserTheme();
-      _vsNotifUnread=0;_vsRecentCompleted=[];_vsKnownCompleted={};
+      removeQuickInstallCards();renderHomeToolCatalog();
+      _vsNotifUnread=0;_vsRecentCompleted=[];_vsRecentToolCompleted=[];_vsKnownCompleted={};
       refreshNotifications();
       if(_vsNotifPollTimer)clearInterval(_vsNotifPollTimer);
       _vsNotifPollTimer=setInterval(refreshNotifications,15000);
@@ -4158,8 +4350,31 @@ async function loadDash(){
     var r=await fetch('/history?limit=100');var d=await r.json();
     if(!d.length){document.getElementById('dash-content').innerHTML='<div style="color:var(--text3)">Run some scans first.</div>';return;}
     var tc=d.reduce(function(a,s){return a+s.total_cves;},0),cr=d.reduce(function(a,s){return a+s.critical_cves;},0),tp=d.reduce(function(a,s){return a+s.open_ports;},0);
+    var avg=(tc/d.length)||0;
+    var risky=d.filter(function(s){return (s.critical_cves||0)>0;}).length;
+    var last=d[0]||{};
+    var recent7=d.slice(0,7).reduce(function(a,s){return a+s.total_cves;},0);
     var mx=Math.max.apply(null,d.map(function(s){return s.total_cves;}).concat([1]));
-    document.getElementById('dash-content').innerHTML='<div class="stats" style="margin-bottom:18px"><div class="stat"><div class="stat-val">'+d.length+'</div><div class="stat-lbl">SCANS</div></div><div class="stat"><div class="stat-val">'+tc+'</div><div class="stat-lbl">TOTAL CVEs</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">'+cr+'</div><div class="stat-lbl">CRITICAL</div></div><div class="stat"><div class="stat-val">'+tp+'</div><div class="stat-lbl">OPEN PORTS</div></div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px"><div class="card card-p"><div class="card-title" style="margin-bottom:12px">Top Targets by CVEs</div>'+d.slice(0,6).map(function(s){return'<div class="bar-row"><span class="bar-label">'+s.target.substring(0,14)+'</span><div class="bar-track"><div class="bar-fill" style="width:'+((s.total_cves/mx)*100)+'%"></div></div><span class="bar-val" style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+s.total_cves+'</span></div>';}).join('')+'</div><div class="card card-p"><div class="card-title" style="margin-bottom:12px">Recent Activity</div>'+d.slice(0,8).map(function(s){return'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="font-family:var(--mono)">'+s.target+'</span><span style="color:'+(s.critical_cves>0?'var(--red)':'var(--text3)')+'">'+(s.critical_cves>0?s.critical_cves+' critical':s.total_cves+' CVEs')+'</span></div>';}).join('')+'</div></div>';
+    document.getElementById('dash-content').innerHTML=
+      '<div class="stats" style="margin-bottom:18px">'+
+        '<div class="stat"><div class="stat-val">'+d.length+'</div><div class="stat-lbl">SCANS</div></div>'+
+        '<div class="stat"><div class="stat-val">'+tc+'</div><div class="stat-lbl">TOTAL CVEs</div></div>'+
+        '<div class="stat"><div class="stat-val" style="color:var(--red)">'+cr+'</div><div class="stat-lbl">CRITICAL</div></div>'+
+        '<div class="stat"><div class="stat-val">'+tp+'</div><div class="stat-lbl">OPEN PORTS</div></div>'+
+        '<div class="stat"><div class="stat-val">'+avg.toFixed(1)+'</div><div class="stat-lbl">AVG CVE / SCAN</div></div>'+
+        '<div class="stat"><div class="stat-val">'+risky+'</div><div class="stat-lbl">RISKY TARGETS</div></div>'+
+      '</div>'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">'+
+        '<div class="card card-p"><div class="card-title" style="margin-bottom:12px">Top Targets by CVEs</div>'+d.slice(0,6).map(function(s){return'<div class="bar-row"><span class="bar-label">'+s.target.substring(0,16)+'</span><div class="bar-track"><div class="bar-fill" style="width:'+((s.total_cves/mx)*100)+'%"></div></div><span class="bar-val" style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+s.total_cves+'</span></div>';}).join('')+'</div>'+
+        '<div class="card card-p"><div class="card-title" style="margin-bottom:12px">Recent Activity</div>'+d.slice(0,10).map(function(s){return'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="font-family:var(--mono)">'+s.target+'</span><span style="color:'+(s.critical_cves>0?'var(--red)':'var(--text3)')+'">'+(s.critical_cves>0?s.critical_cves+' critical':s.total_cves+' CVEs')+'</span></div>';}).join('')+'</div>'+
+        '<div class="card card-p"><div class="card-title" style="margin-bottom:12px">Risk Summary</div>'+
+          '<div style="display:grid;gap:8px;font-size:12px">'+
+            '<div><span style="color:var(--text3)">Latest target:</span> <span style="font-family:var(--mono)">'+(last.target||'--')+'</span></div>'+
+            '<div><span style="color:var(--text3)">Latest scan:</span> '+((last.scan_time||'').replace('T',' ').substring(0,19)||'--')+'</div>'+
+            '<div><span style="color:var(--text3)">CVEs in last 7 scans:</span> '+recent7+'</div>'+
+            '<div><span style="color:var(--text3)">Critical rate:</span> '+((cr/Math.max(tc,1))*100).toFixed(1)+'%</div>'+
+          '</div></div>'+
+      '</div>';
   }catch(e){document.getElementById('dash-content').innerHTML='<div style="color:var(--red)">'+e.message+'</div>';}
 }
 
