@@ -600,6 +600,12 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
 .host-card-ip{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--text)}
 .host-card-hn{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:3px}
 .found{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:20px;font-family:var(--mono);font-size:11px;color:var(--text2);position:relative;z-index:2}
+.home-cat-block{margin-bottom:18px}
+.home-cat-label{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--text2);letter-spacing:2px;padding:6px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:10px}
+.home-tools-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.home-tool-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;cursor:pointer;transition:border-color 0.15s ease,transform 0.15s ease,box-shadow 0.15s ease}
+.home-tool-card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.home-tool-card:active{transform:translateY(0) scale(0.98)}
 #toast-container{position:fixed;bottom:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
 .toast{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-size:12px;font-family:var(--mono);box-shadow:var(--shadow-md);pointer-events:all;display:flex;align-items:flex-start;gap:9px;max-width:320px;animation:toastIn 0.25s ease}
 .toast.leaving{animation:toastOut 0.2s ease forwards}
@@ -797,10 +803,10 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
       <!-- /VulnScan Nav Search v2 -->
       <style>
 .nav-section{padding:4px 10px}
-.nav-cat-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:7px 10px;border-radius:var(--radius);user-select:none;background:var(--accent);border:1px solid var(--accent);margin:2px 0;transition:opacity .15s ease,transform .15s ease}
-.nav-cat-toggle:hover{opacity:.86;transform:translateX(1px)}
-.nav-cat-label{font-family:var(--mono);font-size:9px;color:var(--accent-inv);letter-spacing:2px;font-weight:700}
-.nav-cat-arrow{font-size:9px;color:var(--accent-inv);opacity:.7;transition:transform .25s ease}
+.nav-cat-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:7px 10px;border-radius:var(--radius);user-select:none;background:var(--bg2);border:1px solid var(--border);margin:2px 0;transition:background .15s ease,border-color .15s ease}
+.nav-cat-toggle:hover{background:var(--bg3);border-color:var(--border2)}
+.nav-cat-label{font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:2px;font-weight:700}
+.nav-cat-arrow{font-size:9px;color:var(--text3);opacity:.8;transition:transform .25s ease}
 .nav-cat-arrow.open{transform:rotate(180deg);opacity:1}
 .nav-cat-items{overflow:hidden;transition:max-height .3s ease,opacity .25s ease;max-height:0;opacity:0}
 .nav-cat-items.collapsed{max-height:0!important;opacity:0;pointer-events:none}
@@ -836,7 +842,7 @@ function navToggle(id){
   if(arrow)arrow.classList.toggle('open',collapsed);
 }
 function navRestore(){
-  ['information','webtesting','attacks','passwords','social','c2','exploitation','reverseeng','auditing'].forEach(function(id){
+  ['overview','information','webtesting','attacks','passwords','social','c2','exploitation','reverseeng','auditing','admin'].forEach(function(id){
     var items=document.getElementById('nc-'+id);
     var arrow=document.getElementById('na-'+id);
     if(!items)return;
@@ -852,6 +858,18 @@ function navRestore(){
 }
 document.addEventListener('DOMContentLoaded',navRestore);
       </script>
+
+      <div class="nav-section">
+        <div class="nav-cat-toggle" onclick="navToggle('overview')">
+          <span class="nav-cat-label">OVERVIEW</span>
+          <span class="nav-cat-arrow" id="na-overview">&#9660;</span>
+        </div>
+        <div class="nav-cat-items collapsed" id="nc-overview" style="max-height:0">
+          <button class="nav-item" id="ni-home" onclick="pg('home',this)"><span class="ni">&#9700;</span> Home</button>
+          <button class="nav-item" id="ni-dash" onclick="pg('dash',this)"><span class="ni">&#9636;</span> Dashboard</button>
+          <button class="nav-item" id="ni-hist" onclick="pg('hist',this)"><span class="ni">&#9632;</span> History</button>
+        </div>
+      </div>
 
       <div class="nav-section">
         <div class="nav-cat-toggle" onclick="navToggle('information')">
@@ -3216,7 +3234,7 @@ async function loadUser(){
       document.getElementById('user-avatar').textContent=d.username[0].toUpperCase();
       document.getElementById('user-name-disp').textContent=d.username;
       document.getElementById('user-role-disp').textContent=d.role==='admin'?'admin':'user';
-      if(d.role==='admin'){var sec=document.getElementById('admin-nav-section');if(sec)sec.style.display='none';}
+      if(d.role==='admin'){var sec=document.getElementById('admin-nav-section');if(sec)sec.style.display='block';}
       loadProfileInfo(d);loadHomeStats();renderHomeToolCatalog();loadUserTheme();
       _vsNotifUnread=0;_vsRecentCompleted=[];_vsKnownCompleted={};
       refreshNotifications();
@@ -3310,7 +3328,7 @@ function renderHomeToolCatalog(){
   var out=document.getElementById('home-tool-catalog');if(!out)return;
   out.innerHTML=HOME_TOOL_CATALOG.map(function(cat){
     var tools=cat.tools.map(function(t){return '<div class="home-tool-card" onclick="pg(\''+t[0]+'\',null)" title="'+t[2]+'"><div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:2px">'+t[1]+'</div><div style="font-size:10px;color:var(--text3);line-height:1.4">'+t[2]+'</div></div>';}).join('');
-    return '<div class="home-cat-block"><div class="home-cat-label" style="border-left-color:'+cat.color+'">'+cat.label+'</div><div class="home-tools-grid">'+tools+'</div></div>';
+    return '<div class="home-cat-block"><div class="home-cat-label">'+cat.label+'</div><div class="home-tools-grid">'+tools+'</div></div>';
   }).join('');
 }
 async function loadHomeStats(){
