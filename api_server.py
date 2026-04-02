@@ -851,6 +851,10 @@ function navRestore(){
     items.classList.remove('expanded');
     if(arrow)arrow.classList.remove('open');
   });
+  var overview=document.getElementById('nc-overview');
+  if(overview&&overview.closest('.nav-section'))overview.closest('.nav-section').style.display='none';
+  var adminSec=document.getElementById('admin-nav-section');
+  if(adminSec)adminSec.style.display='none';
 }
 document.addEventListener('DOMContentLoaded',navRestore);
       </script>
@@ -2891,47 +2895,32 @@ document.addEventListener('DOMContentLoaded',navRestore);
             <div class="card-p" id="admin-services-table" style="overflow-x:auto"></div>
           </div>
           <div class="card">
-            <div class="card-header">
-              <div>
-                <div class="card-title" id="svc-form-title">Add New Monitored Service</div>
-                <div class="card-sub" id="svc-form-mode-lbl">NEW SERVICE</div>
-              </div>
-              <button class="btn btn-ghost btn-sm" id="svc-cancel-edit" onclick="cancelServiceEdit()" style="display:none">Cancel Edit</button>
-            </div>
+            <div class="card-header"><div class="card-title">Add New Monitored Service</div></div>
             <div class="card-p">
-              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
-                <span style="font-size:11px;color:var(--text3)">Quick presets:</span>
-                <button class="btn btn-outline btn-sm" onclick="applyServicePreset('apache2')">Apache</button>
-                <button class="btn btn-outline btn-sm" onclick="applyServicePreset('supabase')">Supabase</button>
-                <button class="btn btn-outline btn-sm" onclick="applyServicePreset('nginx')">Nginx</button>
-                <button class="btn btn-outline btn-sm" onclick="applyServicePreset('clear')">Clear Form</button>
-              </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
-                <div class="fg"><label>DISPLAY NAME</label><input class="inp inp-mono" id="svc-label" type="text" placeholder="My Service"/></div>
-                <div class="fg"><label>SERVICE KEY (unique ID)</label><input class="inp inp-mono" id="svc-key" type="text" placeholder="my-service"/></div>
-                <div class="fg"><label>SERVICE TYPE</label>
-                  <select class="inp inp-mono" id="svc-kind" onchange="svcKindChange()">
-                    <option value="systemctl">systemctl unit</option>
-                    <option value="command">custom command</option>
+              <div class="grid3">
+                <div class="fg">
+                  <label>Quick Add</label>
+                  <select class="inp inp-mono" id="svc-preset" onchange="applyServicePreset()">
+                    <option value="">-- Select preset --</option>
+                    <option value="apache2">Apache service</option>
+                    <option value="supabase">Supabase connectivity</option>
                   </select>
                 </div>
+                <div class="fg"><label>Display Name</label><input class="inp inp-mono" id="svc-label" type="text" placeholder="My Service"/></div>
+                <div class="fg"><label>Service Key</label><input class="inp inp-mono" id="svc-key" type="text" placeholder="my-service"/></div>
               </div>
-              <div id="svc-systemctl-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-                <div class="fg"><label>SYSTEMD UNIT NAME</label><input class="inp inp-mono" id="svc-unit" type="text" placeholder="apache2"/></div>
-                <div class="fg"><label>DESCRIPTION (optional)</label><input class="inp inp-mono" id="svc-desc" type="text" placeholder="Web server"/></div>
-              </div>
-              <div id="svc-command-fields" style="display:none;margin-bottom:10px">
-                <div class="fg"><label>CHECK COMMAND (runs to verify service health)</label><input class="inp inp-mono" id="svc-check" type="text" placeholder="python3 health_check.py  OR  curl -fs http://localhost:8080/health"/></div>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:8px">
-                  <div class="fg"><label>START COMMAND (optional)</label><input class="inp inp-mono" id="svc-start" type="text" placeholder="systemctl start my-service"/></div>
-                  <div class="fg"><label>STOP COMMAND (optional)</label><input class="inp inp-mono" id="svc-stop" type="text" placeholder="systemctl stop my-service"/></div>
-                  <div class="fg"><label>RESTART COMMAND (optional)</label><input class="inp inp-mono" id="svc-restart" type="text" placeholder="systemctl restart my-service"/></div>
+              <div class="grid3">
+                <div class="fg">
+                  <label>Service Type</label>
+                  <select class="inp inp-mono" id="svc-kind">
+                    <option value="systemctl">systemctl unit</option>
+                    <option value="command">custom command check</option>
+                  </select>
                 </div>
+                <div class="fg"><label>Systemd Unit</label><input class="inp inp-mono" id="svc-unit" type="text" placeholder="apache2"/></div>
+                <div class="fg"><label>Check Command (command type)</label><input class="inp inp-mono" id="svc-check" type="text" placeholder="python3 health_check.py"/></div>
               </div>
-              <div style="display:flex;gap:8px;margin-top:10px">
-                <button class="btn btn-primary" id="svc-submit-btn" onclick="submitServiceForm()">ADD SERVICE</button>
-                <button class="btn btn-ghost btn-sm" onclick="loadAdminServices()">Refresh List</button>
-              </div>
+              <div style="margin-top:10px"><button class="btn btn-primary" onclick="addMonitoredService()">Add Service</button></div>
               <div id="svc-msg" style="margin-top:10px;color:var(--text3);font-size:12px"></div>
             </div>
           </div>
@@ -3431,40 +3420,11 @@ function swt(e,id){var p=document.getElementById('res');p.querySelectorAll('.tab
 /* ==== GENERIC TOOL RUNNER ==== */
 function mkTool(prefix){
   var logEl=null;
-  var _controller=null;
   return{
-    start:function(){
-      logEl=document.getElementById(prefix+'-term');
-      if(logEl){logEl.innerHTML='';logEl.classList.add('visible');}
-      var e=document.getElementById(prefix+'-err');if(e){e.textContent='';e.classList.remove('visible');}
-      var r=document.getElementById(prefix+'-res');if(r){r.innerHTML='';r.style.display='none';}
-      startProg(prefix+'-prog');
-      /* Show cancel button */
-      var cb=document.getElementById(prefix+'-cancel');
-      if(!cb){
-        /* Dynamically create cancel button next to run button */
-        var runBtn=document.getElementById(prefix+'-btn');
-        if(runBtn&&runBtn.parentNode){
-          cb=document.createElement('button');
-          cb.id=prefix+'-cancel';
-          cb.className='btn btn-outline btn-sm';
-          cb.style.cssText='color:var(--red);border-color:rgba(192,57,43,0.3);margin-left:8px';
-          cb.textContent='CANCEL';
-          cb.onclick=function(){cancelScan(prefix);};
-          runBtn.parentNode.insertBefore(cb,runBtn.nextSibling);
-        }
-      }
-      if(cb)cb.style.display='inline-flex';
-      setScanRunning(prefix,true);
-    },
+    start:function(){logEl=document.getElementById(prefix+'-term');if(logEl){logEl.innerHTML='';logEl.classList.add('visible');}var e=document.getElementById(prefix+'-err');if(e){e.textContent='';e.classList.remove('visible');}var r=document.getElementById(prefix+'-res');if(r){r.innerHTML='';r.style.display='none';}startProg(prefix+'-prog');},
     log:function(t,tp){if(!logEl)return;if(!tp)tp='i';var div=document.createElement('div');div.className='tl-'+tp;var pf={i:'[*]',s:'[+]',w:'[!]',e:'[x]'}[tp]||'[*]';div.innerHTML='<span class="tl-prefix">'+pf+'</span> '+t;logEl.appendChild(div);logEl.scrollTop=logEl.scrollHeight;},
     pct:function(v){var pw=document.getElementById(prefix+'-prog');var pb=document.getElementById(prefix+'-pb');if(pw)pw.classList.add('active');if(pb)pb.style.width=Math.max(0,Math.min(100,parseInt(v||0,10)))+'%';},
-    end:function(){
-      endProg(prefix+'-prog');
-      var cb=document.getElementById(prefix+'-cancel');
-      if(cb)cb.style.display='none';
-      setScanRunning(prefix,false);
-    },
+    end:function(){endProg(prefix+'-prog');},
     err:function(m){var e=document.getElementById(prefix+'-err');if(e){e.textContent='Error: '+m;e.classList.add('visible');}},
     res:function(html){var e=document.getElementById(prefix+'-res');if(e){e.innerHTML=html;e.style.display='block';}}
   };
@@ -8603,48 +8563,13 @@ def admin_services():
     rows = []
     for svc in MONITORED_SERVICES.values():
         st = _service_status(svc)
-        ctrl = svc.get("control_cmds") or {}
         rows.append({
             **_safe_service_row(svc),
             "status": st.get("status", "unknown"),
             "detail": st.get("detail", ""),
-            "check_cmd": svc.get("check_cmd", ""),
-            "start_cmd": ctrl.get("start", svc.get("start_cmd", "")),
-            "stop_cmd": ctrl.get("stop", svc.get("stop_cmd", "")),
-            "restart_cmd": ctrl.get("restart", svc.get("restart_cmd", "")),
         })
     audit(u["id"], u["username"], "ADMIN_SERVICES_VIEW", target="services", ip=request.remote_addr)
     return jsonify({"services": rows, "count": len(rows)})
-
-@app.route("/api/admin/services/<svc_key>", methods=["PUT"])
-def admin_edit_service(svc_key):
-    u = get_current_user()
-    if not u or u.get("role") != "admin":
-        return jsonify({"error": "Admin access required"}), 403
-    if svc_key not in MONITORED_SERVICES:
-        return jsonify({"error": "Service not found"}), 404
-    data = request.get_json() or {}
-    label = (data.get("label") or svc_key).strip()
-    kind = (data.get("kind") or "systemctl").strip().lower()
-    unit = (data.get("unit") or "").strip()
-    check_cmd = (data.get("check_cmd") or "").strip()
-    control_cmds = data.get("control_cmds") or {}
-    svc = MONITORED_SERVICES[svc_key]
-    svc["label"] = label
-    svc["kind"] = kind
-    if kind == "systemctl":
-        svc["unit"] = unit or svc_key
-    else:
-        svc["check_cmd"] = check_cmd
-        svc["control_cmds"] = control_cmds
-        # also expose individual cmds for JS data attrs
-        svc["start_cmd"] = control_cmds.get("start", "")
-        svc["stop_cmd"] = control_cmds.get("stop", "")
-        svc["restart_cmd"] = control_cmds.get("restart", "")
-    audit(u["id"], u["username"], "ADMIN_SERVICE_EDIT", target=svc_key,
-          ip=request.remote_addr, details=f"kind={kind}")
-    return jsonify({"ok": True})
-
 
 @app.route("/api/admin/services", methods=["POST"])
 def admin_add_service():
