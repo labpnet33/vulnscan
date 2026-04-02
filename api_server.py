@@ -2824,6 +2824,7 @@ document.addEventListener('DOMContentLoaded',navRestore);
           <button class="tab" onclick="adminTab(event,'at-users')">Users</button>
           <button class="tab" onclick="adminTab(event,'at-stats')">Stats</button>
           <button class="tab" onclick="adminTab(event,'at-audit')">Audit Log</button>
+          <button class="tab" onclick="adminTab(event,'at-services')">Services</button>
           <button class="tab" onclick="adminTab(event,'at-scans')">All Scans</button>
         </div>
         <div class="tc active" id="at-cli">
@@ -2893,6 +2894,45 @@ document.addEventListener('DOMContentLoaded',navRestore);
         </div>
         <div class="tc" id="at-stats"><div class="card"><div class="card-header"><div class="card-title">Platform Statistics</div></div><div class="card-p" id="admin-stats"></div></div></div>
         <div class="tc" id="at-audit"><div class="card"><div class="card-header"><div class="card-title">Audit Log</div></div><div class="card-p" id="admin-audit" style="overflow-x:auto"></div></div></div>
+        <div class="tc" id="at-services">
+          <div class="card" style="margin-bottom:12px">
+            <div class="card-header">
+              <div><div class="card-title">Service Monitor</div><div class="card-sub">Continuous status checks for system and custom services</div></div>
+              <button class="btn btn-outline btn-sm" onclick="loadAdminServices()">Refresh</button>
+            </div>
+            <div class="card-p" id="admin-services-table" style="overflow-x:auto"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Add New Monitored Service</div></div>
+            <div class="card-p">
+              <div class="grid3">
+                <div class="fg">
+                  <label>Quick Add</label>
+                  <select class="inp inp-mono" id="svc-preset" onchange="applyServicePreset()">
+                    <option value="">-- Select preset --</option>
+                    <option value="apache2">Apache service</option>
+                    <option value="supabase">Supabase connectivity</option>
+                  </select>
+                </div>
+                <div class="fg"><label>Display Name</label><input class="inp inp-mono" id="svc-label" type="text" placeholder="My Service"/></div>
+                <div class="fg"><label>Service Key</label><input class="inp inp-mono" id="svc-key" type="text" placeholder="my-service"/></div>
+              </div>
+              <div class="grid3">
+                <div class="fg">
+                  <label>Service Type</label>
+                  <select class="inp inp-mono" id="svc-kind">
+                    <option value="systemctl">systemctl unit</option>
+                    <option value="command">custom command check</option>
+                  </select>
+                </div>
+                <div class="fg"><label>Systemd Unit</label><input class="inp inp-mono" id="svc-unit" type="text" placeholder="apache2"/></div>
+                <div class="fg"><label>Check Command (command type)</label><input class="inp inp-mono" id="svc-check" type="text" placeholder="python3 health_check.py"/></div>
+              </div>
+              <div style="margin-top:10px"><button class="btn btn-primary" onclick="addMonitoredService()">Add Service</button></div>
+              <div id="svc-msg" style="margin-top:10px;color:var(--text3);font-size:12px"></div>
+            </div>
+          </div>
+        </div>
         <div class="tc" id="at-scans"><div class="card"><div class="card-header"><div class="card-title">All Scans</div></div><div class="card-p" id="admin-scans" style="overflow-x:auto"></div></div></div>
       </div>
 
@@ -4130,8 +4170,10 @@ function adminTab(e,id){
   e.currentTarget.classList.add('active');document.getElementById(id).classList.add('active');
   if(id==='at-users')loadAdminUsers();if(id==='at-stats')loadAdminStats();
   if(id==='at-audit')loadAdminAudit();if(id==='at-scans')loadAdminScans();
+  if(id==='at-services')loadAdminServices();
   if(id==='at-cli'){loadServerStats();initCliHeader();}
   if(id!=='at-cli'&&window._statsInterval){clearInterval(window._statsInterval);window._statsInterval=null;}
+  if(id!=='at-services'&&window._svcInterval){clearInterval(window._svcInterval);window._svcInterval=null;}
 }
 async function loadAdmin(){loadServerStats();setTimeout(initCliHeader,400);}
 var _statsInterval=null;
@@ -4182,6 +4224,65 @@ async function deleteUser(id){if(!confirm('Delete this user?'))return;await fetc
 async function loadAdminStats(){try{var r=await fetch('/api/admin/stats');var d=await r.json();document.getElementById('admin-stats').innerHTML='<div class="stats"><div class="stat"><div class="stat-val">'+(d.total_users||0)+'</div><div class="stat-lbl">USERS</div></div><div class="stat"><div class="stat-val">'+(d.verified_users||0)+'</div><div class="stat-lbl">VERIFIED</div></div><div class="stat"><div class="stat-val">'+(d.total_scans||0)+'</div><div class="stat-lbl">SCANS</div></div><div class="stat"><div class="stat-val">'+(d.scans_today||0)+'</div><div class="stat-lbl">TODAY</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">'+(d.critical_cves||0)+'</div><div class="stat-lbl">CRITICAL</div></div><div class="stat"><div class="stat-val">'+(d.total_cves||0)+'</div><div class="stat-lbl">TOTAL CVEs</div></div></div>';}catch(e){}}
 async function loadAdminAudit(){try{var r=await fetch('/api/admin/audit?limit=200');var d=await r.json();document.getElementById('admin-audit').innerHTML='<table class="tbl"><thead><tr><th>TIME</th><th>USER</th><th>ACTION</th><th>TARGET</th><th>IP</th></tr></thead><tbody>'+d.map(function(l){return'<tr><td style="font-size:11px;color:var(--text3)">'+((l.timestamp||'').substring(0,16))+'</td><td style="font-family:var(--mono)">'+(l.username||'--')+'</td><td><span class="tag">'+(l.action||'')+'</span></td><td style="font-size:11px;color:var(--text3)">'+(l.target||'--')+'</td><td style="font-size:11px;color:var(--text3)">'+(l.ip_address||'--')+'</td></tr>';}).join('')+'</tbody></table>';}catch(e){}}
 async function loadAdminScans(){try{var r=await fetch('/api/admin/scans');var d=await r.json();document.getElementById('admin-scans').innerHTML='<table class="tbl"><thead><tr><th>#</th><th>TARGET</th><th>TIME</th><th>PORTS</th><th>CVEs</th><th>CRITICAL</th><th></th></tr></thead><tbody>'+d.map(function(s){return'<tr><td style="color:var(--text3)">#'+s.id+'</td><td style="font-family:var(--mono)">'+s.target+'</td><td style="font-size:11px;color:var(--text3)">'+((s.scan_time||'').replace('T',' ').substring(0,19))+'</td><td>'+s.open_ports+'</td><td>'+s.total_cves+'</td><td style="color:'+(s.critical_cves>0?'var(--red)':'var(--text3)')+'">'+s.critical_cves+'</td><td><button class="btn btn-ghost btn-sm" onclick="loadScan('+s.id+')">View</button></td></tr>';}).join('')+'</tbody></table>';}catch(e){}}
+var _svcInterval=null;
+function svcPill(status){
+  var c=status==='running'?'var(--green)':status==='stopped'?'var(--red)':'var(--yellow)';
+  return '<span class="tag" style="border-color:'+c+'40;color:'+c+'">'+status.toUpperCase()+'</span>';
+}
+async function loadAdminServices(){
+  try{
+    var r=await fetch('/api/admin/services');var d=await r.json();
+    var list=(d.services||[]);
+    var html='<table class="tbl"><thead><tr><th>SERVICE</th><th>TYPE</th><th>UNIT</th><th>STATUS</th><th>DETAIL</th><th>ACTIONS</th></tr></thead><tbody>';
+    html+=list.map(function(s){return '<tr><td style="font-family:var(--mono)">'+(s.label||s.key)+'</td><td style="color:var(--text3)">'+(s.kind||'--')+'</td><td style="font-family:var(--mono);font-size:11px">'+(s.unit||'--')+'</td><td>'+svcPill(s.status||'unknown')+'</td><td style="font-size:11px;color:var(--text3);max-width:300px">'+((s.detail||'--').replace(/</g,'&lt;'))+'</td><td style="display:flex;gap:4px;flex-wrap:wrap"><button class="btn btn-outline btn-sm" onclick="serviceAction(\''+s.key+'\',\'start\')">Start</button><button class="btn btn-outline btn-sm" onclick="serviceAction(\''+s.key+'\',\'stop\')">Stop</button><button class="btn btn-outline btn-sm" onclick="serviceAction(\''+s.key+'\',\'restart\')">Restart</button></td></tr>';}).join('');
+    html+='</tbody></table>';
+    document.getElementById('admin-services-table').innerHTML=html;
+  }catch(e){
+    document.getElementById('admin-services-table').innerHTML='<div style="color:var(--red)">Failed to load services: '+e.message+'</div>';
+  }
+  if(!_svcInterval)_svcInterval=setInterval(function(){var p=document.getElementById('at-services');if(p&&p.classList.contains('active'))loadAdminServices();else{clearInterval(_svcInterval);_svcInterval=null;}},7000);
+}
+async function serviceAction(key,action){
+  try{
+    var r=await fetch('/api/admin/services/'+encodeURIComponent(key)+'/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:action})});
+    var d=await r.json();
+    toast((d.ok?'Service action success: ':'Service action failed: ')+key+' '+action,d.ok?'ok':'err');
+  }catch(e){toast('Service action error: '+e.message,'err');}
+  loadAdminServices();
+}
+function applyServicePreset(){
+  var p=(document.getElementById('svc-preset')||{}).value||'';
+  if(p==='apache2'){
+    document.getElementById('svc-label').value='Apache Service';
+    document.getElementById('svc-key').value='apache2';
+    document.getElementById('svc-kind').value='systemctl';
+    document.getElementById('svc-unit').value='apache2';
+    document.getElementById('svc-check').value='';
+  }else if(p==='supabase'){
+    document.getElementById('svc-label').value='Supabase';
+    document.getElementById('svc-key').value='supabase';
+    document.getElementById('svc-kind').value='command';
+    document.getElementById('svc-unit').value='';
+    document.getElementById('svc-check').value='cd ~/vulnscan && python3 -c \"from dotenv import load_dotenv; load_dotenv(\\\'.env\\\'); from supabase_config import supabase; supabase().table(\\\'users\\\').select(\\\'id\\\').limit(1).execute(); print(\\\'✓ Supabase Database Connected!\\\')\"';
+  }
+}
+async function addMonitoredService(){
+  var label=(document.getElementById('svc-label')||{}).value||'';
+  var key=(document.getElementById('svc-key')||{}).value||'';
+  var kind=(document.getElementById('svc-kind')||{}).value||'systemctl';
+  var unit=(document.getElementById('svc-unit')||{}).value||'';
+  var checkCmd=(document.getElementById('svc-check')||{}).value||'';
+  var msg=document.getElementById('svc-msg');
+  try{
+    var r=await fetch('/api/admin/services',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({label:label,key:key,kind:kind,unit:unit,check_cmd:checkCmd})});
+    var d=await r.json();
+    if(!r.ok||d.error){if(msg){msg.style.color='var(--red)';msg.textContent=d.error||'Failed to add service';}return;}
+    if(msg){msg.style.color='var(--green)';msg.textContent='Service added and monitoring started.';}
+    loadAdminServices();
+  }catch(e){
+    if(msg){msg.style.color='var(--red)';msg.textContent='Error: '+e.message;}
+  }
+}
 
 /* ==== CLI ==== */
 var _cliHistory=[],_cliHistIdx=-1;
@@ -8218,6 +8319,64 @@ BLOCKED_PATTERNS = [
     r'wget.*\|.*sh', r'base64.*decode.*\|'
 ]
 
+MONITORED_SERVICES = {
+    "apache2": {
+        "key": "apache2",
+        "label": "Apache Service",
+        "kind": "systemctl",
+        "unit": "apache2",
+    },
+    "supabase": {
+        "key": "supabase",
+        "label": "Supabase",
+        "kind": "command",
+        "check_cmd": """cd ~/vulnscan && python3 -c "from dotenv import load_dotenv; load_dotenv('.env'); from supabase_config import supabase; supabase().table('users').select('id').limit(1).execute(); print('OK')" """,
+        "control_cmds": {
+            "start": "cd ~/vulnscan && supabase start",
+            "stop": "cd ~/vulnscan && supabase stop",
+            "restart": "cd ~/vulnscan && supabase stop && supabase start",
+        },
+    },
+}
+
+def _safe_service_row(svc):
+    return {
+        "key": svc.get("key"),
+        "label": svc.get("label"),
+        "kind": svc.get("kind"),
+        "unit": svc.get("unit", ""),
+    }
+
+def _service_status(svc):
+    kind = svc.get("kind")
+    if kind == "systemctl":
+        unit = svc.get("unit")
+        if not unit:
+            return {"status": "unknown", "detail": "Missing unit"}
+        proc = subprocess.run(
+            f"systemctl is-active {shlex.quote(unit)}",
+            shell=True, capture_output=True, text=True, timeout=8
+        )
+        out = (proc.stdout or proc.stderr or "").strip()
+        if proc.returncode == 0 and out == "active":
+            return {"status": "running", "detail": out}
+        if out:
+            return {"status": "stopped", "detail": out}
+        return {"status": "unknown", "detail": f"exit={proc.returncode}"}
+    if kind == "command":
+        check_cmd = (svc.get("check_cmd") or "").strip()
+        if not check_cmd:
+            return {"status": "unknown", "detail": "Missing check command"}
+        proc = subprocess.run(
+            check_cmd, shell=True, capture_output=True, text=True, timeout=15
+        )
+        detail = (proc.stdout or proc.stderr or "").strip()
+        return {
+            "status": "running" if proc.returncode == 0 else "stopped",
+            "detail": detail[:240],
+        }
+    return {"status": "unknown", "detail": "Unsupported service type"}
+
 @app.route("/api/exec", methods=["POST"])
 def cli_route():
     import shutil
@@ -8254,6 +8413,84 @@ def cli_route():
         return jsonify({"error": "Command timed out (30s limit)", "output": ""})
     except Exception as e:
         return jsonify({"error": str(e), "output": ""})
+
+@app.route("/api/admin/services")
+def admin_services():
+    u = get_current_user()
+    if not u or u.get("role") != "admin":
+        return jsonify({"error": "Admin access required"}), 403
+    rows = []
+    for svc in MONITORED_SERVICES.values():
+        st = _service_status(svc)
+        rows.append({
+            **_safe_service_row(svc),
+            "status": st.get("status", "unknown"),
+            "detail": st.get("detail", ""),
+        })
+    audit(u["id"], u["username"], "ADMIN_SERVICES_VIEW", target="services", ip=request.remote_addr)
+    return jsonify({"services": rows, "count": len(rows)})
+
+@app.route("/api/admin/services", methods=["POST"])
+def admin_add_service():
+    u = get_current_user()
+    if not u or u.get("role") != "admin":
+        return jsonify({"error": "Admin access required"}), 403
+    data = request.get_json() or {}
+    key = (data.get("key") or data.get("unit") or data.get("label") or "").strip().lower().replace(" ", "-")
+    label = (data.get("label") or key or "Service").strip()
+    kind = (data.get("kind") or "systemctl").strip().lower()
+    if not key:
+        return jsonify({"error": "Service key/label is required"}), 400
+    if key in MONITORED_SERVICES:
+        return jsonify({"error": "Service already exists"}), 400
+    if kind == "systemctl":
+        unit = (data.get("unit") or key).strip()
+        MONITORED_SERVICES[key] = {"key": key, "label": label, "kind": "systemctl", "unit": unit}
+    elif kind == "command":
+        check_cmd = (data.get("check_cmd") or "").strip()
+        if not check_cmd:
+            return jsonify({"error": "check_cmd is required for command services"}), 400
+        MONITORED_SERVICES[key] = {
+            "key": key, "label": label, "kind": "command", "check_cmd": check_cmd,
+            "control_cmds": data.get("control_cmds") or {}
+        }
+    else:
+        return jsonify({"error": "Invalid kind. Use systemctl or command"}), 400
+    audit(u["id"], u["username"], "ADMIN_SERVICE_ADD", target=key, ip=request.remote_addr, details=f"kind={kind}")
+    return jsonify({"ok": True, "service": _safe_service_row(MONITORED_SERVICES[key])})
+
+@app.route("/api/admin/services/<key>/action", methods=["POST"])
+def admin_service_action(key):
+    u = get_current_user()
+    if not u or u.get("role") != "admin":
+        return jsonify({"error": "Admin access required"}), 403
+    svc = MONITORED_SERVICES.get(key)
+    if not svc:
+        return jsonify({"error": "Unknown service"}), 404
+    data = request.get_json() or {}
+    action = (data.get("action") or "").strip().lower()
+    if action not in {"start", "stop", "restart"}:
+        return jsonify({"error": "Invalid action"}), 400
+    if svc.get("kind") == "systemctl":
+        cmd = f"systemctl {action} {shlex.quote(svc.get('unit',''))}"
+    else:
+        cmd = ((svc.get("control_cmds") or {}).get(action) or "").strip()
+    if not cmd:
+        return jsonify({"error": f"No {action} command configured for this service"}), 400
+    proc = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=60)
+    out = (proc.stdout or "")[:2000]
+    err = (proc.stderr or "")[:2000]
+    st = _service_status(svc)
+    audit(u["id"], u["username"], "ADMIN_SERVICE_ACTION", target=key, ip=request.remote_addr,
+          details=f"action={action};exit={proc.returncode}")
+    return jsonify({
+        "ok": proc.returncode == 0,
+        "exit_code": proc.returncode,
+        "output": out,
+        "error": err,
+        "status": st.get("status", "unknown"),
+        "detail": st.get("detail", ""),
+    })
 
 
 # ── Health check ───────────────────────────────────────────────────────────────
