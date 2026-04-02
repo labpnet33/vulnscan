@@ -860,6 +860,16 @@ document.addEventListener('DOMContentLoaded',navRestore);
       </script>
 
       <div class="nav-section">
+        <button class="nav-item" id="ni-home" onclick="pg('home',this)"><span class="ni">&#8962;</span> Home</button>
+        <button class="nav-item" id="ni-dash" onclick="pg('dash',this)"><span class="ni">&#9635;</span> Dashboard</button>
+        <button class="nav-item" id="ni-hist" onclick="pg('hist',this)"><span class="ni">&#128338;</span> History</button>
+      </div>
+
+      <div class="nav-section" id="admin-nav-section" style="display:none">
+        <button class="nav-item" id="ni-admin" onclick="pg('admin',this)"><span class="ni">&#9881;</span> Admin Console</button>
+      </div>
+
+      <div class="nav-section">
         <div class="nav-cat-toggle" onclick="navToggle('information')">
           <span class="nav-cat-label">INFORMATION</span>
           <span class="nav-cat-arrow" id="na-information">&#9660;</span>
