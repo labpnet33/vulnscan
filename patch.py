@@ -1,26 +1,25 @@
 #!/usr/bin/env python3
 """
-VulnScan Pro — Perspective Dashboard Patch
-===========================================
-Injects a stunning isometric 3D security dashboard into VulnScan Pro.
+VulnScan Pro — Comprehensive Audit Logging Patch
+=================================================
+Ensures every tool use and user action is stored in the audit_log table.
 
-Features:
-  • Animated isometric port-height cubes (taller = more critical)
-  • Real-time scan beam sweep animation across the 3D scene
-  • Live CVE intelligence panel (NVD-linked)
-  • Risk score ring with animated fill
-  • Port activity heatmap (30-day grid)
-  • Isometric host network threat map
-  • Tool status indicators
-  • Activity feed
-  • Perspective color system: critical=red, high=amber, medium=blue, low=green
+Covers:
+  • All scan/tool routes in api_server.py
+  • Admin actions
+  • Agent/Lynis job operations
+  • PDF report generation
+  • Directory busting, subdomain enum, discovery
+  • Brute force (HTTP + SSH)
+  • Social tools (SET, Gophish, Evilginx2, ShellPhish, Netcat, etc.)
+  • Deep web audit + SSE stream
+  • Wordlist API
+  • Auto-install attempts
+  • CLI console commands
+  • Theme changes
 
 Run from project root:
-    python3 vulnscan_perspective_patch.py
-
-Adds routes:
-    GET  /perspective              → standalone perspective dashboard
-    GET  /api/perspective/data     → JSON data feed for the dashboard
+    python3 patch_audit_logging.py
 """
 
 import os
@@ -30,6 +29,7 @@ import shutil
 import subprocess
 from datetime import datetime
 
+# ── colours ──────────────────────────────────────────────────
 G = "\033[92m"; R = "\033[91m"; C = "\033[96m"
 Y = "\033[93m"; B = "\033[1m";  X = "\033[0m"; D = "\033[2m"
 
@@ -38,592 +38,15 @@ def fail(m): print(f"  {R}✗{X}  {m}")
 def warn(m): print(f"  {Y}!{X}  {m}")
 def info(m): print(f"  {C}→{X}  {m}")
 def hdr(m):  print(f"\n{B}{C}── {m} ──{X}")
+def skip(m): print(f"  {D}·{X}  {m}")
 
 TARGET = "api_server.py"
-
-# ── The perspective dashboard HTML ────────────────────────────────────────────
-PERSPECTIVE_HTML = r'''<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>VulnScan Pro — Perspective Dashboard</title>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800;900&family=Oswald:wght@200;300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet"/>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --primary:#00BD7D;--surface:#08090d;--surface2:#0f1118;--surface3:#161921;
-  --border:#1e2230;--border2:#252a3a;--text:#eef0f6;--text2:#8b91a8;--text3:#4a5070;
-  --danger:#DC2626;--warning:#D97706;--success:#16A34A;--info:#2563EB;
-  --accent2:#0ea5e9;
-}
-html,body{min-height:100vh;background:var(--surface);color:var(--text);font-family:'Poppins',sans-serif;overflow-x:hidden}
-body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,189,125,0.03)1px,transparent 1px),linear-gradient(90deg,rgba(0,189,125,0.03)1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
-.layout{display:flex;min-height:100vh;position:relative;z-index:1}
-.sidebar{width:64px;background:var(--surface2);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:20px 0;gap:8px;flex-shrink:0;position:sticky;top:0;height:100vh}
-.sb-logo{width:36px;height:36px;background:var(--primary);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:16px;color:#000;margin-bottom:16px;position:relative}
-.sb-logo::after{content:'';position:absolute;inset:-4px;border-radius:10px;border:1px solid rgba(0,189,125,0.4)}
-.sb-icon{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;color:var(--text3);font-size:18px;position:relative}
-.sb-icon:hover,.sb-icon.active{background:var(--surface3);color:var(--primary)}
-.sb-icon.active::before{content:'';position:absolute;left:-1px;top:50%;transform:translateY(-50%);width:3px;height:20px;background:var(--primary);border-radius:0 2px 2px 0}
-.sb-divider{width:32px;height:1px;background:var(--border);margin:8px 0}
-.main{flex:1;overflow-x:hidden;padding:24px 28px}
-.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}
-.topbar-left{display:flex;align-items:center;gap:12px}
-.breadcrumb{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);letter-spacing:1px;text-transform:uppercase}
-.breadcrumb span{color:var(--primary)}
-.topbar-title{font-family:'Oswald',sans-serif;font-size:26px;font-weight:600;letter-spacing:0.5px;color:var(--text)}
-.topbar-right{display:flex;align-items:center;gap:12px}
-.tb-badge{padding:5px 12px;border-radius:20px;font-size:11px;font-family:'JetBrains Mono',monospace;font-weight:500;letter-spacing:0.5px}
-.tb-badge.live{background:rgba(22,163,74,0.12);color:var(--success);border:1px solid rgba(22,163,74,0.25)}
-.tb-badge.live::before{content:'● ';font-size:9px}
-.user-av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#000;cursor:pointer}
-.iso-hero{width:100%;height:280px;position:relative;margin-bottom:28px;background:var(--surface2);border:1px solid var(--border);border-radius:16px;overflow:hidden}
-.iso-hero-bg{position:absolute;inset:0;background:radial-gradient(ellipse 60% 80% at 70% 50%,rgba(0,189,125,0.06)0%,transparent 70%),radial-gradient(ellipse 40% 60% at 20% 30%,rgba(14,165,233,0.04)0%,transparent 60%)}
-.iso-canvas{position:absolute;inset:0;width:100%;height:100%}
-.iso-stats-row{position:absolute;bottom:0;left:0;right:0;display:flex;gap:1px;border-top:1px solid var(--border)}
-.iso-stat{flex:1;padding:14px 20px;background:rgba(8,9,13,0.7);backdrop-filter:blur(8px);border-right:1px solid var(--border)}
-.iso-stat:last-child{border-right:none}
-.iso-stat-num{font-family:'Oswald',sans-serif;font-size:28px;font-weight:600;line-height:1;color:var(--text);margin-bottom:4px}
-.iso-stat-num span{font-size:18px;color:var(--primary)}
-.iso-stat-lbl{font-size:10px;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;font-family:'JetBrains Mono',monospace}
-.iso-stat-delta{font-size:11px;margin-top:4px}
-.delta-up{color:var(--success)}
-.delta-down{color:var(--danger)}
-.grid-3{display:grid;grid-template-columns:2fr 2fr 1fr;gap:16px;margin-bottom:16px}
-.grid-2{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px}
-.card{background:var(--surface2);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:border-color 0.2s;position:relative}
-.card:hover{border-color:var(--border2)}
-.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,189,125,0.3),transparent);opacity:0;transition:opacity 0.3s}
-.card:hover::before{opacity:1}
-.card-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 0}
-.card-title{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;font-weight:500}
-.card-body{padding:14px 18px 18px}
-.scan-status-dot{width:8px;height:8px;border-radius:50%;background:var(--success);box-shadow:0 0 0 3px rgba(22,163,74,0.2);animation:pulse-dot 2s ease infinite}
-@keyframes pulse-dot{0%,100%{box-shadow:0 0 0 3px rgba(22,163,74,0.2)}50%{box-shadow:0 0 0 6px rgba(22,163,74,0.05)}}
-.scan-target-row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-.scan-target-ip{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--primary);font-weight:500}
-.port-list{display:flex;flex-direction:column;gap:5px}
-.port-row{display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 12px;transition:all 0.15s;cursor:pointer}
-.port-row:hover{border-color:var(--border2);background:var(--surface3)}
-.port-num{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:var(--primary);min-width:44px}
-.port-svc{font-size:12px;color:var(--text);flex:1;font-weight:500}
-.port-ver{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);flex:1}
-.sev-pill{padding:2px 8px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;letter-spacing:0.5px}
-.sev-critical{background:rgba(220,38,38,0.12);color:#ef4444;border:1px solid rgba(220,38,38,0.25)}
-.sev-high{background:rgba(217,119,6,0.12);color:#f59e0b;border:1px solid rgba(217,119,6,0.25)}
-.sev-medium{background:rgba(37,99,235,0.12);color:#60a5fa;border:1px solid rgba(37,99,235,0.25)}
-.sev-low{background:rgba(22,163,74,0.12);color:#4ade80;border:1px solid rgba(22,163,74,0.25)}
-.cve-ticker{display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto}
-.cve-ticker::-webkit-scrollbar{width:3px}
-.cve-ticker::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
-.cve-item{display:flex;gap:10px;padding:10px 12px;background:var(--surface3);border-radius:6px;border-left:3px solid transparent;transition:all 0.15s}
-.cve-item.critical{border-left-color:#ef4444}
-.cve-item.high{border-left-color:#f59e0b}
-.cve-item.medium{border-left-color:#60a5fa}
-.cve-id{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--primary);font-weight:600;min-width:90px}
-.cve-score{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;min-width:28px}
-.cve-desc{font-size:11px;color:var(--text2);line-height:1.5;flex:1}
-.threat-map{position:relative;height:200px;background:var(--surface3);border-radius:8px;overflow:hidden}
-.risk-ring-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px 0}
-.risk-ring{position:relative;width:120px;height:120px}
-.risk-ring-label{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
-.risk-score{font-family:'Oswald',sans-serif;font-size:36px;font-weight:600;line-height:1}
-.risk-grade{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--text3);margin-top:2px}
-.risk-detail{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text3);margin-top:4px;letter-spacing:0.5px}
-.heatmap{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;padding:8px 0}
-.heat-cell{aspect-ratio:1;border-radius:3px;transition:transform 0.15s;cursor:pointer}
-.heat-cell:hover{transform:scale(1.3)}
-.heat-0{background:var(--surface3)}
-.heat-1{background:rgba(0,189,125,0.15)}
-.heat-2{background:rgba(0,189,125,0.3)}
-.heat-3{background:rgba(245,158,11,0.4)}
-.heat-4{background:rgba(220,38,38,0.5)}
-.heat-5{background:#DC2626;box-shadow:0 0 6px rgba(220,38,38,0.4)}
-.activity-feed{display:flex;flex-direction:column;gap:0}
-.activity-item{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);align-items:flex-start}
-.activity-item:last-child{border-bottom:none}
-.activity-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0}
-.activity-content{flex:1}
-.activity-action{font-size:12px;color:var(--text);line-height:1.5}
-.activity-action strong{color:var(--primary)}
-.activity-time{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);margin-top:2px}
-.tool-status-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.tool-badge{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface3);border-radius:6px;border:1px solid var(--border)}
-.tool-indicator{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-.tool-name{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text2);font-weight:500}
-.scan-beam{animation:scan-line 3s ease-in-out infinite}
-@keyframes scan-line{0%{transform:translateY(-100%);opacity:0}20%{opacity:1}80%{opacity:1}100%{transform:translateY(300%);opacity:0}}
-/* Back button */
-.back-btn{
-  display:inline-flex;align-items:center;gap:8px;
-  padding:7px 14px;background:var(--surface2);border:1px solid var(--border);
-  border-radius:8px;color:var(--text2);font-family:'JetBrains Mono',monospace;
-  font-size:11px;text-decoration:none;cursor:pointer;
-  transition:all 0.15s;margin-bottom:12px;
-}
-.back-btn:hover{border-color:var(--primary);color:var(--primary)}
-@media(max-width:900px){.grid-3{grid-template-columns:1fr 1fr}.grid-2{grid-template-columns:1fr}}
-@media(max-width:640px){.grid-3{grid-template-columns:1fr}.sidebar{width:52px}.main{padding:16px}}
-</style>
-</head>
-<body>
-<div class="layout">
-<aside class="sidebar">
-  <div class="sb-logo">V</div>
-  <div class="sb-icon" title="Back to VulnScan" onclick="window.location='/'">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
-  </div>
-  <div class="sb-divider"></div>
-  <div class="sb-icon active" title="Perspective Dashboard">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-  </div>
-  <div class="sb-icon" onclick="window.location='/'" title="Network Scanner">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
-  </div>
-  <div class="sb-icon" onclick="window.location='/'" title="Lynis Audit" style="margin-top:auto">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-  </div>
-</aside>
-<main class="main">
-  <div style="margin-bottom:8px">
-    <a href="/" class="back-btn">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
-      Back to VulnScan
-    </a>
-  </div>
-  <div class="topbar">
-    <div class="topbar-left">
-      <div>
-        <div class="breadcrumb">VULNSCAN PRO / <span>PERSPECTIVE DASHBOARD</span></div>
-        <div class="topbar-title">Security Intelligence</div>
-      </div>
-    </div>
-    <div class="topbar-right">
-      <div class="tb-badge live">LIVE MONITORING</div>
-      <div class="user-av" id="user-av-char">V</div>
-    </div>
-  </div>
-
-  <!-- ISOMETRIC HERO -->
-  <div class="iso-hero">
-    <div class="iso-hero-bg"></div>
-    <canvas class="iso-canvas" id="iso-canvas"></canvas>
-    <div style="position:absolute;top:20px;left:24px;z-index:2">
-      <div style="font-family:'Oswald',sans-serif;font-size:20px;font-weight:500;color:var(--text);letter-spacing:0.5px">Active Threat Surface</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:1px">REAL-TIME 3D PORT MAP · ISOMETRIC VIEW · <span style="color:var(--primary)" id="scan-state">LOADING</span></div>
-    </div>
-    <div class="iso-stats-row">
-      <div class="iso-stat"><div class="iso-stat-num"><span id="cnt-ports">—</span></div><div class="iso-stat-lbl">Open Ports</div><div class="iso-stat-delta delta-down" id="ports-note">loading...</div></div>
-      <div class="iso-stat"><div class="iso-stat-num" style="color:#ef4444"><span id="cnt-crit">—</span></div><div class="iso-stat-lbl">Critical CVEs</div><div class="iso-stat-delta delta-down" id="crit-note">loading...</div></div>
-      <div class="iso-stat"><div class="iso-stat-num"><span id="cnt-scans">—</span></div><div class="iso-stat-lbl">Total Scans</div><div class="iso-stat-delta delta-up" id="scans-note">loading...</div></div>
-      <div class="iso-stat"><div class="iso-stat-num" style="color:#f59e0b"><span id="cnt-score">—</span><span>/100</span></div><div class="iso-stat-lbl">Avg Risk Score</div><div class="iso-stat-delta" style="color:var(--warning)" id="score-note">loading...</div></div>
-    </div>
-  </div>
-
-  <!-- ROW 1 -->
-  <div class="grid-3">
-    <div class="card">
-      <div class="card-hd">
-        <div class="card-title">Latest Port Findings</div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <div class="scan-status-dot"></div>
-          <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--success)">LIVE</span>
-        </div>
-      </div>
-      <div class="card-body">
-        <div id="ports-panel">
-          <div style="color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:11px">Loading port data...</div>
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-hd">
-        <div class="card-title">CVE Intelligence</div>
-        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--primary)">NVD API</span>
-      </div>
-      <div class="card-body">
-        <div class="cve-ticker" id="cve-panel">
-          <div style="color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:11px">Loading CVE data from recent scans...</div>
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-hd"><div class="card-title">Risk Score</div></div>
-      <div class="card-body" style="padding-top:8px">
-        <div class="risk-ring-wrap">
-          <div class="risk-ring">
-            <svg viewBox="0 0 120 120" width="120" height="120">
-              <circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface3)" stroke-width="8"/>
-              <circle cx="60" cy="60" r="50" fill="none" id="risk-arc" stroke="#f59e0b" stroke-width="8"
-                stroke-dasharray="314" stroke-dashoffset="200"
-                stroke-linecap="round" transform="rotate(-90 60 60)"
-                style="transition:stroke-dashoffset 1.5s ease,stroke 0.5s ease"/>
-            </svg>
-            <div class="risk-ring-label">
-              <div class="risk-score" id="risk-num" style="color:#f59e0b">—</div>
-              <div class="risk-grade">/ 100</div>
-            </div>
-          </div>
-          <div class="risk-meta" id="risk-label" style="color:#f59e0b;font-weight:600;font-size:12px">CALCULATING</div>
-          <div class="risk-detail" id="risk-breakdown">—</div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px" id="sev-bars"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ROW 2 -->
-  <div class="grid-2">
-    <div class="card">
-      <div class="card-hd">
-        <div class="card-title">Port Activity Heatmap</div>
-        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3)">SCAN FREQUENCY</span>
-      </div>
-      <div class="card-body">
-        <div class="heatmap" id="heatmap"></div>
-        <div style="display:flex;gap:6px;align-items:center;margin-top:8px">
-          <span style="font-size:10px;color:var(--text3)">less</span>
-          <div style="width:12px;height:12px;border-radius:2px;background:var(--surface3)"></div>
-          <div style="width:12px;height:12px;border-radius:2px;background:rgba(0,189,125,0.15)"></div>
-          <div style="width:12px;height:12px;border-radius:2px;background:rgba(0,189,125,0.3)"></div>
-          <div style="width:12px;height:12px;border-radius:2px;background:rgba(245,158,11,0.4)"></div>
-          <div style="width:12px;height:12px;border-radius:2px;background:rgba(220,38,38,0.5)"></div>
-          <div style="width:12px;height:12px;border-radius:2px;background:#DC2626"></div>
-          <span style="font-size:10px;color:var(--text3)">more</span>
-        </div>
-        <div class="threat-map" style="margin-top:12px">
-          <svg viewBox="0 0 600 200" width="100%" height="200" xmlns="http://www.w3.org/2000/svg">
-            <defs><pattern id="grid-p" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(0,189,125,0.06)" stroke-width="0.5"/></pattern></defs>
-            <rect width="600" height="200" fill="url(#grid-p)"/>
-            <g transform="translate(60,80)"><polygon points="0,-40 34,-20 34,20 0,0" fill="#7f1d1d" stroke="#ef4444" stroke-width="0.5"/><polygon points="0,-40 -34,-20 -34,20 0,0" fill="#991b1b" stroke="#ef4444" stroke-width="0.5"/><polygon points="-34,-20 0,-40 34,-20 0,0" fill="#ef4444" stroke="#fca5a5" stroke-width="0.5"/><text y="-44" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="8" fill="#ef4444" id="h1-label">host 1</text><text y="-35" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="7" fill="#fca5a5" id="h1-cves">—</text></g>
-            <g transform="translate(180,60)"><polygon points="0,-30 25,-15 25,15 0,0" fill="#78350f" stroke="#f59e0b" stroke-width="0.5"/><polygon points="0,-30 -25,-15 -25,15 0,0" fill="#92400e" stroke="#f59e0b" stroke-width="0.5"/><polygon points="-25,-15 0,-30 25,-15 0,0" fill="#f59e0b" stroke="#fcd34d" stroke-width="0.5"/><text y="-33" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="8" fill="#f59e0b" id="h2-label">host 2</text></g>
-            <g transform="translate(300,90)"><polygon points="0,-22 18,-11 18,11 0,0" fill="#1e3a5f" stroke="#60a5fa" stroke-width="0.5"/><polygon points="0,-22 -18,-11 -18,11 0,0" fill="#1e40af" stroke="#60a5fa" stroke-width="0.5"/><polygon points="-18,-11 0,-22 18,-11 0,0" fill="#60a5fa" stroke="#93c5fd" stroke-width="0.5"/><text y="-25" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="8" fill="#60a5fa">medium</text></g>
-            <g transform="translate(420,70)"><polygon points="0,-18 15,-9 15,9 0,0" fill="#14532d" stroke="#4ade80" stroke-width="0.5"/><polygon points="0,-18 -15,-9 -15,9 0,0" fill="#166534" stroke="#4ade80" stroke-width="0.5"/><polygon points="-15,-9 0,-18 15,-9 0,0" fill="#4ade80" stroke="#86efac" stroke-width="0.5"/><text y="-21" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="8" fill="#4ade80">low risk</text></g>
-            <g transform="translate(520,85)"><polygon points="0,-14 12,-7 12,7 0,0" fill="#14532d" stroke="#4ade80" stroke-width="0.5"/><polygon points="0,-14 -12,-7 -12,7 0,0" fill="#166534" stroke="#4ade80" stroke-width="0.5"/><polygon points="-12,-7 0,-14 12,-7 0,0" fill="#4ade80" stroke="#86efac" stroke-width="0.5"/></g>
-            <line x1="60" y1="80" x2="180" y2="60" stroke="rgba(239,68,68,0.3)" stroke-width="1" stroke-dasharray="4,2"/>
-            <line x1="60" y1="80" x2="300" y2="90" stroke="rgba(239,68,68,0.2)" stroke-width="0.5" stroke-dasharray="4,2"/>
-            <line x1="180" y1="60" x2="420" y2="70" stroke="rgba(245,158,11,0.2)" stroke-width="0.5" stroke-dasharray="4,2"/>
-            <line x1="420" y1="70" x2="520" y2="85" stroke="rgba(74,222,128,0.2)" stroke-width="0.5" stroke-dasharray="4,2"/>
-            <rect x="0" y="0" width="600" height="2" fill="rgba(0,189,125,0.4)" class="scan-beam"/>
-          </svg>
-        </div>
-      </div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:16px">
-      <div class="card">
-        <div class="card-hd"><div class="card-title">Recent Activity</div></div>
-        <div class="card-body" style="padding-top:10px">
-          <div class="activity-feed" id="activity-feed">
-            <div style="color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:11px">Loading activity...</div>
-          </div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-hd"><div class="card-title">Tool Status</div></div>
-        <div class="card-body" style="padding-top:10px">
-          <div class="tool-status-grid" id="tool-status">
-            <div style="color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:11px;grid-column:span 2">Checking tool availability...</div>
-          </div>
-          <div style="margin-top:10px;padding:8px 10px;background:var(--surface3);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3)" id="tor-status">
-            Checking Tor...
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</main>
-</div>
-
-<script>
-const canvas=document.getElementById('iso-canvas');
-const ctx=canvas.getContext('2d');
-function resize(){canvas.width=canvas.offsetWidth*devicePixelRatio;canvas.height=canvas.offsetHeight*devicePixelRatio;ctx.scale(devicePixelRatio,devicePixelRatio);}
-resize();window.addEventListener('resize',resize);
-const W=()=>canvas.offsetWidth,H=()=>canvas.offsetHeight;
-function isoProject(x,y,z){return{x:(x-y)*Math.cos(Math.PI/6),y:(x+y)*Math.sin(Math.PI/6)-z};}
-const COLORS={critical:['#7f1d1d','#991b1b','#ef4444'],high:['#78350f','#92400e','#f59e0b'],medium:['#1e3a5f','#1e40af','#60a5fa'],low:['#14532d','#166534','#4ade80']};
-function drawCube(cx,cy,s,h,cs,alpha=1){
-  ctx.globalAlpha=alpha;
-  function face(pts,fill,stroke){ctx.beginPath();pts.forEach((p,i)=>{i===0?ctx.moveTo(cx+p.x,cy+p.y):ctx.lineTo(cx+p.x,cy+p.y);});ctx.closePath();ctx.fillStyle=fill;ctx.fill();ctx.strokeStyle=stroke;ctx.lineWidth=0.3;ctx.stroke();}
-  face([isoProject(-s/2,0,h),isoProject(-s/2,0,0),isoProject(0,s/2,0),isoProject(0,s/2,h)],cs[0],cs[2]);
-  face([isoProject(0,s/2,h),isoProject(0,s/2,0),isoProject(s/2,0,0),isoProject(s/2,0,h)],cs[1],cs[2]);
-  face([isoProject(-s/2,0,h),isoProject(0,-s/2,h),isoProject(s/2,0,h),isoProject(0,s/2,h)],cs[2],cs[2]+'88');
-  ctx.globalAlpha=1;
-}
-let PORTS_DATA=[{id:'22',risk:'critical',h:70},{id:'80',risk:'critical',h:65},{id:'443',risk:'high',h:50},{id:'8080',risk:'high',h:45},{id:'3306',risk:'medium',h:38},{id:'6379',risk:'high',h:42},{id:'5432',risk:'low',h:25},{id:'21',risk:'medium',h:30},{id:'25',risk:'medium',h:28},{id:'53',risk:'low',h:18},{id:'161',risk:'low',h:15},{id:'9200',risk:'high',h:40}];
-let scanOffset=0;
-function drawScene(){
-  const w=W(),h=H()-70;
-  ctx.clearRect(0,0,w,h+70);
-  const vig=ctx.createRadialGradient(w/2,h/2,h*0.3,w/2,h/2,h*0.9);
-  vig.addColorStop(0,'transparent');vig.addColorStop(1,'rgba(8,9,13,0.5)');
-  ctx.fillStyle=vig;ctx.fillRect(0,0,w,h);
-  ctx.strokeStyle='rgba(0,189,125,0.05)';ctx.lineWidth=0.5;
-  const gs=Math.min(w,h)*0.06,gn=14,ox=w*0.5,oy=h*0.55;
-  for(let i=-gn;i<=gn;i++){
-    const pa=isoProject(i*gs,-gn*gs,0),pb=isoProject(i*gs,gn*gs,0);
-    const pc=isoProject(-gn*gs,i*gs,0),pd=isoProject(gn*gs,i*gs,0);
-    ctx.beginPath();ctx.moveTo(ox+pa.x,oy+pa.y);ctx.lineTo(ox+pb.x,oy+pb.y);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(ox+pc.x,oy+pc.y);ctx.lineTo(ox+pd.x,oy+pd.y);ctx.stroke();
-  }
-  const cols=6,rows=2,sp=gs*1.8;
-  const sx=-(cols-1)*sp/2,sy=-(rows-1)*sp/2;
-  PORTS_DATA.forEach((port,i)=>{
-    const col=i%cols,row=Math.floor(i/cols);
-    const x=sx+col*sp,y=sy+row*sp,s=gs*0.7;
-    const fy=Math.sin(Date.now()*0.001+i*0.8)*3;
-    const proj=isoProject(x,y,0);
-    drawCube(ox+proj.x,oy+proj.y-fy,s,port.h*0.5,COLORS[port.risk],0.6+0.4*Math.sin(Date.now()*0.0008+i));
-    const tp=isoProject(x,y,port.h*0.5);
-    ctx.fillStyle=COLORS[port.risk][2];ctx.font="500 9px 'JetBrains Mono',monospace";
-    ctx.textAlign='center';ctx.fillText(':'+port.id,ox+tp.x,oy+tp.y-fy-5);
-  });
-  scanOffset=(scanOffset+0.8)%(h+40);
-  const bg=ctx.createLinearGradient(0,scanOffset-10,0,scanOffset+2);
-  bg.addColorStop(0,'rgba(0,189,125,0)');bg.addColorStop(0.5,'rgba(0,189,125,0.25)');bg.addColorStop(1,'rgba(0,189,125,0)');
-  ctx.fillStyle=bg;ctx.fillRect(0,scanOffset-10,w,12);
-  requestAnimationFrame(drawScene);
-}
-drawScene();
-
-/* Heatmap */
-const hm=document.getElementById('heatmap');
-Array.from({length:84}).forEach(()=>{
-  const r=Math.random(),v=r>0.97?5:r>0.92?4:r>0.80?3:r>0.65?2:r>0.45?1:0;
-  const c=document.createElement('div');c.className='heat-cell heat-'+v;hm.appendChild(c);
-});
-
-/* Animated counter */
-function animCount(el,target,dur=1000){
-  const s=Date.now();
-  const u=()=>{const p=Math.min((Date.now()-s)/dur,1);const e=1-Math.pow(1-p,3);el.textContent=Math.floor(e*target);if(p<1)requestAnimationFrame(u);};requestAnimationFrame(u);
-}
-
-/* Load live data from VulnScan API */
-async function loadDashData(){
-  document.getElementById('scan-state').textContent='LOADING';
-  try{
-    /* User info */
-    const me=await fetch('/api/me').then(r=>r.json()).catch(()=>({}));
-    if(me.username){
-      document.getElementById('user-av-char').textContent=me.username[0].toUpperCase();
-    }
-
-    /* Scan history */
-    const hist=await fetch('/history?limit=50').then(r=>r.json()).catch(()=>[]);
-    const scans=Array.isArray(hist)?hist:(hist.scans||[]);
-    const totalCrit=scans.reduce((a,s)=>a+(s.critical_cves||0),0);
-    const totalCVEs=scans.reduce((a,s)=>a+(s.total_cves||0),0);
-    const totalPorts=scans.reduce((a,s)=>a+(s.open_ports||0),0);
-    const avgScore=scans.length?Math.min(100,Math.round((totalCrit*22+totalCVEs*3)/Math.max(scans.length,1)*2)):0;
-
-    document.getElementById('scan-state').textContent='LIVE';
-    animCount(document.getElementById('cnt-ports'),totalPorts,1500);
-    animCount(document.getElementById('cnt-crit'),totalCrit,1200);
-    animCount(document.getElementById('cnt-scans'),scans.length,1800);
-    animCount(document.getElementById('cnt-score'),avgScore,2000);
-    document.getElementById('ports-note').textContent='across '+scans.length+' scans';
-    document.getElementById('crit-note').textContent=totalCVEs+' total CVEs found';
-    document.getElementById('scans-note').textContent='scan history loaded';
-    document.getElementById('score-note').textContent=avgScore>60?'HIGH RISK':avgScore>30?'MEDIUM RISK':'LOW RISK';
-
-    /* Risk ring */
-    const arc=document.getElementById('risk-arc');
-    const rn=document.getElementById('risk-num');
-    const rl=document.getElementById('risk-label');
-    const rb=document.getElementById('risk-breakdown');
-    const pct=avgScore/100;
-    arc.setAttribute('stroke-dashoffset',String(314-(314*pct)));
-    arc.setAttribute('stroke',avgScore>70?'#ef4444':avgScore>40?'#f59e0b':'#4ade80');
-    setTimeout(()=>{animCount(rn,avgScore,1500);},300);
-    rl.textContent=avgScore>70?'HIGH RISK':avgScore>40?'MEDIUM RISK':'LOW RISK';
-    rl.style.color=avgScore>70?'#ef4444':avgScore>40?'#f59e0b':'#4ade80';
-    rb.textContent=totalCrit+' critical · '+totalCVEs+' total CVEs';
-
-    /* Sev bars */
-    const highCount=scans.reduce((a,s)=>a+((s.total_cves||0)-(s.critical_cves||0)),0);
-    const svBars=[
-      {label:'CRITICAL',count:totalCrit,color:'#ef4444',max:Math.max(totalCrit,1)},
-      {label:'HIGH+',count:highCount,color:'#f59e0b',max:Math.max(highCount,1)},
-    ];
-    document.getElementById('sev-bars').innerHTML=svBars.map(b=>`
-      <div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-          <span style="font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace">${b.label}</span>
-          <span style="font-size:10px;color:${b.color};font-family:'JetBrains Mono',monospace">${b.count}</span>
-        </div>
-        <div style="height:4px;background:var(--surface3);border-radius:2px">
-          <div style="width:${Math.min(100,b.count/Math.max(b.max,1)*100)}%;height:100%;background:${b.color};border-radius:2px;transition:width 1.2s ease"></div>
-        </div>
-      </div>`).join('');
-
-    /* Port panel from latest scan */
-    const latest=scans[0];
-    if(latest){
-      const scanDetail=await fetch('/scan/'+latest.id).then(r=>r.json()).catch(()=>null);
-      const ports=(scanDetail?.modules?.ports?.hosts||[]).flatMap(h=>h.ports||[]);
-      if(ports.length){
-        PORTS_DATA=ports.slice(0,12).map(p=>({
-          id:String(p.port),
-          risk:p.risk_level==='CRITICAL'?'critical':p.risk_level==='HIGH'?'high':p.risk_level==='MEDIUM'?'medium':'low',
-          h:{CRITICAL:70,HIGH:50,MEDIUM:35,LOW:20}[p.risk_level]||20
-        }));
-        const hostsArr=(scanDetail?.modules?.ports?.hosts||[]);
-        if(hostsArr[0]){document.getElementById('h1-label').textContent=hostsArr[0].ip||'host 1';document.getElementById('h1-cves').textContent=(hostsArr[0].ports||[]).reduce((a,p)=>a+(p.cves||[]).length,0)+' CVEs';}
-        document.getElementById('ports-panel').innerHTML=`
-          <div class="scan-target-row">
-            <span class="scan-target-ip">${latest.target}</span>
-            <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3)">· ${ports.length} open</span>
-          </div>
-          <div class="port-list">
-            ${ports.slice(0,7).map(p=>`
-            <div class="port-row">
-              <span class="port-num">${p.port}</span>
-              <span class="port-svc">${p.product||p.service||'unknown'}</span>
-              <span class="port-ver">${p.version||''}</span>
-              <span class="sev-pill sev-${(p.risk_level||'low').toLowerCase()}">${p.risk_level||'LOW'}</span>
-            </div>`).join('')}
-          </div>`;
-
-        /* CVE panel */
-        const allCVEs=ports.flatMap(p=>p.cves||[]).sort((a,b)=>(b.score||0)-(a.score||0));
-        if(allCVEs.length){
-          document.getElementById('cve-panel').innerHTML=allCVEs.slice(0,8).map(c=>`
-            <div class="cve-item ${c.severity?.toLowerCase()||'medium'}">
-              <div class="cve-id"><a href="${(c.references||[''])[0]||'#'}" target="_blank" style="color:var(--primary);text-decoration:none">${c.id}</a></div>
-              <div class="cve-score" style="color:${(c.score||0)>=9?'#ef4444':(c.score||0)>=7?'#f59e0b':'#60a5fa'}">${c.score||'?'}</div>
-              <div class="cve-desc">${(c.description||'').slice(0,80)}${(c.description||'').length>80?'...':''}</div>
-            </div>`).join('');
-        }
-      }
-    }
-
-    /* Activity feed from history */
-    const actItems=scans.slice(0,5).map(s=>{
-      const dot=s.critical_cves>0?'#ef4444':s.total_cves>0?'#f59e0b':'var(--primary)';
-      const msg=s.critical_cves>0?`<strong>CRITICAL</strong> ${s.critical_cves} critical CVEs`:`<strong>Scan</strong> ${s.open_ports} open ports · ${s.total_cves} CVEs`;
-      const t=(s.scan_time||'').replace('T',' ').slice(0,16);
-      return`<div class="activity-item"><div class="activity-dot" style="background:${dot}"></div><div class="activity-content"><div class="activity-action">${msg}</div><div class="activity-time">${t} · ${s.target}</div></div></div>`;
-    }).join('');
-    document.getElementById('activity-feed').innerHTML=actItems||'<div style="color:var(--text3);font-family:JetBrains Mono,monospace;font-size:11px">No scan history yet.</div>';
-
-    /* Health/tool status */
-    const health=await fetch('/health').then(r=>r.json()).catch(()=>({}));
-    const TOOLS=[
-      {name:'nmap',ok:health.nmap},
-      {name:'nikto',ok:health.nikto},
-      {name:'lynis',ok:health.lynis},
-      {name:'dnsrecon',ok:health.dnsrecon},
-      {name:'theHarvester',ok:health.theharvester},
-      {name:'proxychains4',ok:health.proxychains4},
-      {name:'tor',ok:health.tor_running},
-      {name:'dig',ok:health.dig},
-    ];
-    document.getElementById('tool-status').innerHTML=TOOLS.map(t=>`
-      <div class="tool-badge">
-        <div class="tool-indicator" style="background:${t.ok?'var(--success)':'var(--danger)'}"></div>
-        <span class="tool-name">${t.name}</span>
-      </div>`).join('');
-    document.getElementById('tor-status').innerHTML=`TOR SOCKS5 · 127.0.0.1:${health.tor_port||9050} · <span style="color:${health.tor_running?'var(--success)':'var(--danger)'}">${health.tor_running?'CONNECTED':'OFFLINE'}</span>`;
-
-  }catch(e){
-    document.getElementById('scan-state').textContent='ERROR';
-    console.error('Perspective dashboard data load failed:',e);
-  }
-}
-loadDashData();
-</script>
-</body>
-</html>'''
-
-# ── Route code to inject ──────────────────────────────────────────────────────
-ROUTE_CODE = r'''
-
-# ════════════════════════════════════════════════════════════════════════════
-# PERSPECTIVE DASHBOARD — Isometric 3D Security Intelligence Dashboard
-# Route added by vulnscan_perspective_patch.py
-# ════════════════════════════════════════════════════════════════════════════
-
-_PERSPECTIVE_HTML = ''' + "'''" + r'''PERSPECTIVE_HTML_PLACEHOLDER''' + "'''" + r'''
-
-@app.route("/perspective")
-def perspective_dashboard():
-    """Perspective isometric 3D security dashboard."""
-    u = get_current_user()
-    if not u:
-        return "<script>window.location='/'</script>", 302
-    audit(u["id"], u["username"], "PERSPECTIVE_DASHBOARD_VIEW",
-          target="perspective", ip=request.remote_addr,
-          details="isometric_dashboard_access")
-    return _PERSPECTIVE_HTML
-
-
-@app.route("/api/perspective/data")
-def perspective_data():
-    """
-    Live data feed for the perspective dashboard.
-    Returns aggregated scan statistics for charting.
-    """
-    u = get_current_user()
-    if not u:
-        return jsonify({"error": "Login required"}), 401
-
-    from database import get_history, get_scan_stats
-    uid = u["id"]
-    role = u.get("role", "user")
-
-    scans = get_history(50, user_id=None if role == "admin" else uid)
-    stats = get_scan_stats()
-
-    total_crit  = sum(s.get("critical_cves", 0) or 0 for s in scans)
-    total_cves  = sum(s.get("total_cves",    0) or 0 for s in scans)
-    total_ports = sum(s.get("open_ports",    0) or 0 for s in scans)
-    avg_score   = min(100, round(
-        (total_crit * 22 + total_cves * 3) / max(len(scans), 1) * 2
-    )) if scans else 0
-
-    risk_label = "HIGH" if avg_score > 60 else "MEDIUM" if avg_score > 30 else "LOW"
-
-    return jsonify({
-        "summary": {
-            "total_scans":   len(scans),
-            "total_ports":   total_ports,
-            "total_cves":    total_cves,
-            "critical_cves": total_crit,
-            "avg_risk_score": avg_score,
-            "risk_label":    risk_label,
-        },
-        "recent_scans": scans[:10],
-        "platform":     stats,
-        "note": "Perspective dashboard data feed"
-    })
-
-# ── Sidebar nav link helper (JS snippet served to main UI) ───────────────────
-@app.route("/api/perspective/nav-snippet")
-def perspective_nav_snippet():
-    """Returns a JS snippet to inject the perspective link into the main sidebar."""
-    snippet = """
-(function(){
-  var nav = document.querySelector('.sidebar nav');
-  if(!nav) return;
-  var btn = document.createElement('button');
-  btn.className = 'nav-item';
-  btn.innerHTML = '<span class="ni">&#11042;</span> Perspective';
-  btn.title = 'Isometric 3D Security Dashboard';
-  btn.onclick = function(){ window.location = '/perspective'; };
-  btn.style.cssText = 'border-top:1px solid var(--border);margin-top:8px;padding-top:12px;color:var(--primary);font-weight:500';
-  nav.appendChild(btn);
-})();
-"""
-    return snippet, 200, {"Content-Type": "application/javascript"}
-
-'''
+RESULTS = {"applied": 0, "skipped": 0, "failed": 0}
 
 
 def backup(path):
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    bak = f"{path}.perspective_{ts}.bak"
+    bak = f"{path}.audit_patch_{ts}.bak"
     shutil.copy2(path, bak)
     return bak
 
@@ -646,11 +69,868 @@ def syntax_check(path):
     return r.returncode == 0, r.stderr.strip()
 
 
+def apply_patch(src, label, old, new):
+    if old in src:
+        result = src.replace(old, new, 1)
+        ok(label)
+        RESULTS["applied"] += 1
+        return result
+    elif new in src:
+        skip(f"{label} (already applied)")
+        RESULTS["skipped"] += 1
+        return src
+    else:
+        fail(f"{label} — anchor not found")
+        RESULTS["failed"] += 1
+        return src
+
+
+# ══════════════════════════════════════════════════════════════
+# PATCH DEFINITIONS
+# Each tuple: (label, old_text, new_text)
+# ══════════════════════════════════════════════════════════════
+
+PATCHES = []
+
+# ─────────────────────────────────────────────────────────────
+# 1. /scan route — add detailed audit with modules & profile
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "SCAN route — full audit with modules/profile/CVE summary",
+    '''        if "error" not in data:
+            data["scan_id"] = save_scan(target, data, user_id=uid, modules=modules)
+            audit(uid, uname, "SCAN", target=target, ip=request.remote_addr,
+                  details=f"modules={modules};profile={nmapProfile}")''',
+    '''        if "error" not in data:
+            data["scan_id"] = save_scan(target, data, user_id=uid, modules=modules)
+            _s = data.get("summary", {})
+            audit(uid, uname, "SCAN", target=target, ip=request.remote_addr,
+                  details=(
+                      f"modules={modules};profile={nmapProfile};"
+                      f"open_ports={_s.get('open_ports',0)};"
+                      f"total_cves={_s.get('total_cves',0)};"
+                      f"critical_cves={_s.get('critical_cves',0)};"
+                      f"exploitable={_s.get('exploitable',0)}"
+                  ))'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 2. /subdomains — add result count to audit
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "SUBDOMAINS route — audit with result count",
+    '''    user = get_current_user()
+    audit(user["id"] if user else None, user["username"] if user else "anon",
+          "SUBDOMAIN_ENUM", target=domain, ip=request.remote_addr)
+    try:
+        return jsonify(run_backend("--subdomains", domain, size, timeout=TIMEOUT_SUBDOMAIN))''',
+    '''    user = get_current_user()
+    audit(user["id"] if user else None, user["username"] if user else "anon",
+          "SUBDOMAIN_ENUM", target=domain, ip=request.remote_addr,
+          details=f"size={size}")
+    try:
+        _sub_result = run_backend("--subdomains", domain, size, timeout=TIMEOUT_SUBDOMAIN)
+        _sub_count = _sub_result.get("total", 0) if isinstance(_sub_result, dict) else 0
+        audit(user["id"] if user else None, user["username"] if user else "anon",
+              "SUBDOMAIN_ENUM_RESULT", target=domain, ip=request.remote_addr,
+              details=f"size={size};found={_sub_count}")
+        return jsonify(_sub_result)'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 3. /dirbust — audit with wordlist size and result count
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "DIRBUST route — audit with size/ext/result count",
+    '''    user = get_current_user()
+    audit(user["id"] if user else None, user["username"] if user else "anon",
+          "DIR_ENUM", target=url, ip=request.remote_addr)
+    try:
+        return jsonify(run_backend("--dirbust", url, size, ext, timeout=TIMEOUT_DIRBUST))''',
+    '''    user = get_current_user()
+    audit(user["id"] if user else None, user["username"] if user else "anon",
+          "DIR_ENUM", target=url, ip=request.remote_addr,
+          details=f"size={size};ext={ext}")
+    try:
+        _dir_result = run_backend("--dirbust", url, size, ext, timeout=TIMEOUT_DIRBUST)
+        _dir_found = _dir_result.get("total", 0) if isinstance(_dir_result, dict) else 0
+        audit(user["id"] if user else None, user["username"] if user else "anon",
+              "DIR_ENUM_RESULT", target=url, ip=request.remote_addr,
+              details=f"size={size};ext={ext};found={_dir_found}")
+        return jsonify(_dir_result)'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 4. /brute-http — audit with attempt/found counts
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "BRUTE-HTTP route — audit with credentials found count",
+    '''    user = get_current_user()
+    audit(user["id"] if user else None, user["username"] if user else "anon",
+          "BRUTE_HTTP", target=url, ip=request.remote_addr)
+    users = ",".join(d.get("users", [])[:10])
+    pwds = ",".join(d.get("passwords", [])[:50])
+    uf = d.get("user_field", "username")
+    pf = d.get("pass_field", "password")
+    try:
+        return jsonify(run_backend("--brute-http", url, users, pwds, uf, pf,
+                                   timeout=TIMEOUT_BRUTE))''',
+    '''    user = get_current_user()
+    _bh_users = d.get("users", [])[:10]
+    _bh_pwds  = d.get("passwords", [])[:50]
+    audit(user["id"] if user else None, user["username"] if user else "anon",
+          "BRUTE_HTTP", target=url, ip=request.remote_addr,
+          details=f"users={len(_bh_users)};passwords={len(_bh_pwds)}")
+    users = ",".join(_bh_users)
+    pwds  = ",".join(_bh_pwds)
+    uf = d.get("user_field", "username")
+    pf = d.get("pass_field", "password")
+    try:
+        _bh_result = run_backend("--brute-http", url, users, pwds, uf, pf,
+                                  timeout=TIMEOUT_BRUTE)
+        _bh_found = len(_bh_result.get("found", [])) if isinstance(_bh_result, dict) else 0
+        audit(user["id"] if user else None, user["username"] if user else "anon",
+              "BRUTE_HTTP_RESULT", target=url, ip=request.remote_addr,
+              details=f"attempts={_bh_result.get('attempts',0) if isinstance(_bh_result,dict) else 0};found={_bh_found}")
+        return jsonify(_bh_result)'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 5. /brute-ssh — audit with result
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "BRUTE-SSH route — audit with credentials found count",
+    '''    user = get_current_user()
+    audit(user["id"] if user else None, user["username"] if user else "anon",
+          "BRUTE_SSH", target=host, ip=request.remote_addr)
+    users = ",".join(d.get("users", [])[:5])
+    pwds = ",".join(d.get("passwords", [])[:20])
+    try:
+        return jsonify(run_backend("--brute-ssh", host, port, users, pwds,
+                                   timeout=TIMEOUT_BRUTE))''',
+    '''    user = get_current_user()
+    _bs_users = d.get("users", [])[:5]
+    _bs_pwds  = d.get("passwords", [])[:20]
+    audit(user["id"] if user else None, user["username"] if user else "anon",
+          "BRUTE_SSH", target=host, ip=request.remote_addr,
+          details=f"port={port};users={len(_bs_users)};passwords={len(_bs_pwds)}")
+    users = ",".join(_bs_users)
+    pwds  = ",".join(_bs_pwds)
+    try:
+        _bs_result = run_backend("--brute-ssh", host, port, users, pwds,
+                                  timeout=TIMEOUT_BRUTE)
+        _bs_found = len(_bs_result.get("found", [])) if isinstance(_bs_result, dict) else 0
+        audit(user["id"] if user else None, user["username"] if user else "anon",
+              "BRUTE_SSH_RESULT", target=host, ip=request.remote_addr,
+              details=f"port={port};attempts={_bs_result.get('attempts',0) if isinstance(_bs_result,dict) else 0};found={_bs_found}")
+        return jsonify(_bs_result)'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 6. /social-tools/run — enhance existing audit with exit code
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "SOCIAL-TOOLS/RUN — audit start + result with exit code",
+    '''    user = get_current_user()
+    audit(user["id"] if user else None, user["username"] if user else "anon",
+          "SOCIAL_TOOL_RUN", target=tool, ip=request.remote_addr,
+          details=f"operation={operation};cmd={' '.join(cmd[:5])}")
+
+    start = time.monotonic()
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        elapsed = int((time.monotonic() - start) * 1000)
+        return jsonify({''',
+    '''    user = get_current_user()
+    audit(user["id"] if user else None, user["username"] if user else "anon",
+          "SOCIAL_TOOL_RUN", target=tool, ip=request.remote_addr,
+          details=f"operation={operation};args={args_text[:120]};cmd={' '.join(cmd[:5])}")
+
+    start = time.monotonic()
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        elapsed = int((time.monotonic() - start) * 1000)
+        audit(user["id"] if user else None, user["username"] if user else "anon",
+              "SOCIAL_TOOL_RESULT", target=tool, ip=request.remote_addr,
+              details=f"exit_code={proc.returncode};duration_ms={elapsed};operation={operation}")
+        return jsonify({'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 7. /discover — audit with subnet and result count
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "DISCOVER route — audit with subnet and host count",
+    '''    if not re.match(r'^[0-9./]+$', subnet):
+        return jsonify({"error": "Invalid subnet"}), 400
+    try:
+        return jsonify(run_backend("--discover", subnet, timeout=TIMEOUT_DISCOVER))''',
+    '''    if not re.match(r'^[0-9./]+$', subnet):
+        return jsonify({"error": "Invalid subnet"}), 400
+    _disc_user = get_current_user()
+    audit(_disc_user["id"] if _disc_user else None,
+          _disc_user["username"] if _disc_user else "anon",
+          "NETWORK_DISCOVER", target=subnet, ip=request.remote_addr,
+          details=f"subnet={subnet}")
+    try:
+        _disc_result = run_backend("--discover", subnet, timeout=TIMEOUT_DISCOVER)
+        _disc_hosts = _disc_result.get("total", 0) if isinstance(_disc_result, dict) else 0
+        audit(_disc_user["id"] if _disc_user else None,
+              _disc_user["username"] if _disc_user else "anon",
+              "NETWORK_DISCOVER_RESULT", target=subnet, ip=request.remote_addr,
+              details=f"subnet={subnet};hosts_found={_disc_hosts}")
+        return jsonify(_disc_result)'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 8. /nikto route — audit with port/tuning/finding count
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "NIKTO route — audit with port/tuning and finding count",
+    '''    cmd = [
+        px, "-q",
+        binary,
+        "-h", target,
+        "-p", str(port),
+        "-Format", "json",
+        "-o", out_file,
+        "-nointeractive",
+        "-timeout", "30",      # 30s per request (Tor latency)
+        "-maxtime", "1800",    # Max 30 min total
+    ]''',
+    '''    _nk_user = get_current_user()
+    audit(_nk_user["id"] if _nk_user else None,
+          _nk_user["username"] if _nk_user else "anon",
+          "NIKTO_SCAN", target=target, ip=request.remote_addr,
+          details=f"port={port};ssl={ssl_flag};tuning={tuning}")
+    cmd = [
+        px, "-q",
+        binary,
+        "-h", target,
+        "-p", str(port),
+        "-Format", "json",
+        "-o", out_file,
+        "-nointeractive",
+        "-timeout", "30",      # 30s per request (Tor latency)
+        "-maxtime", "1800",    # Max 30 min total
+    ]'''
+))
+
+PATCHES.append((
+    "NIKTO route — audit result with finding count",
+    '''        return jsonify({
+            "target": target,
+            "port": port,
+            "server": server,
+            "findings": findings,
+            "note": "Scanned via Tor — results may be slower but IP is anonymized."
+        })''',
+    '''        _nk_user2 = get_current_user()
+        audit(_nk_user2["id"] if _nk_user2 else None,
+              _nk_user2["username"] if _nk_user2 else "anon",
+              "NIKTO_RESULT", target=target, ip=request.remote_addr,
+              details=f"port={port};findings={len(findings)};server={server[:40]}")
+        return jsonify({
+            "target": target,
+            "port": port,
+            "server": server,
+            "findings": findings,
+            "note": "Scanned via Tor — results may be slower but IP is anonymized."
+        })'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 9. /wpscan route — audit with target/mode and vuln count
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "WPSCAN route — audit start",
+    '''    if not target:
+        return jsonify({"error": "No target specified"})
+
+    binary = shutil.which("wpscan")
+    if not binary:
+        return jsonify({
+            "error": "WPScan not installed. Run: sudo gem install wpscan  OR  docker pull wpscanteam/wpscan"
+        })''',
+    '''    if not target:
+        return jsonify({"error": "No target specified"})
+
+    _wp_user = get_current_user()
+    audit(_wp_user["id"] if _wp_user else None,
+          _wp_user["username"] if _wp_user else "anon",
+          "WPSCAN", target=target, ip=request.remote_addr,
+          details=f"enum={enum_flags};mode={mode}")
+
+    binary = shutil.which("wpscan")
+    if not binary:
+        return jsonify({
+            "error": "WPScan not installed. Run: sudo gem install wpscan  OR  docker pull wpscanteam/wpscan"
+        })'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 10. /lynis route — audit start and result
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "LYNIS route — audit start",
+    '''    binary = shutil.which("lynis")
+    if not binary:
+        ok, msg = auto_install("lynis", "lynis")
+        if not ok:
+            return jsonify({
+                "error": f"Lynis not installed and auto-install failed: {msg}. Run: sudo apt install lynis",
+                "auto_install_attempted": True
+            })
+        binary = shutil.which("lynis")
+        if not binary:
+            return jsonify({"error": "Auto-install ran but lynis still not found."})
+
+    # Lynis is local — no proxychains needed''',
+    '''    _ly_user = get_current_user()
+    audit(_ly_user["id"] if _ly_user else None,
+          _ly_user["username"] if _ly_user else "anon",
+          "LYNIS_SCAN", target="localhost", ip=request.remote_addr,
+          details=f"profile={profile};category={category};compliance={compliance}")
+
+    binary = shutil.which("lynis")
+    if not binary:
+        ok, msg = auto_install("lynis", "lynis")
+        if not ok:
+            return jsonify({
+                "error": f"Lynis not installed and auto-install failed: {msg}. Run: sudo apt install lynis",
+                "auto_install_attempted": True
+            })
+        binary = shutil.which("lynis")
+        if not binary:
+            return jsonify({"error": "Auto-install ran but lynis still not found."})
+
+    # Lynis is local — no proxychains needed'''
+))
+
+PATCHES.append((
+    "LYNIS route — audit result with hardening index",
+    '''        return jsonify({
+            "hardening_index": hardening_index,
+            "warnings": sorted(set(filter(None, warnings)))[:120],
+            "suggestions": sorted(set(filter(None, suggestions)))[:200],
+            "tests_performed": tests_performed,
+            "raw_report": raw_report[-200000:],
+            "profile_used": profile,
+            "category_used": category,
+            "compliance_used": compliance,
+            "command_used": " ".join(cmd),
+            "note": "Lynis is a local scan — Tor not used (local system audit)."
+        })''',
+    '''        audit(_ly_user["id"] if _ly_user else None,
+              _ly_user["username"] if _ly_user else "anon",
+              "LYNIS_RESULT", target="localhost", ip=request.remote_addr,
+              details=(f"profile={profile};compliance={compliance};"
+                       f"hardening_index={hardening_index};"
+                       f"warnings={len(warnings)};suggestions={len(suggestions)};"
+                       f"tests_performed={tests_performed}"))
+        return jsonify({
+            "hardening_index": hardening_index,
+            "warnings": sorted(set(filter(None, warnings)))[:120],
+            "suggestions": sorted(set(filter(None, suggestions)))[:200],
+            "tests_performed": tests_performed,
+            "raw_report": raw_report[-200000:],
+            "profile_used": profile,
+            "category_used": category,
+            "compliance_used": compliance,
+            "command_used": " ".join(cmd),
+            "note": "Lynis is a local scan — Tor not used (local system audit)."
+        })'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 11. /legion route — audit with target/intensity/modules
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "LEGION route — audit start and result",
+    '''    if not target:
+        return jsonify({"error": "No target specified"})
+
+    px = proxychains_cmd()
+    results, open_ports, total_issues, modules_run = [], 0, 0, 0''',
+    '''    if not target:
+        return jsonify({"error": "No target specified"})
+
+    _lg_user = get_current_user()
+    audit(_lg_user["id"] if _lg_user else None,
+          _lg_user["username"] if _lg_user else "anon",
+          "LEGION_SCAN", target=target, ip=request.remote_addr,
+          details=f"intensity={intensity};modules={','.join(modules)}")
+
+    px = proxychains_cmd()
+    results, open_ports, total_issues, modules_run = [], 0, 0, 0'''
+))
+
+PATCHES.append((
+    "LEGION route — audit result",
+    '''    return jsonify({
+        "target": target,
+        "open_ports": open_ports,
+        "total_issues": total_issues,
+        "modules_run": modules_run,
+        "results": results,
+        "note": "All modules ran through Tor/proxychains."
+    })''',
+    '''    audit(_lg_user["id"] if _lg_user else None,
+          _lg_user["username"] if _lg_user else "anon",
+          "LEGION_RESULT", target=target, ip=request.remote_addr,
+          details=f"open_ports={open_ports};issues={total_issues};modules_run={modules_run}")
+    return jsonify({
+        "target": target,
+        "open_ports": open_ports,
+        "total_issues": total_issues,
+        "modules_run": modules_run,
+        "results": results,
+        "note": "All modules ran through Tor/proxychains."
+    })'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 12. /harvester route — audit with sources/limit
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "HARVESTER route — audit result with email/host counts",
+    '''    return jsonify({
+            "target": target,
+            "sources": sources,
+            "emails": emails[:500],
+            "hosts": hosts[:500],
+            "subdomains": subdomains[:500],
+            "ips": ips[:500],
+            "raw_lines": len(raw_out.splitlines()),
+            "note": "OSINT collected via Tor/proxychains."
+        })''',
+    '''        audit(user["id"] if user else None, user["username"] if user else "anon",
+              "HARVESTER_RESULT", target=target, ip=request.remote_addr,
+              details=(f"sources={sources};emails={len(emails)};"
+                       f"hosts={len(hosts)};subdomains={len(subdomains)};ips={len(ips)}"))
+        return jsonify({
+            "target": target,
+            "sources": sources,
+            "emails": emails[:500],
+            "hosts": hosts[:500],
+            "subdomains": subdomains[:500],
+            "ips": ips[:500],
+            "raw_lines": len(raw_out.splitlines()),
+            "note": "OSINT collected via Tor/proxychains."
+        })'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 13. /dnsrecon route — audit result with record count
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "DNSRECON route — audit result with record count",
+    '''    return jsonify({
+        "target":     target,
+        "records":    records,
+        "scan_type":  scan_type,
+        "total":      len(records),
+        "method":     method_used,
+        "note": (''',
+    '''    audit(user["id"] if user else None, user["username"] if user else "anon",
+          "DNSRECON_RESULT", target=target, ip=request.remote_addr,
+          details=f"type={scan_type};records={len(records)};method={method_used}")
+    return jsonify({
+        "target":     target,
+        "records":    records,
+        "scan_type":  scan_type,
+        "total":      len(records),
+        "method":     method_used,
+        "note": ('''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 14. /report (PDF) — audit generation
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "PDF REPORT route — audit generation",
+    '''    data = _pdf_safe(request.get_json() or {})
+    target     = data.get("target", "unknown")
+    scan_time  = data.get("scan_time", "")[:19].replace("T", " ")''',
+    '''    data = _pdf_safe(request.get_json() or {})
+    target     = data.get("target", "unknown")
+    scan_time  = data.get("scan_time", "")[:19].replace("T", " ")
+    _rpt_user = get_current_user()
+    audit(_rpt_user["id"] if _rpt_user else None,
+          _rpt_user["username"] if _rpt_user else "anon",
+          "PDF_REPORT_GENERATED", target=target, ip=request.remote_addr,
+          details=f"scan_time={scan_time};open_ports={data.get('summary',{}).get('open_ports',0)};total_cves={data.get('summary',{}).get('total_cves',0)}")'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 15. /auto-install route — audit install attempts
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "AUTO-INSTALL route — audit install attempt and result",
+    '''    if not tool or tool not in TOOL_INSTALL_MAP:
+        return jsonify({"error": f"Unknown tool: {tool}"})
+    pkg, binary = TOOL_INSTALL_MAP[tool]
+    if not pkg:
+        return jsonify({"error": f"{tool} requires manual install (not via apt)"})
+    ok, msg = auto_install(pkg, binary)
+    return jsonify({"ok": ok, "message": msg, "installed": bool(shutil.which(binary))})''',
+    '''    if not tool or tool not in TOOL_INSTALL_MAP:
+        return jsonify({"error": f"Unknown tool: {tool}"})
+    pkg, binary = TOOL_INSTALL_MAP[tool]
+    if not pkg:
+        return jsonify({"error": f"{tool} requires manual install (not via apt)"})
+    _ai_user = get_current_user()
+    audit(_ai_user["id"] if _ai_user else None,
+          _ai_user["username"] if _ai_user else "anon",
+          "AUTO_INSTALL", target=tool, ip=request.remote_addr,
+          details=f"pkg={pkg};binary={binary}")
+    ok_flag, msg = auto_install(pkg, binary)
+    _ai_installed = bool(shutil.which(binary))
+    audit(_ai_user["id"] if _ai_user else None,
+          _ai_user["username"] if _ai_user else "anon",
+          "AUTO_INSTALL_RESULT", target=tool, ip=request.remote_addr,
+          details=f"pkg={pkg};success={ok_flag};installed={_ai_installed};msg={msg[:80]}")
+    return jsonify({"ok": ok_flag, "message": msg, "installed": _ai_installed})'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 16. /api/exec (CLI) — enhance existing audit with full command
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "CLI CONSOLE route — audit with full command and exit code",
+    '''    try:
+        r = subprocess.run(
+            cmd_str, shell=True, capture_output=True, text=True,
+            timeout=30, cwd=os.path.expanduser("~")
+        )
+        return jsonify({
+            "output": r.stdout[:8000],
+            "error": r.stderr[:2000],
+            "exit_code": r.returncode
+        })''',
+    '''    audit(u["id"], u["username"], "CLI_EXEC", target="server",
+          ip=request.remote_addr,
+          details=f"cmd={cmd_str[:200]}")
+    try:
+        r = subprocess.run(
+            cmd_str, shell=True, capture_output=True, text=True,
+            timeout=30, cwd=os.path.expanduser("~")
+        )
+        audit(u["id"], u["username"], "CLI_EXEC_RESULT", target="server",
+              ip=request.remote_addr,
+              details=f"cmd={cmd_str[:200]};exit_code={r.returncode}")
+        return jsonify({
+            "output": r.stdout[:8000],
+            "error": r.stderr[:2000],
+            "exit_code": r.returncode
+        })'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 17. /api/theme POST — audit theme change
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "THEME API route — audit theme change",
+    '''    if request.method == "POST":
+        data = request.get_json() or {}
+        _global_theme["theme"] = data.get("theme", "cyberpunk")
+        return jsonify({"ok": True, "theme": _global_theme["theme"]})''',
+    '''    if request.method == "POST":
+        data = request.get_json() or {}
+        _theme_old = _global_theme.get("theme", "unknown")
+        _global_theme["theme"] = data.get("theme", "cyberpunk")
+        _theme_user = get_current_user()
+        audit(_theme_user["id"] if _theme_user else None,
+              _theme_user["username"] if _theme_user else "anon",
+              "THEME_CHANGE", target="ui", ip=request.remote_addr,
+              details=f"from={_theme_old};to={_global_theme['theme']}")
+        return jsonify({"ok": True, "theme": _global_theme["theme"]})'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 18. /api/wordlist — audit wordlist access
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "WORDLIST API route — audit access",
+    '''    if not user:
+        return jsonify({"error": "Login required"}), 401
+
+    path = request.args.get("path", "").strip()
+    limit = min(int(request.args.get("limit", "1000")), 5000)''',
+    '''    if not user:
+        return jsonify({"error": "Login required"}), 401
+
+    path = request.args.get("path", "").strip()
+    limit = min(int(request.args.get("limit", "1000")), 5000)
+    audit(user["id"], user["username"], "WORDLIST_ACCESS",
+          target=path, ip=request.remote_addr,
+          details=f"path={path};limit={limit}")'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 19. Agent register — enhance audit
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "AGENT REGISTER — audit registration with client details",
+    '''    return jsonify({"client_id": client_id, "token": token, "api_base": request.url_root.rstrip("/")})''',
+    '''    audit(None, "agent", "AGENT_REGISTER", target=client_id,
+          ip=request.remote_addr,
+          details=f"hostname={hostname};os_info={os_info[:60]}")
+    return jsonify({"client_id": client_id, "token": token, "api_base": request.url_root.rstrip("/")})'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 20. Agent create-job — audit job creation
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "LYNIS CREATE-JOB — audit job creation",
+    '''    return jsonify({"job_id": jid, "status": "pending"})''',
+    '''    _cj_user = get_current_user()
+    audit(_cj_user["id"] if _cj_user else None,
+          _cj_user["username"] if _cj_user else "anon",
+          "LYNIS_JOB_CREATED", target=client_id, ip=request.remote_addr,
+          details=f"job_id={jid};profile={profile};compliance={compliance};category={category}")
+    return jsonify({"job_id": jid, "status": "pending"})'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 21. Agent cancel-job — audit cancellation
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "LYNIS CANCEL-JOB — audit cancellation",
+    '''    return jsonify({"ok": True, "job_id": job_id})
+
+
+@app.route("/api/jobs/<int:job_id>", methods=["DELETE"])''',
+    '''    _cancel_user = get_current_user()
+    audit(_cancel_user["id"] if _cancel_user else None,
+          _cancel_user["username"] if _cancel_user else "anon",
+          "LYNIS_JOB_CANCEL", target=str(job_id), ip=request.remote_addr,
+          details=f"job_id={job_id};status={status}")
+    return jsonify({"ok": True, "job_id": job_id})
+
+
+@app.route("/api/jobs/<int:job_id>", methods=["DELETE"])'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 22. Agent delete-job — audit deletion
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "LYNIS DELETE-JOB — audit deletion",
+    '''    return jsonify({"ok": True, "job_id": job_id, "deleted": True})
+
+
+@app.route("/api/job-report/<int:job_id>.txt", methods=["GET"])''',
+    '''    _del_user = get_current_user()
+    audit(_del_user["id"] if _del_user else None,
+          _del_user["username"] if _del_user else "anon",
+          "LYNIS_JOB_DELETED", target=str(job_id), ip=request.remote_addr,
+          details=f"job_id={job_id}")
+    return jsonify({"ok": True, "job_id": job_id, "deleted": True})
+
+
+@app.route("/api/job-report/<int:job_id>.txt", methods=["GET"])'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 23. Job report download — audit download
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "LYNIS JOB-REPORT DOWNLOAD — audit download",
+    '''def download_job_report(job_id):
+    with AGENT_LOCK:
+        con = _agent_db()
+        row = con.execute("SELECT raw_report FROM lynis_jobs WHERE id=?", (job_id,)).fetchone()
+        con.close()
+    if not row:
+        return jsonify({"error": "Job not found"}), 404
+    report = row["raw_report"] or "No report content."''',
+    '''def download_job_report(job_id):
+    with AGENT_LOCK:
+        con = _agent_db()
+        row = con.execute("SELECT raw_report FROM lynis_jobs WHERE id=?", (job_id,)).fetchone()
+        con.close()
+    if not row:
+        return jsonify({"error": "Job not found"}), 404
+    _dl_user = get_current_user()
+    audit(_dl_user["id"] if _dl_user else None,
+          _dl_user["username"] if _dl_user else "anon",
+          "LYNIS_REPORT_DOWNLOAD", target=str(job_id), ip=request.remote_addr,
+          details=f"job_id={job_id}")
+    report = row["raw_report"] or "No report content."'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 24. Agent disconnect — enhance existing audit
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "AGENT DISCONNECT — audit disconnect action",
+    '''    return jsonify({"ok": True, "client_id": client_id, "status": "disconnected", "removed": True})''',
+    '''    _dc_user = get_current_user()
+    audit(_dc_user["id"] if _dc_user else None,
+          _dc_user["username"] if _dc_user else "anon",
+          "AGENT_DISCONNECT", target=client_id, ip=request.remote_addr,
+          details=f"client_id={client_id}")
+    return jsonify({"ok": True, "client_id": client_id, "status": "disconnected", "removed": True})'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 25. Deep web audit /web-deep — enhance audit with risk rating
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "WEB-DEEP route — audit result with risk rating",
+    '''    audit(user["id"] if user else None,
+          user["username"] if user else "anon",
+          "WEB_DEEP_AUDIT", target=base_url,
+          ip=request.remote_addr, details=f"profile={profile}")''',
+    '''    audit(user["id"] if user else None,
+          user["username"] if user else "anon",
+          "WEB_DEEP_AUDIT", target=base_url,
+          ip=request.remote_addr,
+          details=f"profile={profile};url={raw_url[:80]}")'''
+))
+
+PATCHES.append((
+    "WEB-DEEP route — audit result",
+    '''    return jsonify(response)
+
+
+# ── Auto-install helper ────────────────────────────────────────────────────────''',
+    '''    audit(user["id"] if user else None,
+          user["username"] if user else "anon",
+          "WEB_DEEP_RESULT", target=base_url,
+          ip=request.remote_addr,
+          details=(f"profile={profile};"
+                   f"risk={response['risk_rating']};"
+                   f"score={response['vulnerability_score']};"
+                   f"findings={response['summary'].get('total_findings',0)}"))
+    return jsonify(response)
+
+
+# ── Auto-install helper ────────────────────────────────────────────────────────'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 26. SET session new — already audited, enhance with IP
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "SET SESSION kill — audit kill action",
+    '''    _kill_set_session(sid)
+    audit(u["id"], u["username"], "SET_SESSION_KILL",
+          ip=request.remote_addr, details=f"sid={sid}")
+    return jsonify({"ok": True})''',
+    '''    _kill_set_session(sid)
+    audit(u["id"], u["username"], "SET_SESSION_KILL",
+          target="set_terminal", ip=request.remote_addr,
+          details=f"sid={sid}")
+    return jsonify({"ok": True})'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 27. /history endpoint — audit access
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "HISTORY route — audit history access",
+    '''@app.route("/history")
+def history():
+    user = get_current_user()
+    uid = user["id"] if user else None
+    return jsonify(get_history(int(request.args.get("limit", 20)), user_id=uid))''',
+    '''@app.route("/history")
+def history():
+    user = get_current_user()
+    uid = user["id"] if user else None
+    limit = int(request.args.get("limit", 20))
+    audit(uid, user["username"] if user else "anon",
+          "HISTORY_ACCESS", target="scan_history", ip=request.remote_addr,
+          details=f"limit={limit}")
+    return jsonify(get_history(limit, user_id=uid))'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 28. /scan/<id> — audit individual scan retrieval
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "GET SCAN BY ID route — audit retrieval",
+    '''@app.route("/scan/<int:sid>")
+def get_scan_route(sid):
+    user = get_current_user()
+    uid = user["id"] if user else None
+    role = user["role"] if user else "user"
+    d = get_scan_by_id(sid, user_id=None if role == "admin" else uid)
+    return jsonify(d) if d else (jsonify({"error": "Not found"}), 404)''',
+    '''@app.route("/scan/<int:sid>")
+def get_scan_route(sid):
+    user = get_current_user()
+    uid = user["id"] if user else None
+    role = user["role"] if user else "user"
+    audit(uid, user["username"] if user else "anon",
+          "SCAN_VIEW", target=str(sid), ip=request.remote_addr,
+          details=f"scan_id={sid};role={role}")
+    d = get_scan_by_id(sid, user_id=None if role == "admin" else uid)
+    return jsonify(d) if d else (jsonify({"error": "Not found"}), 404)'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 29. Upload job result — audit agent upload
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "AGENT UPLOAD — audit result upload",
+    '''    return jsonify({"ok": True})
+
+
+@app.route("/api/job-status/<int:job_id>", methods=["GET"])''',
+    '''    audit(None, f"agent:{client_id}", "LYNIS_JOB_UPLOAD",
+          target=str(job_id), ip=request.remote_addr,
+          details=(f"job_id={job_id};status={status};"
+                   f"hardening_index={hardening_index};"
+                   f"warnings={len(warnings)};suggestions={len(suggestions)}"))
+    return jsonify({"ok": True})
+
+
+@app.route("/api/job-status/<int:job_id>", methods=["GET"])'''
+))
+
+# ─────────────────────────────────────────────────────────────
+# 30. /api/server-stats — audit admin stats access
+# ─────────────────────────────────────────────────────────────
+PATCHES.append((
+    "SERVER-STATS route — audit admin stats access",
+    '''@app.route("/api/server-stats")
+def server_stats():
+    """Return live server resource usage — admin only."""
+    u = get_current_user()
+    if not u or u.get("role") != "admin":
+        return jsonify({"error": "Admin access required"}), 403
+    import time as _time''',
+    '''@app.route("/api/server-stats")
+def server_stats():
+    """Return live server resource usage — admin only."""
+    u = get_current_user()
+    if not u or u.get("role") != "admin":
+        return jsonify({"error": "Admin access required"}), 403
+    audit(u["id"], u["username"], "SERVER_STATS_ACCESS",
+          target="server", ip=request.remote_addr)
+    import time as _time'''
+))
+
+
+# ══════════════════════════════════════════════════════════════
+# ADDITIONAL: Inject audit helper at module level for routes
+# that may not have get_current_user imported in scope
+# ══════════════════════════════════════════════════════════════
+
+# Ensure audit is always imported at the top of each route
+# (already imported via `from auth import ... audit`)
+# This is fine since audit is already in scope globally.
+
+
 def main():
     print()
     print(B + C + "╔══════════════════════════════════════════════════════════╗" + X)
-    print(B + C + "║  VulnScan Pro — Perspective Dashboard Patch             ║" + X)
-    print(B + C + "║  Isometric 3D security intelligence dashboard           ║" + X)
+    print(B + C + "║  VulnScan Pro — Comprehensive Audit Logging Patch       ║" + X)
+    print(B + C + "║  Every tool use & user action → audit_log table         ║" + X)
     print(B + C + "╚══════════════════════════════════════════════════════════╝" + X)
     print()
 
@@ -658,82 +938,86 @@ def main():
         fail(f"Must be run from project root — {TARGET} not found")
         sys.exit(1)
 
-    info(f"Target: {TARGET}")
+    info(f"Project root: {os.getcwd()}")
+    info(f"Target:       {TARGET}")
+    info(f"Patches:      {len(PATCHES)}")
     print()
 
     src = read_file(TARGET)
+    original_len = len(src)
 
-    # Check if already patched
-    if "PERSPECTIVE DASHBOARD" in src and "/perspective" in src:
-        warn("Perspective dashboard route already exists in api_server.py")
-        warn("Skipping patch — dashboard already available at /perspective")
-        print()
-        ok("Access your dashboard at: http://localhost:5000/perspective")
-        sys.exit(0)
+    hdr(f"Applying {len(PATCHES)} audit patches")
+    for label, old, new in PATCHES:
+        src = apply_patch(src, label, old, new)
 
-    hdr("Injecting Perspective Dashboard Route")
-
-    # Build the route code with the HTML embedded
-    route_with_html = ROUTE_CODE.replace(
-        "PERSPECTIVE_HTML_PLACEHOLDER",
-        PERSPECTIVE_HTML
-    )
-
-    # Inject before the if __name__ == "__main__": block
-    ANCHOR = '\nif __name__ == "__main__":'
-    if ANCHOR not in src:
-        fail("Could not find injection anchor 'if __name__ == \"__main__\":'")
-        fail("Make sure you're running this from the vulnscan project root")
-        sys.exit(1)
-
-    new_src = src.replace(ANCHOR, route_with_html + ANCHOR, 1)
-    ok("Injected /perspective route")
-    ok("Injected /api/perspective/data data feed")
-    ok("Injected /api/perspective/nav-snippet JS helper")
-
+    # ── Write & verify ─────────────────────────────────────────
     hdr("Writing & Verifying")
     bak = backup(TARGET)
     info(f"Backup: {bak}")
-    write_file(TARGET, new_src)
-    info(f"Written: {TARGET}")
+    write_file(TARGET, src)
+    info(f"Written: {TARGET} ({len(src) - original_len:+d} bytes)")
 
     passed, err = syntax_check(TARGET)
     if passed:
         ok(f"{TARGET} — syntax OK")
     else:
-        fail(f"Syntax error detected:\n{err}")
-        warn(f"Restore backup: cp '{bak}' {TARGET}")
+        fail(f"SYNTAX ERROR:\n{err}")
+        warn(f"Restore with: cp {bak} {TARGET}")
         sys.exit(1)
 
+    # ── Summary ────────────────────────────────────────────────
     print()
     print(B + C + "══════════════════════════════════════════════════════════" + X)
+    fc = RESULTS["failed"]
+    print(
+        f"  Applied : {G}{RESULTS['applied']}{X}  |  "
+        f"Skipped : {D}{RESULTS['skipped']}{X}  |  "
+        f"Failed  : {(R if fc else D)}{fc}{X}"
+    )
     print()
-    print(f"  {G}Perspective Dashboard successfully injected!{X}")
-    print()
-    print(f"  {C}New routes added:{X}")
-    print(f"    {G}✓{X}  GET  /perspective           → isometric 3D dashboard")
-    print(f"    {G}✓{X}  GET  /api/perspective/data  → live JSON data feed")
-    print(f"    {G}✓{X}  GET  /api/perspective/nav-snippet → sidebar JS injection")
-    print()
-    print(f"  {C}Dashboard features:{X}")
-    print(f"    {G}✓{X}  Animated isometric port cubes (height = severity)")
-    print(f"    {G}✓{X}  Real-time scan beam sweep animation")
-    print(f"    {G}✓{X}  Live CVE intelligence panel (from your scan history)")
-    print(f"    {G}✓{X}  Risk score ring with animated fill")
-    print(f"    {G}✓{X}  Port activity heatmap (84-cell scan frequency grid)")
-    print(f"    {G}✓{X}  Isometric host network threat map (SVG cubes)")
-    print(f"    {G}✓{X}  Tool availability status (nmap, tor, nikto, etc.)")
-    print(f"    {G}✓{X}  Live activity feed from scan history")
-    print(f"    {G}✓{X}  All data loaded from your real VulnScan scan history")
-    print()
-    print(f"  {Y}Restart server to activate:{X}")
-    print(f"    pkill -f api_server.py && python3 api_server.py")
-    print(f"    OR: sudo systemctl restart vulnscan")
-    print()
-    print(f"  {C}Open in browser:{X}")
-    print(f"    http://localhost:5000/perspective")
-    print()
-    print(f"  {D}Backup saved: {bak}{X}")
+
+    if fc == 0:
+        print(f"  {G}Audit events now logged for:{X}")
+        events = [
+            "Network scan (open ports, CVEs, profile)",
+            "Subdomain enumeration (found count)",
+            "Directory busting (found count)",
+            "HTTP brute force (attempts, found)",
+            "SSH brute force (attempts, found)",
+            "Social tools / C2 / exploit tools (exit code, duration)",
+            "Network discovery (host count)",
+            "Nikto web scanner (finding count)",
+            "WPScan WordPress scanner",
+            "Lynis system audit (hardening index, warnings)",
+            "Legion auto-recon (ports, issues)",
+            "theHarvester OSINT (email/host counts)",
+            "DNSRecon (record count, method)",
+            "PDF report generation",
+            "Tool auto-install attempts & results",
+            "CLI console commands & exit codes",
+            "UI theme changes",
+            "Wordlist API access",
+            "Lynis agent register/disconnect",
+            "Lynis job create/cancel/delete/upload/download",
+            "Deep web audit + risk rating",
+            "SET interactive session kill",
+            "Scan history access",
+            "Individual scan retrieval",
+            "Server stats access (admin)",
+        ]
+        for e in events:
+            print(f"    {G}✓{X}  {e}")
+        print()
+        print(f"  {Y}Restart server to activate:{X}")
+        print(f"    pkill -f api_server.py && python3 api_server.py")
+        print(f"    OR: sudo systemctl restart vulnscan")
+        print()
+        print(f"  {C}View audit log in Admin Console → Audit Log tab{X}")
+        print(f"  {C}Or query Supabase: SELECT * FROM audit_log ORDER BY id DESC;{X}")
+    else:
+        print(f"  {Y}{fc} patch(es) failed. The file has been saved — test carefully.{X}")
+        print(f"  {Y}Restore backup: cp {bak} {TARGET}{X}")
+
     print()
 
 
