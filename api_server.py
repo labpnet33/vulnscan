@@ -860,18 +860,6 @@ document.addEventListener('DOMContentLoaded',navRestore);
       </script>
 
       <div class="nav-section">
-        <div class="nav-cat-toggle" onclick="navToggle('overview')">
-          <span class="nav-cat-label">OVERVIEW</span>
-          <span class="nav-cat-arrow" id="na-overview">&#9660;</span>
-        </div>
-        <div class="nav-cat-items collapsed" id="nc-overview" style="max-height:0">
-          <button class="nav-item" id="ni-home" onclick="pg('home',this)"><span class="ni">&#9700;</span> Home</button>
-          <button class="nav-item" id="ni-dash" onclick="pg('dash',this)"><span class="ni">&#9636;</span> Dashboard</button>
-          <button class="nav-item" id="ni-hist" onclick="pg('hist',this)"><span class="ni">&#9632;</span> History</button>
-        </div>
-      </div>
-
-      <div class="nav-section">
         <div class="nav-cat-toggle" onclick="navToggle('information')">
           <span class="nav-cat-label">INFORMATION</span>
           <span class="nav-cat-arrow" id="na-information">&#9660;</span>
@@ -999,15 +987,6 @@ document.addEventListener('DOMContentLoaded',navRestore);
         </div>
       </div>
 
-      <div class="nav-section" id="admin-nav-section" style="display:none">
-        <div class="nav-cat-toggle" onclick="navToggle('admin')">
-          <span class="nav-cat-label">ADMIN</span>
-          <span class="nav-cat-arrow" id="na-admin">&#9660;</span>
-        </div>
-        <div class="nav-cat-items collapsed" id="nc-admin" style="max-height:100px">
-          <button class="nav-item" id="ni-admin" onclick="pg('admin',this)"><span class="ni">&#9632;</span> Admin Console</button>
-        </div>
-      </div>
     </nav>
 <div class="sidebar-footer">
       <button class="nav-item" onclick="showAbout()"><span class="ni">&#9432;</span> About</button>
