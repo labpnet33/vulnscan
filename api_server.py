@@ -803,14 +803,17 @@ body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)
       <!-- /VulnScan Nav Search v2 -->
       <style>
 .nav-section{padding:4px 10px}
-.nav-cat-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:6px 8px;border-radius:var(--radius);user-select:none}
-.nav-cat-toggle:hover{background:var(--bg3)}
-.nav-cat-label{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;font-weight:500}
-.nav-cat-arrow{font-size:9px;color:var(--text3);transition:transform 0.2s}
-.nav-cat-arrow.open{transform:rotate(180deg)}
-.nav-cat-items{overflow:hidden;transition:max-height 0.25s ease,opacity 0.2s}
+.nav-cat-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:7px 10px;border-radius:var(--radius);user-select:none;background:var(--accent);border:1px solid var(--accent);margin:2px 0;transition:opacity .15s ease,transform .15s ease}
+.nav-cat-toggle:hover{opacity:.86;transform:translateX(1px)}
+.nav-cat-label{font-family:var(--mono);font-size:9px;color:var(--accent-inv);letter-spacing:2px;font-weight:700}
+.nav-cat-arrow{font-size:9px;color:var(--accent-inv);opacity:.7;transition:transform .25s ease}
+.nav-cat-arrow.open{transform:rotate(180deg);opacity:1}
+.nav-cat-items{overflow:hidden;transition:max-height .3s ease,opacity .25s ease;max-height:0;opacity:0}
 .nav-cat-items.collapsed{max-height:0!important;opacity:0;pointer-events:none}
 .nav-cat-items.expanded{opacity:1}
+.nav-cat-items .nav-item{padding-left:16px;border-left:2px solid var(--border);margin-left:6px;border-radius:0 var(--radius) var(--radius) 0}
+.nav-cat-items .nav-item:hover{border-left-color:var(--accent)}
+.nav-cat-items .nav-item.active{border-left-color:var(--accent)}
       </style>
       <script>
 function navToggle(id){
@@ -818,45 +821,50 @@ function navToggle(id){
   var arrow=document.getElementById('na-'+id);
   if(!items)return;
   var collapsed=items.classList.contains('collapsed');
+  document.querySelectorAll('.nav-cat-items.expanded').forEach(function(openItems){
+    if(openItems.id===('nc-'+id))return;
+    openItems.style.maxHeight='0px';
+    openItems.classList.remove('expanded');
+    openItems.classList.add('collapsed');
+    var aid=openItems.id.replace(/^nc-/,'');
+    var ael=document.getElementById('na-'+aid);
+    if(ael)ael.classList.remove('open');
+  });
+  if(collapsed){
+    items.style.maxHeight=items.scrollHeight+'px';
+    setTimeout(function(){if(items.classList.contains('expanded'))items.style.maxHeight='none';},300);
+  }else{
+    items.style.maxHeight=items.scrollHeight+'px';
+    requestAnimationFrame(function(){items.style.maxHeight='0px';});
+  }
   items.classList.toggle('collapsed',!collapsed);
   items.classList.toggle('expanded',collapsed);
   if(arrow)arrow.classList.toggle('open',collapsed);
-  try{localStorage.setItem('vs-nav-'+id,collapsed?'1':'0');}catch(e){}
 }
 function navRestore(){
-  ['overview','information','webtesting','attacks','webapp','passwords','recon','exploitation','auditing','c2','social','reverseeng','tunneling','admin'].forEach(function(id){
+  ['information','webtesting','attacks','passwords','social','c2','exploitation','reverseeng','auditing'].forEach(function(id){
     var items=document.getElementById('nc-'+id);
     var arrow=document.getElementById('na-'+id);
     if(!items)return;
-    var stored;try{stored=localStorage.getItem('vs-nav-'+id);}catch(e){}
-    // Default is NOW CLOSED (0) — user preference overrides on repeat visits
-    var open=(stored===null)?0:(stored==='1'?1:0);
-    items.classList.toggle('collapsed',!open);
-    items.classList.toggle('expanded',!!open);
-    if(arrow)arrow.classList.toggle('open',!!open);
+    items.style.maxHeight='0px';
+    items.classList.add('collapsed');
+    items.classList.remove('expanded');
+    if(arrow)arrow.classList.remove('open');
   });
+  var overview=document.getElementById('nc-overview');
+  if(overview&&overview.closest('.nav-section'))overview.closest('.nav-section').style.display='none';
+  var adminSec=document.getElementById('admin-nav-section');
+  if(adminSec)adminSec.style.display='none';
 }
 document.addEventListener('DOMContentLoaded',navRestore);
       </script>
 
       <div class="nav-section">
-        <div class="nav-cat-toggle" onclick="navToggle('overview')">
-          <span class="nav-cat-label">OVERVIEW</span>
-          <span class="nav-cat-arrow open" id="na-overview">&#9660;</span>
-        </div>
-        <div class="nav-cat-items expanded" id="nc-overview" style="max-height:200px">
-          <button class="nav-item" id="ni-home" onclick="pg('home',this)"><span class="ni">&#9700;</span> Home</button>
-          <button class="nav-item" id="ni-dash" onclick="pg('dash',this)"><span class="ni">&#9636;</span> Dashboard</button>
-          <button class="nav-item" id="ni-hist" onclick="pg('hist',this)"><span class="ni">&#9632;</span> History</button>
-        </div>
-      </div>
-
-      <div class="nav-section">
         <div class="nav-cat-toggle" onclick="navToggle('information')">
           <span class="nav-cat-label">INFORMATION</span>
-          <span class="nav-cat-arrow open" id="na-information">&#9660;</span>
+          <span class="nav-cat-arrow" id="na-information">&#9660;</span>
         </div>
-        <div class="nav-cat-items expanded" id="nc-information" style="max-height:400px">
+        <div class="nav-cat-items collapsed" id="nc-information" style="max-height:0">
           <button class="nav-item" id="ni-scan" onclick="pg('scan',this)"><span class="ni">&#9675;</span> Network Scanner</button>
           <button class="nav-item" id="ni-dnsrecon" onclick="pg('dnsrecon',this)"><span class="ni">&#9675;</span> DNSRecon</button>
           <button class="nav-item" id="ni-disc" onclick="pg('disc',this)"><span class="ni">&#9675;</span> Net Discovery</button>
@@ -871,9 +879,9 @@ document.addEventListener('DOMContentLoaded',navRestore);
       <div class="nav-section">
         <div class="nav-cat-toggle" onclick="navToggle('webtesting')">
           <span class="nav-cat-label">WEB TESTING</span>
-          <span class="nav-cat-arrow open" id="na-webtesting">&#9660;</span>
+          <span class="nav-cat-arrow" id="na-webtesting">&#9660;</span>
         </div>
-        <div class="nav-cat-items expanded" id="nc-webtesting" style="max-height:500px">
+        <div class="nav-cat-items collapsed" id="nc-webtesting" style="max-height:0">
           <button class="nav-item" id="ni-webdeep" onclick="pg('webdeep',this)"><span class="ni">&#9675;</span> Deep Web Audit</button>
           <button class="nav-item" id="ni-nikto" onclick="pg('nikto',this)"><span class="ni">&#9675;</span> Nikto</button>
           <button class="nav-item" id="ni-wpscan" onclick="pg('wpscan',this)"><span class="ni">&#9675;</span> WPScan</button>
@@ -891,9 +899,9 @@ document.addEventListener('DOMContentLoaded',navRestore);
       <div class="nav-section">
         <div class="nav-cat-toggle" onclick="navToggle('attacks')">
           <span class="nav-cat-label">ATTACKS</span>
-          <span class="nav-cat-arrow open" id="na-attacks">&#9660;</span>
+          <span class="nav-cat-arrow" id="na-attacks">&#9660;</span>
         </div>
-        <div class="nav-cat-items expanded" id="nc-attacks" style="max-height:300px">
+        <div class="nav-cat-items collapsed" id="nc-attacks" style="max-height:0">
           <button class="nav-item" id="ni-brute" onclick="pg('brute',this)"><span class="ni">&#9675;</span> Brute Force</button>
           <button class="nav-item" id="ni-medusa" onclick="pg('medusa',this)"><span class="ni">&#9675;</span> Medusa</button>
           <button class="nav-item" id="ni-hping3" onclick="pg('hping3',this)"><span class="ni">&#9675;</span> hping3</button>
@@ -905,9 +913,9 @@ document.addEventListener('DOMContentLoaded',navRestore);
       <div class="nav-section">
         <div class="nav-cat-toggle" onclick="navToggle('passwords')">
           <span class="nav-cat-label">PASSWORD ATTACKS</span>
-          <span class="nav-cat-arrow open" id="na-passwords">&#9660;</span>
+          <span class="nav-cat-arrow" id="na-passwords">&#9660;</span>
         </div>
-        <div class="nav-cat-items expanded" id="nc-passwords" style="max-height:200px">
+        <div class="nav-cat-items collapsed" id="nc-passwords" style="max-height:0">
           <button class="nav-item" id="ni-hashcat" onclick="pg('hashcat',this)"><span class="ni">&#9675;</span> Hashcat</button>
           <button class="nav-item" id="ni-john" onclick="pg('john',this)"><span class="ni">&#9675;</span> John the Ripper</button>
         </div>
@@ -916,9 +924,9 @@ document.addEventListener('DOMContentLoaded',navRestore);
       <div class="nav-section">
         <div class="nav-cat-toggle" onclick="navToggle('social')">
           <span class="nav-cat-label">SOCIAL ENGINEERING</span>
-          <span class="nav-cat-arrow open" id="na-social">&#9660;</span>
+          <span class="nav-cat-arrow" id="na-social">&#9660;</span>
         </div>
-        <div class="nav-cat-items expanded" id="nc-social" style="max-height:300px">
+        <div class="nav-cat-items collapsed" id="nc-social" style="max-height:0">
           <button class="nav-item" id="ni-setoolkit" onclick="pg('setoolkit',this)"><span class="ni">&#9675;</span> Social-Engineer Toolkit</button>
           <button class="nav-item" id="ni-gophish" onclick="pg('gophish',this)"><span class="ni">&#9675;</span> Gophish</button>
           <button class="nav-item" id="ni-evilginx2" onclick="pg('evilginx2',this)"><span class="ni">&#9675;</span> Evilginx2</button>
@@ -929,9 +937,9 @@ document.addEventListener('DOMContentLoaded',navRestore);
       <div class="nav-section">
         <div class="nav-cat-toggle" onclick="navToggle('c2')">
           <span class="nav-cat-label">C2 / PIVOTING</span>
-          <span class="nav-cat-arrow open" id="na-c2">&#9660;</span>
+          <span class="nav-cat-arrow" id="na-c2">&#9660;</span>
         </div>
-        <div class="nav-cat-items expanded" id="nc-c2" style="max-height:400px">
+        <div class="nav-cat-items collapsed" id="nc-c2" style="max-height:0">
           <button class="nav-item" id="ni-netcat" onclick="pg('netcat',this)"><span class="ni">&#9675;</span> Netcat</button>
           <button class="nav-item" id="ni-ncat" onclick="pg('ncat',this)"><span class="ni">&#9675;</span> Ncat</button>
           <button class="nav-item" id="ni-socat" onclick="pg('socat',this)"><span class="ni">&#9675;</span> Socat</button>
@@ -947,9 +955,9 @@ document.addEventListener('DOMContentLoaded',navRestore);
       <div class="nav-section">
         <div class="nav-cat-toggle" onclick="navToggle('exploitation')">
           <span class="nav-cat-label">EXPLOIT / PAYLOAD</span>
-          <span class="nav-cat-arrow open" id="na-exploitation">&#9660;</span>
+          <span class="nav-cat-arrow" id="na-exploitation">&#9660;</span>
         </div>
-        <div class="nav-cat-items expanded" id="nc-exploitation" style="max-height:200px">
+        <div class="nav-cat-items collapsed" id="nc-exploitation" style="max-height:0">
           <button class="nav-item" id="ni-msfvenom" onclick="pg('msfvenom',this)"><span class="ni">&#9675;</span> msfvenom</button>
           <button class="nav-item" id="ni-pwncat" onclick="pg('pwncat',this)"><span class="ni">&#9675;</span> pwncat</button>
           <button class="nav-item" id="ni-grype" onclick="pg('grype',this)"><span class="ni">&#9675;</span> Grype</button>
@@ -959,9 +967,9 @@ document.addEventListener('DOMContentLoaded',navRestore);
       <div class="nav-section">
         <div class="nav-cat-toggle" onclick="navToggle('reverseeng')">
           <span class="nav-cat-label">REVERSE ENGINEERING</span>
-          <span class="nav-cat-arrow open" id="na-reverseeng">&#9660;</span>
+          <span class="nav-cat-arrow" id="na-reverseeng">&#9660;</span>
         </div>
-        <div class="nav-cat-items expanded" id="nc-reverseeng" style="max-height:200px">
+        <div class="nav-cat-items collapsed" id="nc-reverseeng" style="max-height:0">
           <button class="nav-item" id="ni-radare2" onclick="pg('radare2',this)"><span class="ni">&#9675;</span> Radare2</button>
         </div>
       </div>
@@ -969,9 +977,9 @@ document.addEventListener('DOMContentLoaded',navRestore);
       <div class="nav-section">
         <div class="nav-cat-toggle" onclick="navToggle('auditing')">
           <span class="nav-cat-label">AUDITING</span>
-          <span class="nav-cat-arrow open" id="na-auditing">&#9660;</span>
+          <span class="nav-cat-arrow" id="na-auditing">&#9660;</span>
         </div>
-        <div class="nav-cat-items expanded" id="nc-auditing" style="max-height:300px">
+        <div class="nav-cat-items collapsed" id="nc-auditing" style="max-height:0">
           <button class="nav-item" id="ni-lynis" onclick="pg('lynis',this)"><span class="ni">&#9675;</span> Lynis</button>
           <button class="nav-item" id="ni-openvas" onclick="pg('openvas',this)"><span class="ni">&#9675;</span> OpenVAS</button>
           <button class="nav-item" id="ni-chkrootkit" onclick="pg('chkrootkit',this)"><span class="ni">&#9675;</span> chkrootkit</button>
@@ -982,9 +990,9 @@ document.addEventListener('DOMContentLoaded',navRestore);
       <div class="nav-section" id="admin-nav-section" style="display:none">
         <div class="nav-cat-toggle" onclick="navToggle('admin')">
           <span class="nav-cat-label">ADMIN</span>
-          <span class="nav-cat-arrow open" id="na-admin">&#9660;</span>
+          <span class="nav-cat-arrow" id="na-admin">&#9660;</span>
         </div>
-        <div class="nav-cat-items expanded" id="nc-admin" style="max-height:100px">
+        <div class="nav-cat-items collapsed" id="nc-admin" style="max-height:100px">
           <button class="nav-item" id="ni-admin" onclick="pg('admin',this)"><span class="ni">&#9632;</span> Admin Console</button>
         </div>
       </div>
@@ -1028,41 +1036,7 @@ document.addEventListener('DOMContentLoaded',navRestore);
           <div class="stat"><div class="stat-val" id="hs-ports">--</div><div class="stat-lbl">OPEN PORTS</div></div>
           <div class="stat"><div class="stat-val">21</div><div class="stat-lbl">TOOLS</div></div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
-          <div class="card" style="cursor:pointer" onclick="pg('scan',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Network Scanner</div><div style="font-size:12px;color:var(--text3)">Port scan &middot; CVE lookup &middot; SSL analysis &middot; DNS &middot; Headers</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">nmap</span><span class="tag">CVE</span><span class="tag">SSL</span></div></div>
-          </div>
-          <div class="card" style="cursor:pointer" onclick="pg('harvester',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">theHarvester</div><div style="font-size:12px;color:var(--text3)">OSINT emails, subdomains, IPs from public sources</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">OSINT</span><span class="tag">emails</span></div></div>
-          </div>
-          <div class="card" style="cursor:pointer" onclick="pg('sub',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Subdomain Finder</div><div style="font-size:12px;color:var(--text3)">DNS brute-force + crt.sh + HackerTarget passive</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">DNS</span><span class="tag">brute-force</span></div></div>
-          </div>
-          <div class="card" style="cursor:pointer" onclick="pg('nikto',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Nikto</div><div style="font-size:12px;color:var(--text3)">Web vulnerability scanner &middot; 6700+ checks</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">web</span><span class="tag">CVE</span></div></div>
-          </div>
-          <div class="card" style="cursor:pointer" onclick="pg('webdeep',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Deep Web Audit</div><div style="font-size:12px;color:var(--text3)">Nmap + Nikto + Dir Enum + Headers + DNS + optional WPScan in one run</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">full-audit</span><span class="tag">report</span></div></div>
-          </div>
-          <div class="card" style="cursor:pointer" onclick="pg('dir',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Directory Buster</div><div style="font-size:12px;color:var(--text3)">Hidden paths, admin panels, sensitive files</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">HTTP</span><span class="tag">fuzzing</span></div></div>
-          </div>
-          <div class="card" style="cursor:pointer" onclick="pg('lynis',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Lynis</div><div style="font-size:12px;color:var(--text3)">System audit &middot; hardening &middot; compliance</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">local</span><span class="tag">CIS</span></div></div>
-          </div>
-          <div class="card" style="cursor:pointer" onclick="pg('setoolkit',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Social-Engineer Toolkit</div><div style="font-size:12px;color:var(--text3)">Interactive social engineering simulation framework</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">phishing</span><span class="tag">payloads</span></div></div>
-          </div>
-          <div class="card" style="cursor:pointer" onclick="pg('gophish',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Gophish</div><div style="font-size:12px;color:var(--text3)">Phishing campaign manager with landing pages and tracking</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">campaign</span><span class="tag">awareness</span></div></div>
-          </div>
-          <div class="card" style="cursor:pointer" onclick="pg('evilginx2',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">Evilginx2</div><div style="font-size:12px;color:var(--text3)">Reverse-proxy phishing simulation for MFA resilience testing</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">MFA</span><span class="tag">proxy</span></div></div>
-          </div>
-          <div class="card" style="cursor:pointer" onclick="pg('shellphish',null)" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div class="card-p"><div style="font-size:18px;margin-bottom:8px">&#9632;</div><div style="font-weight:600;margin-bottom:4px">ShellPhish</div><div style="font-size:12px;color:var(--text3)">Template-driven phishing simulation framework for labs</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag">templates</span><span class="tag">ngrok</span></div></div>
-          </div>
-        </div>
+        <div id="home-tool-catalog"></div>
         <div class="notice" style="margin-top:18px">&#9888; <strong>Authorized use only.</strong> Only scan systems you own or have explicit written permission to assess.</div>
       </div>
 
@@ -3007,8 +2981,9 @@ var _vsNotifUnread=0;
 var _vsRecentCompleted=[];
 var _vsKnownCompleted={};
 var _vsNotifPollTimer=null;
-var _vsToolPages={scan:'scan',wd:'webdeep',hv:'harvester',dr:'dnsrecon',nk:'nikto',wp:'wpscan',ly:'lynis',lg:'legion'};
-var _vsToolNames={scan:'Network Scanner',wd:'Deep Web Audit',hv:'theHarvester',dr:'DNSRecon',nk:'Nikto',wp:'WPScan',ly:'Lynis',lg:'Legion'};
+var _vsToolPages={scan:'scan',wd:'webdeep',hv:'harvester',dr:'dnsrecon',nk:'nikto',wp:'wpscan',ly:'lynis',lg:'legion',sub:'sub',dir:'dir',disc:'disc',set:'setoolkit',gp:'gophish',eg:'evilginx2',sp:'shellphish',nc:'netcat',nct:'ncat',sc:'socat',sv:'sliver',em:'empire',ffuf:'ffuf',nuclei:'nuclei',whatweb:'whatweb',wapiti:'wapiti',dalfox:'dalfox',sqlmap:'sqlmap',kxss:'kxss',medusa:'medusa',hping3:'hping3',scapy:'scapy',yersinia:'yersinia',hashcat:'hashcat',john:'john',searchsploit:'searchsploit',msfvenom:'msfvenom',grype:'grype',radare2:'radare2',openvas:'openvas',chkrootkit:'chkrootkit',rkhunter:'rkhunter',pspy:'pspy',pwncat:'pwncat',ligolo:'ligolo',chisel:'chisel',rlwrap:'rlwrap'};
+var _vsToolNames={scan:'Network Scanner',wd:'Deep Web Audit',hv:'theHarvester',dr:'DNSRecon',nk:'Nikto',wp:'WPScan',ly:'Lynis',lg:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',disc:'Network Discovery',set:'SET',gp:'Gophish',eg:'Evilginx2',sp:'ShellPhish',nc:'Netcat',nct:'Ncat',sc:'Socat',sv:'Sliver',em:'Empire'};
+var _vsToolCompletions=[];
 function updateNotificationBadge(){
   var badge=document.getElementById('notif-badge');if(!badge)return;
   var ongoing=Object.keys(scanControllers).length;
@@ -3034,6 +3009,10 @@ function renderNotifications(){
     var nm=_vsToolNames[k]||k.toUpperCase();
     var pgid=_vsToolPages[k]||'scan';
     html+='<div class="notif-item" onclick="openNotificationPage(\''+pgid+'\',null)"><div class="notif-title">Ongoing: '+nm+'</div><div class="notif-meta">In progress - click to open tool</div></div>';
+  });
+  _vsToolCompletions.slice(0,12).forEach(function(ti){
+    var t=((ti.time||'').replace('T',' ').substring(0,19))||'--';
+    html+='<div class="notif-item" onclick="openNotificationPage(\''+ti.page+'\',null)"><div class="notif-title">'+(ti.ok?'Completed: ':'Failed: ')+ti.name+'</div><div class="notif-meta">'+t+' · click to open tool</div></div>';
   });
   _vsRecentCompleted.forEach(function(s){
     var t=((s.scan_time||'').replace('T',' ').substring(0,19))||'--';
@@ -3076,11 +3055,48 @@ function setScanRunning(prefix,running){
 }
 async function fetchWithTimeout(url,options,timeoutMs,prefix){
   if(!options)options={};if(!timeoutMs)timeoutMs=300000;
+  var pfx=prefix||inferToolPrefix(url,options);
   var controller=new AbortController();
-  if(prefix)scanControllers[prefix]=controller;
+  if(pfx)scanControllers[pfx]=controller;
   var timer=setTimeout(function(){controller.abort();},timeoutMs);
-  try{var r=await fetch(url,Object.assign({},options,{signal:controller.signal}));clearTimeout(timer);if(prefix)delete scanControllers[prefix];return r;}
-  catch(e){clearTimeout(timer);if(prefix)delete scanControllers[prefix];if(e.name==='AbortError')throw new Error('Cancelled or timed out.');throw e;}
+  try{
+    var r=await fetch(url,Object.assign({},options,{signal:controller.signal}));
+    clearTimeout(timer);
+    if(pfx){delete scanControllers[pfx];pushToolCompletion(pfx,url,r.ok);}
+    return r;
+  }
+  catch(e){clearTimeout(timer);if(pfx)delete scanControllers[pfx];if(e.name==='AbortError')throw new Error('Cancelled or timed out.');throw e;}
+}
+function inferToolPrefix(url,options){
+  var u=String(url||'');
+  if(u.indexOf('/scan')===0)return 'scan';
+  if(u.indexOf('/harvester')===0)return 'hv';
+  if(u.indexOf('/dnsrecon')===0)return 'dr';
+  if(u.indexOf('/nikto')===0)return 'nk';
+  if(u.indexOf('/wpscan')===0)return 'wp';
+  if(u.indexOf('/lynis')===0||u.indexOf('/api/job-')===0||u.indexOf('/api/create-job')===0)return 'ly';
+  if(u.indexOf('/legion')===0)return 'lg';
+  if(u.indexOf('/web-audit')===0)return 'wd';
+  if(u.indexOf('/subdomains')===0)return 'sub';
+  if(u.indexOf('/dirbust')===0)return 'dir';
+  if(u.indexOf('/discover')===0)return 'disc';
+  if(u.indexOf('/social-tools/run')===0){
+    try{
+      var b=options&&options.body?JSON.parse(options.body):{};
+      var tool=(b.tool||'').toLowerCase();
+      var map={'setoolkit':'set','gophish':'gp','evilginx2':'eg','shellphish':'sp','netcat':'nc','ncat':'nct','socat':'sc','sliver':'sv','empire':'em','ffuf':'ffuf','nuclei':'nuclei','whatweb':'whatweb','wapiti':'wapiti','dalfox':'dalfox','sqlmap':'sqlmap','kxss':'kxss','medusa':'medusa','hping3':'hping3','scapy':'scapy','yersinia':'yersinia','hashcat':'hashcat','john':'john','searchsploit':'searchsploit','msfvenom':'msfvenom','grype':'grype','radare2':'radare2','openvas':'openvas','chkrootkit':'chkrootkit','rkhunter':'rkhunter','pspy':'pspy','pwncat':'pwncat','ligolo-ng':'ligolo','chisel':'chisel','rlwrap':'rlwrap'};
+      return map[tool]||'scan';
+    }catch(e){return 'scan';}
+  }
+  return '';
+}
+function pushToolCompletion(prefix,url,ok){
+  var nm=_vsToolNames[prefix]||prefix.toUpperCase();
+  _vsToolCompletions.unshift({id:'tool-'+Date.now()+'-'+Math.random().toString(16).slice(2),page:_vsToolPages[prefix]||'scan',name:nm,time:new Date().toISOString(),ok:!!ok,url:url||''});
+  if(_vsToolCompletions.length>30)_vsToolCompletions.length=30;
+  _vsNotifUnread++;
+  renderNotifications();
+  updateNotificationBadge();
 }
 
 /* ==== PAGE NAV ==== */
@@ -3099,7 +3115,8 @@ function pg(id,el){
   if(id==='hist')loadHist();
   if(id==='dash')loadDash();
   if(id==='admin'){loadAdmin();setTimeout(initCliHeader,400);}
-  if(id==='home'){setTimeout(loadHomeStats,80);if(currentUser)vsGreetUser(currentUser.username);}
+  if(id==='home'){setTimeout(loadHomeStats,80);setTimeout(renderHomeToolCatalog,40);if(currentUser)vsGreetUser(currentUser.username);}
+  setTimeout(removeQuickInstallCards,60);
   if(id==='profile'&&currentUser)loadProfileInfo(currentUser);
   if(id==='brute')setTimeout(function(){bfAutoLoad&&bfAutoLoad();},300);
   if(id==='lynis'){loadLynisAgents();loadLynisJobs();startLynisAgentWatcher();}
@@ -3220,8 +3237,8 @@ async function loadUser(){
       document.getElementById('user-avatar').textContent=d.username[0].toUpperCase();
       document.getElementById('user-name-disp').textContent=d.username;
       document.getElementById('user-role-disp').textContent=d.role==='admin'?'admin':'user';
-      if(d.role==='admin'){var sec=document.getElementById('admin-nav-section');if(sec)sec.style.display='block';}
-      loadProfileInfo(d);loadHomeStats();loadUserTheme();
+      if(d.role==='admin'){var sec=document.getElementById('admin-nav-section');if(sec)sec.style.display='none';}
+      loadProfileInfo(d);loadHomeStats();renderHomeToolCatalog();loadUserTheme();
       _vsNotifUnread=0;_vsRecentCompleted=[];_vsKnownCompleted={};
       refreshNotifications();
       if(_vsNotifPollTimer)clearInterval(_vsNotifPollTimer);
@@ -3299,9 +3316,33 @@ function animateCount(el,target){
   function step(ts){if(!startT)startT=ts;var p=Math.min((ts-startT)/dur,1);var ease=1-Math.pow(1-p,3);el.textContent=Math.floor(ease*target);if(p<1)requestAnimationFrame(step);else el.classList.remove('vs-counting');}
   requestAnimationFrame(step);
 }
+var HOME_TOOL_CATALOG=[
+  {label:'INFORMATION',color:'#5a9fe0',tools:[['scan','Network Scanner','Port scan · CVE lookup · SSL · DNS · Headers'],['dnsrecon','DNSRecon','DNS enumeration and zone analysis'],['disc','Net Discovery','Discover live hosts on a subnet'],['harvester','theHarvester','OSINT emails, subdomains, IPs'],['sub','Subdomain Finder','DNS brute-force + passive enumeration'],['legion','Legion','Auto-recon framework'],['searchsploit','SearchSploit','Exploit-DB offline search'],['seclists','SecLists','Security wordlists browser']]},
+  {label:'WEB TESTING',color:'#00e5ff',tools:[['webdeep','Deep Web Audit','Full multi-tool website assessment'],['nikto','Nikto','Web server vulnerability scanner'],['wpscan','WPScan','WordPress security scanner'],['dir','Dir Buster','Hidden paths and file enumeration'],['ffuf','ffuf','Fast web fuzzer'],['nuclei','Nuclei','Template-based vuln scanner'],['whatweb','WhatWeb','Web technology fingerprinter'],['wapiti','Wapiti','Web app vulnerability scanner'],['dalfox','Dalfox','XSS parameter analysis'],['sqlmap','SQLMap','SQL injection detection'],['kxss','kxss','XSS reflection checker']]},
+  {label:'ATTACKS',color:'#ff6b35',tools:[['brute','Brute Force','Credential testing HTTP/SSH'],['medusa','Medusa','Fast parallel network login auditor'],['hping3','hping3','TCP/IP packet assembler'],['scapy','Scapy','Interactive packet manipulation'],['yersinia','Yersinia','Network protocol attacks']]},
+  {label:'PASSWORD ATTACKS',color:'#ff3366',tools:[['hashcat','Hashcat','GPU-based password recovery'],['john','John the Ripper','Versatile password cracker']]},
+  {label:'SOCIAL ENGINEERING',color:'#b06fff',tools:[['setoolkit','SET','Social-Engineer Toolkit'],['gophish','Gophish','Phishing campaign manager'],['evilginx2','Evilginx2','Reverse-proxy phishing simulation'],['shellphish','ShellPhish','Template-driven phishing framework']]},
+  {label:'C2 / PIVOTING',color:'#ffd60a',tools:[['netcat','Netcat','TCP/UDP networking utility'],['ncat','Ncat','Nmap Netcat replacement'],['socat','Socat','Bidirectional data relay'],['sliver','Sliver','C2 framework'],['empire','Empire','Post-exploitation framework'],['ligolo','Ligolo-ng','Advanced tunneling tool'],['chisel','Chisel','TCP/UDP tunnel over HTTP'],['rlwrap','rlwrap','Readline wrapper for CLI tools'],['pspy','pspy','Process spy without root']]},
+  {label:'EXPLOIT / PAYLOAD',color:'#e05a4e',tools:[['msfvenom','msfvenom','Metasploit payload generator'],['pwncat','pwncat','Reverse shell handler'],['grype','Grype','Container vulnerability scanner']]},
+  {label:'REVERSE ENGINEERING',color:'#00ff9d',tools:[['radare2','Radare2','Reverse engineering framework']]},
+  {label:'AUDITING',color:'#3db870',tools:[['lynis','Lynis','System audit · hardening · compliance'],['openvas','OpenVAS','Open vulnerability assessment'],['chkrootkit','chkrootkit','Local rootkit detector'],['rkhunter','rkhunter','Rootkit Hunter']]}
+];
+function renderHomeToolCatalog(){
+  var out=document.getElementById('home-tool-catalog');if(!out)return;
+  out.innerHTML=HOME_TOOL_CATALOG.map(function(cat){
+    var tools=cat.tools.map(function(t){return '<div class="home-tool-card" onclick="pg(\''+t[0]+'\',null)" title="'+t[2]+'"><div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:2px">'+t[1]+'</div><div style="font-size:10px;color:var(--text3);line-height:1.4">'+t[2]+'</div></div>';}).join('');
+    return '<div class="home-cat-block"><div class="home-cat-label" style="border-left-color:'+cat.color+'">'+cat.label+'</div><div class="home-tools-grid">'+tools+'</div></div>';
+  }).join('');
+}
 async function loadHomeStats(){
   try{var r=await fetch('/history');var d=await r.json();var scans=Array.isArray(d)?d:(d.scans||[]);var c=0,p=0;scans.forEach(function(s){c+=(s.total_cves||0);p+=(s.open_ports||0);});animateCount(document.getElementById('hs-scans'),scans.length);animateCount(document.getElementById('hs-cves'),c);animateCount(document.getElementById('hs-ports'),p);}
   catch(e){}
+}
+function removeQuickInstallCards(){
+  document.querySelectorAll('.card .card-title, .card-p .card-title').forEach(function(t){
+    var txt=(t.textContent||'').trim().toLowerCase();
+    if(txt==='quick install'||txt==='install'){var card=t.closest('.card');if(card)card.remove();}
+  });
 }
 
 /* ==== SCAN ==== */
@@ -4205,11 +4246,41 @@ async function loadScan(id){
 /* ==== DASHBOARD ==== */
 async function loadDash(){
   try{
-    var r=await fetch('/history?limit=100');var d=await r.json();
-    if(!d.length){document.getElementById('dash-content').innerHTML='<div style="color:var(--text3)">Run some scans first.</div>';return;}
-    var tc=d.reduce(function(a,s){return a+s.total_cves;},0),cr=d.reduce(function(a,s){return a+s.critical_cves;},0),tp=d.reduce(function(a,s){return a+s.open_ports;},0);
-    var mx=Math.max.apply(null,d.map(function(s){return s.total_cves;}).concat([1]));
-    document.getElementById('dash-content').innerHTML='<div class="stats" style="margin-bottom:18px"><div class="stat"><div class="stat-val">'+d.length+'</div><div class="stat-lbl">SCANS</div></div><div class="stat"><div class="stat-val">'+tc+'</div><div class="stat-lbl">TOTAL CVEs</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">'+cr+'</div><div class="stat-lbl">CRITICAL</div></div><div class="stat"><div class="stat-val">'+tp+'</div><div class="stat-lbl">OPEN PORTS</div></div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px"><div class="card card-p"><div class="card-title" style="margin-bottom:12px">Top Targets by CVEs</div>'+d.slice(0,6).map(function(s){return'<div class="bar-row"><span class="bar-label">'+s.target.substring(0,14)+'</span><div class="bar-track"><div class="bar-fill" style="width:'+((s.total_cves/mx)*100)+'%"></div></div><span class="bar-val" style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+s.total_cves+'</span></div>';}).join('')+'</div><div class="card card-p"><div class="card-title" style="margin-bottom:12px">Recent Activity</div>'+d.slice(0,8).map(function(s){return'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="font-family:var(--mono)">'+s.target+'</span><span style="color:'+(s.critical_cves>0?'var(--red)':'var(--text3)')+'">'+(s.critical_cves>0?s.critical_cves+' critical':s.total_cves+' CVEs')+'</span></div>';}).join('')+'</div></div>';
+    var r=await fetch('/history?limit=200');var d=await r.json();
+    var el=document.getElementById('dash-content');
+    if(!d.length){el.innerHTML='<div style="color:var(--text3)">Run some scans first.</div>';return;}
+    var tc=d.reduce(function(a,s){return a+s.total_cves;},0),cr=d.reduce(function(a,s){return a+s.critical_cves;},0),tp=d.reduce(function(a,s){return a+s.open_ports;},0),high=d.reduce(function(a,s){return a+(s.high_cves||0);},0);
+    var avg=(tc/d.length)||0,risky=d.filter(function(s){return (s.critical_cves||0)>0;}).length,clean=d.filter(function(s){return (s.total_cves||0)===0;}).length;
+    var last=d[0]||{},recent7=d.slice(0,7).reduce(function(a,s){return a+s.total_cves;},0),critRate=((cr/Math.max(tc,1))*100).toFixed(1);
+    var byTarget={};d.forEach(function(s){if(!byTarget[s.target])byTarget[s.target]={cves:0};byTarget[s.target].cves+=s.total_cves;});
+    var topTargets=Object.entries(byTarget).sort(function(a,b){return b[1].cves-a[1].cves;}).slice(0,8);
+    var mx=Math.max.apply(null,topTargets.map(function(t){return t[1].cves;}).concat([1]));
+    var modMap={};d.forEach(function(s){(s.modules||'').split(',').forEach(function(m){m=m.trim();if(m)modMap[m]=(modMap[m]||0)+1;});});
+    var topMods=Object.entries(modMap).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
+    var days30=d.filter(function(s){return s.scan_time&&(Date.now()-new Date(s.scan_time).getTime())<30*86400000;}).length;
+    el.innerHTML='<div class="stats" style="margin-bottom:18px">'+
+      '<div class="stat"><div class="stat-val">'+d.length+'</div><div class="stat-lbl">TOTAL SCANS</div></div>'+
+      '<div class="stat"><div class="stat-val" style="color:var(--yellow)">'+tc+'</div><div class="stat-lbl">TOTAL CVEs</div></div>'+
+      '<div class="stat"><div class="stat-val" style="color:var(--red)">'+cr+'</div><div class="stat-lbl">CRITICAL</div></div>'+
+      '<div class="stat"><div class="stat-val" style="color:var(--orange)">'+high+'</div><div class="stat-lbl">HIGH</div></div>'+
+      '<div class="stat"><div class="stat-val">'+tp+'</div><div class="stat-lbl">OPEN PORTS</div></div>'+
+      '<div class="stat"><div class="stat-val">'+avg.toFixed(1)+'</div><div class="stat-lbl">AVG CVE/SCAN</div></div>'+
+      '<div class="stat"><div class="stat-val" style="color:var(--red)">'+risky+'</div><div class="stat-lbl">RISKY TARGETS</div></div>'+
+      '<div class="stat"><div class="stat-val" style="color:var(--green)">'+clean+'</div><div class="stat-lbl">CLEAN SCANS</div></div>'+
+      '<div class="stat"><div class="stat-val">'+days30+'</div><div class="stat-lbl">LAST 30 DAYS</div></div>'+
+      '</div>'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:14px">'+
+      '<div class="card card-p"><div class="card-title" style="margin-bottom:12px">Risk Overview</div><div style="display:grid;gap:8px;font-size:12px">'+
+      '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text3)">Critical rate</span><span style="color:var(--red);font-family:var(--mono);font-weight:600">'+critRate+'%</span></div>'+
+      '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text3)">CVEs last 7 scans</span><span style="font-family:var(--mono)">'+recent7+'</span></div>'+
+      '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text3)">Avg open ports</span><span style="font-family:var(--mono)">'+(tp/d.length).toFixed(1)+'</span></div>'+
+      '<div style="display:flex;justify-content:space-between;padding:7px 0"><span style="color:var(--text3)">Latest target</span><span style="font-family:var(--mono)">'+(last.target||'--').substring(0,20)+'</span></div></div></div>'+
+      '<div class="card card-p"><div class="card-title" style="margin-bottom:12px">Top Targets by CVEs</div>'+topTargets.map(function(kv){return'<div class="bar-row"><span class="bar-label">'+kv[0].substring(0,16)+'</span><div class="bar-track"><div class="bar-fill" style="width:'+((kv[1].cves/mx)*100)+'%"></div></div><span class="bar-val" style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+kv[1].cves+'</span></div>';}).join('')+'</div>'+
+      (topMods.length?'<div class="card card-p"><div class="card-title" style="margin-bottom:12px">Most Used Modules</div>'+topMods.map(function(kv){return'<div class="bar-row"><span class="bar-label">'+kv[0].substring(0,16)+'</span><div class="bar-track"><div class="bar-fill" style="width:'+((kv[1]/d.length)*100)+'%"></div></div><span class="bar-val" style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+kv[1]+'</span></div>';}).join('')+'</div>':'')+
+      '</div>'+
+      '<div class="card"><div class="card-header"><div class="card-title">Recent Scan Activity</div></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>#</th><th>TARGET</th><th>TIME</th><th>PORTS</th><th>CRITICAL</th><th>CVEs</th><th>MODULES</th><th></th></tr></thead><tbody>'+
+      d.slice(0,20).map(function(s){return'<tr><td style="color:var(--text3);font-family:var(--mono)">#'+s.id+'</td><td style="font-family:var(--mono)">'+s.target+'</td><td style="color:var(--text3);font-size:11px">'+((s.scan_time||'').replace('T',' ').substring(0,16))+'</td><td>'+s.open_ports+'</td><td style="color:'+(s.critical_cves>0?'var(--red)':'var(--green)')+';font-weight:600">'+s.critical_cves+'</td><td style="color:'+(s.total_cves>0?'var(--yellow)':'var(--text3)')+'">'+s.total_cves+'</td><td style="font-size:10px;color:var(--text3)">'+((s.modules||'ports').split(',').join(' · '))+'</td><td><button class="btn btn-ghost btn-sm" onclick="loadScan('+s.id+')">View</button></td></tr>';}).join('')+
+      '</tbody></table></div></div>';
   }catch(e){document.getElementById('dash-content').innerHTML='<div style="color:var(--red)">'+e.message+'</div>';}
 }
 
@@ -4283,8 +4354,17 @@ async function loadAdminServices(){
   try{
     var r=await fetch('/api/admin/services');var d=await r.json();
     var list=(d.services||[]);
-    var html='<table class="tbl"><thead><tr><th>SERVICE</th><th>TYPE</th><th>UNIT</th><th>STATUS</th><th>DETAIL</th><th>ACTIONS</th></tr></thead><tbody>';
-    html+=list.map(function(s){return '<tr><td style="font-family:var(--mono)">'+(s.label||s.key)+'</td><td style="color:var(--text3)">'+(s.kind||'--')+'</td><td style="font-family:var(--mono);font-size:11px">'+(s.unit||'--')+'</td><td>'+svcPill(s.status||'unknown')+'</td><td style="font-size:11px;color:var(--text3);max-width:300px">'+((s.detail||'--').replace(/</g,'&lt;'))+'</td><td style="display:flex;gap:4px;flex-wrap:wrap"><button class="btn btn-outline btn-sm" onclick="serviceAction(\''+s.key+'\',\'start\')">Start</button><button class="btn btn-outline btn-sm" onclick="serviceAction(\''+s.key+'\',\'stop\')">Stop</button><button class="btn btn-outline btn-sm" onclick="serviceAction(\''+s.key+'\',\'restart\')">Restart</button></td></tr>';}).join('');
+    var html='<table class="tbl"><thead><tr><th>SERVICE</th><th>TYPE</th><th>UNIT/CMD</th><th>STATUS</th><th>DETAIL</th><th>ACTIONS</th></tr></thead><tbody>';
+    html+=list.map(function(s){
+      var unitInfo=(s.kind==='systemctl'?(s.unit||'--'):(s.check_cmd||'custom').substring(0,30));
+      return '<tr data-svc-key="'+s.key+'" data-svc-label="'+(s.label||'')+'" data-svc-kind="'+(s.kind||'')+'" data-svc-unit="'+(s.unit||'')+'" data-svc-check="'+(s.check_cmd||'')+'" data-svc-start="'+(s.start_cmd||'')+'" data-svc-stop="'+(s.stop_cmd||'')+'" data-svc-restart="'+(s.restart_cmd||'')+'">'+
+        '<td style="font-family:var(--mono);font-weight:500">'+(s.label||s.key)+'</td>'+
+        '<td><span class="tag">'+(s.kind||'--')+'</span></td>'+
+        '<td style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+unitInfo+'</td>'+
+        '<td>'+svcPill(s.status||'unknown')+'</td>'+
+        '<td style="font-size:11px;color:var(--text3);max-width:220px">'+((s.detail||'--').replace(/</g,'&lt;').substring(0,80))+'</td>'+
+        '<td style="display:flex;gap:4px;flex-wrap:wrap"><button class="btn btn-outline btn-sm" onclick="serviceAction(\''+s.key+'\',\'start\')">Start</button><button class="btn btn-outline btn-sm" onclick="serviceAction(\''+s.key+'\',\'stop\')">Stop</button><button class="btn btn-outline btn-sm" onclick="serviceAction(\''+s.key+'\',\'restart\')">Restart</button><button class="btn btn-outline btn-sm" style="color:var(--blue)" onclick="editService(\''+s.key+'\')">Edit</button></td></tr>';
+    }).join('');
     html+='</tbody></table>';
     document.getElementById('admin-services-table').innerHTML=html;
   }catch(e){
@@ -4300,39 +4380,80 @@ async function serviceAction(key,action){
   }catch(e){toast('Service action error: '+e.message,'err');}
   loadAdminServices();
 }
-function applyServicePreset(){
-  var p=(document.getElementById('svc-preset')||{}).value||'';
-  if(p==='apache2'){
-    document.getElementById('svc-label').value='Apache Service';
-    document.getElementById('svc-key').value='apache2';
+var _svcEditKey=null;
+function svcKindChange(){
+  var kind=(document.getElementById('svc-kind')||{}).value||'systemctl';
+  var sf=document.getElementById('svc-systemctl-fields');
+  var cf=document.getElementById('svc-command-fields');
+  if(sf)sf.style.display=kind==='systemctl'?'grid':'none';
+  if(cf)cf.style.display=kind==='command'?'block':'none';
+}
+function applyServicePreset(p){
+  if(p==='apache2'||p==='nginx'){
+    var svcName=p==='apache2'?'Apache':'Nginx';
+    document.getElementById('svc-label').value=svcName+' Web Server';
+    document.getElementById('svc-key').value=p;
     document.getElementById('svc-kind').value='systemctl';
-    document.getElementById('svc-unit').value='apache2';
-    document.getElementById('svc-check').value='';
+    document.getElementById('svc-unit').value=p;
+    if(document.getElementById('svc-check'))document.getElementById('svc-check').value='';
   }else if(p==='supabase'){
     document.getElementById('svc-label').value='Supabase';
     document.getElementById('svc-key').value='supabase';
     document.getElementById('svc-kind').value='command';
     document.getElementById('svc-unit').value='';
-    document.getElementById('svc-check').value='cd ~/vulnscan && python3 -c \"from dotenv import load_dotenv; load_dotenv(\\\'.env\\\'); from supabase_config import supabase; supabase().table(\\\'users\\\').select(\\\'id\\\').limit(1).execute(); print(\\\'✓ Supabase Database Connected!\\\')\"';
+    if(document.getElementById('svc-check'))document.getElementById('svc-check').value='cd ~/vulnscan && python3 -c "from dotenv import load_dotenv; load_dotenv(\\\'.env\\\'); from supabase_config import supabase; supabase().table(\\\'users\\\').select(\\\'id\\\').limit(1).execute(); print(\\\'OK\\\')"';
+  }else if(p==='clear'){
+    ['svc-label','svc-key','svc-unit','svc-check','svc-desc','svc-start','svc-stop','svc-restart'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+    _svcEditKey=null;
+    var ft=document.getElementById('svc-form-title');if(ft)ft.textContent='Add New Monitored Service';
+    var fl=document.getElementById('svc-form-mode-lbl');if(fl)fl.textContent='NEW SERVICE';
+    var sb=document.getElementById('svc-submit-btn');if(sb)sb.textContent='ADD SERVICE';
+    var ce=document.getElementById('svc-cancel-edit');if(ce)ce.style.display='none';
   }
+  svcKindChange();
 }
-async function addMonitoredService(){
+function editService(key){
+  var row=document.querySelector('[data-svc-key="'+key+'"]');
+  if(!row)return;
+  _svcEditKey=key;
+  document.getElementById('svc-label').value=row.getAttribute('data-svc-label')||key;
+  document.getElementById('svc-key').value=key;
+  document.getElementById('svc-kind').value=row.getAttribute('data-svc-kind')||'systemctl';
+  if(document.getElementById('svc-unit'))document.getElementById('svc-unit').value=row.getAttribute('data-svc-unit')||'';
+  if(document.getElementById('svc-check'))document.getElementById('svc-check').value=row.getAttribute('data-svc-check')||'';
+  if(document.getElementById('svc-start'))document.getElementById('svc-start').value=row.getAttribute('data-svc-start')||'';
+  if(document.getElementById('svc-stop'))document.getElementById('svc-stop').value=row.getAttribute('data-svc-stop')||'';
+  if(document.getElementById('svc-restart'))document.getElementById('svc-restart').value=row.getAttribute('data-svc-restart')||'';
+  svcKindChange();
+  var ft=document.getElementById('svc-form-title');if(ft)ft.textContent='Edit Service: '+key;
+  var fl=document.getElementById('svc-form-mode-lbl');if(fl)fl.textContent='EDITING';
+  var sb=document.getElementById('svc-submit-btn');if(sb)sb.textContent='SAVE CHANGES';
+  var ce=document.getElementById('svc-cancel-edit');if(ce)ce.style.display='inline-flex';
+}
+function cancelServiceEdit(){applyServicePreset('clear');}
+async function submitServiceForm(){
   var label=(document.getElementById('svc-label')||{}).value||'';
   var key=(document.getElementById('svc-key')||{}).value||'';
   var kind=(document.getElementById('svc-kind')||{}).value||'systemctl';
   var unit=(document.getElementById('svc-unit')||{}).value||'';
   var checkCmd=(document.getElementById('svc-check')||{}).value||'';
+  var startCmd=(document.getElementById('svc-start')||{}).value||'';
+  var stopCmd=(document.getElementById('svc-stop')||{}).value||'';
+  var restartCmd=(document.getElementById('svc-restart')||{}).value||'';
   var msg=document.getElementById('svc-msg');
+  var isEdit=!!_svcEditKey;
   try{
-    var r=await fetch('/api/admin/services',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({label:label,key:key,kind:kind,unit:unit,check_cmd:checkCmd})});
+    var endpoint=isEdit?'/api/admin/services/'+encodeURIComponent(_svcEditKey):'/api/admin/services';
+    var method=isEdit?'PUT':'POST';
+    var r=await fetch(endpoint,{method:method,headers:{'Content-Type':'application/json'},body:JSON.stringify({label:label,key:key,kind:kind,unit:unit,check_cmd:checkCmd,control_cmds:{start:startCmd,stop:stopCmd,restart:restartCmd}})});
     var d=await r.json();
-    if(!r.ok||d.error){if(msg){msg.style.color='var(--red)';msg.textContent=d.error||'Failed to add service';}return;}
-    if(msg){msg.style.color='var(--green)';msg.textContent='Service added and monitoring started.';}
+    if(!r.ok||d.error){if(msg){msg.style.color='var(--red)';msg.textContent=d.error||'Failed';}return;}
+    if(msg){msg.style.color='var(--green)';msg.textContent=isEdit?'Service updated.':'Service added.';}
+    cancelServiceEdit();
     loadAdminServices();
-  }catch(e){
-    if(msg){msg.style.color='var(--red)';msg.textContent='Error: '+e.message;}
-  }
+  }catch(e){if(msg){msg.style.color='var(--red)';msg.textContent='Error: '+e.message;}}
 }
+async function addMonitoredService(){submitServiceForm();}
 
 /* ==== CLI ==== */
 var _cliHistory=[],_cliHistIdx=-1;
@@ -5372,6 +5493,8 @@ function seclistsCategoryChange(){
 /* END TOOL-SPECIFIC JS HELPERS */
 
 loadUser();
+setTimeout(renderHomeToolCatalog,120);
+setTimeout(removeQuickInstallCards,120);
 
 /* ==== NEW USER MODAL ==== */
 function openNewUserModal(){
