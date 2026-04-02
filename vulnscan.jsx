@@ -7,24 +7,18 @@ const TOKENS = {
     success: "#16A34A",
     warning: "#D97706",
     danger: "#DC2626",
-    surface: "#FFFFFF",
+    surface: "rgba(255,255,255,0.18)",
     text: "#111827",
-    neutral900: "#111827",
-    neutral800: "#1F2937",
-    neutral700: "#374151",
-    neutral200: "#E5E7EB",
-    neutral100: "#F3F4F6",
   },
   spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 },
-  radius: { sm: 8, md: 12, lg: 16 },
 };
 
 const SEVERITY_CONFIG = {
-  CRITICAL: { accent: "var(--danger)", bg: "#FEE2E2", label: "Critical" },
-  HIGH: { accent: "#EA580C", bg: "#FFEDD5", label: "High" },
-  MEDIUM: { accent: "var(--warning)", bg: "#FEF3C7", label: "Medium" },
-  LOW: { accent: "var(--success)", bg: "#DCFCE7", label: "Low" },
-  UNKNOWN: { accent: "#6B7280", bg: "#E5E7EB", label: "Unknown" },
+  CRITICAL: { accent: "#DC2626", bg: "rgba(220,38,38,0.14)", label: "Critical" },
+  HIGH: { accent: "#EA580C", bg: "rgba(234,88,12,0.14)", label: "High" },
+  MEDIUM: { accent: "#D97706", bg: "rgba(217,119,6,0.14)", label: "Medium" },
+  LOW: { accent: "#16A34A", bg: "rgba(22,163,74,0.14)", label: "Low" },
+  UNKNOWN: { accent: "#6B7280", bg: "rgba(107,114,128,0.14)", label: "Unknown" },
 };
 
 const MOCK_SCAN_RESULT = {
@@ -54,22 +48,11 @@ const MOCK_SCAN_RESULT = {
               published: "2023-07-20",
               references: ["https://nvd.nist.gov/vuln/detail/CVE-2023-38408"],
             },
-            {
-              id: "CVE-2023-28531",
-              description:
-                "ssh-add in OpenSSH before 9.3 applies destination constraints to smartcard keys even if they are not supported.",
-              score: 7.8,
-              severity: "HIGH",
-              published: "2023-03-17",
-              references: ["https://nvd.nist.gov/vuln/detail/CVE-2023-28531"],
-            },
           ],
           mitigations: [
-            "Urgent: patch OpenSSH immediately.",
-            "Upgrade OpenSSH to version 9.3p2 or later.",
-            "Disable root login (PermitRootLogin no).",
-            "Use SSH key authentication instead of passwords.",
-            "Restrict SSH access to specific IP ranges.",
+            "Patch OpenSSH immediately.",
+            "Upgrade OpenSSH to 9.3p2 or later.",
+            "Disable root login.",
           ],
         },
         {
@@ -78,52 +61,19 @@ const MOCK_SCAN_RESULT = {
           service: "http",
           product: "Apache httpd",
           version: "2.4.51",
-          extrainfo: "",
           risk_level: "CRITICAL",
           risk_score: 9.8,
           cves: [
             {
               id: "CVE-2021-41773",
-              description:
-                "A flaw in path normalization in Apache HTTP Server 2.4.49 enables path traversal and file mapping outside configured directories.",
+              description: "Path traversal in Apache HTTP Server 2.4.49.",
               score: 9.8,
               severity: "CRITICAL",
               published: "2021-10-05",
               references: ["https://nvd.nist.gov/vuln/detail/CVE-2021-41773"],
             },
           ],
-          mitigations: [
-            "Upgrade Apache to 2.4.52 or later.",
-            "Enable HTTPS and redirect all HTTP traffic.",
-            "Add security headers (CSP, X-Frame-Options).",
-            "Disable directory listing.",
-          ],
-        },
-        {
-          port: 3306,
-          protocol: "tcp",
-          service: "mysql",
-          product: "MySQL",
-          version: "5.7.38",
-          extrainfo: "MySQL Community Server",
-          risk_level: "MEDIUM",
-          risk_score: 5.5,
-          cves: [
-            {
-              id: "CVE-2022-21417",
-              description:
-                "Vulnerability in Oracle MySQL Server allows high privileged attackers to cause server hang or crash.",
-              score: 4.9,
-              severity: "MEDIUM",
-              published: "2022-04-19",
-              references: ["https://nvd.nist.gov/vuln/detail/CVE-2022-21417"],
-            },
-          ],
-          mitigations: [
-            "Never expose MySQL directly to the internet.",
-            "Bind MySQL to localhost only.",
-            "Upgrade to MySQL 8.0 LTS.",
-          ],
+          mitigations: ["Upgrade Apache.", "Enable HTTPS.", "Harden headers."],
         },
       ],
     },
@@ -134,130 +84,79 @@ const MOCK_SCAN_RESULT = {
 function SeverityBadge({ level }) {
   const config = SEVERITY_CONFIG[level] || SEVERITY_CONFIG.UNKNOWN;
   return (
-    <span className="severity-badge" style={{ background: config.bg, color: config.accent }}>
+    <span className="severity" style={{ color: config.accent, background: config.bg, borderColor: `${config.accent}66` }}>
       {config.label}
-    </span>
-  );
-}
-
-function ScorePill({ score }) {
-  const config = score >= 9 ? SEVERITY_CONFIG.CRITICAL : score >= 7 ? SEVERITY_CONFIG.HIGH : score >= 4 ? SEVERITY_CONFIG.MEDIUM : SEVERITY_CONFIG.LOW;
-  return (
-    <span className="score-pill" style={{ borderColor: config.accent, color: config.accent }}>
-      CVSS {score ?? "N/A"}
     </span>
   );
 }
 
 function PortCard({ port }) {
   const [open, setOpen] = useState(false);
-  const config = SEVERITY_CONFIG[port.risk_level] || SEVERITY_CONFIG.UNKNOWN;
-
   return (
-    <section className="port-card" style={{ borderColor: `${config.accent}50` }}>
-      <button
-        type="button"
-        className="port-summary"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-      >
-        <div className="port-number" style={{ color: config.accent, background: config.bg }}>
-          {port.port}
+    <article className="port-card">
+      <button type="button" className="port-trigger" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+        <div>
+          <h4>{port.port}/{port.protocol}</h4>
+          <p>{port.product || port.service} {port.version ? `v${port.version}` : ""}</p>
         </div>
-        <div className="port-meta">
-          <h4>
-            {port.product || port.service} {port.version && <span>v{port.version}</span>}
-          </h4>
-          <p>
-            {port.protocol.toUpperCase()} · {port.service}
-            {port.extrainfo ? ` · ${port.extrainfo}` : ""}
-          </p>
-        </div>
-        <div className="port-state">
-          <ScorePill score={port.risk_score} />
+        <div className="port-right">
           <SeverityBadge level={port.risk_level} />
+          <span className="cvss">CVSS {port.risk_score ?? "N/A"}</span>
         </div>
       </button>
-
-      {open && (
-        <div className="port-details">
-          <div className="detail-block">
-            <h5>Vulnerabilities ({port.cves?.length || 0})</h5>
-            {port.cves?.map((cve) => (
-              <article key={cve.id} className="cve-card">
-                <div className="cve-top">
-                  <a href={cve.references?.[0] || `https://nvd.nist.gov/vuln/detail/${cve.id}`} target="_blank" rel="noreferrer">
-                    {cve.id}
-                  </a>
-                  <SeverityBadge level={cve.severity} />
-                  <ScorePill score={cve.score} />
-                  <time>{cve.published}</time>
-                </div>
-                <p>{cve.description}</p>
-              </article>
-            ))}
-          </div>
-
-          <div className="detail-block">
-            <h5>Mitigation recommendations</h5>
-            <ul>
-              {port.mitigations?.map((item, idx) => (
-                <li key={`${port.port}-mit-${idx}`}>{item}</li>
-              ))}
-            </ul>
-          </div>
-
-          {port.cpe?.length ? (
-            <div className="cpe-list">
-              {port.cpe.map((cpe, idx) => (
-                <code key={`${cpe}-${idx}`}>{cpe}</code>
-              ))}
+      {open ? (
+        <div className="port-body">
+          <h5>Vulnerabilities</h5>
+          {(port.cves || []).map((cve) => (
+            <div key={cve.id} className="cve-item">
+              <div className="cve-head">
+                <a href={cve.references?.[0]} target="_blank" rel="noreferrer">{cve.id}</a>
+                <SeverityBadge level={cve.severity} />
+                <time>{cve.published}</time>
+              </div>
+              <p>{cve.description}</p>
             </div>
-          ) : null}
+          ))}
+          <h5>Mitigation</h5>
+          <ul>
+            {(port.mitigations || []).map((m, i) => <li key={`${port.port}-${i}`}>{m}</li>)}
+          </ul>
         </div>
-      )}
-    </section>
+      ) : null}
+    </article>
   );
 }
 
 function ScanResults({ results }) {
   if (!results?.hosts?.length) return null;
-
-  const allPorts = results.hosts.flatMap((host) => host.ports || []);
+  const allPorts = results.hosts.flatMap((h) => h.ports || []);
   const stats = [
-    { label: "Open ports", value: allPorts.length },
-    { label: "Critical", value: allPorts.filter((p) => p.risk_level === "CRITICAL").length },
-    { label: "High", value: allPorts.filter((p) => p.risk_level === "HIGH").length },
-    { label: "CVEs", value: allPorts.reduce((sum, p) => sum + (p.cves?.length || 0), 0) },
+    ["Open Ports", allPorts.length],
+    ["Critical", allPorts.filter((p) => p.risk_level === "CRITICAL").length],
+    ["CVEs", allPorts.reduce((a, p) => a + (p.cves?.length || 0), 0)],
+    ["Hosts", results.hosts.length],
   ];
 
   return (
-    <section className="results-layer" aria-live="polite">
-      <div className="stats-grid">
-        {stats.map((stat) => (
-          <article key={stat.label} className="stat-card">
-            <div>{stat.value}</div>
-            <p>{stat.label}</p>
-          </article>
+    <section className="results" aria-live="polite">
+      <div className="stat-row">
+        {stats.map(([label, value]) => (
+          <div key={label} className="stat">
+            <strong>{value}</strong>
+            <span>{label}</span>
+          </div>
         ))}
       </div>
-
       {results.hosts.map((host) => (
-        <section key={host.ip} className="host-layer">
+        <div key={host.ip} className="host-card">
           <header>
             <h3>{host.ip}</h3>
-            <p>{host.hostnames?.[0] || "No hostname"}</p>
-            <span>{host.status === "up" ? "Host up" : "Host down"}</span>
+            <p>{host.hostnames?.[0] || "No hostname"} · {host.status}</p>
           </header>
-          {host.ports?.map((port) => (
-            <PortCard key={`${host.ip}-${port.port}`} port={port} />
-          ))}
-        </section>
+          {host.ports?.map((port) => <PortCard key={`${host.ip}-${port.port}`} port={port} />)}
+        </div>
       ))}
-
-      <footer className="scan-footer">
-        {results.scan_info?.summary} · {results.scan_info?.elapsed}s
-      </footer>
+      <p className="scan-note">{results.scan_info?.summary} · {results.scan_info?.elapsed}s</p>
     </section>
   );
 }
@@ -270,40 +169,33 @@ export default function VulnScanner() {
   const [logs, setLogs] = useState([]);
   const [demoMode, setDemoMode] = useState(false);
   const logRef = useRef(null);
-
   const canScan = useMemo(() => Boolean(target.trim()) && !scanning, [target, scanning]);
 
-  const addLog = (text, type = "info", delay = 0) => {
-    setTimeout(() => setLogs((prev) => [...prev, { id: Date.now() + Math.random(), text, type }]), delay);
-  };
-
   useEffect(() => {
-    if (logRef.current) {
-      logRef.current.scrollTop = logRef.current.scrollHeight;
-    }
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [logs]);
 
   const runDemoScan = () => {
     setDemoMode(true);
     setError(null);
-    setResults(null);
-    setLogs([]);
     setScanning(true);
+    setLogs([]);
+    setResults(null);
     setTarget("192.168.1.1");
-
-    [
-      ["Initializing scanner pipeline...", "info", 0],
-      ["Preparing layered host graph...", "info", 500],
-      ["Collecting open services and CVEs...", "info", 1200],
-      ["Critical exposure found on port 80.", "error", 2600],
-      ["Mitigations generated.", "success", 4000],
-      ["Scan complete.", "success", 4800],
-    ].forEach(([text, type, delay]) => addLog(text, type, delay));
-
+    const timeline = [
+      ["Initializing scan canvas...", "info", 0],
+      ["Collecting service metadata...", "info", 500],
+      ["Matching CVEs against NVD...", "warn", 1200],
+      ["Critical risk detected on port 80", "error", 2200],
+      ["Mitigation plan prepared", "success", 3000],
+    ];
+    timeline.forEach(([text, type, delay]) => {
+      setTimeout(() => setLogs((prev) => [...prev, { id: Date.now() + Math.random(), text, type }]), delay);
+    });
     setTimeout(() => {
       setResults(MOCK_SCAN_RESULT);
       setScanning(false);
-    }, 5400);
+    }, 3600);
   };
 
   const runRealScan = async () => {
@@ -311,25 +203,16 @@ export default function VulnScanner() {
     setDemoMode(false);
     setError(null);
     setResults(null);
-    setLogs([]);
     setScanning(true);
-
-    addLog(`Target queued: ${target}`, "info", 0);
-    addLog("Attempting local API bridge at localhost:5000", "info", 250);
-
+    setLogs([{ id: Date.now(), text: `Target queued: ${target}`, type: "info" }]);
     try {
       const resp = await fetch(`http://localhost:5000/scan?target=${encodeURIComponent(target)}`, {
         signal: AbortSignal.timeout(5000),
       });
       const data = await resp.json();
-      if (data.error) {
-        setError(data.error);
-      } else {
-        setResults(data);
-        addLog("Scan complete.", "success", 100);
-      }
+      if (data.error) setError(data.error);
+      else setResults(data);
     } catch {
-      addLog("No local backend detected.", "warn", 800);
       setError("Local scanner backend is offline. Start api_server.py or run demo mode.");
     } finally {
       setScanning(false);
@@ -337,258 +220,283 @@ export default function VulnScanner() {
   };
 
   return (
-    <div className="app-shell">
-      <header className="hero-layer">
-        <div className="hero-content">
-          <p>Perspective Security Workspace</p>
-          <h1>VulnScan Depth Console</h1>
-          <span>Isometric layers, strict hierarchy, and high-contrast remediation workflows.</span>
-        </div>
-      </header>
-
-      <main className="main-grid">
-        <section className="panel panel-elevated">
-          <label htmlFor="target">Scan target</label>
-          <div className="input-row">
-            <input
-              id="target"
-              value={target}
-              onChange={(event) => setTarget(event.target.value)}
-              onKeyDown={(event) => event.key === "Enter" && canScan && runRealScan()}
-              placeholder="IP, domain, or URL"
-            />
-            <button type="button" className="btn-primary" onClick={runRealScan} disabled={!canScan}>
-              {scanning ? "Scanning..." : "Run Scan"}
-            </button>
-            <button type="button" className="btn-ghost" onClick={runDemoScan} disabled={scanning}>
-              Demo Data
-            </button>
+    <div className="page">
+      <div className="ambient-bg" />
+      <div className="glass-shell">
+        <aside className="side-nav">
+          <p className="kicker">VULNSCAN VR</p>
+          <h1>Spatial Security Console</h1>
+          <div className="analyst-card">
+            <div className="avatar" />
+            <div>
+              <strong>Security Analyst</strong>
+              <span>Threat Monitoring</span>
+            </div>
           </div>
-          {demoMode ? <p className="hint">Demo mode is active. Results are simulated.</p> : null}
-        </section>
+          <nav>
+            <button type="button">Overview</button>
+            <button type="button">Live Scan</button>
+            <button type="button">Risk Board</button>
+            <button type="button">History</button>
+          </nav>
+        </aside>
 
-        {logs.length > 0 ? (
-          <section className="panel terminal-panel" ref={logRef}>
-            <h2>Activity stream</h2>
-            {logs.map((log) => (
-              <p key={log.id} className={`log-${log.type}`}>
-                {log.text}
-              </p>
-            ))}
+        <section className="workspace">
+          <header className="hero-art">
+            <div className="art-frame" aria-hidden="true" />
+          </header>
+
+          <section className="control-strip">
+            <label htmlFor="target">Target</label>
+            <div className="controls">
+              <input
+                id="target"
+                value={target}
+                onChange={(e) => setTarget(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && canScan && runRealScan()}
+                placeholder="192.168.1.1 or example.com"
+              />
+              <button type="button" className="primary" onClick={runRealScan} disabled={!canScan}>{scanning ? "Scanning..." : "Run Scan"}</button>
+              <button type="button" className="ghost" onClick={runDemoScan} disabled={scanning}>Demo</button>
+            </div>
+            {demoMode ? <p className="demo-tag">Demo mode enabled</p> : null}
           </section>
-        ) : null}
 
-        {error ? <section className="panel error-panel">{error}</section> : null}
+          {logs.length > 0 ? (
+            <section className="log-card" ref={logRef}>
+              {logs.map((log) => <p key={log.id} className={`log-${log.type}`}>{log.text}</p>)}
+            </section>
+          ) : null}
 
-        <ScanResults results={results} />
+          {error ? <section className="error">{error}</section> : null}
 
-        <section className="panel setup-panel">
-          <h2>Setup</h2>
-          <ol>
-            <li>Install nmap: <code>sudo apt-get install nmap</code></li>
-            <li>Run local scanner: <code>python3 backend.py &lt;target&gt;</code></li>
-            <li>Run API mode: <code>python3 api_server.py</code></li>
-          </ol>
+          <ScanResults results={results} />
         </section>
-      </main>
+      </div>
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Poppins:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
-        :root {
-          --primary: ${TOKENS.color.primary};
-          --success: ${TOKENS.color.success};
-          --warning: ${TOKENS.color.warning};
-          --danger: ${TOKENS.color.danger};
-          --surface: ${TOKENS.color.surface};
-          --text: ${TOKENS.color.text};
-          --neutral-900: ${TOKENS.color.neutral900};
-          --neutral-800: ${TOKENS.color.neutral800};
-          --neutral-700: ${TOKENS.color.neutral700};
-          --neutral-200: ${TOKENS.color.neutral200};
-          --neutral-100: ${TOKENS.color.neutral100};
-        }
         * { box-sizing: border-box; }
         body { margin: 0; }
-        .app-shell {
+        .page {
           min-height: 100vh;
-          color: var(--text);
-          font-family: 'Poppins', system-ui, sans-serif;
+          padding: 48px 24px;
+          font-family: 'Poppins', sans-serif;
+          color: #F9FAFB;
+          position: relative;
+          overflow: hidden;
+          background: #9ca3af;
+        }
+        .ambient-bg {
+          position: fixed;
+          inset: 0;
           background:
-            radial-gradient(circle at 20% 0%, #d1fae5 0%, #f8fafc 34%, #f3f4f6 100%);
+            radial-gradient(circle at 20% 15%, rgba(255,255,255,.75) 0 20%, transparent 45%),
+            radial-gradient(circle at 78% 84%, rgba(148,163,184,.48) 0 22%, transparent 45%),
+            linear-gradient(135deg, #d1d5db, #9ca3af 48%, #e5e7eb);
+          filter: blur(2px);
+          transform: scale(1.06);
+          z-index: 0;
         }
-        .hero-layer {
-          padding: ${TOKENS.spacing.xxl}px;
-          background: linear-gradient(132deg, #111827 8%, #1f2937 65%, #111827 100%);
-          color: white;
-          clip-path: polygon(0 0, 100% 0, 100% 84%, 0 100%);
+        .glass-shell {
+          position: relative;
+          z-index: 1;
+          max-width: 1280px;
+          margin: 0 auto;
+          border-radius: 28px;
+          background: rgba(255,255,255,.14);
+          border: 1px solid rgba(255,255,255,.45);
+          backdrop-filter: blur(24px) saturate(140%);
+          box-shadow: 0 24px 60px rgba(15,23,42,.2);
+          display: grid;
+          grid-template-columns: 300px minmax(0, 1fr);
+          overflow: hidden;
         }
-        .hero-content { max-width: 1100px; margin: 0 auto; }
-        .hero-content p {
+        .side-nav {
+          padding: 32px 20px;
+          background: linear-gradient(180deg, rgba(31,41,55,.36), rgba(55,65,81,.18));
+          border-right: 1px solid rgba(255,255,255,.22);
+        }
+        .kicker {
           margin: 0;
-          font-family: 'JetBrains Mono', monospace;
-          font-size: 12px;
-          letter-spacing: .08em;
-          color: #6ee7b7;
+          font: 600 12px 'JetBrains Mono', monospace;
+          letter-spacing: .12em;
+          color: rgba(255,255,255,.86);
         }
-        .hero-content h1 {
-          margin: ${TOKENS.spacing.sm}px 0;
+        .side-nav h1 {
+          margin: 12px 0 20px;
           font-family: 'Oswald', sans-serif;
-          font-size: 32px;
+          font-size: 30px;
           line-height: 1.1;
           letter-spacing: .02em;
         }
-        .hero-content span { font-size: 16px; color: #d1d5db; }
-        .main-grid {
-          max-width: 1100px;
-          margin: -18px auto 0;
-          padding: 0 ${TOKENS.spacing.xl}px ${TOKENS.spacing.xxl}px;
-          display: grid;
-          gap: ${TOKENS.spacing.lg}px;
+        .analyst-card {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          border: 1px solid rgba(255,255,255,.3);
+          background: rgba(255,255,255,.2);
+          border-radius: 14px;
+          padding: 12px;
+          margin-bottom: 16px;
         }
-        .panel {
-          background: var(--surface);
-          border: 1px solid var(--neutral-200);
-          border-radius: ${TOKENS.radius.md}px;
-          padding: ${TOKENS.spacing.lg}px;
-          box-shadow: 0 6px 14px rgba(17,24,39,.06);
+        .avatar {
+          width: 40px;
+          height: 40px;
+          border-radius: 12px;
+          background: linear-gradient(135deg, #60a5fa, #34d399);
+          border: 1px solid rgba(255,255,255,.5);
         }
-        .panel-elevated {
-          box-shadow: 0 10px 0 #d1d5db, 0 20px 24px rgba(17,24,39,.12);
-          transform: perspective(1100px) rotateX(2deg);
+        .analyst-card strong { display: block; font-size: 14px; }
+        .analyst-card span { font-size: 12px; color: rgba(255,255,255,.75); }
+        nav { display: grid; gap: 8px; margin-top: 8px; }
+        nav button {
+          text-align: left;
+          border: 1px solid transparent;
+          color: rgba(255,255,255,.86);
+          background: transparent;
+          border-radius: 10px;
+          padding: 10px 12px;
+          cursor: pointer;
         }
-        label { display: block; font-size: 12px; font-weight: 600; margin-bottom: ${TOKENS.spacing.sm}px; }
-        .input-row { display: flex; gap: ${TOKENS.spacing.sm}px; flex-wrap: wrap; }
+        nav button:hover, nav button:focus-visible {
+          background: rgba(255,255,255,.15);
+          border-color: rgba(255,255,255,.3);
+          outline: none;
+        }
+        .workspace { padding: 28px; }
+        .hero-art {
+          margin-bottom: 18px;
+        }
+        .art-frame {
+          width: 100%;
+          min-height: 260px;
+          border-radius: 16px;
+          border: 1px solid rgba(255,255,255,.38);
+          background:
+            radial-gradient(circle at center, rgba(0,189,125,.35), transparent 30%),
+            repeating-linear-gradient(135deg, rgba(15,23,42,.24) 0 16px, rgba(255,255,255,.16) 16px 32px),
+            linear-gradient(145deg, #dbeafe, #93c5fd 36%, #60a5fa 54%, #f8fafc);
+          box-shadow: 0 16px 34px rgba(15,23,42,.22);
+          transform: perspective(1200px) rotateY(-8deg) rotateX(2deg);
+        }
+        .control-strip {
+          border: 1px solid rgba(255,255,255,.32);
+          background: rgba(255,255,255,.16);
+          border-radius: 16px;
+          padding: 14px;
+        }
+        label {
+          font: 600 12px 'JetBrains Mono', monospace;
+          letter-spacing: .07em;
+          display: block;
+          margin-bottom: 8px;
+          color: rgba(255,255,255,.88);
+        }
+        .controls { display: flex; gap: 8px; flex-wrap: wrap; }
         input {
           flex: 1;
           min-width: 220px;
+          border: 1px solid rgba(255,255,255,.45);
+          background: rgba(255,255,255,.2);
+          color: #f9fafb;
+          border-radius: 10px;
+          padding: 11px 12px;
           font-size: 14px;
-          border: 1px solid var(--neutral-200);
-          border-radius: ${TOKENS.radius.sm}px;
-          padding: ${TOKENS.spacing.md}px;
-          font-family: 'Poppins', sans-serif;
         }
-        input:focus-visible, button:focus-visible, .port-summary:focus-visible {
-          outline: 3px solid #93c5fd;
-          outline-offset: 2px;
+        input::placeholder { color: rgba(249,250,251,.72); }
+        input:focus-visible, button:focus-visible, .port-trigger:focus-visible {
+          outline: 3px solid rgba(147,197,253,.95);
+          outline-offset: 1px;
         }
-        .btn-primary, .btn-ghost {
-          border-radius: ${TOKENS.radius.sm}px;
-          border: 1px solid transparent;
-          padding: ${TOKENS.spacing.md}px ${TOKENS.spacing.lg}px;
-          font-size: 14px;
+        .primary, .ghost {
+          border-radius: 10px;
+          padding: 11px 14px;
           font-weight: 600;
+          border: 1px solid transparent;
           cursor: pointer;
         }
-        .btn-primary { background: var(--primary); color: #052e16; }
-        .btn-primary:hover:not(:disabled) { filter: brightness(0.94); }
-        .btn-ghost { background: white; border-color: var(--neutral-200); color: var(--neutral-800); }
-        .btn-ghost:hover:not(:disabled) { background: var(--neutral-100); }
-        button:disabled { opacity: .55; cursor: not-allowed; }
-        .hint { margin: ${TOKENS.spacing.sm}px 0 0; color: var(--neutral-700); font-size: 12px; }
-        .terminal-panel h2, .setup-panel h2 { margin: 0 0 ${TOKENS.spacing.sm}px; font-size: 16px; }
-        .terminal-panel { max-height: 260px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; }
-        .terminal-panel p { margin: 0 0 8px; font-size: 12px; }
-        .log-info { color: #1d4ed8; }
-        .log-success { color: var(--success); }
-        .log-warn { color: var(--warning); }
-        .log-error { color: var(--danger); }
-        .error-panel { color: var(--danger); border-color: #fecaca; background: #fef2f2; font-weight: 600; }
-        .results-layer { display: grid; gap: ${TOKENS.spacing.lg}px; }
-        .stats-grid {
+        .primary { background: ${TOKENS.color.primary}; color: #052e16; }
+        .ghost { background: rgba(255,255,255,.22); border-color: rgba(255,255,255,.4); color: #f9fafb; }
+        button:disabled { opacity: .6; cursor: not-allowed; }
+        .demo-tag { margin: 8px 0 0; color: #dcfce7; font-size: 12px; }
+        .log-card, .error, .results {
+          margin-top: 12px;
+          border: 1px solid rgba(255,255,255,.3);
+          background: rgba(17,24,39,.22);
+          border-radius: 14px;
+          padding: 12px;
+          backdrop-filter: blur(8px);
+        }
+        .log-card { max-height: 140px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; }
+        .log-card p { margin: 0 0 7px; font-size: 12px; }
+        .log-info { color: #bae6fd; }
+        .log-success { color: #86efac; }
+        .log-warn { color: #fde68a; }
+        .log-error, .error { color: #fecaca; }
+        .stat-row {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-          gap: ${TOKENS.spacing.sm}px;
+          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+          gap: 8px;
+          margin-bottom: 10px;
         }
-        .stat-card {
-          background: linear-gradient(160deg, white 0%, #f9fafb 70%);
-          border: 1px solid #e5e7eb;
-          border-radius: ${TOKENS.radius.sm}px;
-          padding: ${TOKENS.spacing.md}px;
+        .stat {
+          border-radius: 12px;
+          border: 1px solid rgba(255,255,255,.24);
+          background: rgba(255,255,255,.14);
           text-align: center;
-          transform: translateZ(0);
+          padding: 8px;
         }
-        .stat-card div { font-size: 24px; font-weight: 700; }
-        .stat-card p { margin: 4px 0 0; font-size: 12px; color: var(--neutral-700); }
-        .host-layer > header { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-bottom: 8px; }
-        .host-layer h3 { margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 16px; }
-        .host-layer p { margin: 0; font-size: 12px; color: var(--neutral-700); }
-        .host-layer span { font-size: 12px; color: var(--success); font-weight: 600; }
-        .port-card {
-          border: 1px solid;
-          border-radius: ${TOKENS.radius.md}px;
-          background: white;
-          margin-bottom: ${TOKENS.spacing.sm}px;
-          overflow: hidden;
+        .stat strong { display: block; font-size: 22px; }
+        .stat span { font-size: 11px; color: rgba(255,255,255,.78); }
+        .host-card {
+          border: 1px solid rgba(255,255,255,.22);
+          background: rgba(255,255,255,.1);
+          border-radius: 12px;
+          padding: 10px;
+          margin-bottom: 10px;
         }
-        .port-summary {
+        .host-card h3 { margin: 0; font: 600 15px 'JetBrains Mono', monospace; }
+        .host-card p { margin: 4px 0 8px; font-size: 12px; color: rgba(255,255,255,.78); }
+        .port-card { border: 1px solid rgba(255,255,255,.18); border-radius: 10px; margin-bottom: 8px; overflow: hidden; }
+        .port-trigger {
           width: 100%;
           border: 0;
-          background: transparent;
-          padding: ${TOKENS.spacing.md}px;
+          background: rgba(17,24,39,.24);
+          color: #fff;
           display: flex;
+          justify-content: space-between;
           align-items: center;
-          gap: ${TOKENS.spacing.md}px;
-          text-align: left;
-          cursor: pointer;
-        }
-        .port-number {
-          min-width: 62px;
-          text-align: center;
-          font: 600 20px 'Oswald', sans-serif;
-          border-radius: ${TOKENS.radius.sm}px;
-          padding: 6px 10px;
-        }
-        .port-meta { flex: 1; min-width: 170px; }
-        .port-meta h4 { margin: 0; font-size: 16px; }
-        .port-meta h4 span { font-size: 14px; color: var(--neutral-700); }
-        .port-meta p { margin: 4px 0 0; font-size: 12px; color: var(--neutral-700); }
-        .port-state { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .severity-badge, .score-pill {
-          display: inline-flex;
-          align-items: center;
-          border-radius: 999px;
-          font-size: 12px;
-          font-weight: 600;
-          line-height: 1;
-          padding: 6px 10px;
-          white-space: nowrap;
-        }
-        .score-pill { border: 1px solid; background: white; }
-        .port-details {
-          border-top: 1px solid var(--neutral-200);
-          padding: ${TOKENS.spacing.md}px;
-          display: grid;
-          gap: ${TOKENS.spacing.md}px;
-        }
-        .detail-block h5 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
-        .cve-card {
-          border: 1px solid var(--neutral-200);
-          border-radius: ${TOKENS.radius.sm}px;
+          gap: 8px;
           padding: 10px;
-          margin-bottom: 8px;
-          background: #fcfcfd;
+          cursor: pointer;
+          text-align: left;
         }
-        .cve-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .cve-top a { color: #0369a1; font: 600 12px 'JetBrains Mono', monospace; text-decoration: none; }
-        .cve-top time { margin-left: auto; font-size: 12px; color: var(--neutral-700); }
-        .cve-card p { margin: 8px 0 0; font-size: 13px; color: var(--neutral-900); }
-        ul { margin: 0; padding-left: 18px; }
-        li { margin-bottom: 6px; font-size: 13px; }
-        .cpe-list { display: flex; flex-wrap: wrap; gap: 6px; }
-        .cpe-list code {
-          font: 500 11px 'JetBrains Mono', monospace;
-          background: var(--neutral-100);
-          border: 1px solid var(--neutral-200);
-          border-radius: 6px;
+        .port-trigger h4 { margin: 0; font-size: 14px; }
+        .port-trigger p { margin: 3px 0 0; font-size: 12px; color: rgba(255,255,255,.72); }
+        .port-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+        .severity, .cvss {
+          border: 1px solid rgba(255,255,255,.28);
+          border-radius: 999px;
+          font-size: 11px;
           padding: 4px 8px;
+          font-weight: 600;
         }
-        .scan-footer { text-align: center; font-size: 12px; color: var(--neutral-700); }
-        .setup-panel code { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
-        @media (max-width: 720px) {
-          .hero-layer { padding: ${TOKENS.spacing.xl}px; }
-          .hero-content h1 { font-size: 24px; }
-          .main-grid { padding: 0 ${TOKENS.spacing.md}px ${TOKENS.spacing.xl}px; }
-          .port-summary { align-items: flex-start; }
+        .cvss { color: #e0f2fe; background: rgba(14,116,144,.28); }
+        .port-body { background: rgba(255,255,255,.08); border-top: 1px solid rgba(255,255,255,.2); padding: 10px; }
+        .port-body h5 { margin: 0 0 7px; font: 600 11px 'JetBrains Mono', monospace; letter-spacing: .06em; }
+        .cve-item { border: 1px solid rgba(255,255,255,.2); border-radius: 8px; padding: 8px; margin-bottom: 7px; }
+        .cve-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+        .cve-head a { color: #86efac; font: 600 12px 'JetBrains Mono', monospace; }
+        .cve-head time { margin-left: auto; font-size: 11px; color: rgba(255,255,255,.72); }
+        .cve-item p { margin: 6px 0 0; font-size: 12px; color: rgba(255,255,255,.88); }
+        ul { margin: 0; padding-left: 17px; }
+        li { font-size: 12px; margin-bottom: 4px; color: rgba(255,255,255,.88); }
+        .scan-note { margin: 0; text-align: center; font-size: 11px; color: rgba(255,255,255,.75); }
+
+        @media (max-width: 980px) {
+          .glass-shell { grid-template-columns: 1fr; }
+          .side-nav { border-right: 0; border-bottom: 1px solid rgba(255,255,255,.22); }
         }
       `}</style>
     </div>
