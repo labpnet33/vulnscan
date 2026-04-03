@@ -1,504 +1,582 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
 const TOKENS = {
-  color: {
-    primary: "#00BD7D",
-    secondary: "#00BD7D",
-    success: "#16A34A",
-    warning: "#D97706",
-    danger: "#DC2626",
-    surface: "rgba(255,255,255,0.18)",
-    text: "#111827",
-  },
-  spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 },
+  primary: "#00FF41",
+  background: "#000000",
+  surface: "#0A0A0A",
+  text: "#E0E0E0",
+  muted: "#333333",
+  accent: "#FF003C",
+  grid: "#111111",
 };
 
-const SEVERITY_CONFIG = {
-  CRITICAL: { accent: "#DC2626", bg: "rgba(220,38,38,0.14)", label: "Critical" },
-  HIGH: { accent: "#EA580C", bg: "rgba(234,88,12,0.14)", label: "High" },
-  MEDIUM: { accent: "#D97706", bg: "rgba(217,119,6,0.14)", label: "Medium" },
-  LOW: { accent: "#16A34A", bg: "rgba(22,163,74,0.14)", label: "Low" },
-  UNKNOWN: { accent: "#6B7280", bg: "rgba(107,114,128,0.14)", label: "Unknown" },
-};
+const NODES = [
+  { id: "NODE-001", ip: "10.12.4.17", x: 14, y: 22, status: "up", cpu: "41%", mem: "58%", os: "Ubuntu 24.04" },
+  { id: "NODE-002", ip: "10.12.4.29", x: 38, y: 58, status: "up", cpu: "28%", mem: "47%", os: "Debian 12" },
+  { id: "NODE-003", ip: "10.12.4.42", x: 66, y: 28, status: "up", cpu: "62%", mem: "74%", os: "Kali 2026.1" },
+  { id: "NODE-004", ip: "10.12.4.63", x: 78, y: 66, status: "down", cpu: "--", mem: "--", os: "Unknown" },
+];
 
-const MOCK_SCAN_RESULT = {
-  hosts: [
-    {
-      ip: "192.168.1.1",
-      status: "up",
-      hostnames: ["router.local"],
-      ports: [
-        {
-          port: 22,
-          protocol: "tcp",
-          service: "ssh",
-          product: "OpenSSH",
-          version: "7.4",
-          extrainfo: "protocol 2.0",
-          cpe: ["cpe:/a:openbsd:openssh:7.4"],
-          risk_level: "HIGH",
-          risk_score: 7.8,
-          cves: [
-            {
-              id: "CVE-2023-38408",
-              description:
-                "The PKCS#11 feature in ssh-agent in OpenSSH before 9.3p2 has an insufficiently trustworthy search path, leading to remote code execution.",
-              score: 9.8,
-              severity: "CRITICAL",
-              published: "2023-07-20",
-              references: ["https://nvd.nist.gov/vuln/detail/CVE-2023-38408"],
-            },
-          ],
-          mitigations: [
-            "Patch OpenSSH immediately.",
-            "Upgrade OpenSSH to 9.3p2 or later.",
-            "Disable root login.",
-          ],
-        },
-        {
-          port: 80,
-          protocol: "tcp",
-          service: "http",
-          product: "Apache httpd",
-          version: "2.4.51",
-          risk_level: "CRITICAL",
-          risk_score: 9.8,
-          cves: [
-            {
-              id: "CVE-2021-41773",
-              description: "Path traversal in Apache HTTP Server 2.4.49.",
-              score: 9.8,
-              severity: "CRITICAL",
-              published: "2021-10-05",
-              references: ["https://nvd.nist.gov/vuln/detail/CVE-2021-41773"],
-            },
-          ],
-          mitigations: ["Upgrade Apache.", "Enable HTTPS.", "Harden headers."],
-        },
-      ],
-    },
-  ],
-  scan_info: { elapsed: "12.34", summary: "Nmap done: 1 IP address (1 host up)" },
-};
+const THREATS = [
+  { id: "CVE-2025-20931", severity: "CRITICAL", cwe: "Command Injection in telemetry parser", endpoint: "/api/telemetry/upload" },
+  { id: "CVE-2024-88411", severity: "HIGH", cwe: "Auth bypass via insecure JWT validation", endpoint: "/v1/session/refresh" },
+  { id: "CVE-2023-44877", severity: "MEDIUM", cwe: "Stored XSS in admin console alerts", endpoint: "/admin/notifications" },
+  { id: "CVE-2024-19003", severity: "LOW", cwe: "Verbose error leakage in diagnostics", endpoint: "/diag/ping" },
+];
 
-function SeverityBadge({ level }) {
-  const config = SEVERITY_CONFIG[level] || SEVERITY_CONFIG.UNKNOWN;
-  return (
-    <span className="severity" style={{ color: config.accent, background: config.bg, borderColor: `${config.accent}66` }}>
-      {config.label}
-    </span>
-  );
-}
-
-function PortCard({ port }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <article className="port-card">
-      <button type="button" className="port-trigger" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
-        <div>
-          <h4>{port.port}/{port.protocol}</h4>
-          <p>{port.product || port.service} {port.version ? `v${port.version}` : ""}</p>
-        </div>
-        <div className="port-right">
-          <SeverityBadge level={port.risk_level} />
-          <span className="cvss">CVSS {port.risk_score ?? "N/A"}</span>
-        </div>
-      </button>
-      {open ? (
-        <div className="port-body">
-          <h5>Vulnerabilities</h5>
-          {(port.cves || []).map((cve) => (
-            <div key={cve.id} className="cve-item">
-              <div className="cve-head">
-                <a href={cve.references?.[0]} target="_blank" rel="noreferrer">{cve.id}</a>
-                <SeverityBadge level={cve.severity} />
-                <time>{cve.published}</time>
-              </div>
-              <p>{cve.description}</p>
-            </div>
-          ))}
-          <h5>Mitigation</h5>
-          <ul>
-            {(port.mitigations || []).map((m, i) => <li key={`${port.port}-${i}`}>{m}</li>)}
-          </ul>
-        </div>
-      ) : null}
-    </article>
-  );
-}
-
-function ScanResults({ results }) {
-  if (!results?.hosts?.length) return null;
-  const allPorts = results.hosts.flatMap((h) => h.ports || []);
-  const stats = [
-    ["Open Ports", allPorts.length],
-    ["Critical", allPorts.filter((p) => p.risk_level === "CRITICAL").length],
-    ["CVEs", allPorts.reduce((a, p) => a + (p.cves?.length || 0), 0)],
-    ["Hosts", results.hosts.length],
-  ];
+function NodeDetails({ node }) {
+  if (!node) {
+    return <p className="empty-detail">SELECT_NODE_FOR_HARDWARE_PROFILE</p>;
+  }
 
   return (
-    <section className="results" aria-live="polite">
-      <div className="stat-row">
-        {stats.map(([label, value]) => (
-          <div key={label} className="stat">
-            <strong>{value}</strong>
-            <span>{label}</span>
-          </div>
-        ))}
-      </div>
-      {results.hosts.map((host) => (
-        <div key={host.ip} className="host-card">
-          <header>
-            <h3>{host.ip}</h3>
-            <p>{host.hostnames?.[0] || "No hostname"} · {host.status}</p>
-          </header>
-          {host.ports?.map((port) => <PortCard key={`${host.ip}-${port.port}`} port={port} />)}
-        </div>
-      ))}
-      <p className="scan-note">{results.scan_info?.summary} · {results.scan_info?.elapsed}s</p>
-    </section>
+    <div className="node-detail-card">
+      <h3>{node.id}</h3>
+      <p>{node.ip}</p>
+      <ul>
+        <li>OS: {node.os}</li>
+        <li>CPU: {node.cpu}</li>
+        <li>MEM: {node.mem}</li>
+        <li>STATUS: {node.status.toUpperCase()}</li>
+      </ul>
+    </div>
   );
 }
 
 export default function VulnScanner() {
+  const [screen, setScreen] = useState("nexus");
+  const [selectedNodeId, setSelectedNodeId] = useState(NODES[0].id);
   const [target, setTarget] = useState("");
-  const [scanning, setScanning] = useState(false);
-  const [results, setResults] = useState(null);
-  const [error, setError] = useState(null);
-  const [logs, setLogs] = useState([]);
-  const [demoMode, setDemoMode] = useState(false);
+  const [includeNmap, setIncludeNmap] = useState(true);
+  const [includeDirb, setIncludeDirb] = useState(true);
+  const [includeNikto, setIncludeNikto] = useState(false);
+  const [executing, setExecuting] = useState(false);
+  const [aborted, setAborted] = useState(false);
+  const [terminalLines, setTerminalLines] = useState([]);
+  const [flashAbort, setFlashAbort] = useState(false);
+  const [dumped, setDumped] = useState(false);
+  const [time, setTime] = useState(() => new Date());
   const logRef = useRef(null);
-  const canScan = useMemo(() => Boolean(target.trim()) && !scanning, [target, scanning]);
+
+  const selectedNode = useMemo(() => NODES.find((node) => node.id === selectedNodeId), [selectedNodeId]);
+  const severityStats = useMemo(
+    () => ({
+      CRITICAL: THREATS.filter((item) => item.severity === "CRITICAL").length,
+      HIGH: THREATS.filter((item) => item.severity === "HIGH").length,
+      MEDIUM: THREATS.filter((item) => item.severity === "MEDIUM").length,
+      LOW: THREATS.filter((item) => item.severity === "LOW").length,
+    }),
+    [],
+  );
 
   useEffect(() => {
-    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
-  }, [logs]);
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
-  const runDemoScan = () => {
-    setDemoMode(true);
-    setError(null);
-    setScanning(true);
-    setLogs([]);
-    setResults(null);
-    setTarget("192.168.1.1");
-    const timeline = [
-      ["Initializing scan canvas...", "info", 0],
-      ["Collecting service metadata...", "info", 500],
-      ["Matching CVEs against NVD...", "warn", 1200],
-      ["Critical risk detected on port 80", "error", 2200],
-      ["Mitigation plan prepared", "success", 3000],
+  useEffect(() => {
+    if (screen !== "execution" || !executing || aborted) return undefined;
+    const scripts = [
+      "INITIALIZING_HANDSHAKE...",
+      "RESOLVING_TARGET_SCOPE...",
+      "NMAP_PAYLOAD_ATTACHED",
+      "DIRB_DICTIONARY_LOADED",
+      "NIKTO_SIGNATURES_LOADING",
+      "VULN: Potential command injection at /api/telemetry/upload",
+      "SUCCESS: Enumerated 48 services",
+      "VULN: JWT verifier misconfiguration detected",
+      "SCAN_COMPLETE -> SWITCH_TO_MATRIX",
     ];
-    timeline.forEach(([text, type, delay]) => {
-      setTimeout(() => setLogs((prev) => [...prev, { id: Date.now() + Math.random(), text, type }]), delay);
-    });
-    setTimeout(() => {
-      setResults(MOCK_SCAN_RESULT);
-      setScanning(false);
-    }, 3600);
+
+    let index = 0;
+    const stream = setInterval(() => {
+      if (index >= scripts.length) {
+        clearInterval(stream);
+        setExecuting(false);
+        return;
+      }
+      const line = scripts[index];
+      setTerminalLines((prev) => [...prev, `[${new Date().toLocaleTimeString("en-US", { hour12: false })}] ${line}`]);
+      index += 1;
+    }, 520);
+
+    return () => clearInterval(stream);
+  }, [screen, executing, aborted]);
+
+  useEffect(() => {
+    if (logRef.current) {
+      logRef.current.scrollTop = logRef.current.scrollHeight;
+    }
+  }, [terminalLines]);
+
+  const openTargetInjection = () => setScreen("target");
+
+  const executeScan = () => {
+    if (!target.trim()) return;
+    setTerminalLines([
+      `[${new Date().toLocaleTimeString("en-US", { hour12: false })}] TARGET_ACCEPTED ${target}`,
+      `[${new Date().toLocaleTimeString("en-US", { hour12: false })}] PAYLOADS: ${includeNmap ? "NMAP " : ""}${includeDirb ? "DIRB " : ""}${includeNikto ? "NIKTO" : ""}`.trim(),
+    ]);
+    setAborted(false);
+    setExecuting(true);
+    setScreen("execution");
   };
 
-  const runRealScan = async () => {
-    if (!target.trim()) return;
-    setDemoMode(false);
-    setError(null);
-    setResults(null);
-    setScanning(true);
-    setLogs([{ id: Date.now(), text: `Target queued: ${target}`, type: "info" }]);
-    try {
-      const resp = await fetch(`http://localhost:5000/scan?target=${encodeURIComponent(target)}`, {
-        signal: AbortSignal.timeout(5000),
-      });
-      const data = await resp.json();
-      if (data.error) setError(data.error);
-      else setResults(data);
-    } catch {
-      setError("Local scanner backend is offline. Start api_server.py or run demo mode.");
-    } finally {
-      setScanning(false);
-    }
+  const abortScan = () => {
+    setAborted(true);
+    setExecuting(false);
+    setFlashAbort(true);
+    setTerminalLines((prev) => [...prev, `[${new Date().toLocaleTimeString("en-US", { hour12: false })}] SIGINT RECEIVED. STREAM HALTED.`]);
+    setTimeout(() => setFlashAbort(false), 50);
+  };
+
+  const dumpJson = () => {
+    setDumped(true);
+    const blob = new Blob([JSON.stringify(THREATS, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "threat-matrix.json";
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="page">
-      <div className="ambient-bg" />
-      <div className="glass-shell">
-        <aside className="side-nav">
-          <p className="kicker">VULNSCAN VR</p>
-          <h1>Spatial Security Console</h1>
-          <div className="analyst-card">
-            <div className="avatar" />
-            <div>
-              <strong>Security Analyst</strong>
-              <span>Threat Monitoring</span>
-            </div>
+    <main className="app-root">
+      <div className="spatial-grid" aria-hidden="true" />
+      {flashAbort ? <div className="abort-flash" /> : null}
+
+      <header className="top-hud">
+        <span>{time.toISOString().replace("T", " ").slice(0, 19)} UTC</span>
+        <span>PROXY: ACTIVE</span>
+        <button type="button" onClick={openTargetInjection}>[NEW_TARGET]</button>
+      </header>
+
+      {screen === "nexus" ? (
+        <section className="nexus-screen">
+          <div className="map-canvas">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="connection-layer" aria-hidden="true">
+              <line x1="14" y1="22" x2="38" y2="58" />
+              <line x1="38" y1="58" x2="66" y2="28" />
+              <line x1="66" y1="28" x2="78" y2="66" />
+            </svg>
+            {NODES.map((node) => (
+              <button
+                key={node.id}
+                type="button"
+                className={`node-panel ${selectedNodeId === node.id ? "active" : ""} ${node.status === "down" ? "error" : ""}`}
+                style={{ left: `${node.x}%`, top: `${node.y}%` }}
+                onClick={() => setSelectedNodeId(node.id)}
+              >
+                <p>{node.ip}</p>
+                <span className={`status-dot ${node.status}`} />
+              </button>
+            ))}
           </div>
-          <nav>
-            <button type="button">Overview</button>
-            <button type="button">Live Scan</button>
-            <button type="button">Risk Board</button>
-            <button type="button">History</button>
-          </nav>
-        </aside>
-
-        <section className="workspace">
-          <header className="hero-art">
-            <div className="art-frame" aria-hidden="true" />
-          </header>
-
-          <section className="control-strip">
-            <label htmlFor="target">Target</label>
-            <div className="controls">
-              <input
-                id="target"
-                value={target}
-                onChange={(e) => setTarget(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && canScan && runRealScan()}
-                placeholder="192.168.1.1 or example.com"
-              />
-              <button type="button" className="primary" onClick={runRealScan} disabled={!canScan}>{scanning ? "Scanning..." : "Run Scan"}</button>
-              <button type="button" className="ghost" onClick={runDemoScan} disabled={scanning}>Demo</button>
-            </div>
-            {demoMode ? <p className="demo-tag">Demo mode enabled</p> : null}
-          </section>
-
-          {logs.length > 0 ? (
-            <section className="log-card" ref={logRef}>
-              {logs.map((log) => <p key={log.id} className={`log-${log.type}`}>{log.text}</p>)}
-            </section>
-          ) : null}
-
-          {error ? <section className="error">{error}</section> : null}
-
-          <ScanResults results={results} />
+          <aside className="node-info-float">
+            <NodeDetails node={selectedNode} />
+          </aside>
         </section>
-      </div>
+      ) : null}
+
+      {screen === "target" ? (
+        <section className="target-injection" role="dialog" aria-label="Target Injection">
+          <h2>TARGET_INJECTION</h2>
+          <label htmlFor="target-ip">ENTER_TARGET_IP...</label>
+          <input
+            id="target-ip"
+            value={target}
+            placeholder="10.12.4.0/24"
+            onChange={(e) => setTarget(e.target.value)}
+            className={!target.trim() ? "" : "focus"}
+          />
+
+          <div className="toggle-list">
+            <button type="button" className="toggle" onClick={() => setIncludeNmap((v) => !v)}>
+              <span className={`check ${includeNmap ? "on" : ""}`} /> NMAP
+            </button>
+            <button type="button" className="toggle" onClick={() => setIncludeDirb((v) => !v)}>
+              <span className={`check ${includeDirb ? "on" : ""}`} /> DIRB
+            </button>
+            <button type="button" className="toggle" onClick={() => setIncludeNikto((v) => !v)}>
+              <span className={`check ${includeNikto ? "on" : ""}`} /> NIKTO
+            </button>
+          </div>
+
+          <div className="action-row">
+            <button type="button" onClick={() => setScreen("nexus")}>[CLOSE]</button>
+            <button type="button" onClick={executeScan}>[EXECUTE]</button>
+          </div>
+        </section>
+      ) : null}
+
+      {screen === "execution" ? (
+        <section className="execution-screen">
+          <article className="live-feed" ref={logRef}>
+            {terminalLines.length === 0 ? <p>INITIALIZING_HANDSHAKE...</p> : null}
+            {terminalLines.map((line, idx) => (
+              <p key={`${idx}-${line}`} className={line.includes("VULN") ? "critical" : line.includes("SUCCESS") ? "success" : ""}>{line}</p>
+            ))}
+          </article>
+          <aside className="telemetry">
+            <h3>CPU / MEM TELEMETRY</h3>
+            <p>CPU [||||||    ] 60%</p>
+            <p>MEM [|||||||   ] 73%</p>
+            <p>NET [||||      ] 44%</p>
+            <button type="button" onClick={() => setScreen("matrix")}>[VIEW_THREATS]</button>
+          </aside>
+          <button type="button" className="abort" onClick={abortScan}>[SIGINT / ABORT]</button>
+        </section>
+      ) : null}
+
+      {screen === "matrix" ? (
+        <section className="threat-matrix">
+          <div className="severity-header">
+            {Object.entries(severityStats).map(([label, count]) => (
+              <div key={label}>
+                <h3>{label}</h3>
+                <strong>{count}</strong>
+              </div>
+            ))}
+          </div>
+
+          <div className="matrix-grid" role="table" aria-label="Threat Matrix">
+            <div className="head">ID</div>
+            <div className="head">SEVERITY</div>
+            <div className="head">CWE_DESC</div>
+            <div className="head">ENDPOINT</div>
+            {THREATS.map((item) => (
+              <Fragment key={item.id}>
+                <div>{item.id}</div>
+                <div>
+                  <span className={`severity-tag ${item.severity.toLowerCase()}`}>{item.severity}</span>
+                </div>
+                <div>{item.cwe}</div>
+                <div>{item.endpoint}</div>
+              </Fragment>
+            ))}
+          </div>
+
+          <button type="button" className="dump" onClick={dumpJson}>{dumped ? "[DUMP_COMPLETE]" : "[DUMP_JSON]"}</button>
+        </section>
+      ) : null}
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Poppins:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+
         * { box-sizing: border-box; }
-        body { margin: 0; }
-        .page {
+        body { margin: 0; background: ${TOKENS.background}; }
+        button, input { font-family: 'JetBrains Mono', monospace; }
+        .app-root {
           min-height: 100vh;
-          padding: 48px 24px;
-          font-family: 'Poppins', sans-serif;
-          color: #F9FAFB;
+          background: ${TOKENS.background};
+          color: ${TOKENS.text};
+          padding: 24px;
+          font-family: 'JetBrains Mono', monospace;
           position: relative;
           overflow: hidden;
-          background: #9ca3af;
+          cursor: crosshair;
         }
-        .ambient-bg {
-          position: fixed;
+        .spatial-grid {
+          position: absolute;
           inset: 0;
-          background:
-            radial-gradient(circle at 20% 15%, rgba(255,255,255,.75) 0 20%, transparent 45%),
-            radial-gradient(circle at 78% 84%, rgba(148,163,184,.48) 0 22%, transparent 45%),
-            linear-gradient(135deg, #d1d5db, #9ca3af 48%, #e5e7eb);
-          filter: blur(2px);
-          transform: scale(1.06);
+          background-image:
+            linear-gradient(to right, ${TOKENS.grid} 1px, transparent 1px),
+            linear-gradient(to bottom, ${TOKENS.grid} 1px, transparent 1px);
+          background-size: 40px 40px;
           z-index: 0;
         }
-        .glass-shell {
+        .abort-flash {
+          position: fixed;
+          inset: 0;
+          background: white;
+          z-index: 20;
+          pointer-events: none;
+        }
+        .top-hud {
           position: relative;
-          z-index: 1;
-          max-width: 1280px;
+          z-index: 2;
+          width: 400px;
           margin: 0 auto;
-          border-radius: 28px;
-          background: rgba(255,255,255,.14);
-          border: 1px solid rgba(255,255,255,.45);
-          backdrop-filter: blur(24px) saturate(140%);
-          box-shadow: 0 24px 60px rgba(15,23,42,.2);
+          border: 1px solid ${TOKENS.primary};
+          background: ${TOKENS.surface};
+          box-shadow: 4px 4px 0 0 ${TOKENS.primary};
           display: grid;
-          grid-template-columns: 300px minmax(0, 1fr);
+          grid-template-columns: 1fr auto auto;
+          gap: 16px;
+          align-items: center;
+          padding: 10px 14px;
+          font-size: 12px;
+          text-transform: uppercase;
+        }
+        .top-hud button {
+          background: ${TOKENS.background};
+          color: ${TOKENS.primary};
+          border: 1px solid ${TOKENS.primary};
+          height: 40px;
+          width: 120px;
+          text-transform: uppercase;
+          font-weight: 700;
+          box-shadow: 4px 4px 0 0 ${TOKENS.primary};
+        }
+        .top-hud button:hover {
+          background: ${TOKENS.primary};
+          color: ${TOKENS.background};
+          box-shadow: 2px 2px 0 0 ${TOKENS.primary};
+        }
+
+        .nexus-screen { position: relative; z-index: 1; margin-top: 24px; min-height: calc(100vh - 140px); }
+        .map-canvas {
+          position: absolute;
+          inset: 0 340px 0 0;
+          border: 1px solid ${TOKENS.muted};
+          background: rgba(10, 10, 10, 0.7);
           overflow: hidden;
         }
-        .side-nav {
-          padding: 32px 20px;
-          background: linear-gradient(180deg, rgba(31,41,55,.36), rgba(55,65,81,.18));
-          border-right: 1px solid rgba(255,255,255,.22);
-        }
-        .kicker {
-          margin: 0;
-          font: 600 12px 'JetBrains Mono', monospace;
-          letter-spacing: .12em;
-          color: rgba(255,255,255,.86);
-        }
-        .side-nav h1 {
-          margin: 12px 0 20px;
-          font-family: 'Oswald', sans-serif;
-          font-size: 30px;
-          line-height: 1.1;
-          letter-spacing: .02em;
-        }
-        .analyst-card {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          border: 1px solid rgba(255,255,255,.3);
-          background: rgba(255,255,255,.2);
-          border-radius: 14px;
-          padding: 12px;
-          margin-bottom: 16px;
-        }
-        .avatar {
-          width: 40px;
-          height: 40px;
-          border-radius: 12px;
-          background: linear-gradient(135deg, #60a5fa, #34d399);
-          border: 1px solid rgba(255,255,255,.5);
-        }
-        .analyst-card strong { display: block; font-size: 14px; }
-        .analyst-card span { font-size: 12px; color: rgba(255,255,255,.75); }
-        nav { display: grid; gap: 8px; margin-top: 8px; }
-        nav button {
-          text-align: left;
-          border: 1px solid transparent;
-          color: rgba(255,255,255,.86);
-          background: transparent;
-          border-radius: 10px;
-          padding: 10px 12px;
-          cursor: pointer;
-        }
-        nav button:hover, nav button:focus-visible {
-          background: rgba(255,255,255,.15);
-          border-color: rgba(255,255,255,.3);
-          outline: none;
-        }
-        .workspace { padding: 28px; }
-        .hero-art {
-          margin-bottom: 18px;
-        }
-        .art-frame {
+        .connection-layer {
+          position: absolute;
+          inset: 0;
           width: 100%;
-          min-height: 260px;
-          border-radius: 16px;
-          border: 1px solid rgba(255,255,255,.38);
-          background:
-            radial-gradient(circle at center, rgba(0,189,125,.35), transparent 30%),
-            repeating-linear-gradient(135deg, rgba(15,23,42,.24) 0 16px, rgba(255,255,255,.16) 16px 32px),
-            linear-gradient(145deg, #dbeafe, #93c5fd 36%, #60a5fa 54%, #f8fafc);
-          box-shadow: 0 16px 34px rgba(15,23,42,.22);
-          transform: perspective(1200px) rotateY(-8deg) rotateX(2deg);
+          height: 100%;
         }
-        .control-strip {
-          border: 1px solid rgba(255,255,255,.32);
-          background: rgba(255,255,255,.16);
-          border-radius: 16px;
-          padding: 14px;
-        }
-        label {
-          font: 600 12px 'JetBrains Mono', monospace;
-          letter-spacing: .07em;
-          display: block;
-          margin-bottom: 8px;
-          color: rgba(255,255,255,.88);
-        }
-        .controls { display: flex; gap: 8px; flex-wrap: wrap; }
-        input {
-          flex: 1;
-          min-width: 220px;
-          border: 1px solid rgba(255,255,255,.45);
-          background: rgba(255,255,255,.2);
-          color: #f9fafb;
-          border-radius: 10px;
-          padding: 11px 12px;
-          font-size: 14px;
-        }
-        input::placeholder { color: rgba(249,250,251,.72); }
-        input:focus-visible, button:focus-visible, .port-trigger:focus-visible {
-          outline: 3px solid rgba(147,197,253,.95);
-          outline-offset: 1px;
-        }
-        .primary, .ghost {
-          border-radius: 10px;
-          padding: 11px 14px;
-          font-weight: 600;
-          border: 1px solid transparent;
-          cursor: pointer;
-        }
-        .primary { background: ${TOKENS.color.primary}; color: #052e16; }
-        .ghost { background: rgba(255,255,255,.22); border-color: rgba(255,255,255,.4); color: #f9fafb; }
-        button:disabled { opacity: .6; cursor: not-allowed; }
-        .demo-tag { margin: 8px 0 0; color: #dcfce7; font-size: 12px; }
-        .log-card, .error, .results {
-          margin-top: 12px;
-          border: 1px solid rgba(255,255,255,.3);
-          background: rgba(17,24,39,.22);
-          border-radius: 14px;
-          padding: 12px;
-          backdrop-filter: blur(8px);
-        }
-        .log-card { max-height: 140px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; }
-        .log-card p { margin: 0 0 7px; font-size: 12px; }
-        .log-info { color: #bae6fd; }
-        .log-success { color: #86efac; }
-        .log-warn { color: #fde68a; }
-        .log-error, .error { color: #fecaca; }
-        .stat-row {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-          gap: 8px;
-          margin-bottom: 10px;
-        }
-        .stat {
-          border-radius: 12px;
-          border: 1px solid rgba(255,255,255,.24);
-          background: rgba(255,255,255,.14);
-          text-align: center;
-          padding: 8px;
-        }
-        .stat strong { display: block; font-size: 22px; }
-        .stat span { font-size: 11px; color: rgba(255,255,255,.78); }
-        .host-card {
-          border: 1px solid rgba(255,255,255,.22);
-          background: rgba(255,255,255,.1);
-          border-radius: 12px;
-          padding: 10px;
-          margin-bottom: 10px;
-        }
-        .host-card h3 { margin: 0; font: 600 15px 'JetBrains Mono', monospace; }
-        .host-card p { margin: 4px 0 8px; font-size: 12px; color: rgba(255,255,255,.78); }
-        .port-card { border: 1px solid rgba(255,255,255,.18); border-radius: 10px; margin-bottom: 8px; overflow: hidden; }
-        .port-trigger {
-          width: 100%;
-          border: 0;
-          background: rgba(17,24,39,.24);
-          color: #fff;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 8px;
-          padding: 10px;
-          cursor: pointer;
+        .connection-layer line { stroke: ${TOKENS.muted}; stroke-width: 0.4; }
+        .node-panel {
+          position: absolute;
+          width: 100px;
+          height: 100px;
+          margin-left: -50px;
+          margin-top: -50px;
+          border: 1px solid ${TOKENS.primary};
+          background: ${TOKENS.surface};
+          color: ${TOKENS.text};
           text-align: left;
+          padding: 10px;
+          box-shadow: 4px 4px 0 0 ${TOKENS.primary};
         }
-        .port-trigger h4 { margin: 0; font-size: 14px; }
-        .port-trigger p { margin: 3px 0 0; font-size: 12px; color: rgba(255,255,255,.72); }
-        .port-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
-        .severity, .cvss {
-          border: 1px solid rgba(255,255,255,.28);
-          border-radius: 999px;
-          font-size: 11px;
-          padding: 4px 8px;
-          font-weight: 600;
+        .node-panel.active { background: #101010; }
+        .node-panel.error { border-color: ${TOKENS.accent}; box-shadow: 4px 4px 0 0 ${TOKENS.accent}; animation: glitch 0.3s infinite; }
+        .node-panel p { font-size: 12px; margin: 0 0 8px; }
+        .status-dot { width: 12px; height: 12px; display: inline-block; border: 1px solid ${TOKENS.muted}; }
+        .status-dot.up { background: ${TOKENS.primary}; }
+        .status-dot.down { background: ${TOKENS.accent}; }
+        .node-info-float {
+          position: absolute;
+          right: 0;
+          top: 0;
+          width: 320px;
+          border: 1px solid ${TOKENS.muted};
+          background: ${TOKENS.surface};
+          padding: 16px;
+          box-shadow: 4px 4px 0 0 ${TOKENS.primary};
         }
-        .cvss { color: #e0f2fe; background: rgba(14,116,144,.28); }
-        .port-body { background: rgba(255,255,255,.08); border-top: 1px solid rgba(255,255,255,.2); padding: 10px; }
-        .port-body h5 { margin: 0 0 7px; font: 600 11px 'JetBrains Mono', monospace; letter-spacing: .06em; }
-        .cve-item { border: 1px solid rgba(255,255,255,.2); border-radius: 8px; padding: 8px; margin-bottom: 7px; }
-        .cve-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-        .cve-head a { color: #86efac; font: 600 12px 'JetBrains Mono', monospace; }
-        .cve-head time { margin-left: auto; font-size: 11px; color: rgba(255,255,255,.72); }
-        .cve-item p { margin: 6px 0 0; font-size: 12px; color: rgba(255,255,255,.88); }
-        ul { margin: 0; padding-left: 17px; }
-        li { font-size: 12px; margin-bottom: 4px; color: rgba(255,255,255,.88); }
-        .scan-note { margin: 0; text-align: center; font-size: 11px; color: rgba(255,255,255,.75); }
+        .node-detail-card h3 { margin: 0 0 8px; font-size: 18px; text-shadow: 0 0 8px ${TOKENS.primary}; }
+        .node-detail-card p { margin: 0 0 10px; font-size: 12px; color: ${TOKENS.primary}; }
+        .node-detail-card ul { margin: 0; padding-left: 16px; }
+        .node-detail-card li { margin-bottom: 8px; font-size: 12px; text-transform: uppercase; }
+        .empty-detail { font-size: 12px; color: ${TOKENS.muted}; }
 
-        @media (max-width: 980px) {
-          .glass-shell { grid-template-columns: 1fr; }
-          .side-nav { border-right: 0; border-bottom: 1px solid rgba(255,255,255,.22); }
+        .target-injection {
+          position: absolute;
+          top: 24px;
+          right: 24px;
+          width: 400px;
+          height: calc(100vh - 48px);
+          border: 1px solid ${TOKENS.muted};
+          background: ${TOKENS.surface};
+          z-index: 5;
+          padding: 18px;
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
+        .target-injection h2 { margin: 0; font-size: 24px; letter-spacing: -0.5px; text-transform: uppercase; }
+        .target-injection label { font-size: 12px; text-transform: uppercase; }
+        .target-injection input {
+          width: 100%;
+          height: 48px;
+          border: 1px solid ${TOKENS.muted};
+          background: ${TOKENS.background};
+          color: ${TOKENS.primary};
+          padding: 12px;
+          font-size: 18px;
+        }
+        .target-injection input:focus,
+        .target-injection input.focus {
+          outline: none;
+          border-color: ${TOKENS.primary};
+          box-shadow: 4px 4px 0 0 ${TOKENS.primary};
+        }
+        .toggle-list { display: grid; gap: 12px; margin-top: 8px; }
+        .toggle {
+          background: transparent;
+          color: ${TOKENS.text};
+          border: 1px solid ${TOKENS.muted};
+          text-align: left;
+          padding: 8px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          text-transform: uppercase;
+        }
+        .check { width: 24px; height: 24px; border: 1px solid ${TOKENS.primary}; display: inline-block; }
+        .check.on { background: ${TOKENS.primary}; }
+        .action-row { display: flex; justify-content: space-between; margin-top: auto; }
+        .action-row button {
+          width: 120px;
+          height: 40px;
+          border: 1px solid ${TOKENS.primary};
+          background: ${TOKENS.background};
+          color: ${TOKENS.primary};
+          box-shadow: 4px 4px 0 0 ${TOKENS.primary};
+          text-transform: uppercase;
+          font-weight: 700;
+        }
+
+        .execution-screen { position: relative; z-index: 1; margin-top: 24px; min-height: calc(100vh - 140px); }
+        .live-feed {
+          width: 60vw;
+          height: 70vh;
+          border: 1px solid ${TOKENS.primary};
+          background: ${TOKENS.surface};
+          box-shadow: 4px 4px 0 0 ${TOKENS.primary};
+          padding: 12px;
+          overflow: auto;
+          font-size: 14px;
+          line-height: 1.2;
+        }
+        .live-feed p { margin: 0 0 8px; color: ${TOKENS.text}; }
+        .live-feed .critical { color: ${TOKENS.accent}; text-shadow: 0 0 8px ${TOKENS.accent}; }
+        .live-feed .success { color: ${TOKENS.primary}; text-shadow: 0 0 8px ${TOKENS.primary}; }
+        .telemetry {
+          position: absolute;
+          right: 0;
+          top: 0;
+          width: 300px;
+          border: 1px solid ${TOKENS.muted};
+          background: ${TOKENS.surface};
+          padding: 16px;
+        }
+        .telemetry h3 { margin: 0 0 12px; font-size: 14px; }
+        .telemetry p { margin: 0 0 8px; font-size: 12px; }
+        .telemetry button {
+          margin-top: 8px;
+          width: 100%;
+          height: 40px;
+          border: 1px solid ${TOKENS.primary};
+          background: ${TOKENS.background};
+          color: ${TOKENS.primary};
+          text-transform: uppercase;
+        }
+        .abort {
+          position: absolute;
+          right: 0;
+          bottom: 0;
+          width: 200px;
+          height: 60px;
+          border: 1px solid ${TOKENS.accent};
+          color: ${TOKENS.accent};
+          background: ${TOKENS.background};
+          box-shadow: 4px 4px 0 0 ${TOKENS.accent};
+          font-weight: 700;
+          text-transform: uppercase;
+        }
+
+        .threat-matrix {
+          position: relative;
+          z-index: 1;
+          margin: 40px;
+          border: 1px solid ${TOKENS.muted};
+          background: ${TOKENS.surface};
+          padding: 16px;
+          min-height: calc(100vh - 180px);
+        }
+        .severity-header {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 12px;
+          margin-bottom: 12px;
+        }
+        .severity-header div {
+          border: 1px solid ${TOKENS.muted};
+          padding: 10px;
+        }
+        .severity-header h3 { margin: 0; font-size: 12px; color: ${TOKENS.primary}; }
+        .severity-header strong { font-size: 24px; }
+        .matrix-grid {
+          display: grid;
+          grid-template-columns: 1.2fr 0.8fr 2fr 1.5fr;
+          border: 1px solid ${TOKENS.muted};
+        }
+        .matrix-grid > div {
+          min-height: 40px;
+          border-bottom: 1px dashed ${TOKENS.muted};
+          padding: 10px;
+          display: flex;
+          align-items: center;
+          font-size: 12px;
+        }
+        .matrix-grid > div:hover { background: ${TOKENS.grid}; }
+        .matrix-grid .head {
+          font-weight: 700;
+          text-transform: uppercase;
+          color: ${TOKENS.primary};
+          border-bottom: 1px solid ${TOKENS.primary};
+        }
+        .severity-tag {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 80px;
+          height: 24px;
+          font-weight: 700;
+          color: ${TOKENS.background};
+        }
+        .severity-tag.critical { background: ${TOKENS.accent}; }
+        .severity-tag.high { background: #ff6f00; }
+        .severity-tag.medium { background: #ffca28; }
+        .severity-tag.low { background: ${TOKENS.primary}; }
+        .dump {
+          position: absolute;
+          right: 16px;
+          bottom: 16px;
+          width: 200px;
+          height: 40px;
+          border: 1px solid ${TOKENS.primary};
+          background: ${TOKENS.background};
+          color: ${TOKENS.primary};
+          text-transform: uppercase;
+          box-shadow: 4px 4px 0 0 ${TOKENS.primary};
+          font-weight: 700;
+        }
+
+        @keyframes glitch {
+          0% { transform: translate(0, 0); }
+          50% { transform: translate(2px, -2px); }
+          100% { transform: translate(-2px, 1px); }
+        }
+
+        @media (max-width: 1140px) {
+          .top-hud { width: 100%; grid-template-columns: 1fr auto; }
+          .top-hud span:nth-child(2) { display: none; }
+          .map-canvas { inset: 0; }
+          .node-info-float,
+          .telemetry,
+          .abort,
+          .target-injection,
+          .live-feed {
+            position: static;
+            width: 100%;
+            margin-top: 12px;
+            height: auto;
+          }
+          .execution-screen,
+          .nexus-screen { min-height: auto; }
+          .threat-matrix { margin: 20px 0; }
+          .severity-header,
+          .matrix-grid { grid-template-columns: 1fr; }
+          .matrix-grid .head { border-top: 1px solid ${TOKENS.primary}; }
         }
       `}</style>
-    </div>
+    </main>
   );
 }
