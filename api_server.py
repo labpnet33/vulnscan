@@ -189,182 +189,5328 @@ def required_web_tools():
 # (keeping the full HTML block intact — no changes needed to UI)
 # ══════════════════════════════════════════════
 HTML = r"""<!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VulnScan // Cyber-Brutalist Spatial</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            'c-primary': '#00FF41',
-            'c-bg': '#000000',
-            'c-surface': '#0A0A0A',
-            'c-text': '#E0E0E0',
-            'c-muted': '#333333',
-            'c-accent': '#FF003C',
-          },
-          fontFamily: {
-            mono: ['"JetBrains Mono"', 'monospace'],
-          },
-          boxShadow: {
-            brutal: '4px 4px 0px 0px #00FF41',
-            'brutal-accent': '4px 4px 0px 0px #FF003C',
-          },
-          backgroundImage: {
-            'spatial-grid': 'linear-gradient(to right, #111111 1px, transparent 1px), linear-gradient(to bottom, #111111 1px, transparent 1px)',
-          }
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>VulnScan Pro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#ffffff;--bg2:#f5f5f5;--bg3:#ebebeb;
+  --border:#e0e0e0;--border2:#d0d0d0;
+  --text:#0a0a0a;--text2:#444444;--text3:#888888;
+  --accent:#0a0a0a;--accent-inv:#ffffff;
+  --red:#c0392b;--orange:#d35400;--yellow:#b7860b;--green:#1a7a3a;--blue:#1a5fa8;
+  --mono:'DM Mono',monospace;--sans:'DM Sans',sans-serif;
+  --radius:6px;--radius-lg:10px;
+  --shadow:0 1px 3px rgba(0,0,0,0.08),0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md:0 4px 12px rgba(0,0,0,0.1);
+  --transition:0.15s ease;
+  --ease-spring:cubic-bezier(0.34,1.56,0.64,1);
+  --ease-out:cubic-bezier(0.16,1,0.3,1);
+}
+body.dark{
+  --bg:#0a0a0a;--bg2:#111111;--bg3:#1a1a1a;
+  --border:#252525;--border2:#333333;
+  --text:#f0f0f0;--text2:#aaaaaa;--text3:#666666;
+  --accent:#f0f0f0;--accent-inv:#0a0a0a;
+  --red:#e05a4e;--orange:#e07840;--yellow:#d4a840;--green:#3db870;--blue:#5a9fe0;
+  --shadow:0 1px 3px rgba(0,0,0,0.4),0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md:0 4px 12px rgba(0,0,0,0.5);
+}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;
+  line-height:1.6;min-height:100vh;transition:background var(--transition),color var(--transition);
+  -webkit-font-smoothing:antialiased;isolation:isolate;position:relative;
+}
+/* Hacker canvas behind everything */
+#vs-hacker-canvas{
+  position:fixed!important;top:0!important;left:0!important;
+  width:100vw!important;height:100vh!important;
+  pointer-events:none!important;z-index:-1!important;
+}
+.layout{display:flex;min-height:100vh;position:relative;z-index:1}
+.sidebar{
+  width:220px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;
+  overflow-y:auto;z-index:50;transition:background var(--transition),border-color var(--transition);
+}
+.main{margin-left:220px;flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{
+  height:52px;background:var(--bg);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;padding:0 24px;
+  position:sticky;top:0;z-index:40;transition:background var(--transition),border-color var(--transition);
+}
+.content{padding:24px 28px 40px;flex:1;min-width:0;overflow-x:hidden;width:100%;position:relative;z-index:2}
+.brand{padding:20px 18px 16px;border-bottom:1px solid var(--border)}
+.brand-logo{display:flex;align-items:center;gap:10px;text-decoration:none;cursor:pointer}
+.brand-icon{
+  width:28px;height:28px;background:var(--accent);border-radius:var(--radius);
+  display:flex;align-items:center;justify-content:center;color:var(--accent-inv);font-size:14px;flex-shrink:0;
+}
+.brand-title{font-size:15px;font-weight:600;color:var(--text);letter-spacing:-0.3px}
+.brand-sub{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1.5px;margin-top:1px}
+.nav-section{padding:14px 10px 4px}
+.nav-label{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;padding:0 8px;margin-bottom:4px;font-weight:500}
+.nav-item{
+  display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:var(--radius);
+  cursor:pointer;font-size:13px;color:var(--text2);
+  transition:background var(--transition),color var(--transition),transform 0.14s var(--ease-spring);
+  border:none;background:none;width:100%;text-align:left;font-family:var(--sans);
+}
+.nav-item:hover{background:var(--bg3);color:var(--text);transform:translateX(2px)}
+.nav-item.active{background:var(--accent);color:var(--accent-inv);transform:translateX(0)}
+.nav-item .ni{font-size:14px;width:18px;text-align:center;flex-shrink:0}
+.sidebar-footer{margin-top:auto;padding:12px 10px;border-top:1px solid var(--border)}
+.tb-title{font-size:14px;font-weight:500;color:var(--text);letter-spacing:-0.2px}
+.tb-right{display:flex;align-items:center;gap:10px}
+.notif-wrap{position:relative;display:none}
+.notif-btn{width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:none;color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;font-size:14px}
+.notif-btn:hover{background:var(--bg2);border-color:var(--border2)}
+.notif-badge{position:absolute;top:-5px;right:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:10px;background:var(--red);color:#fff;font-family:var(--mono);font-size:9px;display:none;align-items:center;justify-content:center}
+.notif-menu{position:absolute;top:38px;right:0;width:320px;max-height:360px;overflow-y:auto;z-index:120;background:var(--bg);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-md);display:none}
+.notif-menu.open{display:block}
+.notif-head{padding:10px 12px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:1px}
+.notif-item{padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer}
+.notif-item:last-child{border-bottom:none}
+.notif-item:hover{background:var(--bg2)}
+.notif-title{font-size:12px;color:var(--text);font-weight:500}
+.notif-meta{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:3px}
+.notif-empty{padding:12px;color:var(--text3);font-size:12px}
+.theme-toggle{
+  width:36px;height:20px;background:var(--border2);border-radius:10px;
+  position:relative;cursor:pointer;border:none;
+  transition:background 0.28s ease;flex-shrink:0;
+}
+.theme-toggle::after{
+  content:'';position:absolute;top:3px;left:3px;width:14px;height:14px;
+  background:var(--accent);border-radius:50%;
+  transition:transform 0.28s var(--ease-spring);
+}
+body.dark .theme-toggle::after{transform:translateX(16px)}
+.user-chip{
+  display:flex;align-items:center;gap:8px;padding:5px 10px 5px 6px;
+  border:1px solid var(--border);border-radius:20px;cursor:pointer;
+  transition:border-color var(--transition),background var(--transition);
+  background:none;font-family:var(--sans);
+}
+.user-chip:hover{border-color:var(--border2);background:var(--bg2)}
+.user-av{
+  width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--accent-inv);
+  font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.user-name{font-size:12px;font-weight:500;color:var(--text)}
+.user-role{font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:1px}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:8px 14px;border-radius:var(--radius);font-family:var(--sans);font-size:13px;
+  font-weight:500;cursor:pointer;border:1px solid transparent;
+  transition:all var(--transition);white-space:nowrap;text-decoration:none;
+}
+.btn-primary{background:var(--accent);color:var(--accent-inv);border-color:var(--accent)}
+.btn-primary:hover{opacity:0.85;transform:translateY(-1px)}
+.btn-primary:active{transform:scale(0.97)}
+.btn-primary:disabled{opacity:0.4;cursor:not-allowed;transform:none}
+.btn-outline{background:none;color:var(--text);border-color:var(--border2)}
+.btn-outline:hover{border-color:var(--text);background:var(--bg2)}
+.btn-ghost{background:none;color:var(--text2);border-color:transparent}
+.btn-ghost:hover{background:var(--bg3);color:var(--text)}
+.btn-danger{background:none;color:var(--red);border-color:rgba(192,57,43,0.3)}
+.btn-danger:hover{background:rgba(192,57,43,0.08)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-full{width:100%}
+.card{
+  background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);
+  position:relative;z-index:2;
+  transition:border-color var(--transition),background var(--transition),box-shadow 0.2s ease;
+}
+.card-p{padding:20px}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:13px;font-weight:600;color:var(--text);letter-spacing:-0.1px}
+.card-sub{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:1px;margin-top:3px}
+.page-hd{margin-bottom:24px}
+.page-title{font-size:22px;font-weight:600;letter-spacing:-0.5px;color:var(--text);line-height:1.2}
+.page-desc{font-size:13px;color:var(--text3);margin-top:5px}
+.inp{
+  width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:var(--radius);
+  color:var(--text);padding:9px 12px;font-size:13px;font-family:var(--sans);outline:none;
+  transition:border-color var(--transition),box-shadow var(--transition);
+}
+.inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(10,10,10,0.08)}
+body.dark .inp:focus{box-shadow:0 0 0 3px rgba(240,240,240,0.1)}
+.inp::placeholder{color:var(--text3)}
+.inp-mono{font-family:var(--mono);font-size:13px}
+.fg{margin-bottom:14px}
+.fg label{display:block;font-size:11px;font-weight:500;color:var(--text3);letter-spacing:0.5px;margin-bottom:5px}
+textarea.inp{resize:vertical;min-height:80px}
+select.inp{cursor:pointer}
+select.inp:not([multiple]){
+  appearance:none;-webkit-appearance:none;-moz-appearance:none;
+  padding-right:38px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 12px center;
+  background-size:14px;
+}
+.scan-bar{display:flex;gap:8px;align-items:center}
+.scan-bar .inp{font-family:var(--mono);flex:1}
+.pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.pill{
+  padding:4px 12px;border-radius:20px;font-family:var(--mono);font-size:11px;
+  border:1px solid var(--border2);color:var(--text2);background:none;cursor:pointer;
+  transition:background 0.18s var(--ease-spring),color 0.14s ease,border-color 0.14s ease,transform 0.14s var(--ease-spring);
+}
+.pill:hover{transform:scale(1.04)}
+.pill:active{transform:scale(0.97)}
+.pill.on{background:var(--accent);color:var(--accent-inv);border-color:var(--accent)}
+.progress-wrap{height:2px;background:var(--bg3);border-radius:1px;overflow:hidden;margin:12px 0;display:none}
+.progress-bar{height:100%;background:var(--accent);border-radius:1px;transition:width 0.3s;position:relative;overflow:hidden}
+.progress-bar::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent);animation:pbShimmer 1.2s ease infinite}
+@keyframes pbShimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.progress-wrap.active{display:block}
+.terminal{
+  background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
+  padding:12px 14px;overflow-y:auto;font-family:var(--mono);
+  font-size:12px;line-height:1.8;display:none;margin:12px 0;
+  position:relative;z-index:2;
+}
+.terminal.visible{display:block}
+.tl-i{color:var(--text3)}.tl-s{color:var(--green)}.tl-w{color:var(--yellow)}.tl-e{color:var(--red)}
+.tl-prefix{font-weight:500}
+.err-box{
+  background:rgba(192,57,43,0.06);border:1px solid rgba(192,57,43,0.2);border-radius:var(--radius);
+  padding:10px 14px;color:var(--red);font-size:13px;font-family:var(--mono);display:none;margin:10px 0;
+  position:relative;z-index:2;
+}
+.err-box.visible{display:block}
+.notice{
+  background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--yellow);
+  border-radius:var(--radius);padding:10px 14px;font-size:12px;color:var(--text2);margin-bottom:16px;
+  position:relative;z-index:2;
+}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:20px;width:100%;position:relative;z-index:2}
+.stat{
+  background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
+  padding:14px 12px;text-align:center;
+  position:relative;z-index:2;
+  transition:background var(--transition),border-color var(--transition);
+}
+.stat-val{font-family:var(--mono);font-size:26px;font-weight:500;color:var(--text);line-height:1;margin-bottom:4px}
+.stat-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1.5px}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:18px;overflow-x:auto;position:relative;z-index:2;background:var(--bg)}
+.tab{
+  padding:9px 16px;font-size:12px;font-family:var(--mono);color:var(--text3);
+  background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;
+  margin-bottom:-1px;white-space:nowrap;
+  transition:color var(--transition),border-color var(--transition);letter-spacing:0.5px;
+}
+.tab:hover{color:var(--text)}.tab.active{color:var(--text);border-bottom-color:var(--accent)}
+.tc{display:none}.tc.active{display:block}
+.sev{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:3px;font-family:var(--mono);font-size:10px;font-weight:500;border:1px solid transparent}
+.sev-critical{background:rgba(192,57,43,0.1);color:var(--red);border-color:rgba(192,57,43,0.2)}
+.sev-high{background:rgba(211,84,0,0.1);color:var(--orange);border-color:rgba(211,84,0,0.2)}
+.sev-medium{background:rgba(183,134,11,0.1);color:var(--yellow);border-color:rgba(183,134,11,0.2)}
+.sev-low{background:rgba(26,122,58,0.1);color:var(--green);border-color:rgba(26,122,58,0.2)}
+.sev-unknown{background:var(--bg2);color:var(--text3);border-color:var(--border)}
+.port-panel{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:8px;width:100%;position:relative;z-index:2;background:var(--bg);transition:border-color var(--transition)}
+.port-panel:hover{border-color:var(--border2)}
+.port-hd{display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer;user-select:none;flex-wrap:wrap;min-height:52px;background:var(--bg)}
+.port-num{font-family:var(--mono);font-size:14px;font-weight:500;color:var(--text);min-width:52px}
+.port-svc{font-size:13px;font-weight:500;color:var(--text);flex:1}
+.port-ver{font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:2px}
+.port-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.port-body{padding:14px 20px 20px;border-top:1px solid var(--border);display:none;max-width:100%;overflow-x:auto}
+.port-body.open{display:block}
+.chev{color:var(--text3);font-size:10px;transition:transform var(--transition);flex-shrink:0}
+.chev.open{transform:rotate(180deg)}
+.port-score{font-family:var(--mono);font-size:13px;font-weight:600}
+.cve-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:6px;position:relative;z-index:2}
+.cve-hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.cve-id{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--text);text-decoration:none}
+.cve-id:hover{text-decoration:underline}
+.cve-score{font-family:var(--mono);font-size:12px;font-weight:600}
+.cve-date{font-family:var(--mono);font-size:10px;color:var(--text3);margin-left:auto}
+.cve-desc{font-size:12px;color:var(--text2);line-height:1.7}
+.mit-list{margin:0;padding:0;list-style:none}
+.mit-item{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;color:var(--text2)}
+.mit-item:last-child{border-bottom:none}
+.mit-bullet{color:var(--text3);flex-shrink:0;font-size:14px;line-height:1.5}
+.sec-label{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:2px;margin:14px 0 8px}
+.ssl-card{border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:8px;display:flex;align-items:flex-start;gap:16px}
+.ssl-grade{width:52px;height:52px;border-radius:var(--radius);border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:22px;font-weight:700;flex-shrink:0;color:var(--text)}
+.ssl-host{font-size:14px;font-weight:500;color:var(--text)}
+.ssl-detail{font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:3px}
+.ssl-issue{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px}
+.ssl-issue:last-child{border-bottom:none}
+.dns-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:14px}
+.dns-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px}
+.dns-type{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:2px;margin-bottom:6px}
+.dns-val{font-family:var(--mono);font-size:11px;color:var(--text2);line-height:1.8;word-break:break-all}
+.sub-item{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:12px}
+.sub-item:last-child{border-bottom:none}
+.hdr-row{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:11px;flex-wrap:wrap;gap:4px}
+.hdr-row:last-child{border-bottom:none}
+.hdr-key{color:var(--text3);min-width:180px;flex-shrink:0}
+.hdr-val{color:var(--text);word-break:break-all;text-align:right;max-width:380px}
+.hdr-grade-big{font-family:var(--mono);font-size:42px;font-weight:700;color:var(--text);line-height:1}
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text3);padding:9px 10px;text-align:left;border-bottom:1px solid var(--border);font-weight:500}
+.tbl td{padding:9px 10px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:var(--bg2)}
+.tbl-wrap{overflow-x:auto;width:100%;position:relative;z-index:2;background:var(--bg)}
+#res,#hv-res,#nk-res,#wp-res,#ly-res,#lg-res,#dr-res,#sub-res,#dir-res,#bf-res,#disc-res{width:100%;max-width:100%;overflow-x:auto;position:relative;z-index:2}
+.tag{display:inline-block;padding:2px 7px;border-radius:3px;font-family:var(--mono);font-size:10px;border:1px solid var(--border);background:var(--bg2);color:var(--text2)}
+.host-chip{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;margin-bottom:14px;position:relative;z-index:2}
+.host-ip{font-weight:500;color:var(--text)}
+.host-up{color:var(--green)}
+.profile-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.kv{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}
+.kv-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px}
+.kv-k{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1.5px;margin-bottom:4px}
+.kv-v{font-size:13px;font-weight:500;color:var(--text)}
+.badge{display:inline-block;padding:2px 8px;border-radius:3px;font-family:var(--mono);font-size:10px;font-weight:500}
+.badge-admin{background:var(--bg3);color:var(--text2);border:1px solid var(--border2)}
+.badge-user{background:var(--bg2);color:var(--text3);border:1px solid var(--border)}
+.theme-options{display:flex;gap:10px;margin-top:12px}
+.theme-opt{flex:1;padding:14px;border:2px solid var(--border);border-radius:var(--radius-lg);cursor:pointer;background:none;text-align:left;transition:border-color var(--transition);font-family:var(--sans)}
+.theme-opt:hover{border-color:var(--border2)}
+.theme-opt.active{border-color:var(--accent)}
+.theme-swatch{width:100%;height:40px;border-radius:var(--radius);margin-bottom:10px;border:1px solid var(--border)}
+.theme-name{font-size:13px;font-weight:500;color:var(--text);margin-bottom:3px}
+.theme-desc{font-size:11px;color:var(--text3)}
+/* Login overlay -- semi-transparent so hacker bg shows through */
+.overlay{
+  position:fixed;inset:0;background: var(--bg) !important;
+  z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;
+  }
+body.dark .overlay{background: var(--bg) !important;max-width:380px;position:relative;z-index:1;
+  background: var(--bg) !important;border:1px solid var(--border)!important;
+  border-radius:14px!important;padding:32px!important;
+  box-shadow:0 4px 28px rgba(0,0,0,0.1)!important;
+}
+body.dark .auth-box{box-shadow:0 4px 36px rgba(0,220,100,0.06),0 2px 16px rgba(0,0,0,0.6)!important
+  background: var(--bg) !important;
+  border-color: rgba(0,180,60,0.3) !important;}
+.auth-logo{display:flex;
+  border-color: rgba(0,180,60,0.25) !important;align-items:center;gap:10px;margin-bottom:28px}
+.auth-logo-icon{width:32px;height:32px;background:var(--accent);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;color:var(--accent-inv);font-size:16px}
+.auth-title{font-size:18px;font-weight:600;color:var(--text);letter-spacing:-0.3px}
+.auth-tabs{display:flex;gap:0;margin-bottom:20px;border-bottom:1px solid var(--border)}
+.auth-tab{padding:8px 14px;font-size:12px;font-family:var(--mono);color:var(--text3);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all var(--transition);letter-spacing:0.5px}
+.auth-tab.active{color:var(--text);border-bottom-color:var(--accent)}
+.auth-msg{padding:9px 12px;border-radius:var(--radius);font-size:12px;font-family:var(--mono);margin-bottom:14px;display:none}
+.auth-msg.ok{background:rgba(26,122,58,0.08);border:1px solid rgba(26,122,58,0.2);color:var(--green)}
+.auth-msg.err{background:rgba(192,57,43,0.07);border:1px solid rgba(192,57,43,0.2);color:var(--red)}
+.auth-link{background:none;border:none;color:var(--text2);cursor:pointer;font-size:12px;font-family:var(--mono);text-decoration:underline;text-underline-offset:2px;padding:0}
+.auth-link:hover{color:var(--text)}
+.tos-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:14px;display:flex;align-items:flex-start;gap:9px}
+.tos-box input[type=checkbox]{width:14px;height:14px;margin-top:2px;cursor:pointer;flex-shrink:0;accent-color:var(--accent)}
+.tos-box label{font-size:11px;color:var(--text2);line-height:1.6;cursor:pointer}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:300;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)}
+.modal-bg.open{display:flex}
+.modal{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;width:100%;max-width:500px;position:relative;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-md)}
+.modal-close{position:absolute;top:14px;right:14px;background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;line-height:1;transition:color var(--transition)}
+.modal-close:hover{color:var(--text)}
+.tos-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:400;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)}
+.tos-modal-bg.open{display:flex}
+.tos-modal{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;box-shadow:var(--shadow-md);position:relative}
+.tos-section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:16px;font-size:12px;color:var(--text2);line-height:1.8}
+.tos-section strong{color:var(--text)}
+.tos-section h4{font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px}
+/* Animations */
+@keyframes vs-overlay-in{from{opacity:0}to{opacity:1}}
+.overlay{animation:vs-overlay-in 0.35s ease both}
+@keyframes vs-box-rise{from{opacity:0;transform:translateY(24px) scale(0.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.auth-box{animation:vs-box-rise 0.5s var(--ease-spring) 0.08s both
+  background: var(--bg) !important;}
+@keyframes vs-logo-spin{0%{opacity:0;transform:rotate(-18deg) scale(0.7)}65%{transform:rotate(5deg) scale(1.07)}100%{opacity:1;transform:rotate(0deg) scale(1)}}
+.auth-logo-icon{animation:vs-logo-spin 0.55s var(--ease-spring) 0.22s both}
+@keyframes vs-fade-up{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
+.auth-title{animation:vs-fade-up 0.38s var(--ease-out) 0.32s both}
+.auth-tabs{animation:vs-fade-up 0.35s var(--ease-out) 0.42s both}
+#form-login .fg:nth-child(1){animation:vs-fade-up 0.32s var(--ease-out) 0.52s both}
+#form-login .fg:nth-child(2){animation:vs-fade-up 0.32s var(--ease-out) 0.62s both}
+#l-btn{animation:vs-fade-up 0.32s var(--ease-out) 0.72s both}
+#form-register .fg:nth-child(1){animation:vs-fade-up 0.32s var(--ease-out) 0.52s both}
+#form-register .fg:nth-child(2){animation:vs-fade-up 0.32s var(--ease-out) 0.60s both}
+#form-register .fg:nth-child(3){animation:vs-fade-up 0.32s var(--ease-out) 0.68s both}
+#form-register .fg:nth-child(4){animation:vs-fade-up 0.32s var(--ease-out) 0.76s both}
+@keyframes vs-greet-drop{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+#page-home .page-hd .page-title{animation:vs-greet-drop 0.45s var(--ease-out) 0.05s both}
+#page-home .page-hd .page-desc{animation:vs-greet-drop 0.45s var(--ease-out) 0.14s both}
+@keyframes vs-stat-pop{from{opacity:0;transform:scale(0.8) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+#home-stats .stat:nth-child(1){animation:vs-stat-pop 0.48s var(--ease-spring) 0.18s both}
+#home-stats .stat:nth-child(2){animation:vs-stat-pop 0.48s var(--ease-spring) 0.27s both}
+#home-stats .stat:nth-child(3){animation:vs-stat-pop 0.48s var(--ease-spring) 0.36s both}
+#home-stats .stat:nth-child(4){animation:vs-stat-pop 0.48s var(--ease-spring) 0.45s both}
+@keyframes vs-num-pop{0%{opacity:0;transform:scale(0.55)}65%{transform:scale(1.1)}100%{opacity:1;transform:scale(1)}}
+.stat-val.vs-counting{animation:vs-num-pop 0.42s var(--ease-spring) both}
+@keyframes vs-card-rise{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+#page-home .card:nth-child(1){animation:vs-card-rise 0.4s var(--ease-out) 0.26s both}
+#page-home .card:nth-child(2){animation:vs-card-rise 0.4s var(--ease-out) 0.34s both}
+#page-home .card:nth-child(3){animation:vs-card-rise 0.4s var(--ease-out) 0.42s both}
+#page-home .card:nth-child(4){animation:vs-card-rise 0.4s var(--ease-out) 0.50s both}
+#page-home .card:nth-child(5){animation:vs-card-rise 0.4s var(--ease-out) 0.58s both}
+#page-home .card:nth-child(6){animation:vs-card-rise 0.4s var(--ease-out) 0.66s both}
+#page-home .notice{animation:vs-card-rise 0.38s var(--ease-out) 0.74s both}
+#page-home .card[onclick]{transition:transform 0.18s var(--ease-spring),border-color 0.18s ease,box-shadow 0.18s ease;will-change:transform}
+#page-home .card[onclick]:hover{transform:translateY(-4px);box-shadow:0 8px 22px rgba(0,0,0,0.08)}
+#page-home .card[onclick]:active{transform:translateY(-1px) scale(0.99)}
+body.dark #page-home .card[onclick]:hover{box-shadow:0 8px 26px rgba(0,0,0,0.42)}
+@keyframes vs-page-enter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.page.active{animation:vs-page-enter 0.24s var(--ease-out) both}
+@keyframes vs-brand-breathe{0%,100%{opacity:1}50%{opacity:0.65}}
+.brand-icon{animation:vs-brand-breathe 3s ease-in-out infinite}
+/* Admin */
+.admin-tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:18px;overflow-x:auto}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:7px;font-size:12px}
+.bar-label{color:var(--text3);font-family:var(--mono);font-size:10px;width:90px;text-align:right;flex-shrink:0}
+.bar-track{flex:1;background:var(--bg3);border-radius:2px;height:6px;overflow:hidden}
+.bar-fill{height:100%;background:var(--accent);border-radius:2px;transition:width 1s ease}
+.bar-val{font-family:var(--mono);font-size:10px;color:var(--text3);width:24px}
+.cli-out{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;min-height:300px;max-height:480px;overflow-y:auto;font-family:var(--mono);font-size:12px;line-height:1.8;margin-bottom:10px}
+.cli-cmd-line{color:var(--green);margin-top:6px}
+.cli-resp{color:var(--text2);white-space:pre-wrap;font-size:11px}
+.cli-err{color:var(--red);white-space:pre-wrap;font-size:11px}
+.cli-input-row{display:flex;align-items:center;gap:8px}
+.cli-prompt{font-family:var(--mono);font-size:12px;color:var(--text3);white-space:nowrap}
+.cli-quick{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.cli-quick-btn{font-family:var(--mono);font-size:10px;padding:4px 9px;background:var(--bg2);border:1px solid var(--border);color:var(--text3);border-radius:3px;cursor:pointer;transition:all var(--transition)}
+.cli-quick-btn:hover{border-color:var(--border2);color:var(--text)}
+.cli-status{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:6px;display:flex;align-items:center;gap:6px}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulseDot 2s ease infinite;flex-shrink:0}
+@keyframes pulseDot{0%{box-shadow:0 0 0 0 rgba(26,122,58,0.7)}70%{box-shadow:0 0 0 8px rgba(26,122,58,0)}100%{box-shadow:0 0 0 0 rgba(26,122,58,0)}}
+.srv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:14px}
+.srv-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+.srv-label{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;margin-bottom:8px}
+.srv-val{font-family:var(--mono);font-size:22px;font-weight:500;color:var(--text);line-height:1;margin-bottom:4px}
+.srv-bar{height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-top:6px}
+.srv-bar-fill{height:100%;background:var(--accent);border-radius:2px;transition:width 0.5s ease}
+.srv-sub{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:4px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.host-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.host-card{border:1px solid var(--border);border-radius:var(--radius);padding:12px;cursor:pointer;transition:border-color var(--transition),background var(--transition)}
+.host-card:hover{border-color:var(--border2);background:var(--bg2)}
+.host-card-ip{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--text)}
+.host-card-hn{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:3px}
+.found{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:20px;font-family:var(--mono);font-size:11px;color:var(--text2);position:relative;z-index:2}
+.home-cat-block{margin-bottom:18px}
+.home-cat-label{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--text2);letter-spacing:2px;padding:6px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:10px}
+.home-tools-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.home-tool-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;cursor:pointer;transition:border-color 0.15s ease,transform 0.15s ease,box-shadow 0.15s ease}
+.home-tool-card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.home-tool-card:active{transform:translateY(0) scale(0.98)}
+#toast-container{position:fixed;bottom:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-size:12px;font-family:var(--mono);box-shadow:var(--shadow-md);pointer-events:all;display:flex;align-items:flex-start;gap:9px;max-width:320px;animation:toastIn 0.25s ease}
+.toast.leaving{animation:toastOut 0.2s ease forwards}
+@keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes toastOut{to{opacity:0;transform:translateX(20px)}}
+.toast-icon{flex-shrink:0;font-size:14px;margin-top:1px}
+.toast-body{flex:1}
+.toast-title{font-weight:500;color:var(--text);margin-bottom:2px}
+.toast-msg{color:var(--text3);font-size:11px;line-height:1.5}
+.toast-close{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;line-height:1;flex-shrink:0}
+.toast-close:hover{color:var(--text)}
+.toast.success{border-left:3px solid var(--green)}
+.toast.error{border-left:3px solid var(--red)}
+.toast.info{border-left:3px solid var(--blue)}
+.toast.warning{border-left:3px solid var(--yellow)}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+/* SET Terminal */
+#set-terminal-output{scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+#set-terminal-output::-webkit-scrollbar{width:5px}
+#set-terminal-output::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.set-menu-btn{font-family:var(--mono);font-size:11px;padding:4px 10px}
+.set-menu-btn:hover{background:var(--bg3);color:var(--text);transform:scale(1.03)}
+.spin{display:inline-block;width:11px;height:11px;border:1.5px solid var(--border2);border-top-color:var(--text);border-radius:50%;animation:sp 0.7s linear infinite;vertical-align:middle}
+@keyframes sp{to{transform:rotate(360deg)}}
+.page{display:none}.page.active{display:block;animation:vs-page-enter 0.24s var(--ease-out) both}
+@media(max-width:720px){
+  .sidebar{transform:translateX(-100%);transition:transform 0.25s ease}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0}
+  .row2,.row3{grid-template-columns:1fr}
+  .theme-options{flex-direction:column}
+}
+@media(max-width:480px){
+  .content{padding:16px}
+  .page-title{font-size:18px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+
+<body class="light" id="body">
+
+<!-- ── Auth overlay ── -->
+<div class="overlay" id="auth-overlay">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">&#9889;</div>
+      <div>
+        <div class="auth-title">VulnScan Pro</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:1.5px;margin-top:2px">SECURITY PLATFORM</div>
+      </div>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="authTab('login')">LOGIN</button>
+      <button class="auth-tab" onclick="authTab('register')">REGISTER</button>
+      <button class="auth-tab" onclick="authTab('forgot')">FORGOT</button>
+    </div>
+    <div id="auth-msg" class="auth-msg"></div>
+    <div id="form-login">
+      <div class="fg"><label>USERNAME</label><input class="inp inp-mono" id="l-user" type="text" placeholder="username" autocomplete="username"/></div>
+      <div class="fg"><label>PASSWORD</label><input class="inp inp-mono" id="l-pass" type="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" autocomplete="current-password"/></div>
+      <button class="btn btn-primary btn-full" id="l-btn" onclick="doLogin()" style="margin-top:4px">LOGIN</button>
+      <div style="text-align:center;margin-top:12px;font-size:12px;color:var(--text3)">
+        <button class="auth-link" onclick="authTab('forgot')">Forgot password?</button>
+        &nbsp;&middot;&nbsp;
+        <button class="auth-link" onclick="authTab('register')">Create account</button>
+      </div>
+    </div>
+    <div id="form-register" style="display:none">
+      <div class="fg"><label>FULL NAME</label><input class="inp" id="r-name" type="text" placeholder="Your Name"/></div>
+      <div class="fg"><label>USERNAME</label><input class="inp inp-mono" id="r-user" type="text" placeholder="letters, numbers, _ -"/></div>
+      <div class="fg"><label>EMAIL</label><input class="inp" id="r-email" type="email" placeholder="you@example.com"/></div>
+      <div class="fg"><label>PASSWORD</label><input class="inp inp-mono" id="r-pass" type="password" placeholder="Min 8 chars, 1 uppercase, 1 number"/></div>
+      <div class="tos-box">
+        <input type="checkbox" id="r-tos-cb" onchange="updateRegisterBtn()"/>
+        <label for="r-tos-cb">I have read and agree to the <button type="button" onclick="showTos(event)" style="background:none;border:none;color:var(--text);cursor:pointer;font-size:11px;text-decoration:underline;text-underline-offset:2px;padding:0">Terms of Use</button>. I confirm I <strong>own or have written permission</strong> to scan any target I submit.</label>
+      </div>
+      <button class="btn btn-primary btn-full" id="r-btn" onclick="doRegister()" disabled style="opacity:0.4;cursor:not-allowed">CREATE ACCOUNT</button>
+      <div style="text-align:center;margin-top:12px"><button class="auth-link" onclick="authTab('login')">Already have an account?</button></div>
+    </div>
+    <div id="form-forgot" style="display:none">
+      <div class="fg"><label>EMAIL ADDRESS</label><input class="inp" id="f-email" type="email" placeholder="you@example.com"/></div>
+      <button class="btn btn-primary btn-full" onclick="doForgot()">SEND RESET LINK</button>
+      <div style="text-align:center;margin-top:12px"><button class="auth-link" onclick="authTab('login')">Back to login</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── New User Modal ── -->
+<div class="modal-bg" id="new-user-modal" onclick="if(event.target===this)closeNewUserModal()">
+  <div class="modal" style="max-width:460px">
+    <button class="modal-close" onclick="closeNewUserModal()">&#10005;</button>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:22px">
+      <div style="width:38px;height:38px;background:var(--accent);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;color:var(--accent-inv);font-size:18px;flex-shrink:0">&#43;</div>
+      <div>
+        <div style="font-size:15px;font-weight:600;color:var(--text)">Create New User</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:1.5px;margin-top:2px">ADMIN &middot; USER MANAGEMENT</div>
+      </div>
+    </div>
+    <div id="new-user-modal-msg" class="auth-msg" style="margin-bottom:14px"></div>
+    <div id="new-user-form-body">
+      <div class="fg"><label>FULL NAME</label><input class="inp" id="nu-full-name" type="text" placeholder="Jane Doe" autocomplete="off"/></div>
+      <div class="fg"><label>USERNAME</label><input class="inp inp-mono" id="nu-username" type="text" placeholder="jane.doe" autocomplete="off"/></div>
+      <div class="fg"><label>EMAIL ADDRESS</label><input class="inp" id="nu-email" type="email" placeholder="jane@example.com" autocomplete="off"/></div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--yellow);border-radius:var(--radius);padding:9px 12px;font-size:11px;color:var(--text2);margin-bottom:16px;line-height:1.7">
+        &#9432; A temporary password will be generated and sent to the user&apos;s email address automatically.
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-outline" onclick="closeNewUserModal()">CANCEL</button>
+        <button class="btn btn-primary" id="nu-submit-btn" onclick="submitNewUser()">
+          <span id="nu-btn-text">CREATE USER</span>
+        </button>
+      </div>
+    </div>
+    <!-- Success state -->
+    <div id="new-user-success-body" style="display:none;text-align:center;padding:8px 0 4px">
+      <div style="font-size:40px;margin-bottom:12px">&#10003;</div>
+      <div style="font-size:15px;font-weight:600;color:var(--green);margin-bottom:6px">User Created!</div>
+      <div id="nu-success-msg" style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:18px"></div>
+      <button class="btn btn-primary" onclick="closeNewUserModal();loadAdminUsers()">DONE</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── About modal ── -->
+<div class="modal-bg" id="about-modal" onclick="if(event.target===this)closeAbout()">
+  <div class="modal">
+    <button class="modal-close" onclick="closeAbout()">&#10005;</button>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+      <div style="width:36px;height:36px;background:var(--accent);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;color:var(--accent-inv);font-size:18px;flex-shrink:0">&#9889;</div>
+      <div><div style="font-size:16px;font-weight:600;color:var(--text)">VulnScan Pro</div><div style="font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:2px;margin-top:2px">OPEN SOURCE &middot; v3.7</div></div>
+    </div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:16px">VulnScan Pro is a free, open-source vulnerability assessment platform for security professionals, penetration testers, and system administrators.</div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">Creator</div>
+      <div style="font-size:13px;color:var(--text2)">Vijay Katariya &mdash; Using Vibe Coding</div>
+      <div style="margin-top:8px"><a href="https://github.com/labpnet33/vulnscan" target="_blank" style="font-family:var(--mono);font-size:11px;color:var(--text2);text-decoration:underline;text-underline-offset:2px">github.com/labpnet33/vulnscan</a></div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--yellow);border-radius:var(--radius);padding:10px 12px;font-size:12px;color:var(--text2)">&#9888; <strong>Legal:</strong> Authorized security testing only. Only scan systems you own or have explicit written permission to test.</div>
+  </div>
+</div>
+
+<!-- ── ToS modal ── -->
+<div class="tos-modal-bg" id="tos-modal" onclick="if(event.target===this)closeTos()">
+  <div class="tos-modal">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+      <span style="font-size:20px">&#9888;&#65039;</span>
+      <div><div style="font-size:16px;font-weight:600;color:var(--text)">Terms of Use</div><div style="font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:2px;margin-top:2px">READ BEFORE REGISTERING</div></div>
+    </div>
+    <div style="font-size:12px;line-height:1.9;color:var(--text2)">
+      <div class="tos-section"><strong>&#9888; Authorized Use Only</strong><br/>You are strictly prohibited from using this platform to scan any system you do not own or have explicit written authorization to test.</div>
+      <div class="tos-section"><h4>1. Sole Responsibility</h4>You are entirely responsible for all actions performed from your account. The platform owner bears zero liability for any damage or legal consequence.</div>
+      <div class="tos-section"><h4>2. No Illegal Activity</h4>You agree not to conduct unauthorized access, DoS attacks, data exfiltration, or any activity violating local, national, or international law.</div>
+      <div class="tos-section"><h4>3. Indemnification</h4>You agree to indemnify and hold harmless the platform owner from all claims, damages, and costs arising from your use.</div>
+      <div class="tos-section"><h4>4. Audit Logging</h4>All scans are logged with timestamps, targets, and IPs. Logs may be provided to law enforcement upon valid legal request.</div>
+      <div class="tos-section"><h4>5. No Warranty</h4>Provided "as-is." Scan results are informational only.</div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap">
+      <button class="btn btn-outline" onclick="closeTos()">DECLINE</button>
+      <button class="btn btn-primary" onclick="acceptTos()">I ACCEPT</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── App layout ── -->
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-logo" onclick="pg('home',null)">
+        <div class="brand-icon">&#9889;</div>
+        <div><div class="brand-title">VulnScan Pro</div><div class="brand-sub">SECURITY PLATFORM</div></div>
+      </div>
+    </div>
+    <nav>
+
+      <!-- VulnScan Nav Search v2 -->
+      <div style="padding:8px 10px 2px">
+        <div style="position:relative">
+          <span id="nav-search-icon" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:12px;pointer-events:none">&#128269;</span>
+          <input
+            id="nav-search-input"
+            class="inp inp-mono"
+            type="text"
+            placeholder="Search tools..."
+            autocomplete="off"
+            spellcheck="false"
+            oninput="vsNavSearch(this.value)"
+            onkeydown="vsNavSearchKey(event)"
+            style="width:100%;padding:6px 10px 6px 28px;font-size:11px;background:var(--bg3);border-color:var(--border)"
+          />
+        </div>
+        <div id="nav-search-results" style="display:none;margin-top:3px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);overflow:hidden;max-height:260px;overflow-y:auto;position:relative;z-index:100"></div>
+      </div>
+      <!-- /VulnScan Nav Search v2 -->
+      <style>
+.nav-section{padding:4px 10px}
+.nav-cat-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:7px 10px;border-radius:var(--radius);user-select:none;background:var(--bg2);border:1px solid var(--border);margin:2px 0;transition:background .15s ease,border-color .15s ease}
+.nav-cat-toggle:hover{background:var(--bg3);border-color:var(--border2)}
+.nav-cat-label{font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:2px;font-weight:700}
+.nav-cat-arrow{font-size:9px;color:var(--text3);opacity:.8;transition:transform .25s ease}
+.nav-cat-arrow.open{transform:rotate(180deg);opacity:1}
+.nav-cat-items{overflow:hidden;transition:max-height .3s ease,opacity .25s ease;max-height:0;opacity:0}
+.nav-cat-items.collapsed{max-height:0!important;opacity:0;pointer-events:none}
+.nav-cat-items.expanded{opacity:1}
+.nav-cat-items .nav-item{padding-left:16px;border-left:2px solid var(--border);margin-left:6px;border-radius:0 var(--radius) var(--radius) 0}
+.nav-cat-items .nav-item:hover{border-left-color:var(--accent)}
+.nav-cat-items .nav-item.active{border-left-color:var(--accent)}
+      </style>
+      <script>
+function navToggle(id){
+  var items=document.getElementById('nc-'+id);
+  var arrow=document.getElementById('na-'+id);
+  if(!items)return;
+  var collapsed=items.classList.contains('collapsed');
+  document.querySelectorAll('.nav-cat-items.expanded').forEach(function(openItems){
+    if(openItems.id===('nc-'+id))return;
+    openItems.style.maxHeight='0px';
+    openItems.classList.remove('expanded');
+    openItems.classList.add('collapsed');
+    var aid=openItems.id.replace(/^nc-/,'');
+    var ael=document.getElementById('na-'+aid);
+    if(ael)ael.classList.remove('open');
+  });
+  if(collapsed){
+    items.style.maxHeight=items.scrollHeight+'px';
+    setTimeout(function(){if(items.classList.contains('expanded'))items.style.maxHeight='none';},300);
+  }else{
+    items.style.maxHeight=items.scrollHeight+'px';
+    requestAnimationFrame(function(){items.style.maxHeight='0px';});
+  }
+  items.classList.toggle('collapsed',!collapsed);
+  items.classList.toggle('expanded',collapsed);
+  if(arrow)arrow.classList.toggle('open',collapsed);
+}
+function navRestore(){
+  ['overview','information','webtesting','attacks','passwords','social','c2','exploitation','reverseeng','auditing','admin'].forEach(function(id){
+    var items=document.getElementById('nc-'+id);
+    var arrow=document.getElementById('na-'+id);
+    if(!items)return;
+    items.style.maxHeight='0px';
+    items.classList.add('collapsed');
+    items.classList.remove('expanded');
+    if(arrow)arrow.classList.remove('open');
+  });
+  var overview=document.getElementById('nc-overview');
+  if(overview&&overview.closest('.nav-section'))overview.closest('.nav-section').style.display='none';
+  var adminSec=document.getElementById('admin-nav-section');
+  if(adminSec)adminSec.style.display='none';
+}
+document.addEventListener('DOMContentLoaded',navRestore);
+      </script>
+
+      <div class="nav-section">
+        <button class="nav-item" id="ni-home" onclick="pg('home',this)"><span class="ni">&#8962;</span> Home</button>
+        <button class="nav-item" id="ni-dash" onclick="pg('dash',this)"><span class="ni">&#9635;</span> Dashboard</button>
+        <button class="nav-item" id="ni-hist" onclick="pg('hist',this)"><span class="ni">&#128338;</span> History</button>
+      </div>
+
+      <div class="nav-section" id="admin-nav-section" style="display:none">
+        <button class="nav-item" id="ni-admin" onclick="pg('admin',this)"><span class="ni">&#9881;</span> Admin Console</button>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-cat-toggle" onclick="navToggle('information')">
+          <span class="nav-cat-label">INFORMATION</span>
+          <span class="nav-cat-arrow" id="na-information">&#9660;</span>
+        </div>
+        <div class="nav-cat-items collapsed" id="nc-information" style="max-height:0">
+          <button class="nav-item" id="ni-scan" onclick="pg('scan',this)"><span class="ni">&#9675;</span> Network Scanner</button>
+          <button class="nav-item" id="ni-dnsrecon" onclick="pg('dnsrecon',this)"><span class="ni">&#9675;</span> DNSRecon</button>
+          <button class="nav-item" id="ni-disc" onclick="pg('disc',this)"><span class="ni">&#9675;</span> Net Discovery</button>
+          <button class="nav-item" id="ni-harvester" onclick="pg('harvester',this)"><span class="ni">&#9675;</span> theHarvester</button>
+          <button class="nav-item" id="ni-sub" onclick="pg('sub',this)"><span class="ni">&#9675;</span> Subdomain Finder</button>
+          <button class="nav-item" id="ni-legion" onclick="pg('legion',this)"><span class="ni">&#9675;</span> Legion</button>
+          <button class="nav-item" id="ni-searchsploit" onclick="pg('searchsploit',this)"><span class="ni">&#9675;</span> SearchSploit</button>
+          <button class="nav-item" id="ni-seclists" onclick="pg('seclists',this)"><span class="ni">&#9675;</span> SecLists</button>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-cat-toggle" onclick="navToggle('webtesting')">
+          <span class="nav-cat-label">WEB TESTING</span>
+          <span class="nav-cat-arrow" id="na-webtesting">&#9660;</span>
+        </div>
+        <div class="nav-cat-items collapsed" id="nc-webtesting" style="max-height:0">
+          <button class="nav-item" id="ni-webdeep" onclick="pg('webdeep',this)"><span class="ni">&#9675;</span> Deep Web Audit</button>
+          <button class="nav-item" id="ni-nikto" onclick="pg('nikto',this)"><span class="ni">&#9675;</span> Nikto</button>
+          <button class="nav-item" id="ni-wpscan" onclick="pg('wpscan',this)"><span class="ni">&#9675;</span> WPScan</button>
+          <button class="nav-item" id="ni-dir" onclick="pg('dir',this)"><span class="ni">&#9675;</span> Dir Buster</button>
+          <button class="nav-item" id="ni-ffuf" onclick="pg('ffuf',this)"><span class="ni">&#9675;</span> ffuf</button>
+          <button class="nav-item" id="ni-nuclei" onclick="pg('nuclei',this)"><span class="ni">&#9675;</span> Nuclei</button>
+          <button class="nav-item" id="ni-whatweb" onclick="pg('whatweb',this)"><span class="ni">&#9675;</span> WhatWeb</button>
+          <button class="nav-item" id="ni-wapiti" onclick="pg('wapiti',this)"><span class="ni">&#9675;</span> Wapiti</button>
+          <button class="nav-item" id="ni-dalfox" onclick="pg('dalfox',this)"><span class="ni">&#9675;</span> Dalfox</button>
+          <button class="nav-item" id="ni-sqlmap" onclick="pg('sqlmap',this)"><span class="ni">&#9675;</span> SQLMap</button>
+          <button class="nav-item" id="ni-kxss" onclick="pg('kxss',this)"><span class="ni">&#9675;</span> kxss</button>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-cat-toggle" onclick="navToggle('attacks')">
+          <span class="nav-cat-label">ATTACKS</span>
+          <span class="nav-cat-arrow" id="na-attacks">&#9660;</span>
+        </div>
+        <div class="nav-cat-items collapsed" id="nc-attacks" style="max-height:0">
+          <button class="nav-item" id="ni-brute" onclick="pg('brute',this)"><span class="ni">&#9675;</span> Brute Force</button>
+          <button class="nav-item" id="ni-medusa" onclick="pg('medusa',this)"><span class="ni">&#9675;</span> Medusa</button>
+          <button class="nav-item" id="ni-hping3" onclick="pg('hping3',this)"><span class="ni">&#9675;</span> hping3</button>
+          <button class="nav-item" id="ni-scapy" onclick="pg('scapy',this)"><span class="ni">&#9675;</span> Scapy</button>
+          <button class="nav-item" id="ni-yersinia" onclick="pg('yersinia',this)"><span class="ni">&#9675;</span> Yersinia</button>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-cat-toggle" onclick="navToggle('passwords')">
+          <span class="nav-cat-label">PASSWORD ATTACKS</span>
+          <span class="nav-cat-arrow" id="na-passwords">&#9660;</span>
+        </div>
+        <div class="nav-cat-items collapsed" id="nc-passwords" style="max-height:0">
+          <button class="nav-item" id="ni-hashcat" onclick="pg('hashcat',this)"><span class="ni">&#9675;</span> Hashcat</button>
+          <button class="nav-item" id="ni-john" onclick="pg('john',this)"><span class="ni">&#9675;</span> John the Ripper</button>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-cat-toggle" onclick="navToggle('social')">
+          <span class="nav-cat-label">SOCIAL ENGINEERING</span>
+          <span class="nav-cat-arrow" id="na-social">&#9660;</span>
+        </div>
+        <div class="nav-cat-items collapsed" id="nc-social" style="max-height:0">
+          <button class="nav-item" id="ni-setoolkit" onclick="pg('setoolkit',this)"><span class="ni">&#9675;</span> Social-Engineer Toolkit</button>
+          <button class="nav-item" id="ni-gophish" onclick="pg('gophish',this)"><span class="ni">&#9675;</span> Gophish</button>
+          <button class="nav-item" id="ni-evilginx2" onclick="pg('evilginx2',this)"><span class="ni">&#9675;</span> Evilginx2</button>
+          <button class="nav-item" id="ni-shellphish" onclick="pg('shellphish',this)"><span class="ni">&#9675;</span> ShellPhish</button>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-cat-toggle" onclick="navToggle('c2')">
+          <span class="nav-cat-label">C2 / PIVOTING</span>
+          <span class="nav-cat-arrow" id="na-c2">&#9660;</span>
+        </div>
+        <div class="nav-cat-items collapsed" id="nc-c2" style="max-height:0">
+          <button class="nav-item" id="ni-netcat" onclick="pg('netcat',this)"><span class="ni">&#9675;</span> Netcat</button>
+          <button class="nav-item" id="ni-ncat" onclick="pg('ncat',this)"><span class="ni">&#9675;</span> Ncat</button>
+          <button class="nav-item" id="ni-socat" onclick="pg('socat',this)"><span class="ni">&#9675;</span> Socat</button>
+          <button class="nav-item" id="ni-sliver" onclick="pg('sliver',this)"><span class="ni">&#9675;</span> Sliver</button>
+          <button class="nav-item" id="ni-empire" onclick="pg('empire',this)"><span class="ni">&#9675;</span> Empire</button>
+          <button class="nav-item" id="ni-ligolo" onclick="pg('ligolo',this)"><span class="ni">&#9675;</span> Ligolo-ng</button>
+          <button class="nav-item" id="ni-chisel" onclick="pg('chisel',this)"><span class="ni">&#9675;</span> Chisel</button>
+          <button class="nav-item" id="ni-rlwrap" onclick="pg('rlwrap',this)"><span class="ni">&#9675;</span> rlwrap</button>
+          <button class="nav-item" id="ni-pspy" onclick="pg('pspy',this)"><span class="ni">&#9675;</span> pspy</button>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-cat-toggle" onclick="navToggle('exploitation')">
+          <span class="nav-cat-label">EXPLOIT / PAYLOAD</span>
+          <span class="nav-cat-arrow" id="na-exploitation">&#9660;</span>
+        </div>
+        <div class="nav-cat-items collapsed" id="nc-exploitation" style="max-height:0">
+          <button class="nav-item" id="ni-msfvenom" onclick="pg('msfvenom',this)"><span class="ni">&#9675;</span> msfvenom</button>
+          <button class="nav-item" id="ni-pwncat" onclick="pg('pwncat',this)"><span class="ni">&#9675;</span> pwncat</button>
+          <button class="nav-item" id="ni-grype" onclick="pg('grype',this)"><span class="ni">&#9675;</span> Grype</button>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-cat-toggle" onclick="navToggle('reverseeng')">
+          <span class="nav-cat-label">REVERSE ENGINEERING</span>
+          <span class="nav-cat-arrow" id="na-reverseeng">&#9660;</span>
+        </div>
+        <div class="nav-cat-items collapsed" id="nc-reverseeng" style="max-height:0">
+          <button class="nav-item" id="ni-radare2" onclick="pg('radare2',this)"><span class="ni">&#9675;</span> Radare2</button>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-cat-toggle" onclick="navToggle('auditing')">
+          <span class="nav-cat-label">AUDITING</span>
+          <span class="nav-cat-arrow" id="na-auditing">&#9660;</span>
+        </div>
+        <div class="nav-cat-items collapsed" id="nc-auditing" style="max-height:0">
+          <button class="nav-item" id="ni-lynis" onclick="pg('lynis',this)"><span class="ni">&#9675;</span> Lynis</button>
+          <button class="nav-item" id="ni-openvas" onclick="pg('openvas',this)"><span class="ni">&#9675;</span> OpenVAS</button>
+          <button class="nav-item" id="ni-chkrootkit" onclick="pg('chkrootkit',this)"><span class="ni">&#9675;</span> chkrootkit</button>
+          <button class="nav-item" id="ni-rkhunter" onclick="pg('rkhunter',this)"><span class="ni">&#9675;</span> rkhunter</button>
+        </div>
+      </div>
+
+    </nav>
+<div class="sidebar-footer">
+      <button class="nav-item" onclick="showAbout()"><span class="ni">&#9432;</span> About</button>
+      <button class="nav-item" id="logout-btn" onclick="doLogout()" style="display:none;color:var(--red)"><span class="ni">&#10005;</span> Logout</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="tb-title" id="topbar-title">Home</div>
+      <div class="tb-right">
+        <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle dark/light theme" aria-label="Toggle theme"></button>
+        <div class="notif-wrap" id="notif-wrap">
+          <button class="notif-btn" id="notif-btn" onclick="toggleNotifications()" title="Scan notifications" aria-label="Scan notifications">&#128276;<span class="notif-badge" id="notif-badge">0</span></button>
+          <div class="notif-menu" id="notif-menu">
+            <div class="notif-head">SCAN NOTIFICATIONS</div>
+            <div id="notif-list"></div>
+          </div>
+        </div>
+        <div class="user-chip" id="user-chip" onclick="pg('profile',null)" style="display:none">
+          <div class="user-av" id="user-avatar">?</div>
+          <div><div class="user-name" id="user-name-disp">User</div><div class="user-role" id="user-role-disp">user</div></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- HOME -->
+      <div class="page active" id="page-home">
+        <div class="page-hd">
+          <div class="page-title">Welcome back<span id="home-username-suffix"></span></div>
+          <div class="page-desc">Professional security reconnaissance &amp; vulnerability assessment</div>
+        </div>
+        <div class="stats" id="home-stats">
+          <div class="stat"><div class="stat-val" id="hs-scans">--</div><div class="stat-lbl">TOTAL SCANS</div></div>
+          <div class="stat"><div class="stat-val" id="hs-cves">--</div><div class="stat-lbl">CVEs FOUND</div></div>
+          <div class="stat"><div class="stat-val" id="hs-ports">--</div><div class="stat-lbl">OPEN PORTS</div></div>
+          <div class="stat"><div class="stat-val">21</div><div class="stat-lbl">TOOLS</div></div>
+        </div>
+        <div id="home-tool-catalog"></div>
+        <div class="notice" style="margin-top:18px">&#9888; <strong>Authorized use only.</strong> Only scan systems you own or have explicit written permission to assess.</div>
+      </div>
+
+      <!-- SCANNER -->
+      <div class="page" id="page-scan">
+        <div class="page-hd"><div class="page-title">Network Scanner</div><div class="page-desc">Port scan &middot; CVE lookup &middot; SSL analysis &middot; DNS recon &middot; Header audit</div></div>
+        <div class="card card-p" style="margin-bottom:16px">
+          <div class="scan-bar">
+            <input class="inp inp-mono" id="tgt" type="text" placeholder="IP address or hostname" onkeydown="if(event.key==='Enter')doScan()"/>
+            <button class="btn btn-primary" id="sbtn" onclick="doScan()">SCAN</button>
+            <button class="btn btn-outline btn-sm" id="sbtn-cancel" onclick="cancelScan('scan')" style="display:none;color:var(--red);border-color:rgba(192,57,43,0.3)">CANCEL</button>
+          </div>
+          <div class="pills">
+            <button class="pill on" id="mod-ports" onclick="tmg('ports',this)">Ports + CVE</button>
+            <button class="pill on" id="mod-ssl" onclick="tmg('ssl',this)">SSL/TLS</button>
+            <button class="pill on" id="mod-dns" onclick="tmg('dns',this)">DNS</button>
+            <button class="pill on" id="mod-headers" onclick="tmg('headers',this)">Headers</button>
+          </div>
+          <div class="row2" style="margin-top:10px">
+            <div class="fg" style="margin-bottom:0">
+              <label>NMAP PROFILE</label>
+              <select class="inp inp-mono" id="scan-profile">
+                <option value="fast">Fast — top 100 ports, no version (-T4, ~30s)</option>
+                <option value="balanced" selected>Balanced — top 1000 ports + versions (-T4, ~60s)</option>
+                <option value="deep">Deep — all 65535 TCP ports + versions (-T3, ~5min)</option>
+                <option value="very_deep">Very Deep — all ports + scripts + OS detect (-T3, ~15min)</option>
+              </select>
+            </div>
+          </div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:10px">&#9432; Scans may take 30--180 seconds depending on target and modules.</div>
+        </div>
+        <div class="progress-wrap" id="prog"><div class="progress-bar" id="pb" style="width:0%"></div></div>
+        <div class="terminal" id="term"></div>
+        <div class="err-box" id="err"></div>
+        <div id="res"></div>
+      </div>
+
+      <!-- DEEP WEB AUDIT -->
+      <div class="page" id="page-webdeep">
+        <div class="page-hd"><div class="page-title">Deep Web Audit</div><div class="page-desc">Comprehensive website assessment with multiple tools and a risk rating</div></div>
+        <div class="notice">&#9888; Authorized use only. Scan only websites you own or are explicitly permitted to assess.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>TARGET WEBSITE URL</label><input class="inp inp-mono" id="wd-url" type="text" placeholder="https://example.com" onkeydown="if(event.key==='Enter')doWebDeep()"/></div>
+          <div class="row2" style="margin-bottom:8px">
+            <div class="fg"><label>DEPTH PROFILE</label><select class="inp inp-mono" id="wd-profile"><option value="balanced" selected>Balanced</option><option value="deep">Deep</option><option value="very_deep">Very Deep</option></select></div>
+            <div class="fg"><label>SCAN MODE</label><input class="inp inp-mono" type="text" value="Automated multi-tool web audit" disabled/></div>
+          </div>
+          <button class="btn btn-primary" id="wd-btn" onclick="doWebDeep()">RUN DEEP WEB AUDIT</button>
+          <button class="btn btn-outline btn-sm" id="wd-cancel" onclick="cancelScan('wd')" style="display:none;color:var(--red);margin-left:8px">CANCEL</button>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:10px">&#9432; This workflow can take 5--30 minutes depending on target size and enabled tools.</div>
+        </div>
+        <div class="progress-wrap" id="wd-prog"><div class="progress-bar" id="wd-pb" style="width:0%"></div></div>
+        <div class="terminal" id="wd-term"></div>
+        <div class="err-box" id="wd-err"></div>
+        <div id="wd-res"></div>
+      </div>
+
+      <!-- HARVESTER -->
+      <div class="page" id="page-harvester">
+        <div class="page-hd"><div class="page-title">theHarvester</div><div class="page-desc">OSINT email, subdomain, and IP reconnaissance</div></div>
+        <div class="notice">&#9888; Only perform reconnaissance on domains you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TARGET DOMAIN</label><input class="inp inp-mono" id="hv-target" type="text" placeholder="example.com"/></div>
+            <div class="fg"><label>RESULT LIMIT</label><input class="inp inp-mono" id="hv-limit" type="number" value="500" min="50" max="2000"/></div>
+          </div>
+          <div class="fg"><label>DATA SOURCES (hold Ctrl/Cmd for multiple)</label>
+            <select class="inp inp-mono" id="hv-sources" multiple style="height:90px;padding:6px">
+              <option value="google" selected>Google</option><option value="bing" selected>Bing</option>
+              <option value="linkedin">LinkedIn</option><option value="dnsdumpster" selected>DNSDumpster</option>
+              <option value="crtsh" selected>crt.sh</option><option value="hackertarget">HackerTarget</option>
+              <option value="baidu">Baidu</option><option value="yahoo">Yahoo</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="hv-btn" onclick="doHarvest()">RUN HARVESTER</button>
+          <button class="btn btn-outline btn-sm" id="hv-cancel" onclick="cancelScan('hv')" style="display:none;color:var(--red);margin-left:8px">CANCEL</button>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:10px">&#9432; May take 30--120s depending on sources.</div>
+        </div>
+        <div class="progress-wrap" id="hv-prog"><div class="progress-bar" id="hv-pb" style="width:0%"></div></div>
+        <div class="terminal" id="hv-term"></div>
+        <div class="err-box" id="hv-err"></div>
+        <div id="hv-res"></div>
+      </div>
+
+      <!-- DNSRECON -->
+      <div class="page" id="page-dnsrecon">
+        <div class="page-hd"><div class="page-title">DNSRecon</div><div class="page-desc">DNS enumeration and zone analysis</div></div>
+        <div class="notice">&#9888; Only enumerate domains you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TARGET DOMAIN</label><input class="inp inp-mono" id="dr-target" type="text" placeholder="example.com"/></div>
+            <div class="fg"><label>SCAN TYPE</label>
+              <select class="inp inp-mono" id="dr-type">
+                <option value="std">Standard (all record types)</option><option value="axfr">Zone Transfer (AXFR)</option>
+                <option value="brt">Brute Force subdomains</option><option value="srv">SRV records</option><option value="rvl">Reverse lookup</option>
+              </select>
+            </div>
+          </div>
+          <div class="row2" style="margin-bottom:16px">
+            <div class="fg"><label>NAMESERVER (optional)</label><input class="inp inp-mono" id="dr-ns" type="text" placeholder="8.8.8.8"/></div>
+            <div class="fg"><label>RECORD FILTER</label>
+              <select class="inp inp-mono" id="dr-filter">
+                <option value="">All records</option><option value="A">A</option><option value="MX">MX</option>
+                <option value="NS">NS</option><option value="TXT">TXT</option><option value="SOA">SOA</option><option value="CNAME">CNAME</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="dr-btn" onclick="doDnsRecon()">RUN DNSRECON</button>
+          <button class="btn btn-outline btn-sm" id="dr-cancel" onclick="cancelScan('dr')" style="display:none;color:var(--red);margin-left:8px">CANCEL</button>
+        </div>
+        <div class="progress-wrap" id="dr-prog"><div class="progress-bar" id="dr-pb" style="width:0%"></div></div>
+        <div class="terminal" id="dr-term"></div>
+        <div class="err-box" id="dr-err"></div>
+        <div id="dr-res"></div>
+      </div>
+
+      <!-- NIKTO -->
+      <div class="page" id="page-nikto">
+        <div class="page-hd"><div class="page-title">Nikto</div><div class="page-desc">Web server vulnerability scanner</div></div>
+        <div class="notice">&#9888; Only scan web servers you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TARGET URL / HOST</label><input class="inp inp-mono" id="nk-target" type="text" placeholder="http://192.168.1.1"/></div>
+            <div class="fg"><label>PORT</label><input class="inp inp-mono" id="nk-port" type="number" placeholder="80" value="80" min="1" max="65535"/></div>
+          </div>
+          <div class="row2" style="margin-bottom:16px">
+            <div class="fg"><label>SSL</label><select class="inp inp-mono" id="nk-ssl"><option value="">Auto-detect</option><option value="-ssl">Force SSL</option><option value="-nossl">Disable SSL</option></select></div>
+            <div class="fg"><label>TUNING</label><select class="inp inp-mono" id="nk-tuning"><option value="">All tests</option><option value="1">File upload</option><option value="2">Misconfiguration</option><option value="4">XSS</option><option value="8">Command injection</option><option value="9">SQL injection</option></select></div>
+          </div>
+          <button class="btn btn-primary" id="nk-btn" onclick="doNikto()">RUN NIKTO</button>
+          <button class="btn btn-outline btn-sm" id="nk-cancel" onclick="cancelScan('nk')" style="display:none;color:var(--red);margin-left:8px">CANCEL</button>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:10px">&#9432; Nikto scans may take 2--10 minutes.</div>
+        </div>
+        <div class="progress-wrap" id="nk-prog"><div class="progress-bar" id="nk-pb" style="width:0%"></div></div>
+        <div class="terminal" id="nk-term"></div>
+        <div class="err-box" id="nk-err"></div>
+        <div id="nk-res"></div>
+      </div>
+
+      <!-- WPSCAN -->
+      <div class="page" id="page-wpscan">
+        <div class="page-hd"><div class="page-title">WPScan</div><div class="page-desc">WordPress security scanner</div></div>
+        <div class="notice">&#9888; Only scan WordPress sites you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>TARGET URL</label><input class="inp inp-mono" id="wp-target" type="text" placeholder="https://example.com"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>ENUMERATION (hold Ctrl/Cmd)</label>
+              <select class="inp inp-mono" id="wp-enum" multiple style="height:90px;padding:6px">
+                <option value="p" selected>Plugins (vulnerable)</option><option value="t">Themes</option><option value="u" selected>Users</option>
+                <option value="vp">Vulnerable plugins only</option><option value="ap">All plugins</option>
+                <option value="at">All themes</option><option value="cb">Config backups</option>
+              </select>
+            </div>
+            <div class="fg"><label>DETECTION MODE</label>
+              <select class="inp inp-mono" id="wp-mode"><option value="mixed">Mixed (default)</option><option value="passive">Passive</option><option value="aggressive">Aggressive</option></select>
+            </div>
+          </div>
+          <div class="fg"><label>API TOKEN (optional)</label><input class="inp inp-mono" id="wp-token" type="password" placeholder="Get free token at wpscan.com"/></div>
+          <button class="btn btn-primary" id="wp-btn" onclick="doWPScan()">RUN WPSCAN</button>
+          <button class="btn btn-outline btn-sm" id="wp-cancel" onclick="cancelScan('wp')" style="display:none;color:var(--red);margin-left:8px">CANCEL</button>
+        </div>
+        <div class="progress-wrap" id="wp-prog"><div class="progress-bar" id="wp-pb" style="width:0%"></div></div>
+        <div class="terminal" id="wp-term"></div>
+        <div class="err-box" id="wp-err"></div>
+        <div id="wp-res"></div>
+      </div>
+
+      <!-- LYNIS -->
+      <div class="page" id="page-lynis">
+        <div class="page-hd"><div class="page-title">Lynis</div><div class="page-desc">Local system security audit</div></div>
+        <div class="notice">&#9432; Run local scan by default, or click a connected agent below to run Lynis remotely on that Linux machine. If you disconnect an agent, run the install curl command again on that Linux host to reconnect.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg" style="margin-bottom:10px">
+            <label>ONE-LINE AGENT INSTALL (Linux)</label>
+            <div class="scan-bar">
+              <input class="inp inp-mono" id="ly-install-cmd" type="text" readonly value="curl -fsSL http://161.118.189.254:5000/agent/install.sh | bash"/>
+              <button class="btn btn-outline btn-sm" onclick="copyLynisInstallCmd()">COPY</button>
+            </div>
+          </div>
+          <div class="fg" style="margin-bottom:10px">
+            <label>ONE-LINE AGENT INSTALL (Windows PowerShell + WSL)</label>
+            <div class="scan-bar">
+              <input class="inp inp-mono" id="ly-install-cmd-win" type="text" readonly value="powershell -ExecutionPolicy Bypass -Command &quot;iwr -UseBasicParsing http://161.118.189.254:5000/agent/install.ps1 | iex&quot;"/>
+              <button class="btn btn-outline btn-sm" onclick="copyLynisInstallCmdWin()">COPY</button>
+            </div>
+          </div>
+          <div class="card card-p" style="border:1px dashed var(--border2);margin-bottom:12px">
+            <div class="card-title" style="margin-bottom:8px">Connected Agent Systems</div>
+            <div id="ly-agents" style="color:var(--text3);font-size:12px">Loading agents...</div>
+            <div id="ly-selected-agent" style="font-size:11px;color:var(--text3);margin-top:8px">No remote agent selected (local scan mode).</div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>AUDIT PROFILE</label><select class="inp inp-mono" id="ly-profile"><option value="system">Full System Audit</option><option value="quick">Quick Scan</option><option value="forensics">Forensics Mode</option></select></div>
+            <div class="fg"><label>COMPLIANCE</label><select class="inp inp-mono" id="ly-compliance"><option value="">None</option><option value="ISO27001">ISO 27001</option><option value="PCI-DSS">PCI-DSS</option><option value="HIPAA">HIPAA</option><option value="CIS">CIS Benchmark</option></select></div>
+          </div>
+          <div class="fg"><label>FOCUS CATEGORY</label><select class="inp inp-mono" id="ly-category"><option value="">All categories</option><option value="authentication">Authentication</option><option value="networking">Networking</option><option value="storage">Storage</option><option value="kernel">Kernel</option><option value="software">Software</option><option value="logging">Logging</option></select></div>
+          <button class="btn btn-primary" id="ly-btn" onclick="doLynis()">RUN LYNIS AUDIT</button>
+          <button class="btn btn-outline btn-sm" id="ly-cancel" onclick="cancelScan('ly')" style="display:none;color:var(--red);margin-left:8px">CANCEL</button>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:10px">&#9432; Full audit may take 2--5 minutes.</div>
+        </div>
+        <div class="progress-wrap" id="ly-prog"><div class="progress-bar" id="ly-pb" style="width:0%"></div></div>
+        <div class="terminal" id="ly-term"></div>
+        <div class="err-box" id="ly-err"></div>
+        <div id="ly-res"></div>
+        <div class="card card-p" style="margin-top:12px">
+          <div class="card-title" style="margin-bottom:8px">Lynis Job Queue (latest 12)</div>
+          <div id="ly-jobs" style="color:var(--text3);font-size:12px">Loading jobs...</div>
+        </div>
+      </div>
+
+      <!-- LEGION -->
+      <div class="page" id="page-legion">
+        <div class="page-hd"><div class="page-title">Legion</div><div class="page-desc">Auto-recon framework</div></div>
+        <div class="notice">&#9888; Legion runs multiple active tools. Only scan hosts you own or have written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TARGET HOST / IP</label><input class="inp inp-mono" id="lg-target" type="text" placeholder="192.168.1.1"/></div>
+            <div class="fg"><label>INTENSITY</label><select class="inp inp-mono" id="lg-intensity"><option value="light">Light (fast)</option><option value="normal" selected>Normal</option><option value="aggressive">Aggressive</option></select></div>
+          </div>
+          <div class="fg"><label>MODULES</label>
+            <div class="pills" style="margin-top:6px">
+              <button class="pill on" id="lg-mod-nmap" onclick="lgMod('nmap',this)">nmap</button>
+              <button class="pill on" id="lg-mod-nikto" onclick="lgMod('nikto',this)">nikto</button>
+              <button class="pill on" id="lg-mod-smb" onclick="lgMod('smb',this)">SMB</button>
+              <button class="pill on" id="lg-mod-snmp" onclick="lgMod('snmp',this)">SNMP</button>
+              <button class="pill" id="lg-mod-hydra" onclick="lgMod('hydra',this)">hydra</button>
+              <button class="pill" id="lg-mod-finger" onclick="lgMod('finger',this)">finger</button>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="lg-btn" onclick="doLegion()" style="margin-top:12px">RUN LEGION</button>
+          <button class="btn btn-outline btn-sm" id="lg-cancel" onclick="cancelScan('lg')" style="display:none;color:var(--red);margin-left:8px">CANCEL</button>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:10px">&#9432; Aggressive scans may take 5--15 minutes.</div>
+        </div>
+        <div class="progress-wrap" id="lg-prog"><div class="progress-bar" id="lg-pb" style="width:0%"></div></div>
+        <div class="terminal" id="lg-term"></div>
+        <div class="err-box" id="lg-err"></div>
+        <div id="lg-res"></div>
+      </div>
+
+      <!-- SUBDOMAIN -->
+      <div class="page" id="page-sub">
+        <div class="page-hd"><div class="page-title">Subdomain Finder</div><div class="page-desc">DNS brute-force + passive enumeration</div></div>
+        <div class="notice">&#9888; Only enumerate domains you own or have written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>DOMAIN</label><input class="inp inp-mono" id="sub-domain" type="text" placeholder="example.com"/></div>
+          <div class="fg"><label>WORDLIST SIZE</label><select class="inp inp-mono" id="sub-size"><option value="small">Small (~30 words)</option><option value="medium" selected>Medium (~80 words + crt.sh + HackerTarget)</option></select></div>
+          <button class="btn btn-primary" id="sub-btn" onclick="doSub()">FIND SUBDOMAINS</button>
+        </div>
+        <div id="sub-res"></div>
+      </div>
+
+      <!-- DIR BUSTER -->
+      <div class="page" id="page-dir">
+        <div class="page-hd"><div class="page-title">Directory Buster</div><div class="page-desc">Hidden path and file enumeration</div></div>
+        <div class="notice">&#9888; Only scan web servers you own or have written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>TARGET URL</label><input class="inp inp-mono" id="dir-url" type="text" placeholder="http://192.168.1.1"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>WORDLIST SIZE</label><select class="inp inp-mono" id="dir-size"><option value="small" selected>Small (~60 paths)</option><option value="medium">Medium (~130 paths)</option></select></div>
+            <div class="fg"><label>EXTENSIONS</label><input class="inp inp-mono" id="dir-ext" type="text" value="php,html,txt,bak,zip,json,xml"/></div>
+          </div>
+          <button class="btn btn-primary" id="dir-btn" onclick="doDir()">START ENUMERATION</button>
+        </div>
+        <div id="dir-res"></div>
+      </div>
+
+      <!-- BRUTE FORCE -->
+      <div class="page" id="page-brute">
+        <div class="page-hd"><div class="page-title">Brute Force</div><div class="page-desc">Credential testing against HTTP and SSH services</div></div>
+        <div class="notice">&#9888; ONLY use on systems you own or have explicit written permission. Unauthorized use is illegal.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>ATTACK TYPE</label><select class="inp inp-mono" id="bf-type" onchange="bfTypeChange()"><option value="http">HTTP Form Login</option><option value="ssh">SSH Login</option></select></div>
+          <div id="bf-http-fields">
+            <div class="row3" style="margin-bottom:8px">
+              <div class="fg"><label>LOGIN URL</label><input class="inp inp-mono" id="bf-url" type="text" placeholder="http://host/login"/></div>
+              <div class="fg"><label>USER FIELD</label><input class="inp inp-mono" id="bf-ufield" value="username" type="text"/></div>
+              <div class="fg"><label>PASS FIELD</label><input class="inp inp-mono" id="bf-pfield" value="password" type="text"/></div>
+            </div>
+          </div>
+          <div id="bf-ssh-fields" style="display:none">
+            <div class="row2" style="margin-bottom:8px">
+              <div class="fg"><label>HOST</label><input class="inp inp-mono" id="bf-ssh-host" type="text" placeholder="192.168.1.1"/></div>
+              <div class="fg"><label>PORT</label><input class="inp inp-mono" id="bf-ssh-port" value="22" type="text"/></div>
+            </div>
+          </div>
+          <!-- Wordlist Mode Selector -->
+          <div class="fg">
+            <label>USERNAME LIST MODE</label>
+            <select class="inp inp-mono" id="bf-user-mode" onchange="bfWordlistMode('user')">
+              <option value="manual">Manual Input</option>
+              <option value="rockyou_users" selected>rockyou.txt — default usernames &#10003;</option>
+              <option value="seclists_common">SecLists: common usernames shortlist</option>
+              <option value="seclists_top">SecLists: full names list</option>
+              <option value="seclists_default_creds">SecLists: default credential users</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label>PASSWORD LIST MODE</label>
+            <select class="inp inp-mono" id="bf-pass-mode" onchange="bfWordlistMode('pass')">
+              <option value="manual">Manual Input</option>
+              <option value="rockyou" selected>rockyou.txt — default passwords &#10003;</option>
+              <option value="seclists_10k">SecLists: top 10k passwords</option>
+              <option value="seclists_100k">SecLists: top 100k passwords</option>
+              <option value="seclists_default_creds_pass">SecLists: default credential passwords</option>
+              <option value="seclists_darkweb">SecLists: darkweb2017 top 10k</option>
+            </select>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>USERNAMES <span id="bf-user-src-lbl" style="color:var(--text3);font-size:10px">(one per line)</span></label><textarea class="inp inp-mono" id="bf-users" placeholder="admin&#10;root&#10;user"></textarea></div>
+            <div class="fg"><label>PASSWORDS <span id="bf-pass-src-lbl" style="color:var(--text3);font-size:10px">(one per line)</span></label><textarea class="inp inp-mono" id="bf-pwds" placeholder="admin&#10;password&#10;123456"></textarea></div>
+          </div>
+          <div id="bf-wordlist-status" style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:10px;display:none"></div>
+          <button class="btn btn-primary btn-full" id="bf-btn" onclick="doBrute()">START BRUTE FORCE</button>
+        </div>
+        <div id="bf-res"></div>
+      </div>
+
+      <!-- SOCIAL-ENGINEER TOOLKIT — Interactive PTY Terminal -->
+      <div class="page" id="page-setoolkit">
+        <div class="page-hd">
+          <div class="page-title">Social-Engineer Toolkit (SET)</div>
+          <div class="page-desc">Full interactive terminal — navigate all SET menus directly from your browser</div>
+        </div>
+        <div class="notice">&#9888; Authorized awareness testing only. All actions are audit-logged. Never use for unauthorized phishing or payload delivery.</div>
+
+        <!-- Quick-select menu panel -->
+        <div class="card card-p" style="margin-bottom:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+            <div>
+              <div class="card-title">SET Interactive Terminal</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:2px">Type directly in the terminal below, or use the quick-select buttons</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-primary btn-sm" id="set-launch-btn" onclick="setLaunch()">
+                <span id="set-launch-icon">&#9654;</span> LAUNCH SET
+              </button>
+              <button class="btn btn-outline btn-sm" id="set-kill-btn" onclick="setKill()" style="display:none;color:var(--red);border-color:rgba(192,57,43,0.3)">
+                &#9632; KILL SESSION
+              </button>
+            </div>
+          </div>
+
+          <!-- Quick menu buttons — Main menu -->
+          <div id="set-quick-panel">
+            <div style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;margin-bottom:6px">QUICK SELECT — MAIN MENU</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px" id="set-main-btns">
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('1\n')" title="Social-Engineering Attacks">1 — SE Attacks</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('2\n')" title="Penetration Testing (Fast-Track)">2 — PenTest</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('3\n')" title="Third Party Modules">3 — Third Party</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('4\n')" title="Update SET">4 — Update SET</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('5\n')" title="Update SET Config">5 — SET Config</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('6\n')" title="Help / Credits">6 — Help</button>
+            </div>
+            <div style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;margin-bottom:6px">SOCIAL-ENGINEERING ATTACKS (after selecting 1)</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('1\n')" title="Spear-Phishing">1 — Spear-Phishing</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('2\n')" title="Website Attack Vectors">2 — Website Attacks</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('3\n')" title="Infectious Media Generator">3 — Infectious Media</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('4\n')" title="Create a Payload and Listener">4 — Payload + Listener</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('5\n')" title="Mass Mailer Attack">5 — Mass Mailer</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('6\n')" title="Arduino-Based Attack Vector">6 — Arduino</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('7\n')" title="Wireless Access Point Attack">7 — Wireless AP</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('8\n')" title="QRCode Generator">8 — QRCode</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('9\n')" title="Powershell Attack Vectors">9 — PowerShell</button>
+              <button class="btn btn-outline btn-sm set-menu-btn" onclick="setSend('10\n')">10 — SMS Spoofing</button>
+            </div>
+            <div style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;margin-bottom:6px">NAVIGATION</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <button class="btn btn-outline btn-sm" onclick="setSend('99\n')" style="color:var(--text2)">&#8592; Back / 99</button>
+              <button class="btn btn-outline btn-sm" onclick="setSpecialKey('ctrl_c')" style="color:var(--yellow)">&#9679; Ctrl+C</button>
+              <button class="btn btn-outline btn-sm" onclick="setSend('q\n')" style="color:var(--text2)">q — Quit prompt</button>
+              <button class="btn btn-outline btn-sm" onclick="setSend('exit\n')" style="color:var(--text2)">exit</button>
+              <button class="btn btn-outline btn-sm" onclick="setSend('\n')" style="color:var(--text2)">&#9166; Enter</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Terminal window -->
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-header" style="padding:10px 16px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="width:10px;height:10px;border-radius:50%;background:var(--green)" id="set-status-dot"></div>
+              <span style="font-family:var(--mono);font-size:11px;color:var(--text3)" id="set-status-label">Not started — click LAUNCH SET</span>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-ghost btn-sm" onclick="setTermClear()" title="Clear screen">CLR</button>
+              <button class="btn btn-ghost btn-sm" onclick="setTermScroll()" title="Scroll to bottom">&#8595;</button>
+            </div>
+          </div>
+
+          <!-- The main xterm-like display -->
+          <div id="set-terminal-output"
+               style="background:#0a0a0a;color:#00e5ff;font-family:var(--mono);font-size:12.5px;
+                      line-height:1.65;padding:14px 16px;min-height:360px;max-height:520px;
+                      overflow-y:auto;white-space:pre-wrap;word-break:break-all;
+                      border-bottom:1px solid var(--border);cursor:text"
+               onclick="document.getElementById('set-input-box').focus()">
+            <span style="color:var(--text3)">[ SET Interactive Terminal ]  Click LAUNCH SET to begin.</span>
+          </div>
+
+          <!-- Inline input row -->
+          <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--bg2)">
+            <span style="font-family:var(--mono);font-size:12px;color:var(--text3);flex-shrink:0">set&gt;</span>
+            <input id="set-input-box"
+                   class="inp inp-mono"
+                   type="text"
+                   placeholder="Type a menu number or command, then press Enter..."
+                   style="flex:1;background:transparent;border:none;box-shadow:none;padding:4px 0;font-size:12.5px"
+                   onkeydown="setInputKey(event)"
+                   autocomplete="off" spellcheck="false"/>
+            <button class="btn btn-primary btn-sm" onclick="setInputSend()">SEND</button>
+          </div>
+        </div>
+
+        <!-- Info cards -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">
+          <div class="card card-p">
+            <div class="card-title" style="margin-bottom:8px">How to Use</div>
+            <div style="font-size:12px;color:var(--text2);line-height:1.8">
+              1. Click <strong>LAUNCH SET</strong> to open a live session.<br/>
+              2. Wait for the SET menu to appear in the terminal.<br/>
+              3. Use the quick buttons or type a number + Enter.<br/>
+              4. Navigate sub-menus the same way.<br/>
+              5. Use <strong>99</strong> to go back, <strong>Ctrl+C</strong> to interrupt.
+            </div>
+          </div>
+          <div class="card card-p">
+            <div class="card-title" style="margin-bottom:8px">Common Workflows</div>
+            <div style="font-size:12px;color:var(--text2);line-height:1.8">
+              <strong>Phishing simulation:</strong> 1 → 1 → 1<br/>
+              <strong>Website clone attack:</strong> 1 → 2 → 2<br/>
+              <strong>Payload + listener:</strong> 1 → 4<br/>
+              <strong>Mass mailer:</strong> 1 → 5<br/>
+              <strong>PowerShell attack:</strong> 1 → 9
+            </div>
+          </div>
+          <div class="card card-p" style="border-left:3px solid var(--yellow)">
+            <div class="card-title" style="margin-bottom:8px;color:var(--yellow)">&#9888; Legal Notice</div>
+            <div style="font-size:12px;color:var(--text2);line-height:1.8">
+              All SET operations are audit-logged. Only use against systems and users you are <strong>explicitly authorized</strong> to test in writing.
+            </div>
+            <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px">
+              <span class="tag">phishing-sim</span><span class="tag">authorized</span><span class="tag">awareness</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GOPHISH -->
+      <div class="page" id="page-gophish">
+        <div class="page-hd"><div class="page-title">Gophish</div><div class="page-desc">Execute Gophish server commands and inspect output</div></div>
+        <div class="notice">&#9888; Use only for approved phishing-awareness campaigns and legal red-team scope.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>OPERATION</label><select class="inp inp-mono" id="gp-op"><option value="help">Help / capability check</option><option value="version">Version check</option><option value="custom">Custom arguments</option></select></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="gp-timeout" type="number" value="90" min="10" max="600"/></div>
+          </div>
+          <div class="fg"><label>CUSTOM ARGUMENTS (for custom mode)</label><input class="inp inp-mono" id="gp-args" type="text" placeholder="-h"/></div>
+          <button class="btn btn-primary" id="gp-btn" onclick="runGophish()">RUN GOPHISH</button>
+        </div>
+        <div class="progress-wrap" id="gp-prog"><div class="progress-bar" id="gp-pb" style="width:0%"></div></div>
+        <div class="terminal" id="gp-term"></div>
+        <div class="err-box" id="gp-err"></div>
+        <div id="gp-res"></div>
+        <div class="page-hd"><div class="page-title">Gophish</div><div class="page-desc">Phishing campaign platform for security awareness programs</div></div>
+        <div class="notice">&#9888; Restrict campaigns to consented users and approved domains. Keep credentials disabled or safely sandboxed.</div>
+        <div class="card card-p" style="margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:8px">What Gophish Is Best For</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.8">Building email templates, importing user groups, launching controlled campaigns, and tracking opens/clicks/reporting rates.</div>
+          <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px"><span class="tag">campaigns</span><span class="tag">templates</span><span class="tag">metrics</span></div>
+        </div>
+        <div class="card card-p">
+          <div class="card-title" style="margin-bottom:8px">Quick Commands (Linux)</div>
+          <div style="font-family:var(--mono);font-size:11px;line-height:1.8;color:var(--text2)">wget https://github.com/gophish/gophish/releases/latest<br/># Download the latest Linux 64-bit release asset from that page<br/>unzip gophish-*.zip -d gophish &amp;&amp; cd gophish &amp;&amp; ./gophish</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:10px">By default, the admin UI starts on port 3333 and the phishing listener on port 80. Configure sending profiles before launching any campaign.</div>
+        </div>
+      </div>
+
+      <!-- EVILGINX2 -->
+      <div class="page" id="page-evilginx2">
+        <div class="page-hd"><div class="page-title">Evilginx2</div><div class="page-desc">Execute Evilginx2 commands on server and view process output</div></div>
+        <div class="notice">&#9888; High-risk tooling. Run only in explicitly authorized red-team engagements.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>OPERATION</label><select class="inp inp-mono" id="eg-op"><option value="help">Help / capability check</option><option value="version">Version check</option><option value="custom">Custom arguments</option></select></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="eg-timeout" type="number" value="90" min="10" max="600"/></div>
+          </div>
+          <div class="fg"><label>CUSTOM ARGUMENTS (for custom mode)</label><input class="inp inp-mono" id="eg-args" type="text" placeholder="-h"/></div>
+          <button class="btn btn-primary" id="eg-btn" onclick="runEvilginx2()">RUN EVILGINX2</button>
+        </div>
+        <div class="progress-wrap" id="eg-prog"><div class="progress-bar" id="eg-pb" style="width:0%"></div></div>
+        <div class="terminal" id="eg-term"></div>
+        <div class="err-box" id="eg-err"></div>
+        <div id="eg-res"></div>
+        <div class="page-hd"><div class="page-title">Evilginx2</div><div class="page-desc">Reverse proxy phishing simulation for advanced red-team exercises</div></div>
+        <div class="notice">&#9888; High-risk tool. Use only in a legal red-team scope with explicit authorization and blue-team coordination.</div>
+        <div class="card card-p" style="margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:8px">Use It For</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.8">Testing MFA-aware phishing resilience in controlled engagements, validating detection controls, and training incident response teams.</div>
+          <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px"><span class="tag">reverse-proxy</span><span class="tag">MFA testing</span><span class="tag">red team</span></div>
+        </div>
+        <div class="card card-p">
+          <div class="card-title" style="margin-bottom:8px">Quick Commands (Linux)</div>
+          <div style="font-family:var(--mono);font-size:11px;line-height:1.8;color:var(--text2)">sudo apt install evilginx2<br/>sudo evilginx</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:10px">Typical workflow: configure domain and DNS, load phishlet, configure lure URL, run only during approved testing window.</div>
+        </div>
+      </div>
+
+      <!-- SHELLPHISH -->
+      <div class="page" id="page-shellphish">
+        <div class="page-hd"><div class="page-title">ShellPhish</div><div class="page-desc">Run ShellPhish script commands and inspect output</div></div>
+        <div class="notice">&#9888; Use only in controlled labs or approved awareness simulations.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>SCRIPT PATH</label><input class="inp inp-mono" id="sp-script" type="text" value="/opt/shellphish/shellphish.sh"/></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="sp-timeout" type="number" value="90" min="10" max="600"/></div>
+          </div>
+          <div class="fg"><label>ARGUMENTS</label><input class="inp inp-mono" id="sp-args" type="text" placeholder="--help"/></div>
+          <button class="btn btn-primary" id="sp-btn" onclick="runShellPhish()">RUN SHELLPHISH</button>
+        </div>
+        <div class="progress-wrap" id="sp-prog"><div class="progress-bar" id="sp-pb" style="width:0%"></div></div>
+        <div class="terminal" id="sp-term"></div>
+        <div class="err-box" id="sp-err"></div>
+        <div id="sp-res"></div>
+        <div class="page-hd"><div class="page-title">ShellPhish</div><div class="page-desc">Template-based phishing simulation launcher</div></div>
+        <div class="notice">&#9888; Use only on authorized targets in isolated labs. This tool is commonly abused in the wild.</div>
+        <div class="card card-p" style="margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:8px">Common Lab Workflows</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.8">Spin up prebuilt phishing templates for awareness demos, observe user behavior, and validate endpoint/browser protections in non-production environments.</div>
+          <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px"><span class="tag">templates</span><span class="tag">tunnels</span><span class="tag">training labs</span></div>
+        </div>
+        <div class="card card-p">
+          <div class="card-title" style="margin-bottom:8px">Quick Commands (Linux)</div>
+          <div style="font-family:var(--mono);font-size:11px;line-height:1.8;color:var(--text2)">sudo apt install git php curl -y<br/>git clone https://github.com/thelinuxchoice/shellphish.git<br/>cd shellphish &amp;&amp; bash shellphish.sh</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:10px">Use local tunnel options (localhost.run/ngrok) only for authorized simulations and teardown infrastructure immediately after testing.</div>
+        </div>
+      </div>
+
+      <!-- C2 / PIVOTING TOOLS -->
+      <div class="page" id="page-netcat">
+        <div class="page-hd"><div class="page-title">Netcat</div><div class="page-desc">Build listener/connect commands and run netcat on server</div></div>
+        <div class="notice">&#9888; Authorized red-team/lab use only.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>MODE</label><select class="inp inp-mono" id="nc-mode"><option value="connect">Connect</option><option value="listen">Listen</option></select></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="nc-timeout" type="number" value="90" min="10" max="600"/></div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TARGET HOST</label><input class="inp inp-mono" id="nc-host" type="text" placeholder="127.0.0.1"/></div>
+            <div class="fg"><label>PORT</label><input class="inp inp-mono" id="nc-port" type="number" value="4444" min="1" max="65535"/></div>
+          </div>
+          <div class="fg"><label>EXTRA ARGUMENTS</label><input class="inp inp-mono" id="nc-extra" type="text" placeholder="-v -n"/></div>
+          <button class="btn btn-primary" id="nc-btn" onclick="runNetcat()">RUN NETCAT</button>
+        </div>
+        <div class="progress-wrap" id="nc-prog"><div class="progress-bar" id="nc-pb" style="width:0%"></div></div>
+        <div class="terminal" id="nc-term"></div>
+        <div class="err-box" id="nc-err"></div>
+        <div id="nc-res"></div>
+      </div>
+
+      <div class="page" id="page-ncat">
+        <div class="page-hd"><div class="page-title">Ncat</div><div class="page-desc">Run ncat with validated arguments</div></div>
+        <div class="notice">&#9888; Authorized red-team/lab use only.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>MODE</label><select class="inp inp-mono" id="nct-mode"><option value="connect">Connect</option><option value="listen">Listen</option></select></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="nct-timeout" type="number" value="90" min="10" max="600"/></div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TARGET HOST</label><input class="inp inp-mono" id="nct-host" type="text" placeholder="127.0.0.1"/></div>
+            <div class="fg"><label>PORT</label><input class="inp inp-mono" id="nct-port" type="number" value="4444" min="1" max="65535"/></div>
+          </div>
+          <div class="fg"><label>EXTRA ARGUMENTS</label><input class="inp inp-mono" id="nct-extra" type="text" placeholder="-v -n"/></div>
+          <button class="btn btn-primary" id="nct-btn" onclick="runNcat()">RUN NCAT</button>
+        </div>
+        <div class="progress-wrap" id="nct-prog"><div class="progress-bar" id="nct-pb" style="width:0%"></div></div>
+        <div class="terminal" id="nct-term"></div>
+        <div class="err-box" id="nct-err"></div>
+        <div id="nct-res"></div>
+      </div>
+
+      <div class="page" id="page-socat">
+        <div class="page-hd"><div class="page-title">Socat</div><div class="page-desc">Bridge two sockets/channels with socat</div></div>
+        <div class="notice">&#9888; Authorized red-team/lab use only.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>LEFT ADDRESS</label><input class="inp inp-mono" id="sc-left" type="text" placeholder="TCP-LISTEN:4444,reuseaddr,fork"/></div>
+            <div class="fg"><label>RIGHT ADDRESS</label><input class="inp inp-mono" id="sc-right" type="text" placeholder="TCP:127.0.0.1:22"/></div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="sc-timeout" type="number" value="90" min="10" max="600"/></div>
+            <div class="fg"><label>EXTRA ARGUMENTS</label><input class="inp inp-mono" id="sc-extra" type="text" placeholder="-d -d"/></div>
+          </div>
+          <button class="btn btn-primary" id="sc-btn" onclick="runSocat()">RUN SOCAT</button>
+        </div>
+        <div class="progress-wrap" id="sc-prog"><div class="progress-bar" id="sc-pb" style="width:0%"></div></div>
+        <div class="terminal" id="sc-term"></div>
+        <div class="err-box" id="sc-err"></div>
+        <div id="sc-res"></div>
+      </div>
+
+      <div class="page" id="page-sliver">
+        <div class="page-hd"><div class="page-title">Sliver</div><div class="page-desc">Run Sliver client/server binary commands</div></div>
+        <div class="notice">&#9888; Authorized red-team engagements only.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>OPERATION</label><select class="inp inp-mono" id="sv-op"><option value="help">Help / capability check</option><option value="version">Version check</option><option value="custom">Custom arguments</option></select></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="sv-timeout" type="number" value="90" min="10" max="600"/></div>
+          </div>
+          <div class="fg"><label>CUSTOM ARGUMENTS</label><input class="inp inp-mono" id="sv-args" type="text" placeholder="version"/></div>
+          <button class="btn btn-primary" id="sv-btn" onclick="runSliver()">RUN SLIVER</button>
+        </div>
+        <div class="progress-wrap" id="sv-prog"><div class="progress-bar" id="sv-pb" style="width:0%"></div></div>
+        <div class="terminal" id="sv-term"></div>
+        <div class="err-box" id="sv-err"></div>
+        <div id="sv-res"></div>
+      </div>
+
+      <div class="page" id="page-empire">
+        <div class="page-hd"><div class="page-title">Empire</div><div class="page-desc">Run Empire framework CLI checks/commands</div></div>
+        <div class="notice">&#9888; Authorized red-team engagements only.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>OPERATION</label><select class="inp inp-mono" id="em-op"><option value="help">Help / capability check</option><option value="version">Version check</option><option value="custom">Custom arguments</option></select></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="em-timeout" type="number" value="90" min="10" max="600"/></div>
+          </div>
+          <div class="fg"><label>CUSTOM ARGUMENTS</label><input class="inp inp-mono" id="em-args" type="text" placeholder="server --help"/></div>
+          <button class="btn btn-primary" id="em-btn" onclick="runEmpire()">RUN EMPIRE</button>
+        </div>
+        <div class="progress-wrap" id="em-prog"><div class="progress-bar" id="em-pb" style="width:0%"></div></div>
+        <div class="terminal" id="em-term"></div>
+        <div class="err-box" id="em-err"></div>
+        <div id="em-res"></div>
+      </div>
+
+      <!-- NETWORK DISCOVERY -->
+      <div class="page" id="page-disc">
+        <div class="page-hd"><div class="page-title">Network Discovery</div><div class="page-desc">Discover live hosts on a subnet</div></div>
+        <div class="notice">&#9888; Only scan networks you own or have permission to scan.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="scan-bar">
+            <input class="inp inp-mono" id="subnet" type="text" placeholder="192.168.1.0/24" onkeydown="if(event.key==='Enter')doDisc()"/>
+            <button class="btn btn-primary" id="disc-btn" onclick="doDisc()">DISCOVER</button>
+          </div>
+        </div>
+        <div id="disc-res"></div>
+      </div>
+
+      <!-- HISTORY -->
+      <div class="page" id="page-hist">
+        <div class="page-hd"><div class="page-title">Scan History</div><div class="page-desc">Your previous vulnerability assessments</div></div>
+        <div class="card" id="hist-content"><div class="card-p" style="color:var(--text3)">Loading...</div></div>
+      </div>
+
+      <!-- DASHBOARD -->
+      <div class="page" id="page-dash">
+        <div class="page-hd"><div class="page-title">Dashboard</div><div class="page-desc">Security statistics and activity overview</div></div>
+        <div id="dash-content"><div style="color:var(--text3);font-size:13px">Run some scans to see statistics.</div></div>
+      </div>
+
+      <!-- PROFILE -->
+      <div class="page" id="page-profile">
+        <div class="page-hd"><div class="page-title">Profile</div><div class="page-desc">Account settings and preferences</div></div>
+        <div class="profile-grid">
+          <div class="card card-p">
+            <div class="card-title" style="margin-bottom:12px">My Account</div>
+            <div id="profile-info"></div>
+            <div style="margin-top:16px">
+              <div class="fg"><label>FULL NAME</label><input class="inp" id="p-name" type="text" placeholder="Your full name"/></div>
+              <button class="btn btn-primary btn-full" onclick="saveProfile()">SAVE CHANGES</button>
+            </div>
+          </div>
+          <div class="card card-p">
+            <div class="card-title" style="margin-bottom:12px">Change Password</div>
+            <div class="fg"><label>CURRENT PASSWORD</label><input class="inp inp-mono" id="cp-old" type="password"/></div>
+            <div class="fg"><label>NEW PASSWORD</label><input class="inp inp-mono" id="cp-new" type="password"/></div>
+            <div class="fg"><label>CONFIRM NEW PASSWORD</label><input class="inp inp-mono" id="cp-confirm" type="password"/></div>
+            <button class="btn btn-primary btn-full" onclick="changePassword()">UPDATE PASSWORD</button>
+            <div id="pwd-msg" class="auth-msg" style="margin-top:10px"></div>
+          </div>
+        </div>
+        <div class="card card-p" style="margin-top:16px">
+          <div class="card-title" style="margin-bottom:6px">Interface Theme</div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:14px">Saved per-user to your account only.</div>
+          <div class="theme-options">
+            <button class="theme-opt active" id="theme-opt-light" onclick="applyTheme('light')">
+              <div class="theme-swatch" style="background:linear-gradient(135deg,#ffffff,#f5f5f5);border:1px solid #e0e0e0"></div>
+              <div class="theme-name">Light</div><div class="theme-desc">Clean white workspace</div>
+            </button>
+            <button class="theme-opt" id="theme-opt-dark" onclick="applyTheme('dark')">
+              <div class="theme-swatch" style="background:linear-gradient(135deg,#0a0a0a,#1a1a1a);border:1px solid #252525"></div>
+              <div class="theme-name">Dark</div><div class="theme-desc">Low-light environment</div>
+            </button>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- FFUF -->
+      <div class="page" id="page-ffuf">
+        <div class="page-hd"><div class="page-title">ffuf</div><div class="page-desc">Fast web fuzzer for content discovery and parameter fuzzing</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run ffuf on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TARGET URL (use FUZZ as placeholder)</label><input class="inp inp-mono" id="ffuf-url" type="text" placeholder="https://example.com/FUZZ"/></div>
+            <div class="fg"><label>WORDLIST PATH</label><input class="inp inp-mono" id="ffuf-wordlist" type="text" value="/usr/share/seclists/Discovery/Web-Content/common.txt"/></div>
+          </div>
+          <div class="row3" style="margin-bottom:12px">
+            <div class="fg"><label>HTTP METHOD</label><select class="inp inp-mono" id="ffuf-method"><option>GET</option><option>POST</option><option>PUT</option></select></div>
+            <div class="fg"><label>FILTER STATUS CODES (-fc)</label><input class="inp inp-mono" id="ffuf-fc" type="text" value="404"/></div>
+            <div class="fg"><label>MATCH STATUS CODES (-mc)</label><input class="inp inp-mono" id="ffuf-mc" type="text" placeholder="200,301,302"/></div>
+          </div>
+          <div class="row3" style="margin-bottom:12px">
+            <div class="fg"><label>EXTENSIONS (-e)</label><input class="inp inp-mono" id="ffuf-e" type="text" placeholder=".php,.html,.txt"/></div>
+            <div class="fg"><label>THREADS (-t)</label><input class="inp inp-mono" id="ffuf-threads" type="number" value="40" min="1" max="200"/></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="ffuf-timeout" type="number" value="120" min="10" max="600"/></div>
+          </div>
+          <div class="fg" style="margin-bottom:12px"><label>EXTRA ARGUMENTS</label><input class="inp inp-mono" id="ffuf-extra" type="text" placeholder="-H 'Cookie: session=abc' -recursion"/></div>
+          <button class="btn btn-primary" id="ffuf-btn" onclick="runFfuf()">RUN FFUF</button>
+        </div>
+        <div class="progress-wrap" id="ffuf-prog"><div class="progress-bar" id="ffuf-pb" style="width:0%"></div></div>
+        <div class="terminal" id="ffuf-term"></div>
+        <div class="err-box" id="ffuf-err"></div>
+        <div id="ffuf-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install ffuf</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">web-testing</span><span class="tag">ffuf</span></div>
+        </div>
+      </div>
+      <!-- NUCLEI -->
+      <div class="page" id="page-nuclei">
+        <div class="page-hd"><div class="page-title">Nuclei</div><div class="page-desc">Template-based vulnerability scanner with thousands of community checks</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run Nuclei on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>TARGET URL / HOST</label><input class="inp inp-mono" id="nuclei-target" type="text" placeholder="https://example.com"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>SEVERITY (hold Ctrl)</label>
+              <select class="inp inp-mono" id="nuclei-severity" multiple style="height:80px;padding:6px">
+                <option value="critical" selected>Critical</option><option value="high" selected>High</option>
+                <option value="medium" selected>Medium</option><option value="low">Low</option><option value="info">Info</option>
+              </select>
+            </div>
+            <div class="fg"><label>TEMPLATE TAGS (hold Ctrl)</label>
+              <select class="inp inp-mono" id="nuclei-tags" multiple style="height:80px;padding:6px">
+                <option value="cve" selected>CVEs</option><option value="sqli">SQLi</option>
+                <option value="xss">XSS</option><option value="rce">RCE</option>
+                <option value="lfi">LFI</option><option value="ssrf">SSRF</option>
+                <option value="misconfig">Misconfig</option><option value="exposed-panels">Exposed Panels</option>
+              </select>
+            </div>
+          </div>
+          <div class="row3" style="margin-bottom:12px">
+            <div class="fg"><label>THREADS (-c)</label><input class="inp inp-mono" id="nuclei-threads" type="number" value="25" min="1" max="100"/></div>
+            <div class="fg"><label>RATE LIMIT (req/s)</label><input class="inp inp-mono" id="nuclei-rate" type="number" value="150" min="1" max="500"/></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="nuclei-timeout" type="number" value="300" min="30" max="1800"/></div>
+          </div>
+          <div class="fg" style="margin-bottom:12px"><label>CUSTOM TEMPLATE PATH (optional)</label><input class="inp inp-mono" id="nuclei-templates" type="text" placeholder="/path/to/custom-templates/"/></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" id="nuclei-btn" onclick="runNuclei()">RUN NUCLEI</button>
+            <button class="btn btn-outline btn-sm" onclick="runNucleiUpdate()">UPDATE TEMPLATES</button>
+          </div>
+        </div>
+        <div class="progress-wrap" id="nuclei-prog"><div class="progress-bar" id="nuclei-pb" style="width:0%"></div></div>
+        <div class="terminal" id="nuclei-term"></div>
+        <div class="err-box" id="nuclei-err"></div>
+        <div id="nuclei-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install nuclei</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">web-testing</span><span class="tag">nuclei</span></div>
+        </div>
+      </div>
+      <!-- WHATWEB -->
+      <div class="page" id="page-whatweb">
+        <div class="page-hd"><div class="page-title">WhatWeb</div><div class="page-desc">Web technology fingerprinter — identify CMS, frameworks, servers</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run WhatWeb on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>TARGET URL / HOST</label><input class="inp inp-mono" id="whatweb-target" type="text" placeholder="https://example.com"/></div>
+          <div class="row3" style="margin-bottom:12px">
+            <div class="fg"><label>AGGRESSION LEVEL</label>
+              <select class="inp inp-mono" id="whatweb-aggression">
+                <option value="1">1 — Stealthy</option><option value="3" selected>3 — Aggressive</option><option value="4">4 — Heavy</option>
+              </select>
+            </div>
+            <div class="fg"><label>OUTPUT FORMAT</label>
+              <select class="inp inp-mono" id="whatweb-format">
+                <option value="">Brief</option><option value="--log-json=-" selected>JSON</option><option value="--log-verbose=-">Verbose</option>
+              </select>
+            </div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="whatweb-timeout" type="number" value="60" min="10" max="300"/></div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>USER AGENT (optional)</label><input class="inp inp-mono" id="whatweb-ua" type="text" placeholder="Mozilla/5.0 ..."/></div>
+            <div class="fg"><label>HTTP PROXY (optional)</label><input class="inp inp-mono" id="whatweb-proxy" type="text" placeholder="http://127.0.0.1:8080"/></div>
+          </div>
+          <div class="fg" style="margin-bottom:12px"><label>EXTRA ARGUMENTS</label><input class="inp inp-mono" id="whatweb-extra" type="text" placeholder="--follow-redirect=never"/></div>
+          <button class="btn btn-primary" id="whatweb-btn" onclick="runWhatWeb()">RUN WHATWEB</button>
+        </div>
+        <div class="progress-wrap" id="whatweb-prog"><div class="progress-bar" id="whatweb-pb" style="width:0%"></div></div>
+        <div class="terminal" id="whatweb-term"></div>
+        <div class="err-box" id="whatweb-err"></div>
+        <div id="whatweb-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install whatweb</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">web-testing</span><span class="tag">whatweb</span></div>
+        </div>
+      </div>
+      <!-- WAPITI -->
+      <div class="page" id="page-wapiti">
+        <div class="page-hd"><div class="page-title">Wapiti</div><div class="page-desc">Web application vulnerability scanner (SQLi, XSS, file disclosure)</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run Wapiti on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>TARGET URL</label><input class="inp inp-mono" id="wapiti-target" type="text" placeholder="https://example.com"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>ATTACK MODULES (hold Ctrl)</label>
+              <select class="inp inp-mono" id="wapiti-modules" multiple style="height:90px;padding:6px">
+                <option value="sql" selected>SQL Injection</option><option value="xss" selected>XSS</option>
+                <option value="file" selected>File Disclosure</option><option value="xxe">XXE</option>
+                <option value="ssrf">SSRF</option><option value="redirect">Open Redirect</option>
+                <option value="exec">Command Injection</option><option value="csrf">CSRF</option>
+              </select>
+            </div>
+            <div class="fg">
+              <div class="fg"><label>CRAWL DEPTH</label><input class="inp inp-mono" id="wapiti-depth" type="number" value="2" min="1" max="10"/></div>
+              <div class="fg"><label>SCOPE</label>
+                <select class="inp inp-mono" id="wapiti-scope">
+                  <option value="folder">Folder</option><option value="domain" selected>Domain</option><option value="url">URL only</option>
+                </select>
+              </div>
+              <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="wapiti-timeout" type="number" value="300" min="60" max="1800"/></div>
+            </div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>REPORT FORMAT</label>
+              <select class="inp inp-mono" id="wapiti-format"><option value="json" selected>JSON</option><option value="html">HTML</option><option value="txt">Text</option></select>
+            </div>
+            <div class="fg"><label>EXTRA ARGUMENTS</label><input class="inp inp-mono" id="wapiti-extra" type="text" placeholder="--auth-user admin --auth-password pass"/></div>
+          </div>
+          <button class="btn btn-primary" id="wapiti-btn" onclick="runWapiti()">RUN WAPITI</button>
+        </div>
+        <div class="progress-wrap" id="wapiti-prog"><div class="progress-bar" id="wapiti-pb" style="width:0%"></div></div>
+        <div class="terminal" id="wapiti-term"></div>
+        <div class="err-box" id="wapiti-err"></div>
+        <div id="wapiti-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install wapiti</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">web-testing</span><span class="tag">wapiti</span></div>
+        </div>
+      </div>
+      <!-- DALFOX -->
+      <div class="page" id="page-dalfox">
+        <div class="page-hd"><div class="page-title">Dalfox</div><div class="page-desc">XSS parameter analysis and scanning tool</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run Dalfox on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>TARGET URL (with parameters)</label><input class="inp inp-mono" id="dalfox-target" type="text" placeholder="https://example.com/search?q=test"/></div>
+          <div class="row3" style="margin-bottom:12px">
+            <div class="fg"><label>SCAN MODE</label>
+              <select class="inp inp-mono" id="dalfox-mode">
+                <option value="url" selected>URL scan</option><option value="sxss">Stored XSS</option>
+              </select>
+            </div>
+            <div class="fg"><label>OUTPUT FORMAT</label>
+              <select class="inp inp-mono" id="dalfox-format">
+                <option value="">Plain</option><option value="--format json" selected>JSON</option>
+              </select>
+            </div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="dalfox-timeout" type="number" value="120" min="10" max="600"/></div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>CUSTOM PAYLOAD (optional)</label><input class="inp inp-mono" id="dalfox-payload" type="text" placeholder="&lt;script&gt;alert(1)&lt;/script&gt;"/></div>
+            <div class="fg"><label>HTTP HEADER (optional)</label><input class="inp inp-mono" id="dalfox-header" type="text" placeholder="Cookie: session=abc123"/></div>
+          </div>
+          <div class="pills" style="margin-bottom:12px">
+            <button class="pill" id="dalfox-opt-blind" onclick="this.classList.toggle('on')">Blind XSS</button>
+            <button class="pill" id="dalfox-opt-skip-bav" onclick="this.classList.toggle('on')">Skip BAV</button>
+            <button class="pill on" id="dalfox-opt-follow" onclick="this.classList.toggle('on')">Follow Redirects</button>
+          </div>
+          <button class="btn btn-primary" id="dalfox-btn" onclick="runDalfox()">RUN DALFOX</button>
+        </div>
+        <div class="progress-wrap" id="dalfox-prog"><div class="progress-bar" id="dalfox-pb" style="width:0%"></div></div>
+        <div class="terminal" id="dalfox-term"></div>
+        <div class="err-box" id="dalfox-err"></div>
+        <div id="dalfox-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">go install github.com/hahwul/dalfox/v2@latest</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">web-testing</span><span class="tag">dalfox</span></div>
+        </div>
+      </div>
+      <!-- SQLMAP -->
+      <div class="page" id="page-sqlmap">
+        <div class="page-hd"><div class="page-title">SQLMap</div><div class="page-desc">Automatic SQL injection detection and exploitation tool</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run SQLMap on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>TARGET URL</label><input class="inp inp-mono" id="sqlmap-url" type="text" placeholder="https://example.com/page.php?id=1"/></div>
+          <div class="row3" style="margin-bottom:12px">
+            <div class="fg"><label>RISK LEVEL</label>
+              <select class="inp inp-mono" id="sqlmap-risk">
+                <option value="1" selected>1 — Safe</option><option value="2">2 — Medium</option><option value="3">3 — High</option>
+              </select>
+            </div>
+            <div class="fg"><label>TEST LEVEL</label>
+              <select class="inp inp-mono" id="sqlmap-level">
+                <option value="1" selected>1 — Basic</option><option value="2">2</option><option value="3">3 — Headers</option><option value="4">4</option><option value="5">5 — All</option>
+              </select>
+            </div>
+            <div class="fg"><label>DBMS</label>
+              <select class="inp inp-mono" id="sqlmap-dbms">
+                <option value="">Auto</option><option>MySQL</option><option>PostgreSQL</option>
+                <option>Microsoft SQL Server</option><option>Oracle</option><option>SQLite</option>
+              </select>
+            </div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TECHNIQUE</label>
+              <select class="inp inp-mono" id="sqlmap-technique">
+                <option value="">All</option><option value="B">Boolean-based blind</option>
+                <option value="E">Error-based</option><option value="U">Union query</option>
+                <option value="T">Time-based blind</option>
+              </select>
+            </div>
+            <div class="fg"><label>POST DATA (optional)</label><input class="inp inp-mono" id="sqlmap-data" type="text" placeholder="username=admin&amp;password=test"/></div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>COOKIE (optional)</label><input class="inp inp-mono" id="sqlmap-cookie" type="text" placeholder="PHPSESSID=abc123"/></div>
+            <div class="fg"><label>THREADS</label><input class="inp inp-mono" id="sqlmap-threads" type="number" value="1" min="1" max="10"/></div>
+          </div>
+          <div class="pills" style="margin-bottom:12px">
+            <button class="pill on" id="sqlmap-batch" onclick="this.classList.toggle('on')">--batch</button>
+            <button class="pill" id="sqlmap-dbs" onclick="this.classList.toggle('on')">--dbs</button>
+            <button class="pill" id="sqlmap-tables" onclick="this.classList.toggle('on')">--tables</button>
+            <button class="pill" id="sqlmap-dump" onclick="this.classList.toggle('on')">--dump</button>
+            <button class="pill" id="sqlmap-random-agent" onclick="this.classList.toggle('on')">Random UA</button>
+          </div>
+          <div class="fg" style="margin-bottom:12px"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="sqlmap-timeout" type="number" value="300" min="30" max="1800"/></div>
+          <button class="btn btn-primary" id="sqlmap-btn" onclick="runSqlmap()">RUN SQLMAP</button>
+        </div>
+        <div class="progress-wrap" id="sqlmap-prog"><div class="progress-bar" id="sqlmap-pb" style="width:0%"></div></div>
+        <div class="terminal" id="sqlmap-term"></div>
+        <div class="err-box" id="sqlmap-err"></div>
+        <div id="sqlmap-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install sqlmap</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">web-testing</span><span class="tag">sqlmap</span></div>
+        </div>
+      </div>
+      <!-- KXSS -->
+      <div class="page" id="page-kxss">
+        <div class="page-hd"><div class="page-title">kxss</div><div class="page-desc">XSS parameter finder and reflection checker</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run kxss on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>TARGET URLs (one per line — must include parameters)</label>
+            <textarea class="inp inp-mono" id="kxss-urls" rows="5" placeholder="https://example.com/search?q=test&#10;https://example.com/page?id=1"></textarea>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>HTTP HEADER (optional)</label><input class="inp inp-mono" id="kxss-header" type="text" placeholder="Cookie: session=abc123"/></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="kxss-timeout" type="number" value="60" min="10" max="300"/></div>
+          </div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:10px">&#9432; kxss reads from stdin. Best used as: <code>echo "URL" | kxss</code> or <code>cat urls.txt | kxss</code></div>
+          <button class="btn btn-primary" id="kxss-btn" onclick="runKxss()">CHECK KXSS</button>
+        </div>
+        <div class="progress-wrap" id="kxss-prog"><div class="progress-bar" id="kxss-pb" style="width:0%"></div></div>
+        <div class="terminal" id="kxss-term"></div>
+        <div class="err-box" id="kxss-err"></div>
+        <div id="kxss-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">go install github.com/Emoe/kxss@latest</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">web-testing</span><span class="tag">kxss</span></div>
+        </div>
+      </div>
+      <!-- MEDUSA -->
+      <div class="page" id="page-medusa">
+        <div class="page-hd"><div class="page-title">Medusa</div><div class="page-desc">Fast parallel network login auditor (multi-protocol brute force)</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run Medusa on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row3" style="margin-bottom:12px">
+            <div class="fg"><label>TARGET HOST / IP</label><input class="inp inp-mono" id="medusa-host" type="text" placeholder="192.168.1.1"/></div>
+            <div class="fg"><label>PORT</label><input class="inp inp-mono" id="medusa-port" type="number" placeholder="22"/></div>
+            <div class="fg"><label>PROTOCOL / MODULE</label>
+              <select class="inp inp-mono" id="medusa-module">
+                <option value="ssh" selected>SSH</option><option value="ftp">FTP</option>
+                <option value="http">HTTP</option><option value="https">HTTPS</option>
+                <option value="smb">SMB</option><option value="rdp">RDP</option>
+                <option value="telnet">Telnet</option><option value="mysql">MySQL</option>
+                <option value="pop3">POP3</option><option value="imap">IMAP</option>
+              </select>
+            </div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>USERNAMES (one per line)</label><textarea class="inp inp-mono" id="medusa-users" rows="3" placeholder="admin&#10;root&#10;user"></textarea></div>
+            <div class="fg"><label>PASSWORDS (one per line)</label><textarea class="inp inp-mono" id="medusa-passes" rows="3" placeholder="password&#10;admin&#10;123456"></textarea></div>
+          </div>
+          <div class="row3" style="margin-bottom:12px">
+            <div class="fg"><label>THREADS</label><input class="inp inp-mono" id="medusa-threads" type="number" value="4" min="1" max="64"/></div>
+            <div class="fg"><label>RETRIES</label><input class="inp inp-mono" id="medusa-retries" type="number" value="3" min="0" max="10"/></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="medusa-timeout" type="number" value="120" min="10" max="600"/></div>
+          </div>
+          <div class="fg" style="margin-bottom:12px"><label>EXTRA ARGUMENTS</label><input class="inp inp-mono" id="medusa-extra" type="text" placeholder="-e ns -F (stop on first success)"/></div>
+          <button class="btn btn-primary" id="medusa-btn" onclick="runMedusa()">RUN MEDUSA</button>
+        </div>
+        <div class="progress-wrap" id="medusa-prog"><div class="progress-bar" id="medusa-pb" style="width:0%"></div></div>
+        <div class="terminal" id="medusa-term"></div>
+        <div class="err-box" id="medusa-err"></div>
+        <div id="medusa-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install medusa</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">attacks</span><span class="tag">medusa</span></div>
+        </div>
+      </div>
+      <!-- HPING3 -->
+      <div class="page" id="page-hping3">
+        <div class="page-hd"><div class="page-title">hping3</div><div class="page-desc">TCP/IP packet assembler and analyzer for network testing</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run hping3 on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>TARGET HOST / IP</label><input class="inp inp-mono" id="hping3-host" type="text" placeholder="192.168.1.1"/></div>
+            <div class="fg"><label>DESTINATION PORT</label><input class="inp inp-mono" id="hping3-port" type="number" value="80" min="1" max="65535"/></div>
+          </div>
+          <div class="row3" style="margin-bottom:12px">
+            <div class="fg"><label>MODE</label>
+              <select class="inp inp-mono" id="hping3-mode">
+                <option value="-S" selected>SYN (-S)</option><option value="-A">ACK (-A)</option>
+                <option value="-F">FIN (-F)</option><option value="-U">UDP (-U)</option><option value="-1">ICMP (-1)</option>
+              </select>
+            </div>
+            <div class="fg"><label>PACKET COUNT (-c)</label><input class="inp inp-mono" id="hping3-count" type="number" value="5" min="1" max="10000"/></div>
+            <div class="fg"><label>INTERVAL (ms)</label><input class="inp inp-mono" id="hping3-interval" type="number" value="1000" min="0" max="60000"/></div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>DATA SIZE (bytes)</label><input class="inp inp-mono" id="hping3-data" type="number" value="0" min="0" max="65000"/></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="hping3-timeout" type="number" value="30" min="5" max="300"/></div>
+          </div>
+          <div class="pills" style="margin-bottom:12px">
+            <button class="pill" id="hping3-verbose" onclick="this.classList.toggle('on')">--verbose</button>
+            <button class="pill" id="hping3-rand-source" onclick="this.classList.toggle('on')">--rand-source</button>
+            <button class="pill" id="hping3-fast" onclick="this.classList.toggle('on')">--fast</button>
+            <button class="pill" id="hping3-flood" onclick="this.classList.toggle('on')">--flood ⚠</button>
+          </div>
+          <button class="btn btn-primary" id="hping3-btn" onclick="runHping3()">RUN HPING3</button>
+        </div>
+        <div class="progress-wrap" id="hping3-prog"><div class="progress-bar" id="hping3-pb" style="width:0%"></div></div>
+        <div class="terminal" id="hping3-term"></div>
+        <div class="err-box" id="hping3-err"></div>
+        <div id="hping3-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install hping3</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">network-attack</span><span class="tag">hping3</span></div>
+        </div>
+      </div>
+      <!-- SCAPY -->
+      <div class="page" id="page-scapy">
+        <div class="page-hd"><div class="page-title">Scapy</div><div class="page-desc">Interactive packet manipulation and network analysis framework</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run Scapy on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>SCAPY SCRIPT (Python)</label>
+            <textarea class="inp inp-mono" id="scapy-script" rows="8" placeholder="from scapy.all import *&#10;target = '192.168.1.1'&#10;pkt = IP(dst=target)/ICMP()&#10;reply = sr1(pkt, timeout=2, verbose=0)&#10;if reply:&#10;    print('Host is up:', reply.src)"></textarea>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg">
+              <label>QUICK TEMPLATES</label>
+              <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px">
+                <button class="btn btn-outline btn-sm" onclick="scapyTemplate('ping')">ICMP Ping</button>
+                <button class="btn btn-outline btn-sm" onclick="scapyTemplate('portscan')">TCP Port Scan</button>
+                <button class="btn btn-outline btn-sm" onclick="scapyTemplate('syn')">SYN Scan</button>
+                <button class="btn btn-outline btn-sm" onclick="scapyTemplate('arpscan')">ARP Scan</button>
+                <button class="btn btn-outline btn-sm" onclick="scapyTemplate('traceroute')">Traceroute</button>
+              </div>
+            </div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="scapy-timeout" type="number" value="30" min="5" max="300"/></div>
+          </div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:10px">&#9432; Scapy packet injection requires root. Run scripts directly: <code>sudo python3 script.py</code></div>
+          <button class="btn btn-primary" id="scapy-btn" onclick="runScapy()">RUN SCAPY</button>
+        </div>
+        <div class="progress-wrap" id="scapy-prog"><div class="progress-bar" id="scapy-pb" style="width:0%"></div></div>
+        <div class="terminal" id="scapy-term"></div>
+        <div class="err-box" id="scapy-err"></div>
+        <div id="scapy-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install python3-scapy</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">network-attack</span><span class="tag">scapy</span></div>
+        </div>
+      </div>
+      <!-- YERSINIA -->
+      <div class="page" id="page-yersinia">
+        <div class="page-hd"><div class="page-title">Yersinia</div><div class="page-desc">Network protocol attacks (STP, CDP, DTP, DHCP, 802.1Q, VTP, HSRP)</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run Yersinia on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row3" style="margin-bottom:12px">
+            <div class="fg"><label>PROTOCOL</label>
+              <select class="inp inp-mono" id="yersinia-proto">
+                <option value="stp" selected>STP</option><option value="cdp">CDP</option>
+                <option value="dhcp">DHCP</option><option value="dot1q">802.1Q</option>
+                <option value="dtp">DTP</option><option value="hsrp">HSRP</option><option value="vtp">VTP</option>
+              </select>
+            </div>
+            <div class="fg"><label>NETWORK INTERFACE</label><input class="inp inp-mono" id="yersinia-iface" type="text" value="eth0"/></div>
+            <div class="fg"><label>OPERATION</label>
+              <select class="inp inp-mono" id="yersinia-action">
+                <option value="--help">Help / list attacks</option>
+                <option value="-I">Interactive mode</option>
+              </select>
+            </div>
+          </div>
+          <div class="fg" style="margin-bottom:12px"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="yersinia-timeout" type="number" value="30" min="5" max="300"/></div>
+          <div style="background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--red);border-radius:var(--radius);padding:8px 12px;font-size:12px;color:var(--text2);margin-bottom:12px">
+            &#9888; Layer 2 attacks affect ALL devices on the segment. Use in isolated lab environments only.
+          </div>
+          <button class="btn btn-primary" id="yersinia-btn" onclick="runYersinia()">RUN YERSINIA</button>
+        </div>
+        <div class="progress-wrap" id="yersinia-prog"><div class="progress-bar" id="yersinia-pb" style="width:0%"></div></div>
+        <div class="terminal" id="yersinia-term"></div>
+        <div class="err-box" id="yersinia-err"></div>
+        <div id="yersinia-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install yersinia</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">network-attack</span><span class="tag">yersinia</span></div>
+        </div>
+      </div>
+      <!-- HASHCAT -->
+      <div class="page" id="page-hashcat">
+        <div class="page-hd"><div class="page-title">Hashcat</div><div class="page-desc">World's fastest GPU-based password recovery utility</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run Hashcat on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>HASH(ES) — paste hashes or enter file path</label>
+            <textarea class="inp inp-mono" id="hashcat-hashes" rows="4" placeholder="5f4dcc3b5aa765d61d8327deb882cf99&#10;/path/to/hashes.txt"></textarea>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>HASH TYPE (-m)</label>
+              <select class="inp inp-mono" id="hashcat-type">
+                <option value="0">0 — MD5</option><option value="100">100 — SHA1</option>
+                <option value="1400">1400 — SHA-256</option><option value="1700">1700 — SHA-512</option>
+                <option value="3200">3200 — bcrypt</option><option value="1800">1800 — sha512crypt (Linux)</option>
+                <option value="500">500 — md5crypt (Linux)</option><option value="1000" selected>1000 — NTLM</option>
+                <option value="5600">5600 — NetNTLMv2</option><option value="22000">22000 — WPA-PBKDF2</option>
+              </select>
+            </div>
+            <div class="fg"><label>ATTACK MODE (-a)</label>
+              <select class="inp inp-mono" id="hashcat-attack">
+                <option value="0" selected>0 — Dictionary</option><option value="1">1 — Combination</option>
+                <option value="3">3 — Brute-force/Mask</option><option value="6">6 — Hybrid wordlist+mask</option>
+              </select>
+            </div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>WORDLIST / MASK</label><input class="inp inp-mono" id="hashcat-wordlist" type="text" value="/usr/share/wordlists/rockyou.txt"/></div>
+            <div class="fg"><label>RULES FILE (optional)</label><input class="inp inp-mono" id="hashcat-rules" type="text" placeholder="/usr/share/hashcat/rules/best64.rule"/></div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>WORKLOAD (-w)</label>
+              <select class="inp inp-mono" id="hashcat-workload">
+                <option value="1">1 — Low</option><option value="2" selected>2 — Default</option>
+                <option value="3">3 — High</option><option value="4">4 — Nightmare</option>
+              </select>
+            </div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="hashcat-timeout" type="number" value="300" min="30" max="3600"/></div>
+          </div>
+          <button class="btn btn-primary" id="hashcat-btn" onclick="runHashcat()">RUN HASHCAT</button>
+        </div>
+        <div class="progress-wrap" id="hashcat-prog"><div class="progress-bar" id="hashcat-pb" style="width:0%"></div></div>
+        <div class="terminal" id="hashcat-term"></div>
+        <div class="err-box" id="hashcat-err"></div>
+        <div id="hashcat-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install hashcat</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">passwords</span><span class="tag">hashcat</span></div>
+        </div>
+      </div>
+      <!-- JOHN THE RIPPER -->
+      <div class="page" id="page-john">
+        <div class="page-hd"><div class="page-title">John the Ripper</div><div class="page-desc">Versatile password cracker supporting many hash formats</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run John the Ripper on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>HASH FILE PATH or PASTE HASHES</label>
+            <textarea class="inp inp-mono" id="john-hashes" rows="4" placeholder="/etc/shadow&#10;OR paste hashes:&#10;root:$6$salt$hash&#10;5f4dcc3b5aa765d61d8327deb882cf99"></textarea>
+          </div>
+          <div class="row3" style="margin-bottom:12px">
+            <div class="fg"><label>ATTACK MODE</label>
+              <select class="inp inp-mono" id="john-mode">
+                <option value="--wordlist" selected>Wordlist</option><option value="--wordlist --rules">Wordlist + Rules</option>
+                <option value="--incremental">Incremental</option><option value="--single">Single</option><option value="--show">Show cracked</option>
+              </select>
+            </div>
+            <div class="fg"><label>HASH FORMAT</label>
+              <select class="inp inp-mono" id="john-format">
+                <option value="">Auto-detect</option><option value="--format=md5crypt">md5crypt</option>
+                <option value="--format=sha512crypt">sha512crypt</option><option value="--format=bcrypt">bcrypt</option>
+                <option value="--format=NT">NT (Windows)</option><option value="--format=Raw-MD5">Raw MD5</option>
+                <option value="--format=Raw-SHA1">Raw SHA1</option><option value="--format=zip">ZIP</option>
+              </select>
+            </div>
+            <div class="fg"><label>WORDLIST PATH</label><input class="inp inp-mono" id="john-wordlist" type="text" value="/usr/share/wordlists/rockyou.txt"/></div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>RULES (optional)</label>
+              <select class="inp inp-mono" id="john-rules">
+                <option value="">None</option><option value="--rules=All">All</option><option value="--rules=Jumbo">Jumbo</option>
+              </select>
+            </div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="john-timeout" type="number" value="300" min="30" max="3600"/></div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" id="john-btn" onclick="runJohn()">RUN JOHN</button>
+            <button class="btn btn-outline btn-sm" onclick="runJohnShow()">SHOW CRACKED</button>
+          </div>
+        </div>
+        <div class="progress-wrap" id="john-prog"><div class="progress-bar" id="john-pb" style="width:0%"></div></div>
+        <div class="terminal" id="john-term"></div>
+        <div class="err-box" id="john-err"></div>
+        <div id="john-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install john</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">passwords</span><span class="tag">john</span></div>
+        </div>
+      </div>
+      <!-- SEARCHSPLOIT -->
+      <div class="page" id="page-searchsploit">
+        <div class="page-hd"><div class="page-title">SearchSploit</div><div class="page-desc">Command-line search tool for Exploit-DB offline archive</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run SearchSploit on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>SEARCH QUERY (software name, version)</label>
+            <input class="inp inp-mono" id="searchsploit-query" type="text" placeholder="apache 2.4 remote code execution"/>
+          </div>
+          <div class="row3" style="margin-bottom:12px">
+            <div class="fg"><label>FILTER TYPE</label>
+              <select class="inp inp-mono" id="searchsploit-type">
+                <option value="">All</option><option value="-e">Exploits only</option><option value="-s">Shellcodes only</option>
+              </select>
+            </div>
+            <div class="fg"><label>PLATFORM</label>
+              <select class="inp inp-mono" id="searchsploit-platform">
+                <option value="">All</option><option value="-p linux">Linux</option>
+                <option value="-p windows">Windows</option><option value="-p php">PHP</option><option value="-p webapps">Web Apps</option>
+              </select>
+            </div>
+            <div class="fg"><label>OUTPUT FORMAT</label>
+              <select class="inp inp-mono" id="searchsploit-format">
+                <option value="">Table</option><option value="-j">JSON</option>
+              </select>
+            </div>
+          </div>
+          <div class="pills" style="margin-bottom:12px">
+            <button class="pill" id="searchsploit-strict" onclick="this.classList.toggle('on')">Strict match (-w)</button>
+            <button class="pill" id="searchsploit-case" onclick="this.classList.toggle('on')">Case sensitive (-c)</button>
+          </div>
+          <div class="fg" style="margin-bottom:12px"><label>CVE LOOKUP (overrides query)</label><input class="inp inp-mono" id="searchsploit-cve" type="text" placeholder="CVE-2021-44228"/></div>
+          <button class="btn btn-primary" id="searchsploit-btn" onclick="runSearchsploit()">SEARCH EXPLOIT-DB</button>
+        </div>
+        <div class="progress-wrap" id="searchsploit-prog"><div class="progress-bar" id="searchsploit-pb" style="width:0%"></div></div>
+        <div class="terminal" id="searchsploit-term"></div>
+        <div class="err-box" id="searchsploit-err"></div>
+        <div id="searchsploit-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install exploitdb</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">information</span><span class="tag">searchsploit</span></div>
+        </div>
+      </div>
+      <!-- SECLISTS -->
+      <div class="page" id="page-seclists">
+        <div class="page-hd"><div class="page-title">SecLists</div><div class="page-desc">Collection of security wordlists for fuzzing and enumeration</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run SecLists on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>WORDLIST CATEGORY</label>
+            <select class="inp inp-mono" id="seclists-category" onchange="seclistsCategoryChange()">
+              <option value="/usr/share/seclists/Discovery/Web-Content">Web Content Discovery</option>
+              <option value="/usr/share/seclists/Discovery/DNS">DNS Subdomains</option>
+              <option value="/usr/share/seclists/Passwords/Common-Credentials">Common Passwords</option>
+              <option value="/usr/share/seclists/Passwords/Leaked-Databases">Leaked Databases</option>
+              <option value="/usr/share/seclists/Usernames">Usernames</option>
+              <option value="/usr/share/seclists/Fuzzing">Fuzzing Payloads</option>
+            </select>
+          </div>
+          <div class="fg" style="margin-bottom:12px"><label>FULL WORDLIST PATH</label><input class="inp inp-mono" id="seclists-path" type="text" value="/usr/share/seclists/Discovery/Web-Content/common.txt"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>PREVIEW LINES</label><input class="inp inp-mono" id="seclists-lines" type="number" value="50" min="10" max="500"/></div>
+            <div class="fg"><label>GREP FILTER (optional)</label><input class="inp inp-mono" id="seclists-grep" type="text" placeholder="admin|config|backup"/></div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" id="seclists-btn" onclick="runSeclists()">BROWSE WORDLIST</button>
+            <button class="btn btn-outline btn-sm" onclick="seclistsCount()">COUNT ENTRIES</button>
+            <button class="btn btn-outline btn-sm" onclick="seclistsCopy()">COPY PATH</button>
+          </div>
+        </div>
+        <div class="progress-wrap" id="seclists-prog"><div class="progress-bar" id="seclists-pb" style="width:0%"></div></div>
+        <div class="terminal" id="seclists-term"></div>
+        <div class="err-box" id="seclists-err"></div>
+        <div id="seclists-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install seclists</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">information</span><span class="tag">seclists</span></div>
+        </div>
+      </div>
+      <!-- LIGOLO-NG -->
+      <div class="page" id="page-ligolo">
+        <div class="page-hd"><div class="page-title">Ligolo-ng</div><div class="page-desc">Advanced tunneling tool for network pivoting via TUN interface</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run Ligolo-ng on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>COMPONENT</label>
+            <select class="inp inp-mono" id="ligolo-component" onchange="ligoloComponentChange()">
+              <option value="proxy" selected>Proxy (attacker machine)</option>
+              <option value="agent">Agent (pivot host)</option>
+              <option value="help">Help / version</option>
+            </select>
+          </div>
+          <div id="ligolo-proxy-fields">
+            <div class="row2" style="margin-bottom:12px">
+              <div class="fg"><label>LISTEN ADDRESS</label><input class="inp inp-mono" id="ligolo-proxy-listen" type="text" value="0.0.0.0:11601"/></div>
+              <div class="fg"><label>TUN INTERFACE</label><input class="inp inp-mono" id="ligolo-tun" type="text" value="ligolo"/></div>
+            </div>
+            <div class="pills" style="margin-bottom:12px">
+              <button class="pill on" id="ligolo-selfcert" onclick="this.classList.toggle('on')">Self-signed cert (--selfcert)</button>
+            </div>
+          </div>
+          <div id="ligolo-agent-fields" style="display:none">
+            <div class="row2" style="margin-bottom:12px">
+              <div class="fg"><label>PROXY ADDRESS (attacker:port)</label><input class="inp inp-mono" id="ligolo-agent-proxy" type="text" placeholder="192.168.1.100:11601"/></div>
+              <div class="fg">
+                <div class="pills" style="margin-top:24px">
+                  <button class="pill on" id="ligolo-ignore-cert" onclick="this.classList.toggle('on')">Ignore cert</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="fg" style="margin-bottom:12px"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="ligolo-timeout" type="number" value="60" min="10" max="300"/></div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:10px">&#9432; Setup TUN: <code>sudo ip tuntap add user $USER mode tun ligolo &amp;&amp; sudo ip link set ligolo up</code></div>
+          <button class="btn btn-primary" id="ligolo-btn" onclick="runLigolo()">RUN LIGOLO-NG</button>
+        </div>
+        <div class="progress-wrap" id="ligolo-prog"><div class="progress-bar" id="ligolo-pb" style="width:0%"></div></div>
+        <div class="terminal" id="ligolo-term"></div>
+        <div class="err-box" id="ligolo-err"></div>
+        <div id="ligolo-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install ligolo-ng</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">tunneling</span><span class="tag">ligolo-ng</span></div>
+        </div>
+      </div>
+      <!-- CHISEL -->
+      <div class="page" id="page-chisel">
+        <div class="page-hd"><div class="page-title">Chisel</div><div class="page-desc">Fast TCP/UDP tunnel over HTTP using SSH transport</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run Chisel on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>MODE</label>
+            <select class="inp inp-mono" id="chisel-mode" onchange="chiselModeChange()">
+              <option value="server" selected>Server (attacker/relay)</option>
+              <option value="client">Client (pivot host)</option>
+              <option value="help">Help / version</option>
+            </select>
+          </div>
+          <div id="chisel-server-fields">
+            <div class="row2" style="margin-bottom:12px">
+              <div class="fg"><label>LISTEN PORT</label><input class="inp inp-mono" id="chisel-server-port" type="number" value="8080"/></div>
+              <div class="fg"><label>AUTH (user:pass, optional)</label><input class="inp inp-mono" id="chisel-server-auth" type="text" placeholder="admin:secret"/></div>
+            </div>
+            <div class="pills" style="margin-bottom:12px">
+              <button class="pill on" id="chisel-socks5" onclick="this.classList.toggle('on')">SOCKS5 proxy (--socks5)</button>
+              <button class="pill" id="chisel-reverse" onclick="this.classList.toggle('on')">Allow reverse (--reverse)</button>
+            </div>
+          </div>
+          <div id="chisel-client-fields" style="display:none">
+            <div class="row2" style="margin-bottom:12px">
+              <div class="fg"><label>SERVER URL</label><input class="inp inp-mono" id="chisel-server-url" type="text" placeholder="http://192.168.1.100:8080"/></div>
+              <div class="fg"><label>AUTH (user:pass, optional)</label><input class="inp inp-mono" id="chisel-client-auth" type="text" placeholder="admin:secret"/></div>
+            </div>
+            <div class="fg" style="margin-bottom:12px"><label>TUNNELS (one per line)</label>
+              <textarea class="inp inp-mono" id="chisel-tunnels" rows="3" placeholder="socks&#10;R:8888:127.0.0.1:8888&#10;3306:127.0.0.1:3306"></textarea>
+            </div>
+          </div>
+          <div class="fg" style="margin-bottom:12px"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="chisel-timeout" type="number" value="60" min="10" max="300"/></div>
+          <button class="btn btn-primary" id="chisel-btn" onclick="runChisel()">RUN CHISEL</button>
+        </div>
+        <div class="progress-wrap" id="chisel-prog"><div class="progress-bar" id="chisel-pb" style="width:0%"></div></div>
+        <div class="terminal" id="chisel-term"></div>
+        <div class="err-box" id="chisel-err"></div>
+        <div id="chisel-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install chisel</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">tunneling</span><span class="tag">chisel</span></div>
+        </div>
+      </div>
+      <!-- RLWRAP -->
+      <div class="page" id="page-rlwrap">
+        <div class="page-hd"><div class="page-title">rlwrap</div><div class="page-desc">Readline wrapper — adds command history to any CLI tool</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run rlwrap on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>COMMAND TO WRAP</label><input class="inp inp-mono" id="rlwrap-cmd" type="text" placeholder="nc -lvnp 4444"/></div>
+          <div class="row3" style="margin-bottom:12px">
+            <div class="fg"><label>HISTORY SIZE (-s)</label><input class="inp inp-mono" id="rlwrap-history" type="number" value="1000" min="0" max="100000"/></div>
+            <div class="fg"><label>WORD CHARS (-w)</label><input class="inp inp-mono" id="rlwrap-wordchars" type="text" value="a-zA-Z0-9_-"/></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="rlwrap-timeout" type="number" value="60" min="10" max="300"/></div>
+          </div>
+          <div class="pills" style="margin-bottom:12px">
+            <button class="pill on" id="rlwrap-ansi" onclick="this.classList.toggle('on')">ANSI colour fix (-A)</button>
+            <button class="pill" id="rlwrap-noecho" onclick="this.classList.toggle('on')">No echo</button>
+          </div>
+          <div style="background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--blue);border-radius:var(--radius);padding:8px 12px;font-size:12px;color:var(--text2);margin-bottom:12px">
+            <strong>Typical use:</strong> <code style="font-family:var(--mono)">rlwrap -A nc -lvnp 4444</code>
+          </div>
+          <button class="btn btn-primary" id="rlwrap-btn" onclick="runRlwrap()">RUN RLWRAP</button>
+        </div>
+        <div class="progress-wrap" id="rlwrap-prog"><div class="progress-bar" id="rlwrap-pb" style="width:0%"></div></div>
+        <div class="terminal" id="rlwrap-term"></div>
+        <div class="err-box" id="rlwrap-err"></div>
+        <div id="rlwrap-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install rlwrap</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">tunneling</span><span class="tag">rlwrap</span></div>
+        </div>
+      </div>
+      <!-- PSPY -->
+      <div class="page" id="page-pspy">
+        <div class="page-hd"><div class="page-title">pspy</div><div class="page-desc">Process spy — monitor Linux processes without root privileges</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run pspy on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row3" style="margin-bottom:12px">
+            <div class="fg"><label>PSPY BINARY PATH</label><input class="inp inp-mono" id="pspy-path" type="text" value="/usr/local/bin/pspy64" placeholder="/tmp/pspy64"/></div>
+            <div class="fg"><label>WATCH INTERVAL (ms)</label><input class="inp inp-mono" id="pspy-interval" type="number" value="100" min="10" max="10000"/></div>
+            <div class="fg"><label>MONITOR DURATION (sec)</label><input class="inp inp-mono" id="pspy-duration" type="number" value="30" min="10" max="300"/></div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>FILTER PATTERN (grep, optional)</label><input class="inp inp-mono" id="pspy-filter" type="text" placeholder="cron|bash|python|root"/></div>
+            <div class="fg">
+              <label>OPTIONS</label>
+              <div class="pills" style="margin-top:6px">
+                <button class="pill on" id="pspy-fs" onclick="this.classList.toggle('on')">Watch filesystem (-f)</button>
+              </div>
+            </div>
+          </div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:10px">
+            &#9432; Download: <a href="https://github.com/DominicBreuker/pspy/releases" target="_blank" style="color:var(--blue)">github.com/DominicBreuker/pspy/releases</a>
+          </div>
+          <button class="btn btn-primary" id="pspy-btn" onclick="runPspy()">RUN PSPY</button>
+        </div>
+        <div class="progress-wrap" id="pspy-prog"><div class="progress-bar" id="pspy-pb" style="width:0%"></div></div>
+        <div class="terminal" id="pspy-term"></div>
+        <div class="err-box" id="pspy-err"></div>
+        <div id="pspy-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">Download from github.com/DominicBreuker/pspy</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">tunneling</span><span class="tag">pspy</span></div>
+        </div>
+      </div>
+      <!-- MSFVENOM -->
+      <div class="page" id="page-msfvenom">
+        <div class="page-hd"><div class="page-title">msfvenom</div><div class="page-desc">Metasploit payload generator and encoder</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run msfvenom on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>PAYLOAD</label>
+              <select class="inp inp-mono" id="msfvenom-payload">
+                <option value="windows/x64/meterpreter/reverse_tcp" selected>Windows x64 Meterpreter/TCP</option>
+                <option value="windows/meterpreter/reverse_tcp">Windows x86 Meterpreter/TCP</option>
+                <option value="windows/x64/shell_reverse_tcp">Windows x64 Shell/TCP</option>
+                <option value="linux/x64/meterpreter/reverse_tcp">Linux x64 Meterpreter/TCP</option>
+                <option value="linux/x64/shell_reverse_tcp">Linux x64 Shell/TCP</option>
+                <option value="php/meterpreter/reverse_tcp">PHP Meterpreter/TCP</option>
+                <option value="python/meterpreter/reverse_tcp">Python Meterpreter/TCP</option>
+                <option value="cmd/unix/reverse_bash">Unix CMD Reverse Bash</option>
+                <option value="custom">Custom (enter below)</option>
+              </select>
+            </div>
+            <div class="fg"><label>CUSTOM PAYLOAD (if Custom selected)</label><input class="inp inp-mono" id="msfvenom-custom-payload" type="text" placeholder="windows/x64/meterpreter_reverse_https"/></div>
+          </div>
+          <div class="row3" style="margin-bottom:12px">
+            <div class="fg"><label>LHOST (your IP)</label><input class="inp inp-mono" id="msfvenom-lhost" type="text" placeholder="192.168.1.100"/></div>
+            <div class="fg"><label>LPORT</label><input class="inp inp-mono" id="msfvenom-lport" type="number" value="4444" min="1" max="65535"/></div>
+            <div class="fg"><label>FORMAT (-f)</label>
+              <select class="inp inp-mono" id="msfvenom-format">
+                <option value="exe" selected>exe</option><option value="elf">elf</option>
+                <option value="asp">asp</option><option value="aspx">aspx</option>
+                <option value="php">php</option><option value="py">py</option>
+                <option value="raw">raw</option><option value="powershell">powershell</option>
+              </select>
+            </div>
+          </div>
+          <div class="row3" style="margin-bottom:12px">
+            <div class="fg"><label>ENCODER (optional)</label>
+              <select class="inp inp-mono" id="msfvenom-encoder">
+                <option value="">None</option>
+                <option value="x86/shikata_ga_nai">x86/shikata_ga_nai</option>
+                <option value="x64/xor_dynamic">x64/xor_dynamic</option>
+              </select>
+            </div>
+            <div class="fg"><label>ITERATIONS</label><input class="inp inp-mono" id="msfvenom-iterations" type="number" value="1" min="1" max="10"/></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="msfvenom-timeout" type="number" value="60" min="10" max="300"/></div>
+          </div>
+          <div class="fg" style="margin-bottom:12px"><label>EXTRA OPTIONS</label><input class="inp inp-mono" id="msfvenom-extra" type="text" placeholder="EXITFUNC=thread"/></div>
+          <button class="btn btn-primary" id="msfvenom-btn" onclick="runMsfvenom()">GENERATE PAYLOAD</button>
+        </div>
+        <div class="progress-wrap" id="msfvenom-prog"><div class="progress-bar" id="msfvenom-pb" style="width:0%"></div></div>
+        <div class="terminal" id="msfvenom-term"></div>
+        <div class="err-box" id="msfvenom-err"></div>
+        <div id="msfvenom-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install metasploit-framework</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">exploit</span><span class="tag">msfvenom</span></div>
+        </div>
+      </div>
+      <!-- PWNCAT -->
+      <div class="page" id="page-pwncat">
+        <div class="page-hd"><div class="page-title">pwncat</div><div class="page-desc">Feature-rich reverse/bind shell handler with post-exploitation</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run pwncat on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>CONNECTION MODE</label>
+            <select class="inp inp-mono" id="pwncat-mode" onchange="pwncatModeChange()">
+              <option value="listen" selected>Listen (reverse shell)</option>
+              <option value="connect">Connect (bind shell)</option>
+              <option value="ssh">SSH connect</option>
+              <option value="help">Help</option>
+            </select>
+          </div>
+          <div id="pwncat-listen-fields">
+            <div class="row2" style="margin-bottom:12px">
+              <div class="fg"><label>LISTEN HOST</label><input class="inp inp-mono" id="pwncat-lhost" type="text" value="0.0.0.0"/></div>
+              <div class="fg"><label>LISTEN PORT</label><input class="inp inp-mono" id="pwncat-lport" type="number" value="4444" min="1" max="65535"/></div>
+            </div>
+          </div>
+          <div id="pwncat-connect-fields" style="display:none">
+            <div class="row2" style="margin-bottom:12px">
+              <div class="fg"><label>REMOTE HOST</label><input class="inp inp-mono" id="pwncat-rhost" type="text" placeholder="192.168.1.100"/></div>
+              <div class="fg"><label>REMOTE PORT</label><input class="inp inp-mono" id="pwncat-rport" type="number" value="4444"/></div>
+            </div>
+          </div>
+          <div id="pwncat-ssh-fields" style="display:none">
+            <div class="row3" style="margin-bottom:12px">
+              <div class="fg"><label>SSH HOST</label><input class="inp inp-mono" id="pwncat-sshhost" type="text" placeholder="192.168.1.100"/></div>
+              <div class="fg"><label>SSH PORT</label><input class="inp inp-mono" id="pwncat-sshport" type="number" value="22"/></div>
+              <div class="fg"><label>SSH USER</label><input class="inp inp-mono" id="pwncat-sshuser" type="text" placeholder="root"/></div>
+            </div>
+          </div>
+          <div class="fg" style="margin-bottom:12px"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="pwncat-timeout" type="number" value="60" min="10" max="300"/></div>
+          <button class="btn btn-primary" id="pwncat-btn" onclick="runPwncat()">RUN PWNCAT</button>
+        </div>
+        <div class="progress-wrap" id="pwncat-prog"><div class="progress-bar" id="pwncat-pb" style="width:0%"></div></div>
+        <div class="terminal" id="pwncat-term"></div>
+        <div class="err-box" id="pwncat-err"></div>
+        <div id="pwncat-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">pip3 install pwncat-cs --break-system-packages</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">exploit</span><span class="tag">pwncat</span></div>
+        </div>
+      </div>
+      <!-- GRYPE -->
+      <div class="page" id="page-grype">
+        <div class="page-hd"><div class="page-title">Grype</div><div class="page-desc">Vulnerability scanner for container images and filesystems</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run Grype on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>TARGET (image, dir, or file)</label><input class="inp inp-mono" id="grype-target" type="text" placeholder="ubuntu:22.04  OR  nginx:latest  OR  /path/to/dir"/></div>
+          <div class="row3" style="margin-bottom:12px">
+            <div class="fg"><label>SCOPE</label>
+              <select class="inp inp-mono" id="grype-scope">
+                <option value="">Auto</option><option value="all-layers">All layers</option>
+                <option value="squashed">Squashed</option>
+              </select>
+            </div>
+            <div class="fg"><label>SEVERITY THRESHOLD</label>
+              <select class="inp inp-mono" id="grype-severity">
+                <option value="">Show all</option><option value="--fail-on critical">Critical only</option>
+                <option value="--fail-on high">High+</option><option value="--fail-on medium">Medium+</option>
+              </select>
+            </div>
+            <div class="fg"><label>OUTPUT FORMAT</label>
+              <select class="inp inp-mono" id="grype-format">
+                <option value="table" selected>Table</option><option value="json">JSON</option>
+                <option value="cyclonedx">CycloneDX</option><option value="sarif">SARIF</option>
+              </select>
+            </div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg">
+              <label>OPTIONS</label>
+              <div class="pills" style="margin-top:6px">
+                <button class="pill on" id="grype-only-fixed" onclick="this.classList.toggle('on')">Only fixed</button>
+                <button class="pill" id="grype-update-db" onclick="this.classList.toggle('on')">Update DB first</button>
+              </div>
+            </div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="grype-timeout" type="number" value="180" min="30" max="1800"/></div>
+          </div>
+          <button class="btn btn-primary" id="grype-btn" onclick="runGrype()">RUN GRYPE</button>
+        </div>
+        <div class="progress-wrap" id="grype-prog"><div class="progress-bar" id="grype-pb" style="width:0%"></div></div>
+        <div class="terminal" id="grype-term"></div>
+        <div class="err-box" id="grype-err"></div>
+        <div id="grype-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">exploit</span><span class="tag">grype</span></div>
+        </div>
+      </div>
+      <!-- RADARE2 -->
+      <div class="page" id="page-radare2">
+        <div class="page-hd"><div class="page-title">Radare2</div><div class="page-desc">Reverse engineering framework — disassembly, analysis, debugging</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run Radare2 on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="fg"><label>BINARY / FILE PATH</label><input class="inp inp-mono" id="radare2-file" type="text" placeholder="/path/to/binary"/></div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>ANALYSIS COMMANDS (one per line)</label>
+              <textarea class="inp inp-mono" id="radare2-cmds" rows="5" placeholder="i&#10;aaa&#10;afl&#10;pdf @ main"></textarea>
+            </div>
+            <div class="fg">
+              <label>QUICK PRESETS</label>
+              <div style="display:flex;flex-direction:column;gap:5px;margin-top:4px">
+                <button class="btn btn-outline btn-sm" onclick="r2QuickLoad('info')">Binary Info</button>
+                <button class="btn btn-outline btn-sm" onclick="r2QuickLoad('functions')">List Functions</button>
+                <button class="btn btn-outline btn-sm" onclick="r2QuickLoad('strings')">Strings</button>
+                <button class="btn btn-outline btn-sm" onclick="r2QuickLoad('imports')">Imports/Exports</button>
+                <button class="btn btn-outline btn-sm" onclick="r2QuickLoad('sections')">Sections</button>
+              </div>
+            </div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>ARCHITECTURE (optional)</label>
+              <select class="inp inp-mono" id="radare2-arch">
+                <option value="">Auto</option><option value="-a x86">x86</option>
+                <option value="-a x86 -b 64">x86-64</option><option value="-a arm">ARM</option><option value="-a arm -b 64">ARM64</option>
+              </select>
+            </div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="radare2-timeout" type="number" value="60" min="10" max="300"/></div>
+          </div>
+          <button class="btn btn-primary" id="radare2-btn" onclick="runRadare2()">RUN RADARE2</button>
+        </div>
+        <div class="progress-wrap" id="radare2-prog"><div class="progress-bar" id="radare2-pb" style="width:0%"></div></div>
+        <div class="terminal" id="radare2-term"></div>
+        <div class="err-box" id="radare2-err"></div>
+        <div id="radare2-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install radare2</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">reverse-eng</span><span class="tag">radare2</span></div>
+        </div>
+      </div>
+      <!-- OPENVAS -->
+      <div class="page" id="page-openvas">
+        <div class="page-hd"><div class="page-title">OpenVAS</div><div class="page-desc">Open vulnerability assessment system — comprehensive network scanner</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run OpenVAS on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="notice" style="margin-bottom:12px">&#9432; OpenVAS uses Greenbone Security Assistant web UI (port 9392) for full scans. This panel runs CLI checks.</div>
+          <div class="fg" style="margin-bottom:12px"><label>OPERATION</label>
+            <select class="inp inp-mono" id="openvas-op">
+              <option value="--version">Version (openvas --version)</option>
+              <option value="--help">Help</option>
+            </select>
+          </div>
+          <div class="fg" style="margin-bottom:12px"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="openvas-timeout" type="number" value="60" min="10" max="300"/></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" id="openvas-btn" onclick="runOpenVAS()">RUN OPENVAS CLI</button>
+            <a class="btn btn-outline btn-sm" href="http://127.0.0.1:9392" target="_blank">OPEN GSA WEB UI &#8599;</a>
+          </div>
+        </div>
+        <div class="progress-wrap" id="openvas-prog"><div class="progress-bar" id="openvas-pb" style="width:0%"></div></div>
+        <div class="terminal" id="openvas-term"></div>
+        <div class="err-box" id="openvas-err"></div>
+        <div id="openvas-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install openvas</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">auditing</span><span class="tag">openvas</span></div>
+        </div>
+      </div>
+      <!-- CHKROOTKIT -->
+      <div class="page" id="page-chkrootkit">
+        <div class="page-hd"><div class="page-title">chkrootkit</div><div class="page-desc">Local rootkit detector — checks for known rootkit signatures</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run chkrootkit on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>SCAN MODE</label>
+              <select class="inp inp-mono" id="chkrootkit-mode">
+                <option value="" selected>Full scan</option><option value="-x">Expert mode (-x)</option>
+                <option value="-q">Quiet — infected only (-q)</option><option value="-l">List tests (-l)</option>
+              </select>
+            </div>
+            <div class="fg"><label>SPECIFIC TEST (optional)</label>
+              <select class="inp inp-mono" id="chkrootkit-test">
+                <option value="">All tests</option><option value="aliens">Aliens (hidden procs)</option>
+                <option value="bindshell">Bind shell backdoor</option><option value="lkm">LKM rootkit</option>
+                <option value="sniffer">Network sniffer</option><option value="wted">wtmp editor</option>
+              </select>
+            </div>
+          </div>
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>ALTERNATE PATH (optional)</label><input class="inp inp-mono" id="chkrootkit-path" type="text" placeholder="/mnt/suspect_root"/></div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="chkrootkit-timeout" type="number" value="120" min="30" max="600"/></div>
+          </div>
+          <button class="btn btn-primary" id="chkrootkit-btn" onclick="runChkrootkit()">RUN CHKROOTKIT</button>
+        </div>
+        <div class="progress-wrap" id="chkrootkit-prog"><div class="progress-bar" id="chkrootkit-pb" style="width:0%"></div></div>
+        <div class="terminal" id="chkrootkit-term"></div>
+        <div class="err-box" id="chkrootkit-err"></div>
+        <div id="chkrootkit-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install chkrootkit</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">auditing</span><span class="tag">chkrootkit</span></div>
+        </div>
+      </div>
+      <!-- RKHUNTER -->
+      <div class="page" id="page-rkhunter">
+        <div class="page-hd"><div class="page-title">rkhunter</div><div class="page-desc">Rootkit Hunter — scans for rootkits, backdoors, and exploits</div></div>
+        <div class="notice">&#9888; Authorized use only. Only run rkhunter on systems you own or have explicit written permission to test.</div>
+        <div class="card card-p" style="margin-bottom:14px">
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg"><label>SCAN TYPE</label>
+              <select class="inp inp-mono" id="rkhunter-scantype">
+                <option value="--check" selected>Full check (--check)</option>
+                <option value="--check --rwo">Warnings only (--rwo)</option>
+                <option value="--update">Update database</option>
+                <option value="--propupd">Update file properties</option>
+                <option value="--version">Version info</option>
+              </select>
+            </div>
+            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="rkhunter-timeout" type="number" value="300" min="60" max="1800"/></div>
+          </div>
+          <div class="pills" style="margin-bottom:12px">
+            <button class="pill on" id="rkhunter-skip-keypress" onclick="this.classList.toggle('on')">--skip-keypress</button>
+            <button class="pill on" id="rkhunter-nocolors" onclick="this.classList.toggle('on')">--nocolors</button>
+            <button class="pill" id="rkhunter-append-log" onclick="this.classList.toggle('on')">--append-log</button>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" id="rkhunter-btn" onclick="runRkhunter()">RUN RKHUNTER</button>
+            <button class="btn btn-outline btn-sm" onclick="runRkhunterUpdate()">UPDATE DB FIRST</button>
+          </div>
+        </div>
+        <div class="progress-wrap" id="rkhunter-prog"><div class="progress-bar" id="rkhunter-pb" style="width:0%"></div></div>
+        <div class="terminal" id="rkhunter-term"></div>
+        <div class="err-box" id="rkhunter-err"></div>
+        <div id="rkhunter-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install rkhunter</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">auditing</span><span class="tag">rkhunter</span></div>
+        </div>
+      </div>
+
+      <!-- ADMIN -->
+      <div class="page" id="page-admin">
+        <div class="page-hd" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div>
+            <div class="page-title">Admin Console</div>
+            <div class="page-desc">User management, server CLI, and platform statistics</div>
+          </div>
+          <button class="btn btn-primary" onclick="openNewUserModal()" style="flex-shrink:0;margin-top:4px">
+            <span style="font-size:15px;line-height:1">&#43;</span> New User
+          </button>
+        </div>
+        <div class="tabs admin-tabs" id="admin-tabs">
+          <button class="tab active" onclick="adminTab(event,'at-cli')">Console</button>
+          <button class="tab" onclick="adminTab(event,'at-users')">Users</button>
+          <button class="tab" onclick="adminTab(event,'at-stats')">Stats</button>
+          <button class="tab" onclick="adminTab(event,'at-audit')">Audit Log</button>
+          <button class="tab" onclick="adminTab(event,'at-services')">Services</button>
+          <button class="tab" onclick="adminTab(event,'at-scans')">All Scans</button>
+        </div>
+        <div class="tc active" id="at-cli">
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-header">
+              <div><div class="card-title">Server Statistics</div></div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div class="pulse"></div>
+                <span style="font-family:var(--mono);font-size:10px;color:var(--text3)" id="stats-updated">LIVE</span>
+                <button class="btn btn-ghost btn-sm" onclick="loadServerStats()">Refresh</button>
+              </div>
+            </div>
+            <div class="card-p">
+              <div class="srv-grid">
+                <div class="srv-card"><div class="srv-label">CPU USAGE</div><div class="srv-val" id="cpu-val">--</div><div class="srv-bar"><div class="srv-bar-fill" id="cpu-bar" style="width:0%"></div></div><div class="srv-sub" id="cpu-cores">-- cores</div></div>
+                <div class="srv-card"><div class="srv-label">MEMORY</div><div class="srv-val" id="mem-val">--</div><div class="srv-bar"><div class="srv-bar-fill" id="mem-bar" style="width:0%"></div></div><div class="srv-sub" id="mem-total">of --</div></div>
+                <div class="srv-card"><div class="srv-label">SWAP</div><div class="srv-val" id="swap-val">--</div><div class="srv-bar"><div class="srv-bar-fill" id="swap-bar" style="width:0%"></div></div><div class="srv-sub" id="swap-total">of --</div></div>
+                <div class="srv-card"><div class="srv-label">STORAGE (/)</div><div class="srv-val" id="disk-val">--</div><div class="srv-bar"><div class="srv-bar-fill" id="disk-bar" style="width:0%"></div></div><div class="srv-sub" id="disk-total">of --</div></div>
+                <div class="srv-card"><div class="srv-label">NETWORK</div><div style="font-family:var(--mono);font-size:11px;color:var(--text2);margin-top:6px"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="color:var(--text3)">TX</span><span id="net-tx">--</span></div><div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">RX</span><span id="net-rx">--</span></div></div><div class="srv-sub" id="net-iface"></div></div>
+              </div>
+              <div class="row3">
+                <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px"><div style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;margin-bottom:4px">UPTIME</div><div id="sys-uptime" style="font-family:var(--mono);font-size:12px;color:var(--text)">--</div></div>
+                <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px"><div style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;margin-bottom:4px">LOAD AVG</div><div id="sys-load" style="font-family:var(--mono);font-size:12px;color:var(--text)">--</div></div>
+                <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px"><div style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;margin-bottom:4px">PROCESSES</div><div id="sys-procs" style="font-family:var(--mono);font-size:12px;color:var(--text)">--</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div><div class="card-title">Server CLI Console</div><div class="card-sub">ADMIN ONLY -- ALL COMMANDS LOGGED</div></div>
+              <div style="display:flex;align-items:center;gap:6px"><div class="pulse"></div><span style="font-family:var(--mono);font-size:10px;color:var(--text3)" id="cli-hostname">loading...</span></div>
+            </div>
+            <div class="card-p">
+              <div class="notice" style="margin-bottom:12px">&#9888; Allowlisted commands only. Type <code style="font-family:var(--mono)">help</code> to list available commands.</div>
+              <div class="cli-out" id="cli-output">
+                <div style="color:var(--text3);margin-bottom:2px">VulnScan Pro -- Server Console</div>
+                <div style="color:var(--text3);border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:10px">User: <span id="cli-user-label" style="color:var(--text)">admin</span></div>
+              </div>
+              <div class="cli-input-row">
+                <span class="cli-prompt">$</span>
+                <input class="inp inp-mono" id="cli-input" type="text" placeholder="Enter command... (up/down history, Tab autocomplete)" onkeydown="cliKey(event)" autocomplete="off" spellcheck="false" style="flex:1"/>
+                <button class="btn btn-outline btn-sm" onclick="cliRun()">RUN</button>
+                <button class="btn btn-ghost btn-sm" onclick="cliClear()">CLR</button>
+              </div>
+              <div class="cli-status" id="cli-statusbar"><div class="pulse"></div><span>Ready</span></div>
+              <div class="cli-quick" id="cli-quick-cmds">
+                <button class="cli-quick-btn" onclick="cliQuick('uptime')">uptime</button>
+                <button class="cli-quick-btn" onclick="cliQuick('df -h')">df -h</button>
+                <button class="cli-quick-btn" onclick="cliQuick('free -h')">free -h</button>
+                <button class="cli-quick-btn" onclick="cliQuick('ps aux | head -20')">ps aux</button>
+                <button class="cli-quick-btn" onclick="cliQuick('ss -tlnp')">ss -tlnp</button>
+                <button class="cli-quick-btn" onclick="cliQuick('uname -a')">uname</button>
+                <button class="cli-quick-btn" onclick="cliQuick('ip addr')">ip addr</button>
+                <button class="cli-quick-btn" onclick="cliQuick('which nmap nikto lynis dnsrecon theharvester wpscan')">check tools</button>
+                <button class="cli-quick-btn" onclick="cliQuick('journalctl -n 30 --no-pager')">recent logs</button>
+                <button class="cli-quick-btn" onclick="cliQuick('cat /etc/os-release')">OS info</button>
+                <button class="cli-quick-btn" onclick="cliQuick('last -n 10')">last logins</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tc" id="at-users">
+          <div class="card">
+            <div class="card-header"><div class="card-title">User Management</div></div>
+            <div class="card-p" id="admin-users-table" style="overflow-x:auto"><p style="color:var(--text3)">Loading...</p></div>
+          </div>
+        </div>
+        <div class="tc" id="at-stats"><div class="card"><div class="card-header"><div class="card-title">Platform Statistics</div></div><div class="card-p" id="admin-stats"></div></div></div>
+        <div class="tc" id="at-audit"><div class="card"><div class="card-header"><div class="card-title">Audit Log</div></div><div class="card-p" id="admin-audit" style="overflow-x:auto"></div></div></div>
+        <div class="tc" id="at-services">
+          <div class="card" style="margin-bottom:12px">
+            <div class="card-header">
+              <div><div class="card-title">Service Monitor</div><div class="card-sub">Continuous status checks for system and custom services</div></div>
+              <button class="btn btn-outline btn-sm" onclick="loadAdminServices()">Refresh</button>
+            </div>
+            <div class="card-p" id="admin-services-table" style="overflow-x:auto"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Add New Monitored Service</div></div>
+            <div class="card-p">
+              <div class="grid3">
+                <div class="fg">
+                  <label>Quick Add</label>
+                  <select class="inp inp-mono" id="svc-preset" onchange="applyServicePreset()">
+                    <option value="">-- Select preset --</option>
+                    <option value="apache2">Apache service</option>
+                    <option value="supabase">Supabase connectivity</option>
+                  </select>
+                </div>
+                <div class="fg"><label>Display Name</label><input class="inp inp-mono" id="svc-label" type="text" placeholder="My Service"/></div>
+                <div class="fg"><label>Service Key</label><input class="inp inp-mono" id="svc-key" type="text" placeholder="my-service"/></div>
+              </div>
+              <div class="grid3">
+                <div class="fg">
+                  <label>Service Type</label>
+                  <select class="inp inp-mono" id="svc-kind">
+                    <option value="systemctl">systemctl unit</option>
+                    <option value="command">custom command check</option>
+                  </select>
+                </div>
+                <div class="fg"><label>Systemd Unit</label><input class="inp inp-mono" id="svc-unit" type="text" placeholder="apache2"/></div>
+                <div class="fg"><label>Check Command (command type)</label><input class="inp inp-mono" id="svc-check" type="text" placeholder="python3 health_check.py"/></div>
+              </div>
+              <div style="margin-top:10px"><button class="btn btn-primary" onclick="addMonitoredService()">Add Service</button></div>
+              <div id="svc-msg" style="margin-top:10px;color:var(--text3);font-size:12px"></div>
+            </div>
+          </div>
+        </div>
+        <div class="tc" id="at-scans"><div class="card"><div class="card-header"><div class="card-title">All Scans</div></div><div class="card-p" id="admin-scans" style="overflow-x:auto"></div></div></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+/* ==== THEME ==== */
+var currentTheme='light';
+function _themeKey(){return currentUser?'vs2-theme-'+currentUser.username:'vs2-theme-anon';}
+function applyTheme(t,save){
+  if(save===undefined)save=true;
+  currentTheme=t;
+  var body=document.getElementById('body');
+  body.className=t;
+  if(save){try{localStorage.setItem(_themeKey(),t);}catch(e){}}
+  var ol=document.getElementById('theme-opt-light');
+  var od=document.getElementById('theme-opt-dark');
+  if(ol)ol.classList.toggle('active',t==='light');
+  if(od)od.classList.toggle('active',t==='dark');
+}
+function toggleTheme(){applyTheme(currentTheme==='light'?'dark':'light');}
+function loadUserTheme(){
+  try{var s=localStorage.getItem(_themeKey());applyTheme(s==='dark'?'dark':'light',false);}
+  catch(e){applyTheme('light',false);}
+}
+applyTheme('light',false);
+
+/* ==== TOAST ==== */
+function showToast(title,msg,type,duration){
+  if(!type)type='info';if(!duration)duration=5000;
+  var icons={success:'✓',error:'✕',info:'·',warning:'!'};
+  var c=document.getElementById('toast-container');
+  var t=document.createElement('div');
+  t.className='toast '+type;
+  t.innerHTML='<div class="toast-icon">'+icons[type]+'</div><div class="toast-body"><div class="toast-title">'+title+'</div>'+(msg?'<div class="toast-msg">'+msg+'</div>':'')+'</div><button class="toast-close" onclick="dismissToast(this.parentElement)">&#10005;</button>';
+  c.appendChild(t);
+  var timer=setTimeout(function(){dismissToast(t);},duration);
+  t._timer=timer;
+  t.addEventListener('click',function(){clearTimeout(t._timer);dismissToast(t);});
+}
+function dismissToast(el){if(!el||el._dismissed)return;el._dismissed=true;el.classList.add('leaving');setTimeout(function(){el.remove();},200);}
+var toast=showToast;
+
+/* ==== CANCEL SCAN ==== */
+var scanControllers={};
+var _vsNotifUnread=0;
+var _vsRecentCompleted=[];
+var _vsKnownCompleted={};
+var _vsNotifPollTimer=null;
+var _vsToolPages={scan:'scan',wd:'webdeep',hv:'harvester',dr:'dnsrecon',nk:'nikto',wp:'wpscan',ly:'lynis',lg:'legion',sub:'sub',dir:'dir',disc:'disc',set:'setoolkit',gp:'gophish',eg:'evilginx2',sp:'shellphish',nc:'netcat',nct:'ncat',sc:'socat',sv:'sliver',em:'empire',ffuf:'ffuf',nuclei:'nuclei',whatweb:'whatweb',wapiti:'wapiti',dalfox:'dalfox',sqlmap:'sqlmap',kxss:'kxss',medusa:'medusa',hping3:'hping3',scapy:'scapy',yersinia:'yersinia',hashcat:'hashcat',john:'john',searchsploit:'searchsploit',msfvenom:'msfvenom',grype:'grype',radare2:'radare2',openvas:'openvas',chkrootkit:'chkrootkit',rkhunter:'rkhunter',pspy:'pspy',pwncat:'pwncat',ligolo:'ligolo',chisel:'chisel',rlwrap:'rlwrap'};
+var _vsToolNames={scan:'Network Scanner',wd:'Deep Web Audit',hv:'theHarvester',dr:'DNSRecon',nk:'Nikto',wp:'WPScan',ly:'Lynis',lg:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',disc:'Network Discovery',set:'SET',gp:'Gophish',eg:'Evilginx2',sp:'ShellPhish',nc:'Netcat',nct:'Ncat',sc:'Socat',sv:'Sliver',em:'Empire'};
+var _vsToolCompletions=[];
+function updateNotificationBadge(){
+  var badge=document.getElementById('notif-badge');if(!badge)return;
+  var ongoing=Object.keys(scanControllers).length;
+  var total=ongoing+_vsNotifUnread;
+  if(total>0){badge.style.display='inline-flex';badge.textContent=total>99?'99+':String(total);}
+  else badge.style.display='none';
+}
+function toggleNotifications(){
+  var menu=document.getElementById('notif-menu');if(!menu)return;
+  menu.classList.toggle('open');
+  if(menu.classList.contains('open')){_vsNotifUnread=0;renderNotifications();}
+  updateNotificationBadge();
+}
+function openNotificationPage(pageId,scanId){
+  var menu=document.getElementById('notif-menu');if(menu)menu.classList.remove('open');
+  if(scanId){loadScan(scanId);return;}
+  pg(pageId||'scan',null);
+}
+function renderNotifications(){
+  var out=document.getElementById('notif-list');if(!out)return;
+  var html='';
+  Object.keys(scanControllers).forEach(function(k){
+    var nm=_vsToolNames[k]||k.toUpperCase();
+    var pgid=_vsToolPages[k]||'scan';
+    html+='<div class="notif-item" onclick="openNotificationPage(\''+pgid+'\',null)"><div class="notif-title">Ongoing: '+nm+'</div><div class="notif-meta">In progress - click to open tool</div></div>';
+  });
+  _vsToolCompletions.slice(0,12).forEach(function(ti){
+    var t=((ti.time||'').replace('T',' ').substring(0,19))||'--';
+    html+='<div class="notif-item" onclick="openNotificationPage(\''+ti.page+'\',null)"><div class="notif-title">'+(ti.ok?'Completed: ':'Failed: ')+ti.name+'</div><div class="notif-meta">'+t+' · click to open tool</div></div>';
+  });
+  _vsRecentCompleted.forEach(function(s){
+    var t=((s.scan_time||'').replace('T',' ').substring(0,19))||'--';
+    html+='<div class="notif-item" onclick="openNotificationPage(\'scan\','+s.id+')"><div class="notif-title">Completed: '+(s.target||'scan')+'</div><div class="notif-meta">#'+s.id+' · '+t+' · '+(s.total_cves||0)+' CVEs</div></div>';
+  });
+  if(!html)html='<div class="notif-empty">No active or recent scan notifications.</div>';
+  out.innerHTML=html;
+}
+async function refreshNotifications(){
+  if(!currentUser)return;
+  try{
+    var r=await fetch('/history');var d=await r.json();
+    var scans=Array.isArray(d)?d:(d.scans||[]);
+    var latest=scans.slice(0,8);
+    latest.forEach(function(s){
+      if(!_vsKnownCompleted[s.id]){
+        if(Object.keys(_vsKnownCompleted).length>0)_vsNotifUnread++;
+        _vsKnownCompleted[s.id]=1;
+      }
+    });
+    _vsRecentCompleted=latest;
+  }catch(e){}
+  renderNotifications();
+  updateNotificationBadge();
+}
+function cancelScan(prefix){
+  if(prefix==='wd'&&_wdES){_wdES.close();_wdES=null;_wdReset();}
+  if(scanControllers[prefix]){scanControllers[prefix].abort();delete scanControllers[prefix];}
+  var id=prefix==='scan'?'sbtn-cancel':prefix+'-cancel';
+  var b=document.getElementById(id);if(b)b.style.display='none';
+  updateNotificationBadge();
+  renderNotifications();
+  showToast('Cancelled','Scan stopped by user.','warning',3000);
+}
+function setScanRunning(prefix,running){
+  var id=prefix==='scan'?'sbtn-cancel':prefix+'-cancel';
+  var b=document.getElementById(id);if(b)b.style.display=running?'inline-flex':'none';
+  updateNotificationBadge();
+  renderNotifications();
+}
+async function fetchWithTimeout(url,options,timeoutMs,prefix){
+  if(!options)options={};if(!timeoutMs)timeoutMs=300000;
+  var pfx=prefix||inferToolPrefix(url,options);
+  var controller=new AbortController();
+  if(pfx)scanControllers[pfx]=controller;
+  var timer=setTimeout(function(){controller.abort();},timeoutMs);
+  try{
+    var r=await fetch(url,Object.assign({},options,{signal:controller.signal}));
+    clearTimeout(timer);
+    if(pfx){delete scanControllers[pfx];pushToolCompletion(pfx,url,r.ok);}
+    return r;
+  }
+  catch(e){clearTimeout(timer);if(pfx)delete scanControllers[pfx];if(e.name==='AbortError')throw new Error('Cancelled or timed out.');throw e;}
+}
+function inferToolPrefix(url,options){
+  var u=String(url||'');
+  if(u.indexOf('/scan')===0)return 'scan';
+  if(u.indexOf('/harvester')===0)return 'hv';
+  if(u.indexOf('/dnsrecon')===0)return 'dr';
+  if(u.indexOf('/nikto')===0)return 'nk';
+  if(u.indexOf('/wpscan')===0)return 'wp';
+  if(u.indexOf('/lynis')===0||u.indexOf('/api/job-')===0||u.indexOf('/api/create-job')===0)return 'ly';
+  if(u.indexOf('/legion')===0)return 'lg';
+  if(u.indexOf('/web-audit')===0)return 'wd';
+  if(u.indexOf('/subdomains')===0)return 'sub';
+  if(u.indexOf('/dirbust')===0)return 'dir';
+  if(u.indexOf('/discover')===0)return 'disc';
+  if(u.indexOf('/social-tools/run')===0){
+    try{
+      var b=options&&options.body?JSON.parse(options.body):{};
+      var tool=(b.tool||'').toLowerCase();
+      var map={'setoolkit':'set','gophish':'gp','evilginx2':'eg','shellphish':'sp','netcat':'nc','ncat':'nct','socat':'sc','sliver':'sv','empire':'em','ffuf':'ffuf','nuclei':'nuclei','whatweb':'whatweb','wapiti':'wapiti','dalfox':'dalfox','sqlmap':'sqlmap','kxss':'kxss','medusa':'medusa','hping3':'hping3','scapy':'scapy','yersinia':'yersinia','hashcat':'hashcat','john':'john','searchsploit':'searchsploit','msfvenom':'msfvenom','grype':'grype','radare2':'radare2','openvas':'openvas','chkrootkit':'chkrootkit','rkhunter':'rkhunter','pspy':'pspy','pwncat':'pwncat','ligolo-ng':'ligolo','chisel':'chisel','rlwrap':'rlwrap'};
+      return map[tool]||'scan';
+    }catch(e){return 'scan';}
+  }
+  return '';
+}
+function pushToolCompletion(prefix,url,ok){
+  var nm=_vsToolNames[prefix]||prefix.toUpperCase();
+  _vsToolCompletions.unshift({id:'tool-'+Date.now()+'-'+Math.random().toString(16).slice(2),page:_vsToolPages[prefix]||'scan',name:nm,time:new Date().toISOString(),ok:!!ok,url:url||''});
+  if(_vsToolCompletions.length>30)_vsToolCompletions.length=30;
+  _vsNotifUnread++;
+  renderNotifications();
+  updateNotificationBadge();
+}
+
+/* ==== PAGE NAV ==== */
+var PAGE_TITLES={home:'Home',scan:'Network Scanner',webdeep:'Deep Web Audit',harvester:'theHarvester',dnsrecon:'DNSRecon',nikto:'Nikto',wpscan:'WPScan',lynis:'Lynis',legion:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',brute:'Brute Force',setoolkit:'Social-Engineer Toolkit',gophish:'Gophish',evilginx2:'Evilginx2',shellphish:'ShellPhish',netcat:'Netcat',ncat:'Ncat',socat:'Socat',sliver:'Sliver',empire:'Empire',disc:'Network Discovery',hist:'Scan History',dash:'Dashboard',profile:'Profile',admin:'Admin Console',ffuf:'ffuf',nuclei:'Nuclei',whatweb:'WhatWeb',wapiti:'Wapiti',dalfox:'Dalfox',sqlmap:'SQLMap',kxss:'kxss',medusa:'Medusa',hping3:'hping3',scapy:'Scapy',yersinia:'Yersinia',hashcat:'Hashcat',john:'John the Ripper',searchsploit:'SearchSploit',seclists:'SecLists',ligolo:'Ligolo-ng',chisel:'Chisel',rlwrap:'rlwrap',pspy:'pspy',msfvenom:'msfvenom',pwncat:'pwncat',grype:'Grype',radare2:'Radare2',openvas:'OpenVAS',chkrootkit:'chkrootkit',rkhunter:'rkhunter'};
+function saveCurrentPage(id){try{sessionStorage.setItem('vs-page',id);}catch(e){}}
+function pg(id,el){
+  document.querySelectorAll('.page').forEach(function(e){e.classList.remove('active');});
+  document.querySelectorAll('.nav-item').forEach(function(e){e.classList.remove('active');});
+  var page=document.getElementById('page-'+id);
+  if(!page)return;
+  page.classList.add('active');
+  var ni=document.getElementById('ni-'+id);if(ni)ni.classList.add('active');
+  var tt=document.getElementById('topbar-title');
+  if(tt){tt.style.animation='none';requestAnimationFrame(function(){tt.style.animation='';});tt.textContent=PAGE_TITLES[id]||id;}
+  saveCurrentPage(id);
+  if(id==='hist')loadHist();
+  if(id==='dash')loadDash();
+  if(id==='admin'){loadAdmin();setTimeout(initCliHeader,400);}
+  if(id==='home'){setTimeout(loadHomeStats,80);setTimeout(renderHomeToolCatalog,40);if(currentUser)vsGreetUser(currentUser.username);}
+  setTimeout(removeQuickInstallCards,60);
+  if(id==='profile'&&currentUser)loadProfileInfo(currentUser);
+  if(id==='brute')setTimeout(function(){bfAutoLoad&&bfAutoLoad();},300);
+  if(id==='lynis'){loadLynisAgents();loadLynisJobs();startLynisAgentWatcher();}
+}
+
+/* ==== AUTH ==== */
+var currentUser=null;
+var busy=false;
+var mods={ports:true,ssl:true,dns:true,headers:true};
+var nmapProfile='balanced';
+
+function authTab(t){
+  document.querySelectorAll('.auth-tab').forEach(function(e,i){
+    e.classList.toggle('active',(i===0&&t==='login')||(i===1&&t==='register')||(i===2&&t==='forgot'));
+  });
+  document.querySelectorAll('[id^="form-"]').forEach(function(e){e.style.display='none';});
+  var f=document.getElementById('form-'+t);if(f)f.style.display='block';
+  var m=document.getElementById('auth-msg');if(m)m.style.display='none';
+}
+function authMsg(msg,type){var el=document.getElementById('auth-msg');el.textContent=msg;el.className='auth-msg '+(type||'err');el.style.display='block';}
+
+async function doLogin(){
+  var user=document.getElementById('l-user').value.trim();
+  var pass=document.getElementById('l-pass').value;
+  if(!user||!pass){authMsg('Enter username and password');return;}
+  var btn=document.getElementById('l-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Logging in...';
+  try{
+    var r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,password:pass})});
+    var d=await r.json();
+    if(d.success){authMsg('Welcome back, '+d.username+'!','ok');setTimeout(function(){document.getElementById('auth-overlay').style.display='none';/* ==== GENERIC TOOL RUNNER ==== */
+async function runGenericTool(pageId, toolBin){
+  var argsEl=document.getElementById(pageId+'-args');
+  var timeoutEl=document.getElementById(pageId+'-timeout');
+  var binEl=document.getElementById(pageId+'-bin');
+  var btn=document.getElementById(pageId+'-btn');
+  if(!argsEl||!btn)return;
+  var args=(argsEl.value||'--help').trim();
+  var timeout=parseInt((timeoutEl&&timeoutEl.value)||'90',10);
+  var bin=(binEl&&binEl.value)||toolBin;
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  var t=mkTool(pageId);t.start();t.log('Running: '+bin+' '+args,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({tool:pageId==='john'?'john':bin,operation:'custom',args:args,timeout:timeout})
+    },Math.max(20000,timeout*1000+5000),pageId);
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{t.log('Command completed (exit '+d.exit_code+')','s');
+      var html='<div class="card card-p"><div class="card-title" style="margin-bottom:8px">Output</div>'
+        +'<pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'
+        +(d.stdout||'(no stdout)')+'</pre>'
+        +(d.stderr?'<div class="card-title" style="margin:8px 0">Stderr</div><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--orange)">'+d.stderr+'</pre>':'')
+        +'</div>';
+      t.res(html);}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN '+bin.toUpperCase();}
+}
+/* ==== BRUTE AUTOLOAD ==== */
+function bfAutoLoad(){
+  var um=document.getElementById('bf-user-mode');
+  var pm=document.getElementById('bf-pass-mode');
+  if(um&&um.value!=='manual')bfWordlistMode('user');
+  if(pm&&pm.value!=='manual')bfWordlistMode('pass');
+}
+
+loadUser();},700);}
+    else authMsg(d.error||'Login failed');
+  }catch(e){authMsg('Connection error: '+e.message);}
+  finally{btn.disabled=false;btn.innerHTML='LOGIN';}
+}
+
+async function doRegister(){
+  var name=document.getElementById('r-name').value.trim();
+  var user=document.getElementById('r-user').value.trim();
+  var email=document.getElementById('r-email').value.trim();
+  var pass=document.getElementById('r-pass').value;
+  if(!user||!email||!pass){authMsg('All fields required');return;}
+  var btn=document.getElementById('r-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Creating...';
+  try{
+    var tosAccepted=document.getElementById('r-tos-cb')?document.getElementById('r-tos-cb').checked:false;
+    var r=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,email:email,password:pass,full_name:name,tos_accepted:tosAccepted})});
+    var d=await r.json();
+    if(d.success){authMsg(d.message,'ok');if(d.verified)setTimeout(function(){authTab('login');},2000);}
+    else authMsg(d.error||'Registration failed');
+  }catch(e){authMsg('Error: '+e.message);}
+  finally{btn.disabled=false;btn.innerHTML='CREATE ACCOUNT';}
+}
+
+async function doForgot(){
+  var email=document.getElementById('f-email').value.trim();
+  if(!email){authMsg('Enter your email');return;}
+  try{var r=await fetch('/api/forgot-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email})});var d=await r.json();authMsg(d.message||d.error,d.success?'ok':'err');}
+  catch(e){authMsg('Error: '+e.message);}
+}
+
+async function doLogout(){
+  await fetch('/api/logout',{method:'POST'});
+  currentUser=null;
+  document.getElementById('auth-overlay').style.display='flex';
+  document.getElementById('user-chip').style.display='none';
+  var nw=document.getElementById('notif-wrap');if(nw)nw.style.display='none';
+  document.getElementById('logout-btn').style.display='none';
+  var s=document.getElementById('admin-nav-section');if(s)s.style.display='none';
+  if(_vsNotifPollTimer){clearInterval(_vsNotifPollTimer);_vsNotifPollTimer=null;}
+}
+
+async function loadUser(){
+  try{
+    var r=await fetch('/api/me');var d=await r.json();
+    if(d.logged_in){
+      currentUser=d;
+      document.getElementById('auth-overlay').style.display='none';
+      document.getElementById('user-chip').style.display='flex';
+      var nw=document.getElementById('notif-wrap');if(nw)nw.style.display='block';
+      document.getElementById('logout-btn').style.display='flex';
+      document.getElementById('user-avatar').textContent=d.username[0].toUpperCase();
+      document.getElementById('user-name-disp').textContent=d.username;
+      document.getElementById('user-role-disp').textContent=d.role==='admin'?'admin':'user';
+      if(d.role==='admin'){var sec=document.getElementById('admin-nav-section');if(sec)sec.style.display='block';}
+      loadProfileInfo(d);loadHomeStats();renderHomeToolCatalog();loadUserTheme();
+      _vsNotifUnread=0;_vsRecentCompleted=[];_vsKnownCompleted={};
+      refreshNotifications();
+      if(_vsNotifPollTimer)clearInterval(_vsNotifPollTimer);
+      _vsNotifPollTimer=setInterval(refreshNotifications,15000);
+      pg('home',null);
+      vsGreetUser(d.username);
+    }else{
+      document.getElementById('auth-overlay').style.display='flex';
+      var nw2=document.getElementById('notif-wrap');if(nw2)nw2.style.display='none';
+      if(_vsNotifPollTimer){clearInterval(_vsNotifPollTimer);_vsNotifPollTimer=null;}
+    }
+  }catch(e){
+    document.getElementById('auth-overlay').style.display='flex';
+    var nw3=document.getElementById('notif-wrap');if(nw3)nw3.style.display='none';
+    if(_vsNotifPollTimer){clearInterval(_vsNotifPollTimer);_vsNotifPollTimer=null;}
+  }
+}
+
+function loadProfileInfo(u){
+  if(!u)return;
+  var pn=document.getElementById('p-name');if(pn)pn.value=u.full_name||'';
+  var pi=document.getElementById('profile-info');
+  if(pi)pi.innerHTML='<div class="kv"><div class="kv-item"><div class="kv-k">USERNAME</div><div class="kv-v">'+u.username+'</div></div><div class="kv-item"><div class="kv-k">ROLE</div><div class="kv-v">'+u.role+'</div></div><div class="kv-item"><div class="kv-k">EMAIL</div><div class="kv-v" style="font-size:12px">'+u.email+'</div></div><div class="kv-item"><div class="kv-k">LOGINS</div><div class="kv-v">'+(u.login_count||0)+'</div></div></div>';
+}
+async function saveProfile(){
+  var name=document.getElementById('p-name').value.trim();
+  try{var r=await fetch('/api/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({full_name:name})});var d=await r.json();showPwdMsg(d.message||d.error,d.success?'ok':'err');}
+  catch(e){showPwdMsg('Error: '+e.message,'err');}
+}
+async function changePassword(){
+  var old=document.getElementById('cp-old').value;
+  var nw=document.getElementById('cp-new').value;
+  var cf=document.getElementById('cp-confirm').value;
+  if(nw!==cf){showPwdMsg('Passwords do not match','err');return;}
+  try{var r=await fetch('/api/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({old_password:old,new_password:nw})});var d=await r.json();showPwdMsg(d.message||d.error,d.success?'ok':'err');if(d.success){document.getElementById('cp-old').value='';document.getElementById('cp-new').value='';document.getElementById('cp-confirm').value='';}}
+  catch(e){showPwdMsg('Error: '+e.message,'err');}
+}
+function showPwdMsg(msg,type){var el=document.getElementById('pwd-msg');el.textContent=msg;el.className='auth-msg '+(type||'err');el.style.display='block';}
+
+/* ==== TOS ==== */
+function showTos(e){e.preventDefault();document.getElementById('tos-modal').classList.add('open');}
+function closeTos(){document.getElementById('tos-modal').classList.remove('open');var cb=document.getElementById('r-tos-cb');if(cb)cb.checked=false;updateRegisterBtn();}
+function acceptTos(){document.getElementById('tos-modal').classList.remove('open');var cb=document.getElementById('r-tos-cb');if(cb){cb.checked=true;updateRegisterBtn();}}
+function updateRegisterBtn(){var cb=document.getElementById('r-tos-cb');var btn=document.getElementById('r-btn');if(!cb||!btn)return;btn.disabled=!cb.checked;btn.style.opacity=cb.checked?'1':'0.4';btn.style.cursor=cb.checked?'pointer':'not-allowed';}
+
+/* ==== ABOUT ==== */
+function showAbout(){document.getElementById('about-modal').classList.add('open');}
+function closeAbout(){document.getElementById('about-modal').classList.remove('open');}
+
+/* ==== HELPERS ==== */
+function sev(level){var m={CRITICAL:'sev-critical',HIGH:'sev-high',MEDIUM:'sev-medium',LOW:'sev-low',UNKNOWN:'sev-unknown'};return'<span class="sev '+(m[level]||'sev-unknown')+'">'+level+'</span>';}
+function sevScore(score){if(!score)return'';var l=score>=9?'CRITICAL':score>=7?'HIGH':score>=4?'MEDIUM':'LOW';var c={CRITICAL:'var(--red)',HIGH:'var(--orange)',MEDIUM:'var(--yellow)',LOW:'var(--green)'};return'<span style="font-family:var(--mono);font-size:12px;font-weight:600;color:'+c[l]+'">'+score+'</span>';}
+function clrUI(){['term','err','res'].forEach(function(id){var e=document.getElementById(id);if(e){e.innerHTML='';e.className=id==='err'?'err-box':'terminal';if(id==='res')e.style.display='none';}});var prog=document.getElementById('prog');if(prog)prog.classList.remove('active');}
+function termLog(id,text,type){var el=document.getElementById(id);if(!el)return;var div=document.createElement('div');div.className='tl-'+type;var pf={i:'[*]',s:'[+]',w:'[!]',e:'[x]'}[type]||'[*]';div.innerHTML='<span class="tl-prefix">'+pf+'</span> '+text;el.appendChild(div);el.scrollTop=el.scrollHeight;}
+function showErr(id,msg){var e=document.getElementById(id);if(e){e.textContent=msg;e.classList.add('visible');}}
+function showTerminal(id){var e=document.getElementById(id);if(e)e.classList.add('visible');}
+var _progTimers={};
+function startProg(id){
+  if(!id)id='prog';
+  var pw=document.getElementById(id);var pb=document.getElementById(id.replace('-prog','-pb').replace('prog','pb'));
+  if(pw)pw.classList.add('active');if(pb)pb.style.width='0%';
+  var v=0;_progTimers[id]=setInterval(function(){v=Math.min(v+(100-v)*0.04,90);if(pb)pb.style.width=v+'%';},400);
+}
+function endProg(id){
+  if(!id)id='prog';
+  clearInterval(_progTimers[id]);
+  var pw=document.getElementById(id);var pb=document.getElementById(id.replace('-prog','-pb').replace('prog','pb'));
+  if(pb)pb.style.width='100%';
+  setTimeout(function(){if(pw)pw.classList.remove('active');},400);
+}
+function animateCount(el,target){
+  if(!el||isNaN(target))return;
+  el.classList.add('vs-counting');
+  var startT=null,dur=1000;
+  function step(ts){if(!startT)startT=ts;var p=Math.min((ts-startT)/dur,1);var ease=1-Math.pow(1-p,3);el.textContent=Math.floor(ease*target);if(p<1)requestAnimationFrame(step);else el.classList.remove('vs-counting');}
+  requestAnimationFrame(step);
+}
+var HOME_TOOL_CATALOG=[
+  {label:'INFORMATION',color:'#5a9fe0',tools:[['scan','Network Scanner','Port scan · CVE lookup · SSL · DNS · Headers'],['dnsrecon','DNSRecon','DNS enumeration and zone analysis'],['disc','Net Discovery','Discover live hosts on a subnet'],['harvester','theHarvester','OSINT emails, subdomains, IPs'],['sub','Subdomain Finder','DNS brute-force + passive enumeration'],['legion','Legion','Auto-recon framework'],['searchsploit','SearchSploit','Exploit-DB offline search'],['seclists','SecLists','Security wordlists browser']]},
+  {label:'WEB TESTING',color:'#00e5ff',tools:[['webdeep','Deep Web Audit','Full multi-tool website assessment'],['nikto','Nikto','Web server vulnerability scanner'],['wpscan','WPScan','WordPress security scanner'],['dir','Dir Buster','Hidden paths and file enumeration'],['ffuf','ffuf','Fast web fuzzer'],['nuclei','Nuclei','Template-based vuln scanner'],['whatweb','WhatWeb','Web technology fingerprinter'],['wapiti','Wapiti','Web app vulnerability scanner'],['dalfox','Dalfox','XSS parameter analysis'],['sqlmap','SQLMap','SQL injection detection'],['kxss','kxss','XSS reflection checker']]},
+  {label:'ATTACKS',color:'#ff6b35',tools:[['brute','Brute Force','Credential testing HTTP/SSH'],['medusa','Medusa','Fast parallel network login auditor'],['hping3','hping3','TCP/IP packet assembler'],['scapy','Scapy','Interactive packet manipulation'],['yersinia','Yersinia','Network protocol attacks']]},
+  {label:'PASSWORD ATTACKS',color:'#ff3366',tools:[['hashcat','Hashcat','GPU-based password recovery'],['john','John the Ripper','Versatile password cracker']]},
+  {label:'SOCIAL ENGINEERING',color:'#b06fff',tools:[['setoolkit','SET','Social-Engineer Toolkit'],['gophish','Gophish','Phishing campaign manager'],['evilginx2','Evilginx2','Reverse-proxy phishing simulation'],['shellphish','ShellPhish','Template-driven phishing framework']]},
+  {label:'C2 / PIVOTING',color:'#ffd60a',tools:[['netcat','Netcat','TCP/UDP networking utility'],['ncat','Ncat','Nmap Netcat replacement'],['socat','Socat','Bidirectional data relay'],['sliver','Sliver','C2 framework'],['empire','Empire','Post-exploitation framework'],['ligolo','Ligolo-ng','Advanced tunneling tool'],['chisel','Chisel','TCP/UDP tunnel over HTTP'],['rlwrap','rlwrap','Readline wrapper for CLI tools'],['pspy','pspy','Process spy without root']]},
+  {label:'EXPLOIT / PAYLOAD',color:'#e05a4e',tools:[['msfvenom','msfvenom','Metasploit payload generator'],['pwncat','pwncat','Reverse shell handler'],['grype','Grype','Container vulnerability scanner']]},
+  {label:'REVERSE ENGINEERING',color:'#00ff9d',tools:[['radare2','Radare2','Reverse engineering framework']]},
+  {label:'AUDITING',color:'#3db870',tools:[['lynis','Lynis','System audit · hardening · compliance'],['openvas','OpenVAS','Open vulnerability assessment'],['chkrootkit','chkrootkit','Local rootkit detector'],['rkhunter','rkhunter','Rootkit Hunter']]}
+];
+function renderHomeToolCatalog(){
+  var out=document.getElementById('home-tool-catalog');if(!out)return;
+  out.innerHTML=HOME_TOOL_CATALOG.map(function(cat){
+    var tools=cat.tools.map(function(t){return '<div class="home-tool-card" onclick="pg(\''+t[0]+'\',null)" title="'+t[2]+'"><div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:2px">'+t[1]+'</div><div style="font-size:10px;color:var(--text3);line-height:1.4">'+t[2]+'</div></div>';}).join('');
+    return '<div class="home-cat-block"><div class="home-cat-label">'+cat.label+'</div><div class="home-tools-grid">'+tools+'</div></div>';
+  }).join('');
+}
+async function loadHomeStats(){
+  try{var r=await fetch('/history');var d=await r.json();var scans=Array.isArray(d)?d:(d.scans||[]);var c=0,p=0;scans.forEach(function(s){c+=(s.total_cves||0);p+=(s.open_ports||0);});animateCount(document.getElementById('hs-scans'),scans.length);animateCount(document.getElementById('hs-cves'),c);animateCount(document.getElementById('hs-ports'),p);}
+  catch(e){}
+}
+function removeQuickInstallCards(){
+  document.querySelectorAll('.card .card-title, .card-p .card-title').forEach(function(t){
+    var txt=(t.textContent||'').trim().toLowerCase();
+    if(txt==='quick install'||txt==='install'){var card=t.closest('.card');if(card)card.remove();}
+  });
+}
+
+/* ==== SCAN ==== */
+function tmg(m,el){mods[m]=!mods[m];el.classList.toggle('on',mods[m]);}
+async function doScan(){
+  var target=document.getElementById('tgt').value.trim();
+  if(!target||busy)return;
+  var profileSel=document.getElementById('scan-profile');
+  nmapProfile=(profileSel&&profileSel.value?profileSel.value:'balanced');
+  clrUI();busy=true;
+  showTerminal('term');startProg('prog');
+  var btn=document.getElementById('sbtn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
+  setScanRunning('scan',true);
+  var ml=Object.keys(mods).filter(function(m){return mods[m];}).join(',');
+  termLog('term','Target: '+target,'i');termLog('term','Modules: '+ml,'i');termLog('term','Profile: '+nmapProfile,'i');termLog('term','Scanning -- may take 60-180s','w');
+  try{
+    var r=await fetchWithTimeout('/scan?target='+encodeURIComponent(target)+'&modules='+encodeURIComponent(ml)+'&profile='+encodeURIComponent(nmapProfile),{},300000,'scan');
+    var d=await r.json();endProg('prog');
+    if(d.error){showErr('err','Error: '+d.error);termLog('term',d.error,'e');}
+    else{var ports=d.summary?d.summary.open_ports:0,cves=d.summary?d.summary.total_cves:0;termLog('term','Done -- '+ports+' ports, '+cves+' CVEs','s');renderScan(d);showToast('Scan Complete',ports+' open ports - '+cves+' CVEs','success');}
+  }catch(e){endProg('prog');showErr('err','Error: '+e.message);}
+  finally{busy=false;btn.disabled=false;btn.innerHTML='SCAN';setScanRunning('scan',false);}
+}
+
+function renderScan(data){
+  var s=data.summary||{};
+  var ports=(data.modules&&data.modules.ports&&data.modules.ports.hosts||[]).flatMap(function(h){return h.ports||[];});
+  var html='<div class="stats" style="margin-bottom:16px"><div class="stat"><div class="stat-val">'+ports.length+'</div><div class="stat-lbl">OPEN PORTS</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">'+(s.critical_cves||0)+'</div><div class="stat-lbl">CRITICAL</div></div><div class="stat"><div class="stat-val" style="color:var(--orange)">'+(s.high_cves||0)+'</div><div class="stat-lbl">HIGH CVEs</div></div><div class="stat"><div class="stat-val">'+(s.total_cves||0)+'</div><div class="stat-lbl">TOTAL CVEs</div></div><div class="stat"><div class="stat-val" style="color:var(--yellow)">'+(s.exploitable||0)+'</div><div class="stat-lbl">EXPLOITABLE</div></div></div>';
+  html+='<div class="tabs" style="margin-bottom:16px"><button class="tab active" onclick="swt(event,\'tp\')">Ports</button>'+(data.modules&&data.modules.ssl&&data.modules.ssl.length?'<button class="tab" onclick="swt(event,\'tssl\')">SSL</button>':'')+(data.modules&&data.modules.dns?'<button class="tab" onclick="swt(event,\'tdns\')">DNS</button>':'')+(data.modules&&data.modules.headers?'<button class="tab" onclick="swt(event,\'thdr\')">Headers</button>':'')+'<button class="tab" onclick="exportPDF()">PDF Report</button></div>';
+  html+='<div class="tc active" id="tp">';
+  var pm=data.modules&&data.modules.ports;
+  if(pm&&pm.error){html+='<div class="err-box visible">'+pm.error+'</div>';}
+  else{
+    (pm&&pm.hosts||[]).forEach(function(host){
+      html+='<div class="host-chip"><span class="host-ip">'+host.ip+'</span>'+(host.hostnames&&host.hostnames[0]?'<span style="color:var(--text3);font-size:11px">'+host.hostnames[0]+'</span>':'')+'<span class="host-up">&#9679; '+(host.status||'up')+'</span>'+(host.os?'<span style="color:var(--text3);font-family:var(--mono);font-size:11px">'+host.os+'</span>':'')+'</div>';
+      if(!host.ports||!host.ports.length)html+='<div style="color:var(--text3);font-size:13px;padding:12px">No open ports found.</div>';
+      (host.ports||[]).forEach(function(port){
+        html+='<div class="port-panel"><div class="port-hd" onclick="tp2(this)"><div class="port-num">'+port.port+'</div><div style="flex:1;min-width:0"><div class="port-svc">'+(port.product||port.service||'unknown')+(port.version?' <span style="font-family:var(--mono);font-size:11px;color:var(--text3)">v'+port.version+'</span>':'')+'</div><div class="port-ver">'+(port.protocol||'tcp').toUpperCase()+' - '+(port.service||'')+(port.extrainfo?' - '+port.extrainfo:'')+'</div></div><div class="port-meta">'+sev(port.risk_level)+(port.risk_score?'<span class="port-score" style="color:var(--text2);font-size:12px">'+port.risk_score+'</span>':'')+'</div><span class="chev">&#9660;</span></div>';
+        html+='<div class="port-body">';
+        if(port.cves&&port.cves.length){html+='<div class="sec-label">VULNERABILITIES ('+port.cves.length+')</div>';port.cves.forEach(function(c){html+='<div class="cve-item"><div class="cve-hd"><a class="cve-id" href="'+(c.references&&c.references[0]?c.references[0]:'https://nvd.nist.gov/vuln/detail/'+c.id)+'" target="_blank">'+c.id+'</a>'+sev(c.severity)+(c.score?sevScore(c.score):'')+(c.has_exploit?'<span class="sev sev-high">EXPLOIT</span>':'')+'<span class="cve-date">'+(c.published||'')+'</span></div><div class="cve-desc">'+(c.description||'')+'</div></div>';});}
+        if(port.mitigations&&port.mitigations.length){html+='<div class="sec-label">MITIGATIONS</div><ul class="mit-list">'+port.mitigations.map(function(m){return'<li class="mit-item"><span class="mit-bullet">&#8250;</span><span>'+m+'</span></li>';}).join('')+'</ul>';}
+        html+='</div></div>';
+      });
+    });
+    if(!pm||!pm.hosts||!pm.hosts.length)html+='<div style="color:var(--text3);font-size:13px">No hosts found.</div>';
+  }
+  html+='</div>';
+  if(data.modules&&data.modules.ssl&&data.modules.ssl.length){
+    html+='<div class="tc" id="tssl">';
+    var GC={"A+":"var(--green)","A":"var(--green)","B":"var(--yellow)","C":"var(--orange)","D":"var(--red)","F":"var(--red)","N/A":"var(--text3)"};
+    data.modules.ssl.forEach(function(s2){
+      if(s2.grade==='N/A'){html+='<div class="ssl-card"><div class="ssl-grade" style="color:var(--text3)">--</div><div><div class="ssl-host">'+s2.host+':'+s2.port+'</div><div class="ssl-detail">SSL not available</div></div></div>';return;}
+      var d2=s2.details||{};
+      html+='<div class="ssl-card"><div class="ssl-grade" style="color:'+(GC[s2.grade]||'var(--text)')+';border-color:'+(GC[s2.grade]||'var(--border)')+'">'+s2.grade+'</div><div><div class="ssl-host">'+s2.host+':'+s2.port+'</div><div class="ssl-detail">'+(d2.protocol||'?')+' - '+(d2.cipher||'?')+(d2.cipher_bits?' ('+d2.cipher_bits+' bit)':'')+'</div>'+(d2.days_until_expiry!=null?'<div class="ssl-detail" style="color:'+(d2.days_until_expiry<30?'var(--red)':'var(--green)')+'">Expires: '+(d2.expires||'')+' ('+d2.days_until_expiry+' days)</div>':'')+'<div style="margin-top:8px">'+(s2.issues||[]).filter(function(i){return i.severity!=='INFO';}).map(function(iss){return'<div class="ssl-issue">'+sev(iss.severity)+'<span style="font-size:12px;color:var(--text2)">'+iss.msg+'</span></div>';}).join('')+(!(s2.issues||[]).filter(function(i){return i.severity!=='INFO';}).length?'<div style="font-size:12px;color:var(--green)">&#10003; No SSL issues</div>':'')+'</div></div></div>';
+    });
+    html+='</div>';
+  }
+  if(data.modules&&data.modules.dns){
+    var dns=data.modules.dns;
+    html+='<div class="tc" id="tdns"><div class="dns-grid">'+Object.entries(dns.records||{}).map(function(kv){return'<div class="dns-card"><div class="dns-type">'+kv[0]+'</div><div class="dns-val">'+kv[1].join('<br/>')+'</div></div>';}).join('')+'</div>';
+    html+='<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;font-size:13px"><span>'+(dns.has_spf?'&#10003;':'&#10005;')+' SPF '+(dns.has_spf?'configured':'MISSING')+'</span><span>'+(dns.has_dmarc?'&#10003;':'&#10005;')+' DMARC '+(dns.has_dmarc?'configured':'MISSING')+'</span></div>';
+    if(dns.subdomains&&dns.subdomains.length)html+='<div class="sec-label">SUBDOMAINS ('+dns.subdomains.length+')</div><div>'+(dns.subdomains||[]).map(function(s){return'<div class="sub-item"><span>'+s.subdomain+'</span><span style="color:var(--text3);font-family:var(--mono);font-size:11px">'+s.ip+'</span></div>';}).join('')+'</div>';
+    html+='</div>';
+  }
+  if(data.modules&&data.modules.headers){
+    var hd=data.modules.headers;var GC2={"A+":"var(--green)","A":"var(--green)","B":"var(--yellow)","C":"var(--orange)","D":"var(--red)","F":"var(--red)"};
+    html+='<div class="tc" id="thdr"><div style="display:flex;align-items:center;gap:20px;margin-bottom:16px;flex-wrap:wrap"><div class="hdr-grade-big" style="color:'+(GC2[hd.grade]||'var(--text)')+'">'+hd.grade+'</div><div><div style="font-size:14px;font-weight:500">'+(hd.url||'')+'</div><div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:3px">HTTP '+(hd.status_code||'')+' - Score '+(hd.score||0)+'/100'+(hd.server?' - '+hd.server:'')+'</div></div></div>';
+    if(hd.issues&&hd.issues.length){html+='<div class="sec-label">ISSUES</div>'+(hd.issues||[]).map(function(i){return'<div class="ssl-issue">'+sev(i.severity)+'<span style="font-size:12px;margin-left:6px">'+i.msg+'</span></div>';}).join('')+'<div style="margin-bottom:14px"></div>';}
+    html+='<div class="sec-label">RESPONSE HEADERS</div><div style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">'+Object.entries(hd.headers||{}).slice(0,25).map(function(kv){return'<div class="hdr-row"><span class="hdr-key">'+kv[0]+'</span><span class="hdr-val">'+String(kv[1]).substring(0,100)+'</span></div>';}).join('')+'</div></div>';
+  }
+  var res=document.getElementById('res');res.innerHTML=html;res.style.display='block';
+  window._sd=data;
+}
+
+function tp2(hdr){var b=hdr.nextElementSibling;var c=hdr.querySelector('.chev');b.classList.toggle('open');c.classList.toggle('open');}
+function swt(e,id){var p=document.getElementById('res');p.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});p.querySelectorAll('.tc').forEach(function(t){t.classList.remove('active');});e.currentTarget.classList.add('active');var tc=document.getElementById(id);if(tc)tc.classList.add('active');}
+
+/* ==== GENERIC TOOL RUNNER ==== */
+function mkTool(prefix){
+  var logEl=null;
+  return{
+    start:function(){logEl=document.getElementById(prefix+'-term');if(logEl){logEl.innerHTML='';logEl.classList.add('visible');}var e=document.getElementById(prefix+'-err');if(e){e.textContent='';e.classList.remove('visible');}var r=document.getElementById(prefix+'-res');if(r){r.innerHTML='';r.style.display='none';}startProg(prefix+'-prog');},
+    log:function(t,tp){if(!logEl)return;if(!tp)tp='i';var div=document.createElement('div');div.className='tl-'+tp;var pf={i:'[*]',s:'[+]',w:'[!]',e:'[x]'}[tp]||'[*]';div.innerHTML='<span class="tl-prefix">'+pf+'</span> '+t;logEl.appendChild(div);logEl.scrollTop=logEl.scrollHeight;},
+    pct:function(v){var pw=document.getElementById(prefix+'-prog');var pb=document.getElementById(prefix+'-pb');if(pw)pw.classList.add('active');if(pb)pb.style.width=Math.max(0,Math.min(100,parseInt(v||0,10)))+'%';},
+    end:function(){endProg(prefix+'-prog');},
+    err:function(m){var e=document.getElementById(prefix+'-err');if(e){e.textContent='Error: '+m;e.classList.add('visible');}},
+    res:function(html){var e=document.getElementById(prefix+'-res');if(e){e.innerHTML=html;e.style.display='block';}}
+  };
+}
+var hvTool=mkTool('hv'),drTool=mkTool('dr'),nkTool=mkTool('nk'),wpTool=mkTool('wp'),lyTool=mkTool('ly'),lgTool=mkTool('lg'),wdTool=mkTool('wd'),setTool=mkTool('set'),gpTool=mkTool('gp'),egTool=mkTool('eg'),spTool=mkTool('sp'),ncTool=mkTool('nc'),nctTool=mkTool('nct'),scTool=mkTool('sc'),svTool=mkTool('sv'),emTool=mkTool('em');
+
+/* ==== DEEP WEB AUDIT ==== */
+var _wdES=null;
+function _wdReset(){
+  var btn=document.getElementById('wd-btn');
+  if(btn){btn.disabled=false;btn.innerHTML='RUN DEEP WEB AUDIT';}
+  document.getElementById('wd-cancel').style.display='none';
+  endProg('wd-prog');
+}
+function doWebDeep(){
+  var url=document.getElementById('wd-url').value.trim();if(!url){alert('Enter a website URL');return;}
+  var profile=document.getElementById('wd-profile').value||'balanced';
+  var btn=document.getElementById('wd-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Auditing...';
+  document.getElementById('wd-cancel').style.display='inline-flex';
+  wdTool.start();startProg('wd-prog');
+  wdTool.log('Target: '+url,'i');
+  wdTool.log('Profile: '+profile+' | 9 tools running — streaming live progress...','w');
+  if(_wdES){_wdES.close();_wdES=null;}
+  var params=new URLSearchParams({url:url,profile:profile});
+  _wdES=new EventSource('/web-deep-stream?'+params.toString());
+  _wdES.onmessage=function(e){
+    try{
+      var d=JSON.parse(e.data);
+      // Update progress bar
+      var pb=document.getElementById('wd-pb');if(pb)pb.style.width=(d.pct||0)+'%';
+      // Log
+      if(d.log){
+        var tp='i';
+        if(d.log.startsWith('[+]'))tp='s';
+        else if(d.log.startsWith('[!]'))tp='w';
+        else if(d.log.startsWith('[x]'))tp='e';
+        wdTool.log('['+d.pct+'%] '+d.log.replace(/^\[.\] /,''),tp);
+      }
+      if(d.done){
+        _wdES.close();_wdES=null;_wdReset();
+        if(d.error){wdTool.err(d.error);}
+        else if(d.result){
+          wdTool.log('Audit complete — '+d.result.risk_rating+' ('+d.result.vulnerability_score+'/100)','s');
+          renderWebDeep(d.result);
+          showToast('Deep Audit Done','Risk: '+d.result.risk_rating+' | Score: '+d.result.vulnerability_score+'/100','success',7000);
         }
       }
+    }catch(ex){wdTool.log('Parse: '+ex.message,'e');}
+  };
+  _wdES.onerror=function(){
+    if(_wdES){_wdES.close();_wdES=null;}
+    wdTool.end();wdTool.err('Stream connection lost. Retrying or check server logs.');
+    _wdReset();
+  };
+}
+function renderWebDeep(d){
+  var s=d.summary||{};
+  var tools=d.tools_run||[];
+  var req=d.tools_required||[];
+  var html='<div class="stats" style="margin-bottom:14px"><div class="stat"><div class="stat-val" style="color:var(--red)">'+(d.vulnerability_score||0)+'</div><div class="stat-lbl">RISK SCORE /100</div></div><div class="stat"><div class="stat-val">'+(d.risk_rating||'UNKNOWN')+'</div><div class="stat-lbl">RATING</div></div><div class="stat"><div class="stat-val">'+(s.total_findings||0)+'</div><div class="stat-lbl">TOTAL FINDINGS</div></div><div class="stat"><div class="stat-val">'+tools.length+'</div><div class="stat-lbl">TOOLS RUN</div></div></div>';
+  html+='<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">Executive Summary</div><div style="font-size:13px;color:var(--text2)">'+(d.executive_summary||'No summary available')+'</div></div>';
+  html+='<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">Tool Status</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+tools.map(function(t){return'<span class="tag">'+t.tool+': '+t.status+'</span>';}).join('')+'</div></div>';
+  html+='<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">Install These Tools on Linux Server</div><div style="display:grid;gap:6px">'+req.map(function(t){return'<div style="font-family:var(--mono);font-size:11px"><strong>'+t.tool+'</strong> &middot; '+t.install+'</div>';}).join('')+'</div></div>';
+  if(d.key_findings&&d.key_findings.length){html+='<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">Key Findings</div><ul class="mit-list">'+d.key_findings.map(function(f){return'<li class="mit-item"><span class="mit-bullet">&#8250;</span><span>'+f+'</span></li>';}).join('')+'</ul></div>';}
+  html+='<div class="card"><div class="card-header"><div class="card-title">Detailed JSON Report</div></div><div class="card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+JSON.stringify(d.details||{},null,2)+'</pre></div></div>';
+  wdTool.res(html);
+}
+
+/* ==== HARVESTER ==== */
+async function doHarvest(){
+  var target=document.getElementById('hv-target').value.trim();if(!target){alert('Enter a domain');return;}
+  var srcEl=document.getElementById('hv-sources');var sources=Array.from(srcEl.selectedOptions).map(function(o){return o.value;}).join(',');
+  var limit=document.getElementById('hv-limit').value||500;
+  var btn=document.getElementById('hv-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  hvTool.start();hvTool.log('Target: '+target,'i');hvTool.log('Sources: '+sources,'i');hvTool.log('Launching theHarvester...','w');
+  try{
+    var r=await fetchWithTimeout('/harvester',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target:target,sources:sources,limit:parseInt(limit)})},180000,'hv');
+    var d=await r.json();hvTool.end();
+    if(d.error){hvTool.log(d.error,'e');hvTool.err(d.error);}
+    else{hvTool.log('Done -- '+(d.emails?d.emails.length:0)+' emails, '+(d.hosts?d.hosts.length:0)+' hosts','s');renderHarvest(d);showToast('theHarvester','Found '+(d.emails?d.emails.length:0)+' emails','success');}
+  }catch(e){hvTool.end();hvTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN HARVESTER';}
+}
+function renderHarvest(d){
+  var emails=d.emails||[],hosts=d.hosts||[],subs=d.subdomains||[],ips=d.ips||[];
+  var html='<div class="stats" style="margin-bottom:14px"><div class="stat"><div class="stat-val">'+emails.length+'</div><div class="stat-lbl">EMAILS</div></div><div class="stat"><div class="stat-val">'+hosts.length+'</div><div class="stat-lbl">HOSTS</div></div><div class="stat"><div class="stat-val">'+subs.length+'</div><div class="stat-lbl">SUBDOMAINS</div></div><div class="stat"><div class="stat-val">'+ips.length+'</div><div class="stat-lbl">IPs</div></div></div>';
+  if(emails.length)html+='<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">Emails ('+emails.length+')</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+emails.map(function(e){return'<span class="tag">'+e+'</span>';}).join('')+'</div></div>';
+  if(subs.length)html+='<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">Subdomains ('+subs.length+')</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+subs.map(function(s){return'<span class="tag">'+s+'</span>';}).join('')+'</div></div>';
+  if(hosts.length)html+='<div class="card" style="margin-bottom:10px"><div class="card-header"><div class="card-title">Hosts</div></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>HOST</th><th>IP</th></tr></thead><tbody>'+hosts.map(function(h){return'<tr><td>'+(h.host||h)+'</td><td style="color:var(--text3)">'+(h.ip||'--')+'</td></tr>';}).join('')+'</tbody></table></div></div>';
+  hvTool.res(html);
+}
+
+/* ==== DNSRECON ==== */
+async function doDnsRecon(){
+  var target=document.getElementById('dr-target').value.trim();if(!target){alert('Enter a domain');return;}
+  var type=document.getElementById('dr-type').value;var ns=document.getElementById('dr-ns').value.trim();var filter=document.getElementById('dr-filter').value;
+  var btn=document.getElementById('dr-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  drTool.start();drTool.log('Target: '+target,'i');drTool.log('Type: '+type,'i');
+  try{
+    var r=await fetchWithTimeout('/dnsrecon',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target:target,type:type,ns:ns,filter:filter})},120000,'dr');
+    var d=await r.json();drTool.end();
+    if(d.error){drTool.log(d.error,'e');drTool.err(d.error);}
+    else{drTool.log('Done -- '+(d.records?d.records.length:0)+' records','s');renderDnsRecon(d);}
+  }catch(e){drTool.end();drTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN DNSRECON';}
+}
+function renderDnsRecon(d){
+  var recs=d.records||[];var byType={};recs.forEach(function(r){if(!byType[r.type])byType[r.type]=[];byType[r.type].push(r);});
+  var html='<div class="stat" style="margin-bottom:14px;display:inline-block"><div class="stat-val">'+recs.length+'</div><div class="stat-lbl">RECORDS</div></div>';
+  Object.entries(byType).forEach(function(kv){html+='<div class="card" style="margin-bottom:8px"><div class="card-header"><div class="card-title">'+kv[0]+' Records ('+kv[1].length+')</div></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>NAME</th><th>VALUE</th><th>TTL</th></tr></thead><tbody>'+kv[1].map(function(r){return'<tr><td>'+(r.name||'--')+'</td><td>'+(r.address||r.value||'--')+'</td><td style="color:var(--text3)">'+(r.ttl||'--')+'</td></tr>';}).join('')+'</tbody></table></div></div>';});
+  drTool.res(html);
+}
+
+/* ==== NIKTO ==== */
+async function doNikto(){
+  var target=document.getElementById('nk-target').value.trim();if(!target){alert('Enter a target');return;}
+  var port=document.getElementById('nk-port').value||80;var ssl_flag=document.getElementById('nk-ssl').value;var tuning=document.getElementById('nk-tuning').value;
+  var btn=document.getElementById('nk-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
+  nkTool.start();nkTool.log('Target: '+target+' port '+port,'i');nkTool.log('This may take several minutes','w');
+  try{
+    var r=await fetchWithTimeout('/nikto',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target:target,port:parseInt(port),ssl:ssl_flag,tuning:tuning})},600000,'nk');
+    var d=await r.json();nkTool.end();
+    if(d.error){nkTool.log(d.error,'e');nkTool.err(d.error);}
+    else{nkTool.log('Done -- '+(d.findings?d.findings.length:0)+' findings','s');renderNikto(d);}
+  }catch(e){nkTool.end();nkTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN NIKTO';}
+}
+function renderNikto(d){
+  var f=d.findings||[];var crit=f.filter(function(x){return x.severity==='high';}).length;
+  var html='<div class="stats" style="margin-bottom:14px"><div class="stat"><div class="stat-val">'+f.length+'</div><div class="stat-lbl">FINDINGS</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">'+crit+'</div><div class="stat-lbl">HIGH</div></div><div class="stat"><div class="stat-val">'+(d.server||'--')+'</div><div class="stat-lbl">SERVER</div></div></div>';
+  if(f.length)html+='<div class="card"><div class="card-header"><div class="card-title">Findings</div></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>ID</th><th>DESCRIPTION</th><th>URL</th></tr></thead><tbody>'+f.map(function(x){return'<tr><td style="font-family:var(--mono);font-size:11px">'+(x.id||'--')+'</td><td style="color:'+(x.severity==='high'?'var(--red)':x.severity==='medium'?'var(--orange)':'var(--text)')+'">'+(x.description||'--')+'</td><td style="font-size:11px;color:var(--text3)">'+(x.url||'')+'</td></tr>';}).join('')+'</tbody></table></div></div>';
+  else html+='<div style="color:var(--green);font-size:13px">&#10003; No findings detected.</div>';
+  nkTool.res(html);
+}
+
+/* ==== WPSCAN ==== */
+async function doWPScan(){
+  var target=document.getElementById('wp-target').value.trim();if(!target){alert('Enter a URL');return;}
+  var enumEl=document.getElementById('wp-enum');var flags=Array.from(enumEl.selectedOptions).map(function(o){return o.value;}).join(',');
+  var token=document.getElementById('wp-token').value.trim();var mode=document.getElementById('wp-mode').value;
+  var btn=document.getElementById('wp-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
+  wpTool.start();wpTool.log('Target: '+target,'i');
+  try{
+    var r=await fetchWithTimeout('/wpscan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target:target,enum_flags:flags,token:token,mode:mode})},300000,'wp');
+    var d=await r.json();wpTool.end();
+    if(d.error){wpTool.err(d.error);}
+    else{wpTool.log('Done -- '+(d.vulnerabilities?d.vulnerabilities.length:0)+' vulns','s');renderWPScan(d);}
+  }catch(e){wpTool.end();wpTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN WPSCAN';}
+}
+function renderWPScan(d){
+  var v=d.vulnerabilities||[],u=d.users||[],p=d.plugins||[];
+  var html='<div class="stats" style="margin-bottom:14px"><div class="stat"><div class="stat-val" style="color:var(--red)">'+v.length+'</div><div class="stat-lbl">VULNS</div></div><div class="stat"><div class="stat-val">'+p.length+'</div><div class="stat-lbl">PLUGINS</div></div><div class="stat"><div class="stat-val">'+u.length+'</div><div class="stat-lbl">USERS</div></div><div class="stat"><div class="stat-val">'+(d.wp_version||'?')+'</div><div class="stat-lbl">WP VER</div></div></div>';
+  if(v.length)html+='<div class="card" style="margin-bottom:8px"><div class="card-header"><div class="card-title">Vulnerabilities</div></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>TITLE</th><th>TYPE</th><th>REF</th></tr></thead><tbody>'+v.map(function(x){return'<tr><td style="color:var(--red)">'+(x.title||'--')+'</td><td style="color:var(--orange)">'+(x.type||'--')+'</td><td style="font-size:11px;color:var(--text3)">'+(x.references&&x.references.cve?x.references.cve.join(', '):'--')+'</td></tr>';}).join('')+'</tbody></table></div></div>';
+  if(u.length)html+='<div class="card card-p" style="margin-bottom:8px"><div class="card-title" style="margin-bottom:8px">Users</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+u.map(function(x){return'<span class="tag">'+x+'</span>';}).join('')+'</div></div>';
+  if(p.length)html+='<div class="card"><div class="card-header"><div class="card-title">Plugins</div></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>PLUGIN</th><th>VERSION</th><th>VULNS</th></tr></thead><tbody>'+p.map(function(x){return'<tr><td>'+(x.name||'--')+'</td><td style="color:var(--text3)">'+(x.version||'--')+'</td><td style="color:'+(x.vulnerabilities&&x.vulnerabilities.length?'var(--red)':'var(--green)')+'">'+(x.vulnerabilities?x.vulnerabilities.length:0)+'</td></tr>';}).join('')+'</tbody></table></div></div>';
+  wpTool.res(html);
+}
+
+/* ==== SET INTERACTIVE TERMINAL ==== */
+var _setSid = null;
+var _setES  = null;
+var _setHistory = [];
+var _setHistIdx = -1;
+var _setAnsiRe  = /[\x1B\x9B][[\]()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><~]/g;
+var _setCRRe    = /\r/g;
+
+function _setAppend(raw) {
+  var el = document.getElementById('set-terminal-output');
+  if (!el) return;
+  // Strip ANSI escape codes, keep printable text + newlines
+  var clean = raw.replace(_setAnsiRe, '').replace(_setCRRe, '');
+  el.textContent += clean;
+  // Auto-scroll
+  el.scrollTop = el.scrollHeight;
+}
+
+function setTermClear() {
+  var el = document.getElementById('set-terminal-output');
+  if (el) el.textContent = '';
+}
+
+function setTermScroll() {
+  var el = document.getElementById('set-terminal-output');
+  if (el) el.scrollTop = el.scrollHeight;
+}
+
+function _setSetStatus(label, color, showKill) {
+  var dot   = document.getElementById('set-status-dot');
+  var lbl   = document.getElementById('set-status-label');
+  var kill  = document.getElementById('set-kill-btn');
+  var launch= document.getElementById('set-launch-btn');
+  if (dot)    dot.style.background = color;
+  if (lbl)    lbl.textContent      = label;
+  if (kill)   kill.style.display   = showKill ? 'inline-flex' : 'none';
+  // Keep launch enabled so clicking LAUNCH SET always restarts a fresh session.
+  if (launch) launch.disabled      = false;
+}
+
+async function setLaunch() {
+  // Kill any existing session first
+  if (_setSid) { await setKill(); }
+  setTermClear();
+  _setAppend('Launching SET session...\n');
+  _setSetStatus('Connecting...', 'var(--yellow)', false);
+
+  try {
+    var r = await fetch('/api/set/session/new', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({})
+    });
+    var d = await r.json();
+    if (d.error) {
+      _setAppend('[ERROR] ' + d.error + '\n');
+      _setSetStatus('Error — SET not found', 'var(--red)', false);
+      showToast('SET Error', d.error, 'error', 7000);
+      return;
     }
-  </script>
-  <style>
-    * { border-radius: 0 !important; }
-    body { font-family: 'JetBrains Mono', monospace; }
-    .glow { text-shadow: 0 0 8px rgba(0,255,65,0.55); }
-    .glitch { animation: glitch .28s steps(2) infinite; }
-    @keyframes glitch {
-      0% { transform: translate(0, 0); color:#E0E0E0; }
-      25% { transform: translate(-1px, 1px); color:#FF003C; }
-      50% { transform: translate(1px, -1px); color:#E0E0E0; }
-      75% { transform: translate(-1px, 0); color:#FF003C; }
-      100% { transform: translate(0, 0); color:#E0E0E0; }
+    _setSid = d.session_id;
+    _setAppend('[+] Session started (binary: ' + d.binary + ')\n');
+    _setSetStatus('Session active', 'var(--green)', true);
+    showToast('SET Launched', 'Interactive terminal ready', 'success', 3000);
+    _setStartStream();
+  } catch(e) {
+    _setAppend('[ERROR] ' + e.message + '\n');
+    _setSetStatus('Launch failed', 'var(--red)', false);
+  }
+}
+
+function _setStartStream() {
+  if (_setES) { _setES.close(); _setES = null; }
+  if (!_setSid) return;
+
+  _setES = new EventSource('/api/set/session/' + _setSid + '/stream');
+
+  _setES.onmessage = function(ev) {
+    try {
+      var msg = JSON.parse(ev.data);
+      if (msg.type === 'output') {
+        _setAppend(msg.text);
+      } else if (msg.type === 'exit') {
+        _setAppend(msg.text || '\n[Session ended]\n');
+        _setSetStatus('Session ended', 'var(--text3)', false);
+        _setES.close(); _setES = null; _setSid = null;
+      } else if (msg.type === 'error') {
+        _setAppend('[ERROR] ' + msg.text + '\n');
+        _setSetStatus('Error', 'var(--red)', false);
+      }
+      // heartbeat: ignore
+    } catch(e) {}
+  };
+
+  _setES.onerror = function() {
+    _setAppend('\n[Stream lost — session may have ended]\n');
+    _setSetStatus('Disconnected', 'var(--red)', false);
+    if (_setES) { _setES.close(); _setES = null; }
+  };
+}
+
+async function setKill() {
+  if (_setES) { _setES.close(); _setES = null; }
+  if (_setSid) {
+    try {
+      await fetch('/api/set/session/' + _setSid + '/kill', {method: 'POST'});
+    } catch(e) {}
+    _setSid = null;
+  }
+  _setSetStatus('Killed', 'var(--red)', false);
+  _setAppend('\n[Session killed]\n');
+  showToast('SET session killed', '', 'warning', 2500);
+}
+
+async function setSend(text) {
+  if (!_setSid) {
+    showToast('No active SET session', 'Click LAUNCH SET first', 'warning', 3000);
+    return;
+  }
+  try {
+    await fetch('/api/set/session/' + _setSid + '/input', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({text: text})
+    });
+  } catch(e) {
+    _setAppend('[send error] ' + e.message + '\n');
+  }
+}
+
+async function setSpecialKey(key) {
+  if (!_setSid) {
+    showToast('No active SET session', 'Click LAUNCH SET first', 'warning', 3000);
+    return;
+  }
+  try {
+    await fetch('/api/set/session/' + _setSid + '/input', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({key: key})
+    });
+  } catch(e) {}
+}
+
+function setInputSend() {
+  var inp = document.getElementById('set-input-box');
+  if (!inp) return;
+  var val = inp.value;
+  if (!val && val !== '0') return;
+  if (_setHistory[0] !== val) _setHistory.unshift(val);
+  if (_setHistory.length > 50) _setHistory.pop();
+  _setHistIdx = -1;
+  inp.value = '';
+  setSend(val + '\n');
+}
+
+function setInputKey(e) {
+  var inp = document.getElementById('set-input-box');
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    setInputSend();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (_setHistIdx < _setHistory.length - 1) {
+      _setHistIdx++;
+      inp.value = _setHistory[_setHistIdx] || '';
     }
-    .scan-lines::before {
-      content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 40;
-      background: repeating-linear-gradient(to bottom, transparent 0px, transparent 2px, rgba(0,255,65,.04) 3px, transparent 4px);
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (_setHistIdx > 0) { _setHistIdx--; inp.value = _setHistory[_setHistIdx] || ''; }
+    else { _setHistIdx = -1; inp.value = ''; }
+  } else if (e.key === 'c' && e.ctrlKey) {
+    e.preventDefault();
+    setSpecialKey('ctrl_c');
+  } else if (e.key === 'd' && e.ctrlKey) {
+    e.preventDefault();
+    setSpecialKey('ctrl_d');
+  }
+}
+
+/* Keep old renderSocialTool for Gophish/Evilginx2/ShellPhish */
+function renderSocialTool(toolObj,d){
+  var html='<div class="stats" style="margin-bottom:14px"><div class="stat"><div class="stat-val">'+(d.tool||'tool').toUpperCase()+'</div><div class="stat-lbl">TOOL</div></div><div class="stat"><div class="stat-val">'+(d.exit_code===null?'--':d.exit_code)+'</div><div class="stat-lbl">EXIT CODE</div></div><div class="stat"><div class="stat-val">'+(d.duration_ms||0)+'</div><div class="stat-lbl">DURATION (ms)</div></div></div>';
+  html+='<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">Command Executed</div><div style="font-family:var(--mono);font-size:11px;color:var(--text2);word-break:break-all">'+(d.command||'n/a')+'</div></div>';
+  html+='<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">stdout</div><pre style="font-family:var(--mono);font-size:11px;color:var(--text2);white-space:pre-wrap">'+(d.stdout||'(empty)')+'</pre></div>';
+  html+='<div class="card card-p"><div class="card-title" style="margin-bottom:8px">stderr</div><pre style="font-family:var(--mono);font-size:11px;color:var(--text2);white-space:pre-wrap">'+(d.stderr||'(empty)')+'</pre></div>';
+  toolObj.res(html);
+}
+async function runSetToolkit(){
+  /* SET now uses the interactive terminal above — this stub keeps
+     any residual references from breaking the page. */
+  setLaunch();
+}
+async function runGophish(){
+  var op=document.getElementById('gp-op').value, args=document.getElementById('gp-args').value.trim(), timeout=parseInt(document.getElementById('gp-timeout').value||'90',10);
+  var btn=document.getElementById('gp-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  gpTool.start();gpTool.log('Executing Gophish operation: '+op,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'gophish',operation:op,args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'gp');
+    var d=await r.json();gpTool.end();if(d.error){gpTool.err(d.error);}else{gpTool.log('Gophish command completed','s');renderSocialTool(gpTool,d);}
+  }catch(e){gpTool.end();gpTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN GOPHISH';}
+}
+async function runEvilginx2(){
+  var op=document.getElementById('eg-op').value, args=document.getElementById('eg-args').value.trim(), timeout=parseInt(document.getElementById('eg-timeout').value||'90',10);
+  var btn=document.getElementById('eg-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  egTool.start();egTool.log('Executing Evilginx2 operation: '+op,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'evilginx2',operation:op,args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'eg');
+    var d=await r.json();egTool.end();if(d.error){egTool.err(d.error);}else{egTool.log('Evilginx2 command completed','s');renderSocialTool(egTool,d);}
+  }catch(e){egTool.end();egTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN EVILGINX2';}
+}
+async function runShellPhish(){
+  var scriptPath=document.getElementById('sp-script').value.trim(), args=document.getElementById('sp-args').value.trim(), timeout=parseInt(document.getElementById('sp-timeout').value||'90',10);
+  var btn=document.getElementById('sp-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  spTool.start();spTool.log('Executing ShellPhish script: '+scriptPath,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'shellphish',operation:'custom',args:args,script_path:scriptPath,timeout:timeout})},Math.max(20000,timeout*1000+5000),'sp');
+    var d=await r.json();spTool.end();if(d.error){spTool.err(d.error);}else{spTool.log('ShellPhish command completed','s');renderSocialTool(spTool,d);}
+  }catch(e){spTool.end();spTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN SHELLPHISH';}
+}
+async function runNetcat(){
+  var mode=document.getElementById('nc-mode').value, host=document.getElementById('nc-host').value.trim(), port=parseInt(document.getElementById('nc-port').value||'0',10), extra=document.getElementById('nc-extra').value.trim(), timeout=parseInt(document.getElementById('nc-timeout').value||'90',10);
+  if(!port||port<1||port>65535){alert('Enter a valid port');return;}
+  if(mode==='connect'&&!host){alert('Enter target host for connect mode');return;}
+  var args=(mode==='listen'?('-l -p '+port):((host+' '+port)))+(extra?' '+extra:'');
+  var btn=document.getElementById('nc-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  ncTool.start();ncTool.log('Executing netcat mode: '+mode,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'netcat',operation:'custom',args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'nc');
+    var d=await r.json();ncTool.end();if(d.error){ncTool.err(d.error);}else{ncTool.log('Netcat command completed','s');renderSocialTool(ncTool,d);}
+  }catch(e){ncTool.end();ncTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN NETCAT';}
+}
+async function runNcat(){
+  var mode=document.getElementById('nct-mode').value, host=document.getElementById('nct-host').value.trim(), port=parseInt(document.getElementById('nct-port').value||'0',10), extra=document.getElementById('nct-extra').value.trim(), timeout=parseInt(document.getElementById('nct-timeout').value||'90',10);
+  if(!port||port<1||port>65535){alert('Enter a valid port');return;}
+  if(mode==='connect'&&!host){alert('Enter target host for connect mode');return;}
+  var args=(mode==='listen'?('-l -p '+port):((host+' '+port)))+(extra?' '+extra:'');
+  var btn=document.getElementById('nct-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  nctTool.start();nctTool.log('Executing ncat mode: '+mode,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'ncat',operation:'custom',args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'nct');
+    var d=await r.json();nctTool.end();if(d.error){nctTool.err(d.error);}else{nctTool.log('Ncat command completed','s');renderSocialTool(nctTool,d);}
+  }catch(e){nctTool.end();nctTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN NCAT';}
+}
+async function runSocat(){
+  var left=document.getElementById('sc-left').value.trim(), right=document.getElementById('sc-right').value.trim(), extra=document.getElementById('sc-extra').value.trim(), timeout=parseInt(document.getElementById('sc-timeout').value||'90',10);
+  if(!left||!right){alert('Enter both left and right addresses');return;}
+  var args=(extra?extra+' ':'')+left+' '+right;
+  var btn=document.getElementById('sc-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  scTool.start();scTool.log('Executing socat bridge','i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'socat',operation:'custom',args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'sc');
+    var d=await r.json();scTool.end();if(d.error){scTool.err(d.error);}else{scTool.log('Socat command completed','s');renderSocialTool(scTool,d);}
+  }catch(e){scTool.end();scTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN SOCAT';}
+}
+async function runSliver(){
+  var op=document.getElementById('sv-op').value, args=document.getElementById('sv-args').value.trim(), timeout=parseInt(document.getElementById('sv-timeout').value||'90',10);
+  var btn=document.getElementById('sv-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  svTool.start();svTool.log('Executing Sliver operation: '+op,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'sliver',operation:op,args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'sv');
+    var d=await r.json();svTool.end();if(d.error){svTool.err(d.error);}else{svTool.log('Sliver command completed','s');renderSocialTool(svTool,d);}
+  }catch(e){svTool.end();svTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN SLIVER';}
+}
+async function runEmpire(){
+  var op=document.getElementById('em-op').value, args=document.getElementById('em-args').value.trim(), timeout=parseInt(document.getElementById('em-timeout').value||'90',10);
+  var btn=document.getElementById('em-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  emTool.start();emTool.log('Executing Empire operation: '+op,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'empire',operation:op,args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'em');
+    var d=await r.json();emTool.end();if(d.error){emTool.err(d.error);}else{emTool.log('Empire command completed','s');renderSocialTool(emTool,d);}
+  }catch(e){emTool.end();emTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN EMPIRE';}
+}
+
+/* ==== LYNIS ==== */
+var _lyAgentTimer=null;
+var _lySelectedAgentId='';
+var _lyCurrentJobId=null;
+var _lyHasConnectedAgents=false;
+var _lyLastStatusSig='';
+var _lyLastStatusLogTs=0;
+function copyLynisInstallCmd(){
+  var el=document.getElementById('ly-install-cmd');
+  if(!el)return;
+  el.select();el.setSelectionRange(0,99999);
+  try{document.execCommand('copy');}catch(e){}
+}
+function copyLynisInstallCmdWin(){
+  var el=document.getElementById('ly-install-cmd-win');
+  if(!el)return;
+  el.select();el.setSelectionRange(0,99999);
+  try{document.execCommand('copy');}catch(e){}
+}
+async function loadLynisAgents(){
+  var box=document.getElementById('ly-agents');if(!box)return;
+  try{
+    var r=await fetchWithTimeout('/api/agents',{},15000,'ly');
+    var d=await r.json();var agents=d.agents||[];
+    _lyHasConnectedAgents=agents.length>0;
+    if(!agents.length){box.innerHTML='<div style="color:var(--text3)">No agent connected yet. Install with the command above.</div>';updateLynisAgentBadge();return;}
+    var html='<div style="display:flex;flex-direction:column;gap:6px">';
+    agents.forEach(function(a){
+      var st=(a.status||'unknown').toLowerCase();var col=st==='online'?'var(--green)':'var(--orange)';
+      var selected=_lySelectedAgentId===a.client_id;
+      html+='<div class="card-p" style="border:1px solid '+(selected?'var(--green)':'var(--border)')+';border-radius:8px;cursor:pointer" onclick="pickLynisAgent(\''+a.client_id+'\')"><div style="display:flex;justify-content:space-between;gap:8px"><div><strong>'+a.client_id+(selected?' <span style=&quot;color:var(--green);font-size:11px&quot;>(selected)</span>':'')+'</strong><div style="font-size:11px;color:var(--text3)">'+(a.hostname||'')+' · '+(a.os_info||'')+'</div></div><div style="font-size:11px;color:'+col+'">'+st.toUpperCase()+'</div></div><div style="font-size:10px;color:var(--text3);margin-top:4px">Last seen: '+(a.last_seen||'--')+' · IP: '+(a.ip_seen||'--')+'</div><div style="margin-top:8px"><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();disconnectLynisAgent(\''+a.client_id+'\')">DISCONNECT</button></div></div>';
+    });
+    html+='</div><div style="font-size:11px;color:var(--green);margin-top:8px">&#10003; New system detected items appear here automatically.</div>';
+    box.innerHTML=html;
+    updateLynisAgentBadge();
+  }catch(e){
+    box.innerHTML='<div class="err-box visible">Failed to load agents: '+e.message+'</div>';
+  }
+}
+function pickLynisAgent(clientId){
+  _lySelectedAgentId=clientId;
+  updateLynisAgentBadge();
+  loadLynisAgents();
+}
+function clearLynisAgentSelection(){
+  _lySelectedAgentId='';
+  updateLynisAgentBadge();
+  loadLynisAgents();
+}
+function updateLynisAgentBadge(){
+  var el=document.getElementById('ly-selected-agent');if(!el)return;
+  el.textContent=_lySelectedAgentId?('Remote agent selected: '+_lySelectedAgentId):'No remote agent selected (local scan mode).';
+}
+async function disconnectLynisAgent(clientId){
+  if(!confirm('Disconnect '+clientId+'? This removes it from dashboard and invalidates its token. Reconnect later by running the curl installer again on that Linux host.'))return;
+  try{
+    var r=await fetchWithTimeout('/api/agents/'+encodeURIComponent(clientId)+'/disconnect',{method:'POST'},20000,'ly');
+    var d=await r.json();if(d.error)throw new Error(d.error);
+    if(_lySelectedAgentId===clientId)_lySelectedAgentId='';
+    lyTool.log('Disconnected '+clientId+'. Re-run curl installer on client to reconnect.','w');
+    loadLynisAgents();loadLynisJobs();
+  }catch(e){lyTool.err('Disconnect failed: '+e.message);}
+}
+function startLynisAgentWatcher(){
+  if(_lyAgentTimer)clearInterval(_lyAgentTimer);
+  _lyAgentTimer=setInterval(function(){
+    var page=document.getElementById('page-lynis');
+    if(page&&page.classList.contains('active')){loadLynisAgents();loadLynisJobs();}
+  },10000);
+}
+async function doLynis(){
+  var profile=document.getElementById('ly-profile').value;var category=document.getElementById('ly-category').value;var compliance=document.getElementById('ly-compliance').value;
+  var clientId=_lySelectedAgentId;
+  if(_lyHasConnectedAgents&&!clientId){
+    lyTool.err('Please select a system from "Connected Agent Systems" before starting the audit.');
+    lyTool.log('Audit not started: no connected system selected.','w');
+    return;
+  }
+  var useRemote=!!clientId;
+  var btn=document.getElementById('ly-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Auditing...';
+  lyTool.start();lyTool.log('Lynis audit starting...','i');lyTool.log('Profile: '+profile+(compliance?' - Compliance: '+compliance:''),'w');
+  _lyLastStatusSig='';
+  _lyLastStatusLogTs=0;
+  try{
+    if(useRemote){
+      lyTool.log('Queueing remote job for client: '+clientId,'i');
+      var jr=await fetchWithTimeout('/api/create-job',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({client_id:clientId,profile:profile,category:category,compliance:compliance})},30000,'ly');
+      var jd=await jr.json();if(jd.error)throw new Error(jd.error);
+      _lyCurrentJobId=jd.job_id;
+      lyTool.log('Job #'+jd.job_id+' queued. Waiting for agent...','w');
+      loadLynisJobs();
+      await pollLynisJob(jd.job_id);
+    }else{
+      var r=await fetchWithTimeout('/lynis',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile:profile,category:category,compliance:compliance})},300000,'ly');
+      var d=await r.json();lyTool.end();
+      if(d.error){lyTool.log(d.error,'e');lyTool.err(d.error);}
+      else{lyTool.log('Audit complete -- Hardening Index: '+(d.hardening_index||'?'),(d.hardening_index>=70?'s':'w'));renderLynis(d);}
     }
-  </style>
-</head>
-<body class="h-full bg-c-bg text-c-text bg-spatial-grid bg-[size:40px_40px] scan-lines overflow-hidden">
-  <div class="absolute inset-0 bg-gradient-to-br from-black via-c-bg to-[#020802] pointer-events-none"></div>
+  }catch(e){lyTool.end();lyTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN LYNIS AUDIT';}
+}
+async function pollLynisJob(jobId){
+  var tries=0;
+  while(tries<180){
+    tries++;
+    var r=await fetchWithTimeout('/api/job-status/'+jobId,{},15000,'ly');
+    var d=await r.json();if(d.error)throw new Error(d.error);
+    var pct=parseInt(d.progress_pct||0);lyTool.pct(pct);
+    var msg=(d.message||'').trim();
+    if(msg){
+      var sig=(d.status||'')+'|'+pct+'|'+msg;
+      var now=Date.now();
+      var statusChanged=(sig!==_lyLastStatusSig);
+      var finalState=(d.status==='completed'||d.status==='cancelled'||d.status==='failed');
+      var periodic=(now-_lyLastStatusLogTs)>=8000;
+      if(statusChanged&&(finalState||periodic)){
+        lyTool.log('['+d.status+'] '+msg,(d.status==='completed'?'s':(d.status==='cancelled'||d.status==='failed'?'w':'i')));
+        _lyLastStatusSig=sig;
+        _lyLastStatusLogTs=now;
+      }
+    }
+    if(d.status==='completed'){
+      lyTool.end();
+      renderLynis(d);
+      loadLynisJobs();
+      return;
+    }
+    if(d.status==='cancelled'){
+      lyTool.end();lyTool.err('Job cancelled.');
+      loadLynisJobs();
+      return;
+    }
+    await new Promise(function(res){setTimeout(res,2000);});
+  }
+  throw new Error('Timed out waiting for remote Lynis agent to finish');
+}
+async function loadLynisJobs(){
+  var box=document.getElementById('ly-jobs');if(!box)return;
+  try{
+    var r=await fetchWithTimeout('/api/jobs-overview?limit=12',{},15000,'ly');
+    var d=await r.json();if(d.error)throw new Error(d.error);
+    var jobs=d.jobs||[];
+    if(!jobs.length){box.innerHTML='<div style="color:var(--text3)">No Lynis jobs yet.</div>';return;}
+    var html='<div style="display:flex;flex-direction:column;gap:6px">';
+    jobs.forEach(function(j){
+      var st=(j.status||'unknown').toLowerCase();
+      var col=st==='completed'?'var(--green)':(st==='running'?'var(--yellow)':(st==='pending'?'var(--orange)':(st==='cancelled'?'var(--red)':'var(--text3')));
+      var canCancel=(st==='pending'||st==='running');
+      var canView=(st==='completed'||st==='failed'||st==='cancelled');
+      html+='<div class="card-p" style="border:1px solid var(--border);border-radius:8px"><div style="display:flex;justify-content:space-between;gap:8px"><div><strong>Job #'+j.id+'</strong> · <span style="font-family:var(--mono)">'+j.client_id+'</span></div><div style="color:'+col+';font-size:11px">'+st.toUpperCase()+'</div></div><div style="font-size:11px;color:var(--text3);margin-top:4px">Progress: '+(j.progress_pct||0)+'% · '+(j.message||'')+'</div><div style="font-size:10px;color:var(--text3);margin-top:4px">Created: '+(j.created_at||'--')+(j.started_at?' · Started: '+j.started_at:'')+(j.completed_at?' · Completed: '+j.completed_at:'')+'</div><div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'+(canCancel?'<button class="btn btn-outline btn-sm" onclick="cancelLynisJob('+j.id+')">CANCEL JOB</button>':'')+(canView?'<button class="btn btn-outline btn-sm" onclick="viewLynisJobReport('+j.id+')">VIEW REPORT</button><a class="btn btn-outline btn-sm" href="/api/job-report/'+j.id+'.txt" target="_blank">RAW</a>':'')+'<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="removeLynisJob('+j.id+')">REMOVE JOB</button></div></div>';
+    });
+    html+='</div>';
+    box.innerHTML=html;
+  }catch(e){
+    box.innerHTML='<div class="err-box visible">Failed to load jobs: '+e.message+'</div>';
+  }
+}
+async function cancelLynisJob(jobId){
+  if(!confirm('Cancel Lynis job #'+jobId+'?'))return;
+  try{
+    var r=await fetchWithTimeout('/api/jobs/'+jobId+'/cancel',{method:'POST'},20000,'ly');
+    var d=await r.json();if(d.error)throw new Error(d.error);
+    lyTool.log('Cancellation requested for job #'+jobId,'w');
+    loadLynisJobs();
+  }catch(e){lyTool.err('Cancel failed: '+e.message);}
+}
+async function viewLynisJobReport(jobId){
+  try{
+    var r=await fetchWithTimeout('/api/job-status/'+jobId,{},15000,'ly');
+    var d=await r.json();if(d.error)throw new Error(d.error);
+    lyTool.log('Loaded report for job #'+jobId,'s');
+    renderLynis(d);
+  }catch(e){lyTool.err('View report failed: '+e.message);}
+}
+async function removeLynisJob(jobId){
+  if(!confirm('Remove Lynis job #'+jobId+' and its saved report?'))return;
+  try{
+    var r=await fetchWithTimeout('/api/jobs/'+jobId,{method:'DELETE'},20000,'ly');
+    var d=await r.json();if(d.error)throw new Error(d.error);
+    if(_lyCurrentJobId===jobId)_lyCurrentJobId=null;
+    lyTool.log('Removed Lynis job #'+jobId,'w');
+    loadLynisJobs();
+  }catch(e){lyTool.err('Remove job failed: '+e.message);}
+}
+function renderLynis(d){
+  var w=d.warnings||[],sg=d.suggestions||[],sc=d.hardening_index||0;
+  var sc_col=sc>=80?'var(--green)':sc>=60?'var(--yellow)':sc>=40?'var(--orange)':'var(--red)';
+  var grade=sc>=80?'Good':(sc>=60?'Needs Improvement':(sc>=40?'At Risk':'Critical'));
+  var html='<div class="stats" style="margin-bottom:14px"><div class="stat"><div class="stat-val" style="color:'+sc_col+'">'+sc+'</div><div class="stat-lbl">HARDENING INDEX</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">'+w.length+'</div><div class="stat-lbl">WARNINGS</div></div><div class="stat"><div class="stat-val" style="color:var(--yellow)">'+sg.length+'</div><div class="stat-lbl">SUGGESTIONS</div></div><div class="stat"><div class="stat-val">'+(d.tests_performed||'--')+'</div><div class="stat-lbl">TESTS</div></div></div>';
+  html+='<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:6px">Security Posture Summary</div><div style="font-size:12px;line-height:1.6">Overall posture: <strong style="color:'+sc_col+'">'+grade+'</strong>. '+(w.length?('Address '+Math.min(w.length,10)+' high-priority warning(s) first. '):'No warnings detected. ')+'Use the suggestions list as a hardening checklist.</div></div>';
+  if(d.job_id)html+='<div style="margin-bottom:10px"><a class="btn btn-outline btn-sm" href="/api/job-report/'+d.job_id+'.txt" target="_blank">DOWNLOAD RAW REPORT</a> <span style="font-size:11px;color:var(--text3);margin-left:6px">Job #'+d.job_id+'</span></div>';
+  if(w.length)html+='<div class="card card-p" style="margin-bottom:8px"><div class="card-title" style="margin-bottom:8px;color:var(--red)">Warnings (Top '+Math.min(w.length,40)+')</div>'+w.slice(0,40).map(function(x){return'<div style="border-bottom:1px solid var(--border);padding:7px 0;font-family:var(--mono);font-size:11px;color:var(--orange)">'+x+'</div>';}).join('')+(w.length>40?'<div style="color:var(--text3);font-size:11px;padding-top:8px">...and '+(w.length-40)+' more warning entries</div>':'')+'</div>';
+  if(sg.length)html+='<div class="card card-p"><div class="card-title" style="margin-bottom:8px">Suggestions (Top '+Math.min(sg.length,40)+' of '+sg.length+')</div>'+sg.slice(0,40).map(function(x){return'<div style="border-bottom:1px solid var(--border);padding:6px 0;font-family:var(--mono);font-size:11px;color:var(--text2)">&#8250; '+x+'</div>';}).join('')+(sg.length>40?'<div style="color:var(--text3);font-size:11px;padding-top:8px">...and '+(sg.length-40)+' more</div>':'')+'</div>';
+  if(!w.length&&!sg.length)html+='<div class="card card-p" style="color:var(--text3)">No warning/suggestion details were returned by this run. Open RAW report for full output.</div>';
+  lyTool.res(html);
+}
 
-  <main class="relative z-10 h-full p-6">
-    <section id="nexus-screen" class="h-full">
-      <div class="mx-auto w-[400px] border border-c-primary bg-c-surface shadow-brutal px-4 py-3 flex items-center justify-between uppercase text-xs tracking-wide">
-        <span id="hud-clock" class="glow"></span>
-        <span>[proxy: active]</span>
-        <button id="new-target-btn" class="w-[120px] h-10 border border-c-primary text-c-primary hover:bg-c-primary hover:text-c-bg active:translate-x-[2px] active:translate-y-[2px] active:shadow-none shadow-brutal font-bold">[new_target]</button>
-      </div>
+/* ==== LEGION ==== */
+var lgMods={'nmap':true,'nikto':true,'smb':true,'snmp':true,'hydra':false,'finger':false};
+function lgMod(m,el){lgMods[m]=!lgMods[m];el.classList.toggle('on',lgMods[m]);}
+async function doLegion(){
+  var target=document.getElementById('lg-target').value.trim();if(!target){alert('Enter a target');return;}
+  var intensity=document.getElementById('lg-intensity').value;
+  var modules=Object.entries(lgMods).filter(function(kv){return kv[1];}).map(function(kv){return kv[0];});
+  var btn=document.getElementById('lg-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  lgTool.start();lgTool.log('Target: '+target,'i');lgTool.log('Modules: '+modules.join(', '),'i');lgTool.log('Intensity: '+intensity,'w');
+  try{
+    var r=await fetchWithTimeout('/legion',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target:target,intensity:intensity,modules:modules})},900000,'lg');
+    var d=await r.json();lgTool.end();
+    if(d.error){lgTool.err(d.error);}
+    else{lgTool.log('Legion complete','s');renderLegion(d);}
+  }catch(e){lgTool.end();lgTool.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN LEGION';}
+}
+function renderLegion(d){
+  var html='<div class="stats" style="margin-bottom:14px"><div class="stat"><div class="stat-val">'+(d.open_ports||0)+'</div><div class="stat-lbl">OPEN PORTS</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">'+(d.total_issues||0)+'</div><div class="stat-lbl">ISSUES</div></div><div class="stat"><div class="stat-val">'+(d.modules_run||0)+'</div><div class="stat-lbl">MODULES</div></div></div>';
+  (d.results||[]).forEach(function(r){html+='<div class="card" style="margin-bottom:8px"><div class="card-header"><div class="card-title">'+(r.module?r.module.toUpperCase():'MODULE')+'</div></div>';if(r.findings&&r.findings.length)html+='<div class="tbl-wrap"><table class="tbl"><thead><tr><th>FINDING</th><th>DETAIL</th></tr></thead><tbody>'+r.findings.map(function(f){return'<tr><td>'+(f.title||f)+'</td><td style="color:var(--text3);font-size:11px">'+(f.detail||'')+'</td></tr>';}).join('')+'</tbody></table></div>';else html+='<div class="card-p" style="color:var(--text3);font-size:12px">'+(r.summary||'No findings')+'</div>';html+='</div>';});
+  lgTool.res(html);
+}
 
-      <div class="mt-8 h-[78vh] relative border border-c-muted">
-        <svg class="absolute inset-0 w-full h-full pointer-events-none">
-          <line x1="16%" y1="22%" x2="44%" y2="48%" stroke="#333333" stroke-width="1"/>
-          <line x1="44%" y1="48%" x2="78%" y2="30%" stroke="#333333" stroke-width="1"/>
-          <line x1="44%" y1="48%" x2="72%" y2="70%" stroke="#333333" stroke-width="1"/>
-        </svg>
+/* ==== SUBDOMAIN ==== */
+async function doSub(){
+  var domain=document.getElementById('sub-domain').value.trim();var size=document.getElementById('sub-size').value;
+  if(!domain)return;
+  var btn=document.getElementById('sub-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
+  document.getElementById('sub-res').innerHTML='<div style="color:var(--text3);font-size:13px">Enumerating subdomains for <strong>'+domain+'</strong>...</div>';
+  try{
+    var r=await fetchWithTimeout('/subdomains?domain='+encodeURIComponent(domain)+'&size='+size,{},120000);
+    var d=await r.json();
+    if(d.error){document.getElementById('sub-res').innerHTML='<div class="err-box visible">'+d.error+'</div>';return;}
+    var html='<div class="found" style="margin-bottom:12px">'+d.total+' subdomains found &nbsp;&middot;&nbsp; '+((d.sources||[]).join(', '))+'</div>';
+    html+='<div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>SUBDOMAIN</th><th>IP</th><th>SOURCE</th><th></th></tr></thead><tbody>';
+    (d.subdomains||[]).forEach(function(s){html+='<tr><td style="font-family:var(--mono)">'+(s.subdomain||'')+'</td><td style="color:var(--text3)">'+(s.ip||'')+'</td><td><span class="tag">'+(s.source||'dns')+'</span></td><td><button class="btn btn-ghost btn-sm" onclick="scanFromSub(\''+s.subdomain+'\')">Scan</button></td></tr>';});
+    html+='</tbody></table></div></div>';
+    document.getElementById('sub-res').innerHTML=html;
+  }catch(e){document.getElementById('sub-res').innerHTML='<div class="err-box visible">'+e.message+'</div>';}
+  finally{btn.disabled=false;btn.innerHTML='FIND SUBDOMAINS';}
+}
+function scanFromSub(d){document.getElementById('tgt').value=d;pg('scan',null);doScan();}
 
-        <article class="absolute left-[14%] top-[18%] w-[100px] h-[100px] border border-c-primary bg-c-surface p-2 text-[12px] cursor-pointer">
-          <p>10.0.0.12</p><p class="text-c-primary">● ONLINE</p>
-        </article>
-        <article class="absolute left-[42%] top-[44%] w-[100px] h-[100px] border border-c-primary bg-c-surface p-2 text-[12px] cursor-pointer">
-          <p>10.0.0.21</p><p class="text-c-primary">● ONLINE</p>
-        </article>
-        <article class="absolute left-[76%] top-[26%] w-[100px] h-[100px] border border-c-accent bg-c-surface p-2 text-[12px] cursor-pointer glitch">
-          <p>10.0.0.66</p><p class="text-c-accent">● ALERT</p>
-        </article>
-        <article class="absolute left-[70%] top-[66%] w-[100px] h-[100px] border border-c-primary bg-c-surface p-2 text-[12px] cursor-pointer">
-          <p>10.0.0.99</p><p class="text-c-primary">● ONLINE</p>
-        </article>
+/* ==== DIR BUSTER ==== */
+async function doDir(){
+  var url=document.getElementById('dir-url').value.trim();var size=document.getElementById('dir-size').value;var ext=document.getElementById('dir-ext').value.trim();
+  if(!url)return;
+  var btn=document.getElementById('dir-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
+  document.getElementById('dir-res').innerHTML='<div style="color:var(--text3);font-size:13px">Enumerating directories...</div>';
+  try{
+    var r=await fetchWithTimeout('/dirbust?url='+encodeURIComponent(url)+'&size='+size+'&ext='+encodeURIComponent(ext),{},180000);
+    var d=await r.json();
+    if(d.error){document.getElementById('dir-res').innerHTML='<div class="err-box visible">'+d.error+'</div>';return;}
+    var html='<div class="found" style="margin-bottom:12px">'+d.total+' paths found &nbsp;&middot;&nbsp; '+d.scanned+' scanned</div>';
+    html+='<div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>URL</th><th>STATUS</th><th>SIZE</th><th>SEVERITY</th><th>NOTE</th></tr></thead><tbody>';
+    (d.found||[]).forEach(function(f){var sc=f.status;var sc_col=sc===200?'var(--green)':sc<400?'var(--yellow)':'var(--orange)';html+='<tr><td><a href="'+f.url+'" target="_blank" style="font-family:var(--mono);font-size:11px;color:var(--text)">'+f.url+'</a></td><td style="font-family:var(--mono);font-weight:500;color:'+sc_col+'">'+sc+'</td><td style="color:var(--text3)">'+(f.size||'?')+'</td><td>'+sev(f.severity)+'</td><td style="color:var(--text3);font-size:11px">'+(f.note||'')+'</td></tr>';});
+    html+='</tbody></table></div></div>';
+    document.getElementById('dir-res').innerHTML=html;
+  }catch(e){document.getElementById('dir-res').innerHTML='<div class="err-box visible">'+e.message+'</div>';}
+  finally{btn.disabled=false;btn.innerHTML='START ENUMERATION';}
+}
 
-        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <p class="text-c-muted text-lg tracking-widest"><span class="text-c-primary">_</span> NODE_TOPOLOGY_ACTIVE</p>
-        </div>
-      </div>
-    </section>
+/* ==== BRUTE FORCE ==== */
+var _bfWordlists={};
+function bfTypeChange(){var t=document.getElementById('bf-type').value;document.getElementById('bf-http-fields').style.display=t==='http'?'block':'none';document.getElementById('bf-ssh-fields').style.display=t==='ssh'?'block':'none';}
+async function bfWordlistMode(which){
+  var modeEl=document.getElementById('bf-'+(which==='user'?'user':'pass')+'-mode');
+  var textEl=document.getElementById('bf-'+(which==='user'?'users':'pwds'));
+  var lblEl=document.getElementById('bf-'+(which==='user'?'user':'pass')+'-src-lbl');
+  var statusEl=document.getElementById('bf-wordlist-status');
+  var mode=modeEl.value;
+  if(mode==='manual'){textEl.disabled=false;lblEl.textContent='(one per line)';return;}
+  var pathMap={
+    rockyou_users:'/usr/share/wordlists/rockyou.txt',
+    seclists_common:'/usr/share/seclists/Usernames/top-usernames-shortlist.txt',
+    seclists_top:'/usr/share/seclists/Usernames/Names/names.txt',
+    seclists_default_creds:'/usr/share/seclists/Passwords/Default-Credentials/default-passwords.txt',
+    rockyou:'/usr/share/wordlists/rockyou.txt',
+    seclists_10k:'/usr/share/seclists/Passwords/Common-Credentials/10k-most-common.txt',
+    seclists_100k:'/usr/share/seclists/Passwords/Common-Credentials/100k-most-common.txt',
+    seclists_default_creds_pass:'/usr/share/seclists/Passwords/Default-Credentials/default-passwords.txt',
+    seclists_darkweb:'/usr/share/seclists/Passwords/darkweb2017-top10000.txt'
+  };
+  var filePath=pathMap[mode];
+  if(!filePath){textEl.disabled=false;return;}
+  statusEl.style.display='block';
+  statusEl.textContent='[*] Loading wordlist: '+filePath+'...';
+  textEl.disabled=true;lblEl.textContent='(from: '+filePath.split('/').pop()+')';
+  try{
+    var r=await fetch('/api/wordlist?path='+encodeURIComponent(filePath)+'&limit='+(which==='user'?'200':'1000'));
+    var d=await r.json();
+    if(d.error){statusEl.textContent='[!] '+d.error;textEl.disabled=false;return;}
+    textEl.value=d.words.join('\n');
+    statusEl.textContent='[+] Loaded '+d.words.length+' entries from '+d.filename;
+    _bfWordlists[which]={path:filePath,count:d.words.length};
+  }catch(e){statusEl.textContent='[!] Failed to load wordlist: '+e.message;textEl.disabled=false;}
+}
+async function doBrute(){
+  var type=document.getElementById('bf-type').value;
+  var users=document.getElementById('bf-users').value.split('\n').map(function(s){return s.trim();}).filter(Boolean);
+  var pwds=document.getElementById('bf-pwds').value.split('\n').map(function(s){return s.trim();}).filter(Boolean);
+  if(!users.length||!pwds.length){alert('Enter at least one username and password');return;}
+  var btn=document.getElementById('bf-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Attacking...';
+  document.getElementById('bf-res').innerHTML='<div style="color:var(--text3);font-size:13px">Running -- '+users.length+' users x '+pwds.length+' passwords...</div>';
+  try{
+    var url='/brute-http',body={users:users,passwords:pwds};
+    // Pass wordlist paths for server-side use if large lists selected
+    if(_bfWordlists.user&&_bfWordlists.user.count>200)body.user_wordlist_path=_bfWordlists.user.path;
+    if(_bfWordlists.pass&&_bfWordlists.pass.count>1000)body.pass_wordlist_path=_bfWordlists.pass.path;
+    if(type==='http'){body.url=document.getElementById('bf-url').value.trim();body.user_field=document.getElementById('bf-ufield').value||'username';body.pass_field=document.getElementById('bf-pfield').value||'password';}
+    else{url='/brute-ssh';body.host=document.getElementById('bf-ssh-host').value.trim();body.port=document.getElementById('bf-ssh-port').value||'22';}
+    var r=await fetchWithTimeout(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},120000);
+    var d=await r.json();
+    var found=d.found||[];
+    document.getElementById('bf-res').innerHTML='<div class="found" style="margin-bottom:12px">'+found.length+' credentials found &nbsp;&middot;&nbsp; '+(d.attempts||0)+' attempts</div>'+(found.length?'<div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>USERNAME</th><th>PASSWORD</th><th>STATUS</th></tr></thead><tbody>'+found.map(function(f){return'<tr><td style="font-family:var(--mono)">'+f.username+'</td><td style="font-family:var(--mono);color:var(--red);font-weight:500">'+f.password+'</td><td style="color:var(--green)">SUCCESS</td></tr>';}).join('')+'</tbody></table></div></div>':'<div style="color:var(--green);font-size:13px">No valid credentials found.</div>');
+  }catch(e){document.getElementById('bf-res').innerHTML='<div class="err-box visible">'+e.message+'</div>';}
+  finally{btn.disabled=false;btn.innerHTML='START BRUTE FORCE';}
+}
 
-    <aside id="target-panel" class="hidden absolute top-6 right-6 w-[400px] h-[calc(100vh-48px)] bg-c-surface border border-c-muted p-5 shadow-brutal z-20">
-      <h2 class="text-2xl font-bold uppercase tracking-tight mb-6">Target Injection</h2>
-      <label class="block text-xs uppercase mb-2">Target IP / Domain</label>
-      <input id="target-input" class="w-full h-12 bg-c-bg border border-c-muted px-3 text-c-primary text-lg focus:outline-none focus:border-c-primary focus:shadow-brutal" placeholder="ENTER_TARGET_IP..." />
+/* ==== DISCOVER ==== */
+async function doDisc(){
+  var subnet=document.getElementById('subnet').value.trim();if(!subnet)return;
+  var btn=document.getElementById('disc-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
+  document.getElementById('disc-res').innerHTML='<div style="color:var(--text3)">Scanning subnet...</div>';
+  try{
+    var r=await fetchWithTimeout('/discover?subnet='+encodeURIComponent(subnet),{},120000);
+    var d=await r.json();
+    if(d.error){document.getElementById('disc-res').innerHTML='<div class="err-box visible">'+d.error+'</div>';return;}
+    document.getElementById('disc-res').innerHTML='<div class="found" style="margin-bottom:12px">'+(d.total||0)+' hosts found</div><div class="host-grid">'+(d.hosts||[]).map(function(h){return'<div class="host-card" onclick="scanDisc(\''+h.ip+'\')"><div class="host-card-ip">'+h.ip+'</div>'+(h.hostnames&&h.hostnames[0]?'<div class="host-card-hn">'+h.hostnames[0]+'</div>':'')+(h.vendor?'<div style="font-size:10px;color:var(--text3);margin-top:2px">'+h.vendor+'</div>':'')+'<div style="font-size:10px;color:var(--text3);margin-top:6px">Click to scan &#8250;</div></div>';}).join('')+'</div>';
+  }catch(e){document.getElementById('disc-res').innerHTML='<div class="err-box visible">'+e.message+'</div>';}
+  finally{btn.disabled=false;btn.innerHTML='DISCOVER';}
+}
+function scanDisc(ip){document.getElementById('tgt').value=ip;pg('scan',null);doScan();}
 
-      <div class="mt-8 space-y-4 uppercase text-sm">
-        <label class="flex items-center gap-3 cursor-pointer"><input type="checkbox" class="peer hidden"><span class="w-6 h-6 border border-c-primary inline-flex items-center justify-center"><span class="hidden peer-checked:block w-4 h-4 bg-c-primary"></span></span><span>Nmap</span></label>
-        <label class="flex items-center gap-3 cursor-pointer"><input type="checkbox" class="peer hidden"><span class="w-6 h-6 border border-c-primary inline-flex items-center justify-center"><span class="hidden peer-checked:block w-4 h-4 bg-c-primary"></span></span><span>Dirb</span></label>
-        <label class="flex items-center gap-3 cursor-pointer"><input type="checkbox" class="peer hidden"><span class="w-6 h-6 border border-c-primary inline-flex items-center justify-center"><span class="hidden peer-checked:block w-4 h-4 bg-c-primary"></span></span><span>Nikto</span></label>
-      </div>
+/* ==== HISTORY ==== */
+async function loadHist(){
+  try{
+    var r=await fetch('/history');var d=await r.json();
+    if(!Array.isArray(d)||!d.length){document.getElementById('hist-content').innerHTML='<div class="card-p" style="color:var(--text3)">No scans yet.</div>';return;}
+    document.getElementById('hist-content').innerHTML='<div class="tbl-wrap"><table class="tbl"><thead><tr><th>#</th><th>TARGET</th><th>TIME</th><th>PORTS</th><th>CVEs</th><th>CRITICAL</th><th></th></tr></thead><tbody>'+d.map(function(s){return'<tr><td style="color:var(--text3)">#'+s.id+'</td><td style="font-family:var(--mono)">'+s.target+'</td><td style="color:var(--text3);font-size:11px">'+((s.scan_time||'').replace('T',' ').substring(0,19))+'</td><td>'+s.open_ports+'</td><td>'+s.total_cves+'</td><td style="color:'+(s.critical_cves>0?'var(--red)':'var(--text3)')+'">'+s.critical_cves+'</td><td><button class="btn btn-ghost btn-sm" onclick="loadScan('+s.id+')">View</button></td></tr>';}).join('')+'</tbody></table></div>';
+  }catch(e){document.getElementById('hist-content').innerHTML='<div class="card-p" style="color:var(--red)">'+e.message+'</div>';}
+}
+async function loadScan(id){
+  pg('scan',null);clrUI();
+  try{var r=await fetch('/scan/'+id);var d=await r.json();document.getElementById('tgt').value=d.target||'';renderScan(d);}
+  catch(e){showErr('err','Error: '+e.message);}
+}
 
-      <button id="execute-btn" class="mt-8 w-full h-12 border border-c-primary text-c-primary font-bold uppercase shadow-brutal hover:bg-c-primary hover:text-c-bg">[execute]</button>
-    </aside>
+/* ==== DASHBOARD ==== */
+async function loadDash(){
+  try{
+    var r=await fetch('/history?limit=200');var d=await r.json();
+    var el=document.getElementById('dash-content');
+    if(!d.length){el.innerHTML='<div style="color:var(--text3)">Run some scans first.</div>';return;}
+    var tc=d.reduce(function(a,s){return a+s.total_cves;},0),cr=d.reduce(function(a,s){return a+s.critical_cves;},0),tp=d.reduce(function(a,s){return a+s.open_ports;},0),high=d.reduce(function(a,s){return a+(s.high_cves||0);},0);
+    var avg=(tc/d.length)||0,risky=d.filter(function(s){return (s.critical_cves||0)>0;}).length,clean=d.filter(function(s){return (s.total_cves||0)===0;}).length;
+    var last=d[0]||{},recent7=d.slice(0,7).reduce(function(a,s){return a+s.total_cves;},0),critRate=((cr/Math.max(tc,1))*100).toFixed(1);
+    var byTarget={};d.forEach(function(s){if(!byTarget[s.target])byTarget[s.target]={cves:0};byTarget[s.target].cves+=s.total_cves;});
+    var topTargets=Object.entries(byTarget).sort(function(a,b){return b[1].cves-a[1].cves;}).slice(0,8);
+    var mx=Math.max.apply(null,topTargets.map(function(t){return t[1].cves;}).concat([1]));
+    var modMap={};d.forEach(function(s){(s.modules||'').split(',').forEach(function(m){m=m.trim();if(m)modMap[m]=(modMap[m]||0)+1;});});
+    var topMods=Object.entries(modMap).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
+    var days30=d.filter(function(s){return s.scan_time&&(Date.now()-new Date(s.scan_time).getTime())<30*86400000;}).length;
+    el.innerHTML='<div class="stats" style="margin-bottom:18px">'+
+      '<div class="stat"><div class="stat-val">'+d.length+'</div><div class="stat-lbl">TOTAL SCANS</div></div>'+
+      '<div class="stat"><div class="stat-val" style="color:var(--yellow)">'+tc+'</div><div class="stat-lbl">TOTAL CVEs</div></div>'+
+      '<div class="stat"><div class="stat-val" style="color:var(--red)">'+cr+'</div><div class="stat-lbl">CRITICAL</div></div>'+
+      '<div class="stat"><div class="stat-val" style="color:var(--orange)">'+high+'</div><div class="stat-lbl">HIGH</div></div>'+
+      '<div class="stat"><div class="stat-val">'+tp+'</div><div class="stat-lbl">OPEN PORTS</div></div>'+
+      '<div class="stat"><div class="stat-val">'+avg.toFixed(1)+'</div><div class="stat-lbl">AVG CVE/SCAN</div></div>'+
+      '<div class="stat"><div class="stat-val" style="color:var(--red)">'+risky+'</div><div class="stat-lbl">RISKY TARGETS</div></div>'+
+      '<div class="stat"><div class="stat-val" style="color:var(--green)">'+clean+'</div><div class="stat-lbl">CLEAN SCANS</div></div>'+
+      '<div class="stat"><div class="stat-val">'+days30+'</div><div class="stat-lbl">LAST 30 DAYS</div></div>'+
+      '</div>'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:14px">'+
+      '<div class="card card-p"><div class="card-title" style="margin-bottom:12px">Risk Overview</div><div style="display:grid;gap:8px;font-size:12px">'+
+      '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text3)">Critical rate</span><span style="color:var(--red);font-family:var(--mono);font-weight:600">'+critRate+'%</span></div>'+
+      '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text3)">CVEs last 7 scans</span><span style="font-family:var(--mono)">'+recent7+'</span></div>'+
+      '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text3)">Avg open ports</span><span style="font-family:var(--mono)">'+(tp/d.length).toFixed(1)+'</span></div>'+
+      '<div style="display:flex;justify-content:space-between;padding:7px 0"><span style="color:var(--text3)">Latest target</span><span style="font-family:var(--mono)">'+(last.target||'--').substring(0,20)+'</span></div></div></div>'+
+      '<div class="card card-p"><div class="card-title" style="margin-bottom:12px">Top Targets by CVEs</div>'+topTargets.map(function(kv){return'<div class="bar-row"><span class="bar-label">'+kv[0].substring(0,16)+'</span><div class="bar-track"><div class="bar-fill" style="width:'+((kv[1].cves/mx)*100)+'%"></div></div><span class="bar-val" style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+kv[1].cves+'</span></div>';}).join('')+'</div>'+
+      (topMods.length?'<div class="card card-p"><div class="card-title" style="margin-bottom:12px">Most Used Modules</div>'+topMods.map(function(kv){return'<div class="bar-row"><span class="bar-label">'+kv[0].substring(0,16)+'</span><div class="bar-track"><div class="bar-fill" style="width:'+((kv[1]/d.length)*100)+'%"></div></div><span class="bar-val" style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+kv[1]+'</span></div>';}).join('')+'</div>':'')+
+      '</div>'+
+      '<div class="card"><div class="card-header"><div class="card-title">Recent Scan Activity</div></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>#</th><th>TARGET</th><th>TIME</th><th>PORTS</th><th>CRITICAL</th><th>CVEs</th><th>MODULES</th><th></th></tr></thead><tbody>'+
+      d.slice(0,20).map(function(s){return'<tr><td style="color:var(--text3);font-family:var(--mono)">#'+s.id+'</td><td style="font-family:var(--mono)">'+s.target+'</td><td style="color:var(--text3);font-size:11px">'+((s.scan_time||'').replace('T',' ').substring(0,16))+'</td><td>'+s.open_ports+'</td><td style="color:'+(s.critical_cves>0?'var(--red)':'var(--green)')+';font-weight:600">'+s.critical_cves+'</td><td style="color:'+(s.total_cves>0?'var(--yellow)':'var(--text3)')+'">'+s.total_cves+'</td><td style="font-size:10px;color:var(--text3)">'+((s.modules||'ports').split(',').join(' · '))+'</td><td><button class="btn btn-ghost btn-sm" onclick="loadScan('+s.id+')">View</button></td></tr>';}).join('')+
+      '</tbody></table></div></div>';
+  }catch(e){document.getElementById('dash-content').innerHTML='<div style="color:var(--red)">'+e.message+'</div>';}
+}
 
-    <section id="execution-screen" class="hidden h-full relative">
-      <div class="absolute left-4 top-4 w-[60vw] h-[70vh] border border-c-primary bg-c-surface shadow-brutal p-4">
-        <h3 class="uppercase mb-3 text-sm glow">Execution Terminal</h3>
-        <pre id="terminal-log" class="h-[calc(100%-28px)] overflow-auto text-[14px] leading-[1.2]">INITIALIZING_HANDSHAKE...</pre>
-      </div>
-      <div class="absolute right-4 top-4 w-[28vw] border border-c-muted bg-c-surface p-4">
-        <p class="uppercase mb-2">CPU [||||||    ] 60%</p>
-        <p class="uppercase">MEM [||||      ] 40%</p>
-      </div>
-      <button id="abort-btn" class="absolute right-4 bottom-4 w-[200px] h-[60px] border border-c-accent text-c-accent font-bold shadow-brutal-accent hover:bg-c-accent hover:text-c-bg">[SIGINT / ABORT]</button>
-      <button id="open-matrix" class="absolute left-4 bottom-4 h-12 px-6 border border-c-primary text-c-primary shadow-brutal hover:bg-c-primary hover:text-c-bg">[THREAT_MATRIX]</button>
-    </section>
+/* ==== ADMIN ==== */
+function adminTab(e,id){
+  document.querySelectorAll('#admin-tabs .tab').forEach(function(t){t.classList.remove('active');});
+  document.querySelectorAll('#page-admin .tc').forEach(function(t){t.classList.remove('active');});
+  e.currentTarget.classList.add('active');document.getElementById(id).classList.add('active');
+  if(id==='at-users')loadAdminUsers();if(id==='at-stats')loadAdminStats();
+  if(id==='at-audit')loadAdminAudit();if(id==='at-scans')loadAdminScans();
+  if(id==='at-services')loadAdminServices();
+  if(id==='at-cli'){loadServerStats();initCliHeader();}
+  if(id!=='at-cli'&&window._statsInterval){clearInterval(window._statsInterval);window._statsInterval=null;}
+  if(id!=='at-services'&&window._svcInterval){clearInterval(window._svcInterval);window._svcInterval=null;}
+}
+async function loadAdmin(){loadServerStats();setTimeout(initCliHeader,400);}
+var _statsInterval=null;
+function fmtBytes(b){if(b===null||b===undefined)return'--';if(b>=1073741824)return(b/1073741824).toFixed(1)+'G';if(b>=1048576)return(b/1048576).toFixed(1)+'M';if(b>=1024)return(b/1024).toFixed(1)+'K';return b+'B';}
+function setBar(id,pct){var el=document.getElementById(id);if(!el)return;el.style.width=Math.min(100,pct)+'%';}
+async function loadServerStats(){
+  try{
+    var r=await fetch('/api/server-stats');var d=await r.json();if(d.error)return;
+    var cpuPct=d.cpu_percent||0;var cpuEl=document.getElementById('cpu-val');if(cpuEl)cpuEl.textContent=cpuPct+'%';setBar('cpu-bar',cpuPct);var coresEl=document.getElementById('cpu-cores');if(coresEl)coresEl.textContent=(d.cpu_count||'?')+' cores';
+    var memPct=d.memory?d.memory.percent:0;var memEl=document.getElementById('mem-val');if(memEl)memEl.textContent=memPct+'%';setBar('mem-bar',memPct);var memTot=document.getElementById('mem-total');if(memTot)memTot.textContent='of '+fmtBytes(d.memory?d.memory.total:0);
+    var swapPct=d.swap?d.swap.percent:0;var swapEl=document.getElementById('swap-val');if(swapEl)swapEl.textContent=swapPct+'%';setBar('swap-bar',swapPct);var swapTot=document.getElementById('swap-total');if(swapTot)swapTot.textContent='of '+fmtBytes(d.swap?d.swap.total:0);
+    var diskPct=d.disk?d.disk.percent:0;var diskEl=document.getElementById('disk-val');if(diskEl)diskEl.textContent=diskPct+'%';setBar('disk-bar',diskPct);var diskTot=document.getElementById('disk-total');if(diskTot)diskTot.textContent='of '+fmtBytes(d.disk?d.disk.total:0);
+    var txEl=document.getElementById('net-tx');var rxEl=document.getElementById('net-rx');if(txEl)txEl.textContent=fmtBytes(d.net?d.net.bytes_sent:0);if(rxEl)rxEl.textContent=fmtBytes(d.net?d.net.bytes_recv:0);var ifaceEl=document.getElementById('net-iface');if(ifaceEl)ifaceEl.textContent=d.net?d.net.iface||'':'';
+    var upEl=document.getElementById('sys-uptime');if(upEl&&d.uptime)upEl.textContent=d.uptime;var ldEl=document.getElementById('sys-load');if(ldEl&&d.load_avg)ldEl.textContent=d.load_avg;var prEl=document.getElementById('sys-procs');if(prEl)prEl.textContent=(d.process_count||'?')+' procs';
+    var tsEl=document.getElementById('stats-updated');if(tsEl)tsEl.textContent='UPDATED '+new Date().toLocaleTimeString();
+  }catch(e){}
+  if(!window._statsInterval)window._statsInterval=setInterval(function(){var cp=document.getElementById('at-cli');if(cp&&cp.classList.contains('active'))loadServerStats();else{clearInterval(window._statsInterval);window._statsInterval=null;}},3000);
+}
+async function loadAdminUsers(){
+  try{var r=await fetch('/api/admin/users');var d=await r.json();document.getElementById('admin-users-table').innerHTML='<table class="tbl"><thead><tr><th>#</th><th>USERNAME</th><th>EMAIL</th><th>ROLE</th><th>ACTIVE</th><th>LOGINS</th><th>LAST LOGIN</th><th>ACTIONS</th></tr></thead><tbody>'+d.map(function(u){return'<tr><td style="color:var(--text3)">#'+u.id+'</td><td style="font-family:var(--mono)">'+u.username+'</td><td style="font-size:11px;color:var(--text3)">'+u.email+'</td><td><span class="badge '+(u.role==='admin'?'badge-admin':'badge-user')+'">'+u.role+'</span></td><td style="color:'+(u.is_active?'var(--green)':'var(--red)')+'">'+( u.is_active?'Active':'Disabled')+'</td><td style="color:var(--text3)">'+(u.login_count||0)+'</td><td style="font-size:11px;color:var(--text3)">'+((u.last_login||'never').substring(0,16))+'</td><td style="display:flex;gap:4px;flex-wrap:wrap"><button class="btn btn-outline btn-sm" onclick="toggleUser('+u.id+')">'+(u.is_active?'Disable':'Enable')+'</button><button class="btn btn-outline btn-sm" onclick="setRole('+u.id+',\''+(u.role==='admin'?'user':'admin')+'\')">'+(u.role==='admin'?'User':'Admin')+'</button><button class="btn btn-danger btn-sm" onclick="deleteUser('+u.id+')">Del</button></td></tr>';}).join('')+'</tbody></table>';}catch(e){}
+}
+async function adminCreateUser(){
+  var fullName=(document.getElementById('au-full-name')||{}).value||'';
+  var username=(document.getElementById('au-username')||{}).value||'';
+  var email=(document.getElementById('au-email')||{}).value||'';
+  var msg=document.getElementById('admin-create-user-msg');
+  if(msg){msg.className='auth-msg';msg.textContent='';}
+  try{
+    var r=await fetch('/api/admin/users/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({full_name:fullName,username:username,email:email})});
+    var d=await r.json();
+    if(msg){
+      msg.className='auth-msg '+(d.success?'ok':'err');
+      msg.textContent=d.message||d.error||'Request completed.';
+    }
+    if(d.success){
+      document.getElementById('au-full-name').value='';
+      document.getElementById('au-username').value='';
+      document.getElementById('au-email').value='';
+      loadAdminUsers();
+    }
+  }catch(e){
+    if(msg){msg.className='auth-msg err';msg.textContent='Failed to create user: '+e.message;}
+  }
+}
+async function toggleUser(id){await fetch('/api/admin/users/'+id+'/toggle',{method:'POST'});loadAdminUsers();}
+async function setRole(id,role){await fetch('/api/admin/users/'+id+'/role',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role:role})});loadAdminUsers();}
+async function deleteUser(id){if(!confirm('Delete this user?'))return;await fetch('/api/admin/users/'+id,{method:'DELETE'});loadAdminUsers();}
+async function loadAdminStats(){try{var r=await fetch('/api/admin/stats');var d=await r.json();document.getElementById('admin-stats').innerHTML='<div class="stats"><div class="stat"><div class="stat-val">'+(d.total_users||0)+'</div><div class="stat-lbl">USERS</div></div><div class="stat"><div class="stat-val">'+(d.verified_users||0)+'</div><div class="stat-lbl">VERIFIED</div></div><div class="stat"><div class="stat-val">'+(d.total_scans||0)+'</div><div class="stat-lbl">SCANS</div></div><div class="stat"><div class="stat-val">'+(d.scans_today||0)+'</div><div class="stat-lbl">TODAY</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">'+(d.critical_cves||0)+'</div><div class="stat-lbl">CRITICAL</div></div><div class="stat"><div class="stat-val">'+(d.total_cves||0)+'</div><div class="stat-lbl">TOTAL CVEs</div></div></div>';}catch(e){}}
+async function loadAdminAudit(){try{var r=await fetch('/api/admin/audit?limit=200');var d=await r.json();document.getElementById('admin-audit').innerHTML='<table class="tbl"><thead><tr><th>TIME</th><th>USER</th><th>ACTION</th><th>TARGET</th><th>IP</th></tr></thead><tbody>'+d.map(function(l){return'<tr><td style="font-size:11px;color:var(--text3)">'+((l.timestamp||'').substring(0,16))+'</td><td style="font-family:var(--mono)">'+(l.username||'--')+'</td><td><span class="tag">'+(l.action||'')+'</span></td><td style="font-size:11px;color:var(--text3)">'+(l.target||'--')+'</td><td style="font-size:11px;color:var(--text3)">'+(l.ip_address||'--')+'</td></tr>';}).join('')+'</tbody></table>';}catch(e){}}
+async function loadAdminScans(){try{var r=await fetch('/api/admin/scans');var d=await r.json();document.getElementById('admin-scans').innerHTML='<table class="tbl"><thead><tr><th>#</th><th>TARGET</th><th>TIME</th><th>PORTS</th><th>CVEs</th><th>CRITICAL</th><th></th></tr></thead><tbody>'+d.map(function(s){return'<tr><td style="color:var(--text3)">#'+s.id+'</td><td style="font-family:var(--mono)">'+s.target+'</td><td style="font-size:11px;color:var(--text3)">'+((s.scan_time||'').replace('T',' ').substring(0,19))+'</td><td>'+s.open_ports+'</td><td>'+s.total_cves+'</td><td style="color:'+(s.critical_cves>0?'var(--red)':'var(--text3)')+'">'+s.critical_cves+'</td><td><button class="btn btn-ghost btn-sm" onclick="loadScan('+s.id+')">View</button></td></tr>';}).join('')+'</tbody></table>';}catch(e){}}
+var _svcInterval=null;
+function svcPill(status){
+  var c=status==='running'?'var(--green)':status==='stopped'?'var(--red)':'var(--yellow)';
+  return '<span class="tag" style="border-color:'+c+'40;color:'+c+'">'+status.toUpperCase()+'</span>';
+}
+async function loadAdminServices(){
+  try{
+    var r=await fetch('/api/admin/services');var d=await r.json();
+    var list=(d.services||[]);
+    var html='<table class="tbl"><thead><tr><th>SERVICE</th><th>TYPE</th><th>UNIT/CMD</th><th>STATUS</th><th>DETAIL</th><th>ACTIONS</th></tr></thead><tbody>';
+    html+=list.map(function(s){
+      var unitInfo=(s.kind==='systemctl'?(s.unit||'--'):(s.check_cmd||'custom').substring(0,30));
+      return '<tr data-svc-key="'+s.key+'" data-svc-label="'+(s.label||'')+'" data-svc-kind="'+(s.kind||'')+'" data-svc-unit="'+(s.unit||'')+'" data-svc-check="'+(s.check_cmd||'')+'" data-svc-start="'+(s.start_cmd||'')+'" data-svc-stop="'+(s.stop_cmd||'')+'" data-svc-restart="'+(s.restart_cmd||'')+'">'+
+        '<td style="font-family:var(--mono);font-weight:500">'+(s.label||s.key)+'</td>'+
+        '<td><span class="tag">'+(s.kind||'--')+'</span></td>'+
+        '<td style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+unitInfo+'</td>'+
+        '<td>'+svcPill(s.status||'unknown')+'</td>'+
+        '<td style="font-size:11px;color:var(--text3);max-width:220px">'+((s.detail||'--').replace(/</g,'&lt;').substring(0,80))+'</td>'+
+        '<td style="display:flex;gap:4px;flex-wrap:wrap"><button class="btn btn-outline btn-sm" onclick="serviceAction(\''+s.key+'\',\'start\')">Start</button><button class="btn btn-outline btn-sm" onclick="serviceAction(\''+s.key+'\',\'stop\')">Stop</button><button class="btn btn-outline btn-sm" onclick="serviceAction(\''+s.key+'\',\'restart\')">Restart</button><button class="btn btn-outline btn-sm" style="color:var(--blue)" onclick="editService(\''+s.key+'\')">Edit</button></td></tr>';
+    }).join('');
+    html+='</tbody></table>';
+    document.getElementById('admin-services-table').innerHTML=html;
+  }catch(e){
+    document.getElementById('admin-services-table').innerHTML='<div style="color:var(--red)">Failed to load services: '+e.message+'</div>';
+  }
+  if(!_svcInterval)_svcInterval=setInterval(function(){var p=document.getElementById('at-services');if(p&&p.classList.contains('active'))loadAdminServices();else{clearInterval(_svcInterval);_svcInterval=null;}},7000);
+}
+async function serviceAction(key,action){
+  try{
+    var r=await fetch('/api/admin/services/'+encodeURIComponent(key)+'/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:action})});
+    var d=await r.json();
+    toast((d.ok?'Service action success: ':'Service action failed: ')+key+' '+action,d.ok?'ok':'err');
+  }catch(e){toast('Service action error: '+e.message,'err');}
+  loadAdminServices();
+}
+var _svcEditKey=null;
+function svcKindChange(){
+  var kind=(document.getElementById('svc-kind')||{}).value||'systemctl';
+  var sf=document.getElementById('svc-systemctl-fields');
+  var cf=document.getElementById('svc-command-fields');
+  if(sf)sf.style.display=kind==='systemctl'?'grid':'none';
+  if(cf)cf.style.display=kind==='command'?'block':'none';
+}
+function applyServicePreset(p){
+  if(p==='apache2'||p==='nginx'){
+    var svcName=p==='apache2'?'Apache':'Nginx';
+    document.getElementById('svc-label').value=svcName+' Web Server';
+    document.getElementById('svc-key').value=p;
+    document.getElementById('svc-kind').value='systemctl';
+    document.getElementById('svc-unit').value=p;
+    if(document.getElementById('svc-check'))document.getElementById('svc-check').value='';
+  }else if(p==='supabase'){
+    document.getElementById('svc-label').value='Supabase';
+    document.getElementById('svc-key').value='supabase';
+    document.getElementById('svc-kind').value='command';
+    document.getElementById('svc-unit').value='';
+    if(document.getElementById('svc-check'))document.getElementById('svc-check').value='cd ~/vulnscan && python3 -c "from dotenv import load_dotenv; load_dotenv(\\\'.env\\\'); from supabase_config import supabase; supabase().table(\\\'users\\\').select(\\\'id\\\').limit(1).execute(); print(\\\'OK\\\')"';
+  }else if(p==='clear'){
+    ['svc-label','svc-key','svc-unit','svc-check','svc-desc','svc-start','svc-stop','svc-restart'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+    _svcEditKey=null;
+    var ft=document.getElementById('svc-form-title');if(ft)ft.textContent='Add New Monitored Service';
+    var fl=document.getElementById('svc-form-mode-lbl');if(fl)fl.textContent='NEW SERVICE';
+    var sb=document.getElementById('svc-submit-btn');if(sb)sb.textContent='ADD SERVICE';
+    var ce=document.getElementById('svc-cancel-edit');if(ce)ce.style.display='none';
+  }
+  svcKindChange();
+}
+function editService(key){
+  var row=document.querySelector('[data-svc-key="'+key+'"]');
+  if(!row)return;
+  _svcEditKey=key;
+  document.getElementById('svc-label').value=row.getAttribute('data-svc-label')||key;
+  document.getElementById('svc-key').value=key;
+  document.getElementById('svc-kind').value=row.getAttribute('data-svc-kind')||'systemctl';
+  if(document.getElementById('svc-unit'))document.getElementById('svc-unit').value=row.getAttribute('data-svc-unit')||'';
+  if(document.getElementById('svc-check'))document.getElementById('svc-check').value=row.getAttribute('data-svc-check')||'';
+  if(document.getElementById('svc-start'))document.getElementById('svc-start').value=row.getAttribute('data-svc-start')||'';
+  if(document.getElementById('svc-stop'))document.getElementById('svc-stop').value=row.getAttribute('data-svc-stop')||'';
+  if(document.getElementById('svc-restart'))document.getElementById('svc-restart').value=row.getAttribute('data-svc-restart')||'';
+  svcKindChange();
+  var ft=document.getElementById('svc-form-title');if(ft)ft.textContent='Edit Service: '+key;
+  var fl=document.getElementById('svc-form-mode-lbl');if(fl)fl.textContent='EDITING';
+  var sb=document.getElementById('svc-submit-btn');if(sb)sb.textContent='SAVE CHANGES';
+  var ce=document.getElementById('svc-cancel-edit');if(ce)ce.style.display='inline-flex';
+}
+function cancelServiceEdit(){applyServicePreset('clear');}
+async function submitServiceForm(){
+  var label=(document.getElementById('svc-label')||{}).value||'';
+  var key=(document.getElementById('svc-key')||{}).value||'';
+  var kind=(document.getElementById('svc-kind')||{}).value||'systemctl';
+  var unit=(document.getElementById('svc-unit')||{}).value||'';
+  var checkCmd=(document.getElementById('svc-check')||{}).value||'';
+  var startCmd=(document.getElementById('svc-start')||{}).value||'';
+  var stopCmd=(document.getElementById('svc-stop')||{}).value||'';
+  var restartCmd=(document.getElementById('svc-restart')||{}).value||'';
+  var msg=document.getElementById('svc-msg');
+  var isEdit=!!_svcEditKey;
+  try{
+    var endpoint=isEdit?'/api/admin/services/'+encodeURIComponent(_svcEditKey):'/api/admin/services';
+    var method=isEdit?'PUT':'POST';
+    var r=await fetch(endpoint,{method:method,headers:{'Content-Type':'application/json'},body:JSON.stringify({label:label,key:key,kind:kind,unit:unit,check_cmd:checkCmd,control_cmds:{start:startCmd,stop:stopCmd,restart:restartCmd}})});
+    var d=await r.json();
+    if(!r.ok||d.error){if(msg){msg.style.color='var(--red)';msg.textContent=d.error||'Failed';}return;}
+    if(msg){msg.style.color='var(--green)';msg.textContent=isEdit?'Service updated.':'Service added.';}
+    cancelServiceEdit();
+    loadAdminServices();
+  }catch(e){if(msg){msg.style.color='var(--red)';msg.textContent='Error: '+e.message;}}
+}
+async function addMonitoredService(){submitServiceForm();}
 
-    <section id="matrix-screen" class="hidden h-full p-4">
-      <div class="h-full border border-c-muted bg-c-surface p-4">
-        <div class="grid grid-cols-4 gap-4 mb-4 text-xs uppercase">
-          <div class="border border-c-accent p-3">Critical: 4</div>
-          <div class="border border-c-primary p-3">High: 9</div>
-          <div class="border border-c-primary p-3">Medium: 14</div>
-          <div class="border border-c-primary p-3">Low: 27</div>
-        </div>
-        <div class="grid grid-cols-4 text-xs uppercase border-b border-c-muted py-2">
-          <span>ID</span><span>Severity</span><span>CWE_DESC</span><span>Endpoint</span>
-        </div>
-        <div class="grid grid-cols-4 text-xs h-10 items-center border-b border-dashed border-c-muted hover:bg-[#111111] cursor-crosshair"><span>VS-122</span><span><span class="inline-block px-2 py-1 bg-c-accent text-c-bg font-bold">critical</span></span><span>RCE via deserialization</span><span>/api/v1/upload</span></div>
-        <div class="grid grid-cols-4 text-xs h-10 items-center border-b border-dashed border-c-muted hover:bg-[#111111] cursor-crosshair"><span>VS-184</span><span>high</span><span>SQL Injection</span><span>/auth/login</span></div>
-        <div class="grid grid-cols-4 text-xs h-10 items-center border-b border-dashed border-c-muted hover:bg-[#111111] cursor-crosshair"><span>VS-211</span><span>medium</span><span>Missing CSP Header</span><span>/</span></div>
-        <button id="dump-btn" class="absolute right-8 bottom-8 h-12 px-6 border border-c-primary text-c-primary shadow-brutal hover:bg-c-primary hover:text-c-bg">[DUMP_JSON]</button>
-      </div>
-    </section>
-  </main>
+/* ==== CLI ==== */
+var _cliHistory=[],_cliHistIdx=-1;
+function initCliHeader(){
+  try{fetch('/api/exec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:'hostname'})}).then(function(r){return r.json();}).then(function(d){var el=document.getElementById('cli-hostname');if(el&&d.output)el.textContent=d.output.trim();}).catch(function(){});}catch(e){}
+  var ul=document.getElementById('cli-user-label');if(ul&&currentUser)ul.textContent=currentUser.username;
+}
+async function cliRun(){
+  var inp=document.getElementById('cli-input');var out=document.getElementById('cli-output');var sb=document.getElementById('cli-statusbar');
+  if(!inp||!out)return;var cmd=inp.value.trim();if(!cmd)return;
+  if(_cliHistory[0]!==cmd)_cliHistory.unshift(cmd);if(_cliHistory.length>50)_cliHistory.pop();_cliHistIdx=-1;
+  var ts=new Date().toLocaleTimeString();
+  out.innerHTML+='<div class="cli-cmd-line"><span style="color:var(--text3)">['+ts+']</span> $ '+cmd.replace(/</g,'&lt;')+'</div>';
+  inp.value='';if(sb)sb.innerHTML='<div class="pulse"></div><span>Running...</span>';
+  try{
+    var r=await fetch('/api/exec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:cmd})});
+    var d=await r.json();
+    if(d.error)out.innerHTML+='<div class="cli-err">'+d.error.replace(/</g,'&lt;')+'</div>';
+    if(d.output)out.innerHTML+='<div class="cli-resp">'+d.output.replace(/</g,'&lt;')+'</div>';
+    if(!d.output&&!d.error)out.innerHTML+='<div style="color:var(--text3);font-size:11px">(no output)</div>';
+    if(sb)sb.innerHTML='<div class="pulse"></div><span>Ready | '+_cliHistory.length+' in history | Exit: '+(d.exit_code!=null?d.exit_code:'?')+'</span>';
+  }catch(e){out.innerHTML+='<div class="cli-err">Network error: '+e.message+'</div>';if(sb)sb.innerHTML='<div class="pulse" style="background:var(--red)"></div><span>Error</span>';}
+  out.scrollTop=out.scrollHeight;
+}
+function cliKey(e){
+  var inp=document.getElementById('cli-input');if(!inp)return;
+  if(e.key==='Enter'){e.preventDefault();cliRun();}
+  else if(e.key==='ArrowUp'){e.preventDefault();if(_cliHistIdx<_cliHistory.length-1){_cliHistIdx++;inp.value=_cliHistory[_cliHistIdx]||'';}}
+  else if(e.key==='ArrowDown'){e.preventDefault();if(_cliHistIdx>0){_cliHistIdx--;inp.value=_cliHistory[_cliHistIdx]||'';}else{_cliHistIdx=-1;inp.value='';}}
+}
+function cliClear(){var out=document.getElementById('cli-output');if(out)out.innerHTML='<div style="color:var(--text3);font-size:11px">Terminal cleared.</div>';}
+function cliQuick(cmd){var inp=document.getElementById('cli-input');if(inp){inp.value=cmd;cliRun();}}
 
-  <script>
-    const $ = (id) => document.getElementById(id);
-    const screens = ['nexus-screen','execution-screen','matrix-screen'];
-    const showScreen = (id) => screens.forEach(s => $(s).classList.toggle('hidden', s !== id));
+/* ==== PDF REPORT ==== */
+async function exportPDF(){
+  var data=window._sd;if(!data){alert('Run a scan first');return;}
+  try{var r=await fetchWithTimeout('/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)},60000);if(!r.ok)throw new Error(await r.text());var blob=await r.blob();var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download='vulnscan-'+(data.target||'report')+'-'+new Date().toISOString().slice(0,10)+'.pdf';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);}
+  catch(e){alert('PDF failed: '+e.message);}
+}
 
-    setInterval(() => {
-      $('hud-clock').textContent = new Date().toISOString().replace('T',' ').slice(0,19) + 'Z';
-    }, 500);
+/* ==== EMAIL VERIFY ==== */
+var vt=new URLSearchParams(location.search).get('verify');
+if(vt){fetch('/api/verify/'+vt).then(function(r){return r.json();}).then(function(d){if(d.success){authMsg(d.message+' You can now login.','ok');authTab('login');}else authMsg(d.error||'Verification failed','err');});}
 
-    $('new-target-btn').onclick = () => $('target-panel').classList.toggle('hidden');
+/* ==== KEYBOARD ==== */
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){closeAbout();document.getElementById('tos-modal').classList.remove('open');}
+  if(e.key==='Enter'&&document.getElementById('l-pass')===document.activeElement)doLogin();
+});
+document.addEventListener('click',function(e){
+  var wrap=document.getElementById('notif-wrap');
+  var menu=document.getElementById('notif-menu');
+  if(!wrap||!menu)return;
+  if(!wrap.contains(e.target))menu.classList.remove('open');
+});
 
-    $('execute-btn').onclick = () => {
-      $('target-panel').classList.add('hidden');
-      showScreen('execution-screen');
-      const log = $('terminal-log');
-      const lines = [
-        '[*] Proxy tunnel established via SOCKS5',
-        '[*] Target resolved: 10.0.0.0/24',
-        '[*] Running nmap -sV -A --top-ports 500',
-        '[SUCCESS] 443/tcp open https',
-        '[VULN] CVE-2023-4911 libc privilege escalation',
-        '[*] Directory brute-force queued',
-      ];
-      let i = 0;
-      const timer = setInterval(() => {
-        if (i >= lines.length) return clearInterval(timer);
-        log.textContent += "\n" + lines[i++];
-        log.scrollTop = log.scrollHeight;
-      }, 450);
-      $('abort-btn').onclick = () => {
-        document.body.classList.add('bg-white');
-        setTimeout(()=>document.body.classList.remove('bg-white'), 50);
-        log.textContent += "\n[ABORTED] Signal SIGINT received.";
-        log.classList.add('text-c-muted');
+/* ==== ANIMATION HELPERS ==== */
+function typeWriter(el,text,cursor){
+  cursor=cursor||'';el.textContent='';var i=0;
+  function tick(){if(i<=text.length){el.textContent=text.slice(0,i)+(i<text.length?cursor:'');i++;setTimeout(tick,i===1?320:52);}}
+  tick();
+}
+function vsGreetUser(username){
+  var suf=document.getElementById('home-username-suffix');
+  if(suf&&!suf.textContent)typeWriter(suf,', '+username,'_');
+}
+
+/* ==== HACKER BACKGROUND ==== */
+(function(){
+  var cv, cx, W = 0, H = 0;
+
+  /* ---- colour: dark chars on light, light chars on dark ---- */
+  function isDark() {
+    var b = document.getElementById('body');
+    return b && b.classList.contains('dark');
+  }
+  /* head of each column -- brightest char */
+  function headRGB()  { return isDark() ? [60, 120, 60]  : [40, 40, 40]; }
+  /* trail colour */
+  function trailRGB() { return isDark() ? [0,  90, 30]  : [30, 30, 30]; }
+  /* fade rect colour matches the page background */
+  function fadeFill() {
+    return isDark()
+      ? 'rgba(10,10,10,0.25)'
+      : 'rgba(255,255,255,0.30)';
+  }
+
+  /* ---- character set ---- */
+  var CHARS = ('01ABCDEF0123456789<>{}[]|/:?!@#$%^&*nmap ssh ftp http ssl tls cve xss sqli rce').split('');
+  function rndChar() { return CHARS[Math.floor(Math.random() * CHARS.length)]; }
+
+  /* ---- columns ---- */
+  var COL_W = 20, FONT_SZ = 9, columns = [];
+
+  function initColumns() {
+    columns = [];
+    var n = Math.ceil(W / COL_W);
+    for (var i = 0; i < n; i++) {
+      var col = {
+        x: i * COL_W,
+        y: Math.random() * -H,
+        speed: 0.3 + Math.random() * 0.7,
+        len:   7 + Math.floor(Math.random() * 12),
+        chars: [],
+        tick:  0,
+        mutRate: 0.03 + Math.random() * 0.05
       };
-    };
+      for (var j = 0; j < 22; j++) col.chars.push(rndChar());
+      columns.push(col);
+    }
+  }
 
-    $('open-matrix').onclick = () => showScreen('matrix-screen');
-    $('dump-btn').onclick = (e) => { e.target.textContent = '[DUMP_COMPLETE]'; };
-  </script>
+  function drawRain() {
+    var HEAD  = headRGB();
+    var TRAIL = trailRGB();
+    /* base opacity: subtle on both themes */
+    var baseAlpha = isDark() ? 0.18 : 0.12;
+
+    cx.font = FONT_SZ + 'px "DM Mono","Courier New",monospace';
+    cx.textAlign = 'center';
+
+    for (var i = 0; i < columns.length; i++) {
+      var col = columns[i];
+      col.tick++;
+
+      /* advance column */
+      if (col.tick % Math.max(1, Math.round(3 / col.speed)) === 0) {
+        col.y += COL_W;
+        col.chars.unshift(rndChar());
+        if (col.chars.length > col.len + 2) col.chars.pop();
+      }
+
+      /* random char mutation */
+      if (Math.random() < col.mutRate) {
+        col.chars[Math.floor(Math.random() * col.chars.length)] = rndChar();
+      }
+
+      /* draw each char in this column */
+      for (var k = 0; k < col.chars.length; k++) {
+        var cy = col.y - k * COL_W;
+        if (cy < -COL_W || cy > H + COL_W) continue;
+
+        var t = 1 - (k / col.len);
+        if (t < 0) t = 0;
+
+        var r, g, b, a;
+        if (k === 0) {
+          /* head: brightest */
+          r = HEAD[0]; g = HEAD[1]; b = HEAD[2];
+          a = baseAlpha;
+        } else {
+          /* trail: fades out */
+          r = Math.round(TRAIL[0] * t);
+          g = Math.round(TRAIL[1] * t);
+          b = Math.round(TRAIL[2] * t);
+          a = baseAlpha * t * 0.6;
+        }
+
+        cx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + a.toFixed(3) + ')';
+        cx.fillText(col.chars[k], col.x + COL_W / 2, cy);
+      }
+
+      /* reset column when it scrolls off bottom */
+      if (col.y - col.len * COL_W > H) {
+        col.y     = -COL_W * (2 + Math.random() * 8);
+        col.speed = 0.3 + Math.random() * 0.7;
+        col.len   = 7 + Math.floor(Math.random() * 12);
+        col.chars = [];
+        for (var j2 = 0; j2 < 22; j2++) col.chars.push(rndChar());
+      }
+    }
+  }
+
+  /* ---- resize ---- */
+  function resize() {
+    if (!cv) return;
+    var dpr = window.devicePixelRatio || 1;
+    W = window.innerWidth;
+    H = window.innerHeight;
+    cx.setTransform(1, 0, 0, 1, 0, 0);
+    cv.width  = W * dpr;
+    cv.height = H * dpr;
+    cv.style.width  = W + 'px';
+    cv.style.height = H + 'px';
+    cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    initColumns();
+  }
+
+  /* ---- main loop ---- */
+  function loop() {
+    requestAnimationFrame(loop);
+    /* semi-transparent fill creates the trail smear */
+    cx.fillStyle = fadeFill();
+    cx.fillRect(0, 0, W, H);
+    drawRain();
+  }
+
+  /* ---- init ---- */
+  function init() {
+    if (document.getElementById('vs-hacker-canvas')) return;
+    cv = document.createElement('canvas');
+    cv.id = 'vs-hacker-canvas';
+    cv.style.cssText = [
+      'position:fixed',
+      'top:0', 'left:0',
+      'width:100vw', 'height:100vh',
+      'pointer-events:none',  /* NEVER blocks clicks */
+      'z-index:-1'            /* always behind everything */
+    ].join(';');
+    document.body.insertBefore(cv, document.body.firstChild);
+    cx = cv.getContext('2d');
+    window.addEventListener('resize', resize);
+    resize();
+    loop();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    setTimeout(init, 0);
+  }
+})();
+
+/* ══ TOOL-SPECIFIC JS HELPERS ══════════════════════════════════ */
+
+/* ffuf */
+async function runFfuf(){
+  var url=document.getElementById('ffuf-url').value.trim();
+  if(!url){alert('Enter a target URL with FUZZ placeholder');return;}
+  var wl=document.getElementById('ffuf-wordlist').value.trim();
+  var method=document.getElementById('ffuf-method').value;
+  var fc=document.getElementById('ffuf-fc').value.trim();
+  var mc=document.getElementById('ffuf-mc').value.trim();
+  var ext=document.getElementById('ffuf-e').value.trim();
+  var threads=document.getElementById('ffuf-threads').value||'40';
+  var extra=document.getElementById('ffuf-extra').value.trim();
+  var timeout=parseInt(document.getElementById('ffuf-timeout').value||'120',10);
+  var args='-u "'+url+'" -w "'+wl+'" -X '+method+' -t '+threads;
+  if(fc)args+=' -fc '+fc;
+  if(mc)args+=' -mc '+mc;
+  if(ext)args+=' -e '+ext;
+  if(extra)args+=' '+extra;
+  var btn=document.getElementById('ffuf-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  var t=mkTool('ffuf');t.start();t.log('ffuf '+url,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'ffuf',operation:'custom',args:args,timeout:timeout})},Math.max(30000,timeout*1000+5000),'ffuf');
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{t.log('ffuf done (exit '+d.exit_code+')','s');
+      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||'(no output)')+'</pre></div>');}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN FFUF';}
+}
+
+/* nuclei */
+async function runNuclei(){
+  var target=document.getElementById('nuclei-target').value.trim();
+  if(!target){alert('Enter a target URL or host');return;}
+  var sevEl=document.getElementById('nuclei-severity');
+  var sevs=Array.from(sevEl.selectedOptions).map(function(o){return o.value;}).join(',');
+  var tagsEl=document.getElementById('nuclei-tags');
+  var tags=Array.from(tagsEl.selectedOptions).map(function(o){return o.value;}).join(',');
+  var threads=document.getElementById('nuclei-threads').value||'25';
+  var rate=document.getElementById('nuclei-rate').value||'150';
+  var timeout=parseInt(document.getElementById('nuclei-timeout').value||'300',10);
+  var tplPath=document.getElementById('nuclei-templates').value.trim();
+  var args='-u "'+target+'" -c '+threads+' -rate-limit '+rate+' -jsonl -stats=false';
+  if(sevs)args+=' -severity '+sevs;
+  if(tags)args+=' -tags '+tags;
+  if(tplPath)args+=' -t "'+tplPath+'"';
+  var btn=document.getElementById('nuclei-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
+  var t=mkTool('nuclei');t.start();t.log('nuclei → '+target,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'nuclei',operation:'custom',args:args,timeout:timeout})},Math.max(60000,timeout*1000+5000),'nuclei');
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{var lines=(d.stdout||'').split('\n').filter(Boolean).length;
+      t.log('Nuclei done — '+lines+' result(s)','s');
+      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||'No findings.')+'</pre></div>');}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN NUCLEI';}
+}
+async function runNucleiUpdate(){
+  var t=mkTool('nuclei');t.start();t.log('Updating nuclei templates...','w');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'nuclei',operation:'custom',args:'-update-templates',timeout:120})},130000,'nuclei');
+    var d=await r.json();t.end();t.log(d.error||(d.stdout||'Update complete'),'s');
+  }catch(e){t.end();t.err(e.message);}
+}
+
+/* whatweb */
+async function runWhatWeb(){
+  var target=document.getElementById('whatweb-target').value.trim();
+  if(!target){alert('Enter a target URL or host');return;}
+  var agg=document.getElementById('whatweb-aggression').value||'3';
+  var fmt=document.getElementById('whatweb-format').value||'';
+  var timeout=parseInt(document.getElementById('whatweb-timeout').value||'60',10);
+  var ua=document.getElementById('whatweb-ua').value.trim();
+  var proxy=document.getElementById('whatweb-proxy').value.trim();
+  var extra=document.getElementById('whatweb-extra').value.trim();
+  var args='"'+target+'" --aggression='+agg+(fmt?' '+fmt:'');
+  if(ua)args+=' --user-agent="'+ua+'"';
+  if(proxy)args+=' --proxy='+proxy;
+  if(extra)args+=' '+extra;
+  var btn=document.getElementById('whatweb-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  var t=mkTool('whatweb');t.start();t.log('WhatWeb → '+target,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'whatweb',operation:'custom',args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'whatweb');
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{t.log('WhatWeb done','s');
+      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||'(no output)')+'</pre></div>');}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN WHATWEB';}
+}
+
+/* wapiti */
+async function runWapiti(){
+  var target=document.getElementById('wapiti-target').value.trim();
+  if(!target){alert('Enter a target URL');return;}
+  var modsEl=document.getElementById('wapiti-modules');
+  var mods=Array.from(modsEl.selectedOptions).map(function(o){return o.value;}).join(',');
+  var depth=document.getElementById('wapiti-depth').value||'2';
+  var scope=document.getElementById('wapiti-scope').value||'domain';
+  var fmt=document.getElementById('wapiti-format').value||'json';
+  var extra=document.getElementById('wapiti-extra').value.trim();
+  var timeout=parseInt(document.getElementById('wapiti-timeout').value||'300',10);
+  var args='-u "'+target+'"'+(mods?' -m '+mods:'')+' --depth '+depth+' --scope '+scope+' -f '+fmt;
+  if(extra)args+=' '+extra;
+  var btn=document.getElementById('wapiti-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
+  var t=mkTool('wapiti');t.start();t.log('Wapiti → '+target,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'wapiti',operation:'custom',args:args,timeout:timeout})},Math.max(60000,timeout*1000+5000),'wapiti');
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{t.log('Wapiti done','s');
+      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||'(no output)')+'</pre></div>');}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN WAPITI';}
+}
+
+/* dalfox */
+async function runDalfox(){
+  var target=document.getElementById('dalfox-target').value.trim();
+  if(!target){alert('Enter a target URL');return;}
+  var mode=document.getElementById('dalfox-mode').value||'url';
+  var fmt=document.getElementById('dalfox-format').value||'';
+  var payload=document.getElementById('dalfox-payload').value.trim();
+  var header=document.getElementById('dalfox-header').value.trim();
+  var timeout=parseInt(document.getElementById('dalfox-timeout').value||'120',10);
+  var blind=document.getElementById('dalfox-opt-blind').classList.contains('on');
+  var skipbav=document.getElementById('dalfox-opt-skip-bav').classList.contains('on');
+  var args=mode+' "'+target+'"'+(fmt?' '+fmt:'');
+  if(payload)args+=' --custom-payload "'+payload+'"';
+  if(header)args+=' -H "'+header+'"';
+  if(blind)args+=' --blind';
+  if(skipbav)args+=' --skip-bav';
+  var btn=document.getElementById('dalfox-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
+  var t=mkTool('dalfox');t.start();t.log('Dalfox XSS → '+target,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'dalfox',operation:'custom',args:args,timeout:timeout})},Math.max(30000,timeout*1000+5000),'dalfox');
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{t.log('Dalfox done','s');
+      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||'No XSS found.')+'</pre></div>');}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN DALFOX';}
+}
+
+/* sqlmap */
+async function runSqlmap(){
+  var url=document.getElementById('sqlmap-url').value.trim();
+  if(!url){alert('Enter a target URL');return;}
+  var risk=document.getElementById('sqlmap-risk').value||'1';
+  var level=document.getElementById('sqlmap-level').value||'1';
+  var dbms=document.getElementById('sqlmap-dbms').value;
+  var tech=document.getElementById('sqlmap-technique').value;
+  var data=document.getElementById('sqlmap-data').value.trim();
+  var cookie=document.getElementById('sqlmap-cookie').value.trim();
+  var threads=document.getElementById('sqlmap-threads').value||'1';
+  var timeout=parseInt(document.getElementById('sqlmap-timeout').value||'300',10);
+  var batch=document.getElementById('sqlmap-batch').classList.contains('on');
+  var dbs=document.getElementById('sqlmap-dbs').classList.contains('on');
+  var tables=document.getElementById('sqlmap-tables').classList.contains('on');
+  var dump=document.getElementById('sqlmap-dump').classList.contains('on');
+  var randua=document.getElementById('sqlmap-random-agent').classList.contains('on');
+  var args='-u "'+url+'" --risk='+risk+' --level='+level+' --threads='+threads;
+  if(dbms)args+=' --dbms="'+dbms+'"';
+  if(tech)args+=' --technique='+tech;
+  if(data)args+=' --data="'+data+'"';
+  if(cookie)args+=' --cookie="'+cookie+'"';
+  if(batch)args+=' --batch';
+  if(dbs)args+=' --dbs';
+  if(tables)args+=' --tables';
+  if(dump)args+=' --dump';
+  if(randua)args+=' --random-agent';
+  var btn=document.getElementById('sqlmap-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Testing...';
+  var t=mkTool('sqlmap');t.start();t.log('SQLMap → '+url,'i');t.log('risk='+risk+' level='+level,'w');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'sqlmap',operation:'custom',args:args,timeout:timeout})},Math.max(60000,timeout*1000+5000),'sqlmap');
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{t.log('SQLMap done (exit '+d.exit_code+')','s');
+      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||'No SQLi found.')+'</pre></div>');}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN SQLMAP';}
+}
+
+/* kxss */
+async function runKxss(){
+  var urls=document.getElementById('kxss-urls').value.trim();
+  if(!urls){alert('Enter at least one URL with parameters');return;}
+  var header=document.getElementById('kxss-header').value.trim();
+  var timeout=parseInt(document.getElementById('kxss-timeout').value||'60',10);
+  var args='--help';
+  if(header)args='-H "'+header+'"';
+  var btn=document.getElementById('kxss-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Checking...';
+  var t=mkTool('kxss');t.start();
+  t.log('kxss: paste URLs into terminal or pipe: echo "'+urls.split('\n')[0]+'" | kxss','i');
+  t.log('Note: kxss requires stdin pipe — run directly in terminal for best results','w');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'kxss',operation:'custom',args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'kxss');
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{t.log('kxss capability check done','s');
+      t.log('To scan: echo "'+urls.split('\n')[0]+'" | kxss'+( header?' -H "'+header+'"':''),'i');
+      t.res('<div class="card card-p"><div class="card-title" style="margin-bottom:8px">Capability Check</div><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||d.stderr||'kxss installed.')+'</pre><div style="margin-top:10px;font-size:12px;color:var(--text3)">Run in terminal: <code style="font-family:var(--mono)">cat urls.txt | kxss</code></div></div>');}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN KXSS';}
+}
+
+/* medusa */
+async function runMedusa(){
+  var host=document.getElementById('medusa-host').value.trim();
+  if(!host){alert('Enter a target host');return;}
+  var port=document.getElementById('medusa-port').value.trim();
+  var module=document.getElementById('medusa-module').value||'ssh';
+  var users=document.getElementById('medusa-users').value.split('\n').map(function(s){return s.trim();}).filter(Boolean);
+  var passes=document.getElementById('medusa-passes').value.split('\n').map(function(s){return s.trim();}).filter(Boolean);
+  var threads=document.getElementById('medusa-threads').value||'4';
+  var retries=document.getElementById('medusa-retries').value||'3';
+  var timeout=parseInt(document.getElementById('medusa-timeout').value||'120',10);
+  var extra=document.getElementById('medusa-extra').value.trim();
+  if(!users.length||!passes.length){alert('Enter at least one username and one password');return;}
+  var args='-h "'+host+'" -M '+module+' -t '+threads+' -r '+retries;
+  if(port)args+=' -n '+port;
+  args+=' -u '+users[0]+' -p '+passes[0];
+  if(users.length>1)args+=' (use -U /path/to/users.txt for multiple)';
+  if(extra)args+=' '+extra;
+  // Build proper multi-user args
+  var realArgs='-h "'+host+'" -M '+module+' -t '+threads+' -r '+retries;
+  if(port)realArgs+=' -n '+port;
+  if(users.length===1){realArgs+=' -u "'+users[0]+'"';}
+  else{realArgs+=' -u "'+users.join(',').replace(/"/g,'')+'"';}
+  if(passes.length===1){realArgs+=' -p "'+passes[0]+'"';}
+  else{realArgs+=' -p "'+passes.join(',').replace(/"/g,'')+'"';}
+  if(extra)realArgs+=' '+extra;
+  var btn=document.getElementById('medusa-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Attacking...';
+  var t=mkTool('medusa');t.start();t.log('Medusa '+module+' → '+host,'w');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'medusa',operation:'custom',args:realArgs,timeout:timeout})},Math.max(30000,timeout*1000+5000),'medusa');
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{var found=(d.stdout||'').match(/ACCOUNT FOUND/gi)||[];
+      t.log('Medusa done — '+found.length+' credential(s) found','s');
+      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||'No valid credentials found.')+'</pre></div>');}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN MEDUSA';}
+}
+
+/* hping3 */
+async function runHping3(){
+  var host=document.getElementById('hping3-host').value.trim();
+  if(!host){alert('Enter a target host');return;}
+  var port=document.getElementById('hping3-port').value||'80';
+  var mode=document.getElementById('hping3-mode').value||'-S';
+  var count=document.getElementById('hping3-count').value||'5';
+  var interval=document.getElementById('hping3-interval').value||'1000';
+  var datasize=parseInt(document.getElementById('hping3-data').value||'0',10);
+  var timeout=parseInt(document.getElementById('hping3-timeout').value||'30',10);
+  var verbose=document.getElementById('hping3-verbose').classList.contains('on');
+  var flood=document.getElementById('hping3-flood').classList.contains('on');
+  var fast=document.getElementById('hping3-fast').classList.contains('on');
+  var args=mode+' -p '+port+' -c '+count+' -i u'+interval;
+  if(datasize>0)args+=' -d '+datasize;
+  if(verbose)args+=' -V';
+  if(fast)args+=' --fast';
+  if(flood)args+=' --flood';
+  args+=' "'+host+'"';
+  var btn=document.getElementById('hping3-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  var t=mkTool('hping3');t.start();t.log('hping3 '+mode+' → '+host+':'+port,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'hping3',operation:'custom',args:args,timeout:timeout})},Math.max(10000,timeout*1000+5000),'hping3');
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{t.log('hping3 done','s');
+      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||d.stderr||'(no output)')+'</pre></div>');}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN HPING3';}
+}
+
+/* hashcat */
+async function runHashcat(){
+  var hashes=document.getElementById('hashcat-hashes').value.trim();
+  if(!hashes){alert('Enter hashes or a file path');return;}
+  var type=document.getElementById('hashcat-type').value||'0';
+  var attack=document.getElementById('hashcat-attack').value||'0';
+  var wordlist=document.getElementById('hashcat-wordlist').value.trim();
+  var rules=document.getElementById('hashcat-rules').value.trim();
+  var workload=document.getElementById('hashcat-workload').value||'2';
+  var timeout=parseInt(document.getElementById('hashcat-timeout').value||'300',10);
+  var args='-m '+type+' -a '+attack+' -w '+workload+' --status --status-timer=10 "'+hashes+'"';
+  if(wordlist)args+=' "'+wordlist+'"';
+  if(rules)args+=' -r "'+rules+'"';
+  args+=' --force';
+  var btn=document.getElementById('hashcat-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Cracking...';
+  var t=mkTool('hashcat');t.start();t.log('Hashcat -m '+type+' -a '+attack,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'hashcat',operation:'custom',args:args,timeout:timeout})},Math.max(60000,timeout*1000+5000),'hashcat');
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{t.log('Hashcat done','s');
+      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||'(no output)')+'</pre></div>');}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN HASHCAT';}
+}
+
+/* john */
+async function runJohn(){
+  var hashes=document.getElementById('john-hashes').value.trim();
+  if(!hashes){alert('Enter a hash file path or paste hashes');return;}
+  var mode=document.getElementById('john-mode').value||'--wordlist';
+  var fmt=document.getElementById('john-format').value||'';
+  var wl=document.getElementById('john-wordlist').value.trim();
+  var rules=document.getElementById('john-rules').value||'';
+  var timeout=parseInt(document.getElementById('john-timeout').value||'300',10);
+  var args=mode;
+  if(mode.indexOf('wordlist')>=0&&wl)args+='='+wl;
+  if(fmt)args+=' '+fmt;
+  if(rules&&mode.indexOf('wordlist')>=0)args+=' '+rules;
+  args+=' "'+hashes+'"';
+  var btn=document.getElementById('john-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Cracking...';
+  var t=mkTool('john');t.start();t.log('John: '+mode,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'john',operation:'custom',args:args,timeout:timeout})},Math.max(60000,timeout*1000+5000),'john');
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{t.log('John done','s');
+      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||d.stderr||'(no output)')+'</pre></div>');}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN JOHN';}
+}
+async function runJohnShow(){
+  var hashes=document.getElementById('john-hashes').value.trim();
+  if(!hashes){return;}
+  var fmt=document.getElementById('john-format').value||'';
+  var args='--show '+(fmt||'')+' "'+hashes+'"';
+  var t=mkTool('john');t.start();t.log('john --show','i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'john',operation:'custom',args:args,timeout:30})},40000,'john');
+    var d=await r.json();t.end();
+    t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono)">'+(d.stdout||'Nothing cracked yet.')+'</pre></div>');
+  }catch(e){t.end();t.err(e.message);}
+}
+
+/* searchsploit */
+async function runSearchsploit(){
+  var cve=document.getElementById('searchsploit-cve').value.trim();
+  var query=cve?'--cve '+cve:document.getElementById('searchsploit-query').value.trim();
+  if(!query){alert('Enter a search query or CVE');return;}
+  var type=document.getElementById('searchsploit-type').value||'';
+  var platform=document.getElementById('searchsploit-platform').value||'';
+  var format=document.getElementById('searchsploit-format').value||'';
+  var strict=document.getElementById('searchsploit-strict').classList.contains('on');
+  var caseSens=document.getElementById('searchsploit-case').classList.contains('on');
+  var args=query+(type?' '+type:'')+(platform?' '+platform:'')+(format?' '+format:'');
+  if(strict)args+=' -w';
+  if(caseSens)args+=' -c';
+  var btn=document.getElementById('searchsploit-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Searching...';
+  var t=mkTool('searchsploit');t.start();t.log('searchsploit: '+query,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'searchsploit',operation:'custom',args:args,timeout:60})},70000,'searchsploit');
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{t.log('Search complete','s');
+      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||'No exploits found.')+'</pre></div>');}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='SEARCH EXPLOIT-DB';}
+}
+
+/* msfvenom */
+async function runMsfvenom(){
+  var payloadSel=document.getElementById('msfvenom-payload').value;
+  var customP=document.getElementById('msfvenom-custom-payload').value.trim();
+  var payload=payloadSel==='custom'?customP:payloadSel;
+  if(!payload){alert('Select or enter a payload');return;}
+  var lhost=document.getElementById('msfvenom-lhost').value.trim();
+  var lport=document.getElementById('msfvenom-lport').value||'4444';
+  var format=document.getElementById('msfvenom-format').value||'exe';
+  var encoder=document.getElementById('msfvenom-encoder').value||'';
+  var iterations=document.getElementById('msfvenom-iterations').value||'1';
+  var extra=document.getElementById('msfvenom-extra').value.trim();
+  var timeout=parseInt(document.getElementById('msfvenom-timeout').value||'60',10);
+  var args='-p '+payload;
+  if(lhost)args+=' LHOST='+lhost;
+  args+=' LPORT='+lport+' -f '+format;
+  if(encoder)args+=' -e '+encoder+' -i '+iterations;
+  if(extra)args+=' '+extra;
+  args+=' --platform auto';
+  var btn=document.getElementById('msfvenom-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Generating...';
+  var t=mkTool('msfvenom');t.start();t.log('msfvenom -p '+payload,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'msfvenom',operation:'custom',args:args,timeout:timeout})},Math.max(30000,timeout*1000+5000),'msfvenom');
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{t.log('Payload generated (exit '+d.exit_code+')','s');
+      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||d.stderr||'Done')+'</pre></div>');}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='GENERATE PAYLOAD';}
+}
+
+/* grype */
+async function runGrype(){
+  var target=document.getElementById('grype-target').value.trim();
+  if(!target){alert('Enter a container image or path');return;}
+  var scope=document.getElementById('grype-scope').value||'';
+  var severity=document.getElementById('grype-severity').value||'';
+  var format=document.getElementById('grype-format').value||'table';
+  var timeout=parseInt(document.getElementById('grype-timeout').value||'180',10);
+  var onlyFixed=document.getElementById('grype-only-fixed').classList.contains('on');
+  var update=document.getElementById('grype-update-db').classList.contains('on');
+  var args=(update?'--update-db ':'')+'"'+target+'" -o '+format;
+  if(scope)args+=' --scope '+scope;
+  if(severity)args+=' '+severity;
+  if(onlyFixed)args+=' --only-fixed';
+  var btn=document.getElementById('grype-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
+  var t=mkTool('grype');t.start();t.log('Grype → '+target,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'grype',operation:'custom',args:args,timeout:timeout})},Math.max(60000,timeout*1000+5000),'grype');
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{t.log('Grype done','s');
+      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||'No vulnerabilities found.')+'</pre></div>');}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN GRYPE';}
+}
+
+/* radare2 */
+var _r2Templates={
+  info:'i\nil\niz\niS\nii\nie',
+  functions:'aaa\nafl',
+  strings:'izz',
+  imports:'ii\niE',
+  sections:'iS',
+  entropy:'p=e 512'
+};
+function r2QuickLoad(preset){
+  var el=document.getElementById('radare2-cmds');
+  if(el&&_r2Templates[preset])el.value=_r2Templates[preset];
+}
+async function runRadare2(){
+  var file=document.getElementById('radare2-file').value.trim();
+  if(!file){alert('Enter a binary file path');return;}
+  var cmds=document.getElementById('radare2-cmds').value.trim()||'i';
+  var arch=document.getElementById('radare2-arch').value||'';
+  var timeout=parseInt(document.getElementById('radare2-timeout').value||'60',10);
+  var cmdline=cmds.split('\n').filter(Boolean).join(';');
+  var args='-q '+(arch?arch+' ':'')+'-e log.level=0 -c "'+cmdline+'" -Q "'+file+'"';
+  var btn=document.getElementById('radare2-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Analysing...';
+  var t=mkTool('radare2');t.start();t.log('r2 '+file,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'radare2',operation:'custom',args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'radare2');
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{t.log('Analysis done','s');
+      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||'(no output)')+'</pre></div>');}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN RADARE2';}
+}
+
+/* openvas */
+async function runOpenVAS(){
+  var op=document.getElementById('openvas-op').value||'--version';
+  var timeout=parseInt(document.getElementById('openvas-timeout').value||'60',10);
+  var btn=document.getElementById('openvas-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  var t=mkTool('openvas');t.start();t.log('openvas '+op,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'openvas',operation:'custom',args:op,timeout:timeout})},Math.max(20000,timeout*1000+5000),'openvas');
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{t.log('Done','s');
+      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||d.stderr||'(no output)')+'</pre></div>');}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN OPENVAS CLI';}
+}
+
+/* chkrootkit */
+async function runChkrootkit(){
+  var mode=document.getElementById('chkrootkit-mode').value||'';
+  var test=document.getElementById('chkrootkit-test').value||'';
+  var path=document.getElementById('chkrootkit-path').value.trim();
+  var timeout=parseInt(document.getElementById('chkrootkit-timeout').value||'120',10);
+  var args=mode;
+  if(test)args+=(args?' ':'')+test;
+  if(path)args+=' -r "'+path+'"';
+  if(!args.trim())args='';
+  var btn=document.getElementById('chkrootkit-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
+  var t=mkTool('chkrootkit');t.start();t.log('chkrootkit scan...','w');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'chkrootkit',operation:'custom',args:args||'--help',timeout:timeout})},Math.max(60000,timeout*1000+5000),'chkrootkit');
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{var inf=(d.stdout||'').match(/INFECTED/gi)||[];
+      t.log('Done — '+inf.length+' INFECTED marker(s)','s');
+      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||'(no output)')+'</pre></div>');}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN CHKROOTKIT';}
+}
+
+/* rkhunter */
+async function runRkhunter(){
+  var scantype=document.getElementById('rkhunter-scantype').value||'--check';
+  var timeout=parseInt(document.getElementById('rkhunter-timeout').value||'300',10);
+  var skipkp=document.getElementById('rkhunter-skip-keypress').classList.contains('on');
+  var nocolor=document.getElementById('rkhunter-nocolors').classList.contains('on');
+  var appendLog=document.getElementById('rkhunter-append-log').classList.contains('on');
+  var args=scantype;
+  if(skipkp)args+=' --skip-keypress';
+  if(nocolor)args+=' --nocolors';
+  if(appendLog)args+=' --append-log';
+  var btn=document.getElementById('rkhunter-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
+  var t=mkTool('rkhunter');t.start();t.log('rkhunter '+scantype,'w');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'rkhunter',operation:'custom',args:args,timeout:timeout})},Math.max(120000,timeout*1000+5000),'rkhunter');
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{var w=(d.stdout||'').match(/Warning:/gi)||[];
+      t.log('Done — '+w.length+' warning(s)','s');
+      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||'(no output)')+'</pre></div>');}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN RKHUNTER';}
+}
+async function runRkhunterUpdate(){
+  var t=mkTool('rkhunter');t.start();t.log('Updating rkhunter DB...','i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'rkhunter',operation:'custom',args:'--update --skip-keypress --nocolors',timeout:120})},130000,'rkhunter');
+    var d=await r.json();t.end();t.log(d.error||(d.stdout||'Update done'),'s');
+  }catch(e){t.end();t.err(e.message);}
+}
+
+/* pspy */
+async function runPspy(){
+  var duration=parseInt(document.getElementById('pspy-duration').value||'30',10);
+  var interval=document.getElementById('pspy-interval').value||'100';
+  var filter=document.getElementById('pspy-filter').value.trim();
+  var pspyPath=document.getElementById('pspy-path').value.trim()||'pspy64';
+  var fs=document.getElementById('pspy-fs').classList.contains('on');
+  var args='-i '+interval+' -p';
+  if(fs)args+=' -f';
+  var btn=document.getElementById('pspy-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Monitoring...';
+  var t=mkTool('pspy');t.start();t.log('pspy monitoring for '+duration+'s...','i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'pspy',operation:'custom',args:args,timeout:duration})},Math.max(20000,(duration+5)*1000),'pspy');
+    var d=await r.json();t.end();
+    var output=d.stdout||'';
+    if(filter)output=output.split('\n').filter(function(l){return new RegExp(filter,'i').test(l);}).join('\n');
+    t.log('Done — '+output.split('\n').filter(Boolean).length+' line(s)','s');
+    t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(output||'No processes captured.')+'</pre></div>');
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN PSPY';}
+}
+
+/* pwncat */
+function pwncatModeChange(){
+  var mode=document.getElementById('pwncat-mode').value;
+  document.getElementById('pwncat-listen-fields').style.display=mode==='listen'?'block':'none';
+  document.getElementById('pwncat-connect-fields').style.display=mode==='connect'?'block':'none';
+  document.getElementById('pwncat-ssh-fields').style.display=mode==='ssh'?'block':'none';
+}
+async function runPwncat(){
+  var mode=document.getElementById('pwncat-mode').value||'listen';
+  var timeout=parseInt(document.getElementById('pwncat-timeout').value||'60',10);
+  var args='--help';
+  if(mode==='listen'){
+    var lhost=document.getElementById('pwncat-lhost').value||'0.0.0.0';
+    var lport=document.getElementById('pwncat-lport').value||'4444';
+    args='-lp '+lport+' --host "'+lhost+'"';
+  }else if(mode==='connect'){
+    var rhost=document.getElementById('pwncat-rhost').value.trim();
+    var rport=document.getElementById('pwncat-rport').value||'4444';
+    args='"'+rhost+':'+rport+'"';
+  }else if(mode==='ssh'){
+    var sh=document.getElementById('pwncat-sshhost').value.trim();
+    var sp=document.getElementById('pwncat-sshport').value||'22';
+    var su=document.getElementById('pwncat-sshuser').value.trim();
+    args='ssh://'+su+'@'+sh+':'+sp;
+  }
+  var btn=document.getElementById('pwncat-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  var t=mkTool('pwncat');t.start();t.log('pwncat '+mode,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'pwncat',operation:'custom',args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'pwncat');
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{t.log('pwncat done (exit '+d.exit_code+')','s');
+      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||d.stderr||'(no output)')+'</pre></div>');}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN PWNCAT';}
+}
+
+/* ligolo */
+function ligoloComponentChange(){
+  var comp=document.getElementById('ligolo-component').value;
+  document.getElementById('ligolo-proxy-fields').style.display=comp==='proxy'?'block':'none';
+  document.getElementById('ligolo-agent-fields').style.display=comp==='agent'?'block':'none';
+}
+async function runLigolo(){
+  var comp=document.getElementById('ligolo-component').value||'proxy';
+  var timeout=parseInt(document.getElementById('ligolo-timeout').value||'60',10);
+  var args='--help';
+  if(comp==='proxy'){
+    var listen=document.getElementById('ligolo-proxy-listen').value||'0.0.0.0:11601';
+    var selfcert=document.getElementById('ligolo-selfcert').classList.contains('on');
+    args='-laddr "'+listen+'"';
+    if(selfcert)args+=' -selfcert';
+  }else if(comp==='agent'){
+    var proxy=document.getElementById('ligolo-agent-proxy').value.trim();
+    var ignorecert=document.getElementById('ligolo-ignore-cert').classList.contains('on');
+    if(proxy)args='-connect "'+proxy+'"'+(ignorecert?' -ignore-cert':'');
+  }
+  var btn=document.getElementById('ligolo-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  var t=mkTool('ligolo');t.start();t.log('ligolo-ng '+comp,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'ligolo-ng',operation:'custom',args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'ligolo');
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{t.log('Done (exit '+d.exit_code+')','s');
+      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||d.stderr||'(no output)')+'</pre></div>');}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN LIGOLO-NG';}
+}
+
+/* chisel */
+function chiselModeChange(){
+  var mode=document.getElementById('chisel-mode').value;
+  document.getElementById('chisel-server-fields').style.display=mode==='server'?'block':'none';
+  document.getElementById('chisel-client-fields').style.display=mode==='client'?'block':'none';
+}
+async function runChisel(){
+  var mode=document.getElementById('chisel-mode').value||'server';
+  var timeout=parseInt(document.getElementById('chisel-timeout').value||'60',10);
+  var args=mode+' ';
+  if(mode==='server'){
+    var port=document.getElementById('chisel-server-port').value||'8080';
+    var auth=document.getElementById('chisel-server-auth').value.trim();
+    var socks5=document.getElementById('chisel-socks5').classList.contains('on');
+    var reverse=document.getElementById('chisel-reverse').classList.contains('on');
+    args+='--port='+port;
+    if(auth)args+=' --auth="'+auth+'"';
+    if(socks5)args+=' --socks5';
+    if(reverse)args+=' --reverse';
+  }else if(mode==='client'){
+    var url=document.getElementById('chisel-server-url').value.trim();
+    var cauth=document.getElementById('chisel-client-auth').value.trim();
+    var tunnels=document.getElementById('chisel-tunnels').value.trim().split('\n').filter(Boolean).join(' ');
+    if(!url){alert('Enter server URL');return;}
+    args+='"'+url+'" '+(tunnels||'socks');
+    if(cauth)args+=' --auth="'+cauth+'"';
+  }else{
+    args='--help';
+  }
+  var btn=document.getElementById('chisel-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  var t=mkTool('chisel');t.start();t.log('chisel '+mode,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'chisel',operation:'custom',args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'chisel');
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{t.log('Done (exit '+d.exit_code+')','s');
+      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||d.stderr||'(no output)')+'</pre></div>');}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN CHISEL';}
+}
+
+/* rlwrap */
+async function runRlwrap(){
+  var cmd=document.getElementById('rlwrap-cmd').value.trim();
+  if(!cmd){alert('Enter a command to wrap, e.g. nc -lvnp 4444');return;}
+  var hist=document.getElementById('rlwrap-history').value||'1000';
+  var wordchars=document.getElementById('rlwrap-wordchars').value||'a-zA-Z0-9_-';
+  var timeout=parseInt(document.getElementById('rlwrap-timeout').value||'60',10);
+  var ansi=document.getElementById('rlwrap-ansi').classList.contains('on');
+  var args='-s '+hist+' -w "'+wordchars+'"';
+  if(ansi)args+=' -A';
+  args+=' '+cmd;
+  var btn=document.getElementById('rlwrap-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  var t=mkTool('rlwrap');t.start();t.log('rlwrap '+cmd,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'rlwrap',operation:'custom',args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'rlwrap');
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{t.log('Done (exit '+d.exit_code+')','s');
+      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||d.stderr||'(no output)')+'</pre></div>');}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN RLWRAP';}
+}
+
+/* scapy */
+var _scapyTpl={
+  ping:"from scapy.all import *\ntarget='192.168.1.1'\npkt=IP(dst=target)/ICMP()\nreply=sr1(pkt,timeout=2,verbose=0)\nif reply:\n    print('Up: '+reply.summary())\nelse:\n    print('No response from '+target)",
+  portscan:"from scapy.all import *\ntarget='192.168.1.1'\nports=[22,80,443,3306,8080]\nfor p in ports:\n    r=sr1(IP(dst=target)/TCP(dport=p,flags='S'),timeout=1,verbose=0)\n    if r and r.haslayer(TCP) and r[TCP].flags==0x12:\n        print('Open: port '+str(p))",
+  syn:"from scapy.all import *\ntarget='192.168.1.1'\nans,_=sr(IP(dst=target)/TCP(sport=RandShort(),dport=(1,1024),flags='S'),timeout=2,verbose=0)\nfor s,r in ans:\n    if r.haslayer(TCP) and r[TCP].flags==0x12:\n        print('Open: '+str(s[TCP].dport))",
+  arpscan:"from scapy.all import *\nnet='192.168.1.0/24'\nans,_=srp(Ether(dst='ff:ff:ff:ff:ff:ff')/ARP(pdst=net),timeout=3,verbose=0)\nfor s,r in ans:\n    print(r[ARP].psrc+'  '+r[Ether].src)",
+  traceroute:"from scapy.all import *\ntarget='8.8.8.8'\nfor ttl in range(1,30):\n    r=sr1(IP(dst=target,ttl=ttl)/UDP(dport=33434),timeout=1,verbose=0)\n    if not r:\n        print(str(ttl)+': *')\n        continue\n    print(str(ttl)+': '+r.src)\n    if r.src==target:\n        break"
+};
+function scapyTemplate(name){
+  var el=document.getElementById('scapy-script');
+  if(el&&_scapyTpl[name])el.value=_scapyTpl[name];
+}
+async function runScapy(){
+  var script=document.getElementById('scapy-script').value.trim();
+  if(!script){alert('Enter a Scapy script');return;}
+  var timeout=parseInt(document.getElementById('scapy-timeout').value||'30',10);
+  var btn=document.getElementById('scapy-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  var t=mkTool('scapy');t.start();t.log('Running Scapy script...','i');
+  try{
+    // Use python3 to run the scapy script
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({tool:'scapy',operation:'custom',args:'--version',timeout:timeout})},
+      Math.max(15000,timeout*1000+5000),'scapy');
+    var d=await r.json();t.end();
+    t.log('Note: Scapy scripts require root and direct terminal access for packet injection.','w');
+    t.log('Copy your script and run: sudo python3 script.py','i');
+    t.res('<div class="card card-p"><div class="card-title" style="margin-bottom:8px">Scapy Version Check</div><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||d.stderr||'Scapy check done')+'</pre><div style="margin-top:10px;font-size:12px;color:var(--text3)">For live packet injection, run scripts directly as root in terminal.</div></div>');
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN SCAPY SCRIPT';}
+}
+
+/* yersinia */
+async function runYersinia(){
+  var proto=document.getElementById('yersinia-proto').value||'stp';
+  var iface=document.getElementById('yersinia-iface').value||'eth0';
+  var action=document.getElementById('yersinia-action').value||'--help';
+  var timeout=parseInt(document.getElementById('yersinia-timeout').value||'30',10);
+  var args=action+' -I '+iface;
+  if(action==='--help')args='--help';
+  var btn=document.getElementById('yersinia-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  var t=mkTool('yersinia');t.start();t.log('yersinia '+proto+' on '+iface,'w');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'yersinia',operation:'custom',args:args,timeout:timeout})},Math.max(10000,timeout*1000+5000),'yersinia');
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{t.log('Done (exit '+d.exit_code+')','s');
+      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||d.stderr||'(no output)')+'</pre></div>');}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN YERSINIA';}
+}
+
+/* seclists */
+async function runSeclists(){
+  var path=document.getElementById('seclists-path').value.trim();
+  var lines=parseInt(document.getElementById('seclists-lines').value||'50',10);
+  var grep=document.getElementById('seclists-grep').value.trim();
+  if(!path){alert('Enter a wordlist path');return;}
+  var btn=document.getElementById('seclists-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Loading...';
+  var t=mkTool('seclists');t.start();t.log('Loading: '+path,'i');
+  try{
+    var r=await fetchWithTimeout('/api/wordlist?path='+encodeURIComponent(path)+'&limit='+lines,{},15000,'seclists');
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{
+      var words=d.words||[];
+      if(grep){var re=new RegExp(grep,'i');words=words.filter(function(w){return re.test(w);});}
+      t.log('Loaded '+d.total_loaded+' entries (showing '+words.length+')','s');
+      t.res('<div class="card card-p"><div class="card-title" style="margin-bottom:6px">'+d.filename+' ('+d.total_loaded+' entries)</div><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+words.join('\n')+'</pre></div>');
+    }
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='BROWSE WORDLIST';}
+}
+async function seclistsCount(){
+  var path=document.getElementById('seclists-path').value.trim();
+  if(!path)return;
+  var t=mkTool('seclists');t.start();
+  try{
+    var r=await fetchWithTimeout('/api/wordlist?path='+encodeURIComponent(path)+'&limit=1',{},10000,'seclists');
+    var d=await r.json();t.end();
+    if(d.error)t.err(d.error);else t.log('File OK — '+d.total_loaded+' entries sampled','s');
+  }catch(e){t.end();t.err(e.message);}
+}
+function seclistsCopy(){
+  var path=document.getElementById('seclists-path').value.trim();
+  if(path){
+    try{navigator.clipboard.writeText(path).then(function(){showToast('Copied','Path copied to clipboard','success',2000);});}
+    catch(e){showToast('Path',path,'info',4000);}
+  }
+}
+function seclistsCategoryChange(){
+  var cat=document.getElementById('seclists-category').value;
+  var defaults={
+    '/usr/share/seclists/Discovery/Web-Content':'common.txt',
+    '/usr/share/seclists/Discovery/DNS':'subdomains-top1million-5000.txt',
+    '/usr/share/seclists/Passwords/Common-Credentials':'10k-most-common.txt',
+    '/usr/share/seclists/Passwords/Leaked-Databases':'rockyou-75.txt',
+    '/usr/share/seclists/Usernames':'top-usernames-shortlist.txt',
+    '/usr/share/seclists/Fuzzing':'fuzz-Bo0oM.txt',
+    '/usr/share/seclists/Payloads':'XXE.txt',
+    '/usr/share/seclists/Web-Shells':'web-shells.txt'
+  };
+  var el=document.getElementById('seclists-path');
+  if(el&&defaults[cat])el.value=cat+'/'+defaults[cat];
+}
+
+/* END TOOL-SPECIFIC JS HELPERS */
+
+loadUser();
+setTimeout(renderHomeToolCatalog,120);
+setTimeout(removeQuickInstallCards,120);
+
+/* ==== NEW USER MODAL ==== */
+function openNewUserModal(){
+  // Reset form state
+  var form=document.getElementById('new-user-form-body');
+  var succ=document.getElementById('new-user-success-body');
+  var msg=document.getElementById('new-user-modal-msg');
+  var btn=document.getElementById('nu-submit-btn');
+  if(form)form.style.display='block';
+  if(succ)succ.style.display='none';
+  if(msg){msg.textContent='';msg.style.display='none';}
+  if(btn){btn.disabled=false;document.getElementById('nu-btn-text').textContent='CREATE USER';}
+  var f=document.getElementById('nu-full-name');var u=document.getElementById('nu-username');var e=document.getElementById('nu-email');
+  if(f)f.value='';if(u)u.value='';if(e)e.value='';
+  document.getElementById('new-user-modal').classList.add('open');
+  setTimeout(function(){if(f)f.focus();},120);
+}
+function closeNewUserModal(){
+  document.getElementById('new-user-modal').classList.remove('open');
+}
+function showNewUserMsg(msg,type){
+  var el=document.getElementById('new-user-modal-msg');
+  el.textContent=msg;
+  el.className='auth-msg '+(type||'err');
+  el.style.display='block';
+}
+async function submitNewUser(){
+  var fullName=(document.getElementById('nu-full-name')||{}).value||'';
+  var username=(document.getElementById('nu-username')||{}).value||'';
+  var email=(document.getElementById('nu-email')||{}).value||'';
+  if(!username.trim()||!email.trim()){showNewUserMsg('Username and email are required.','err');return;}
+  var btn=document.getElementById('nu-submit-btn');
+  var btnTxt=document.getElementById('nu-btn-text');
+  btn.disabled=true;
+  btnTxt.innerHTML='<span class="spin"></span> Creating...';
+  try{
+    var r=await fetch('/api/admin/users/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({full_name:fullName.trim(),username:username.trim(),email:email.trim()})});
+    var d=await r.json();
+    if(d.success){
+      // Show success state
+      document.getElementById('new-user-form-body').style.display='none';
+      var succ=document.getElementById('new-user-success-body');
+      var succMsg=document.getElementById('nu-success-msg');
+      if(succMsg)succMsg.textContent='User "'+username.trim()+'" has been created and login credentials have been sent to '+email.trim()+'.';
+      succ.style.display='block';
+      showToast('User Created','Credentials sent to '+email.trim(),'success',5000);
+    } else {
+      showNewUserMsg(d.error||'Failed to create user.','err');
+      btn.disabled=false;
+      btnTxt.textContent='CREATE USER';
+    }
+  }catch(e){
+    showNewUserMsg('Network error: '+e.message,'err');
+    btn.disabled=false;
+    btnTxt.textContent='CREATE USER';
+  }
+}
+/* End new user modal */
+</script>
 </body>
 </html>"""
 # ── Auto-install helper ────────────────────────────────────────────────────────
