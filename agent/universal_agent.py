@@ -484,14 +484,7 @@ def main():
                 pass
 
             # Poll for a job
-            job = http_json(f"{api_base}/api/remote/jobs", headers=None, token=token)
-            # Override: pass token via bearer
-            import urllib.request as _ur
-            req = _ur.Request(f"{api_base}/api/remote/jobs",
-                              headers={"Authorization": f"Bearer {token}",
-                                       "Content-Type": "application/json"})
-            with _ur.urlopen(req, timeout=30) as r:
-                job = json.loads(r.read().decode())
+            job = http_json(f"{api_base}/api/remote/jobs", token=token)
 
             if job.get("job_id"):
                 t = job.get("tool", "unknown")
@@ -510,15 +503,7 @@ def main():
         time.sleep(max(10, args.interval))
 
 
-# ── Fix http_json to support token as param not kwarg ─────────
-def http_json(url, method="GET", payload=None, token=""):
-    data = json.dumps(payload).encode() if payload is not None else None
-    headers = {"Content-Type": "application/json"}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    req = urllib.request.Request(url, data=data, headers=headers, method=method)
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read().decode())
+# (duplicate http_json removed — using the one defined at top of file)
 
 
 if __name__ == "__main__":

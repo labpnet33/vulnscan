@@ -5634,19 +5634,68 @@ function raSelectAgent(agent){
   _raSelectedAgent=agent.client_id;
   document.getElementById('ra-selected-label').textContent=agent.client_id+' ('+agent.hostname+')';
   document.getElementById('ra-launcher').style.display='block';
-  // Filter tool dropdown to installed tools
-  var sel=document.getElementById('ra-tool');
-  var installedTools=agent.tools||[];
-  for(var i=0;i<sel.options.length;i++){
-    var opt=sel.options[i];
-    if(opt.value&&!['generic',''].includes(opt.value)){
-      var avail=installedTools.some(function(t){return t.toLowerCase()===opt.value.toLowerCase()||t.toLowerCase().includes(opt.value.toLowerCase());});
-      opt.text=opt.text.replace(' ✓','').replace(' ✗','');
-      opt.text+=(avail?' ✓':' ✗');
-    }
-  }
+
+  // Rebuild tool dropdown: installed tools first (enabled), rest disabled
+  var installedTools=(agent.tools||[]).map(function(t){return t.toLowerCase();});
+
+  var TOOL_LIST = [
+    // [value, label, category]
+    ['nmap',          'nmap — Port Scanner',         'Network'],
+    ['nikto',         'nikto — Web Vuln Scanner',    'Web Testing'],
+    ['wpscan',        'wpscan — WordPress Scanner',  'Web Testing'],
+    ['whatweb',       'whatweb — Tech Fingerprint',  'Web Testing'],
+    ['ffuf',          'ffuf — Directory Fuzzer',     'Web Testing'],
+    ['sqlmap',        'sqlmap — SQL Injection',       'Web Testing'],
+    ['nuclei',        'nuclei — Template Scanner',   'Web Testing'],
+    ['wapiti',        'wapiti — Web App Scanner',    'Web Testing'],
+    ['dalfox',        'dalfox — XSS Scanner',        'Web Testing'],
+    ['dnsrecon',      'dnsrecon — DNS Enum',         'OSINT / DNS'],
+    ['theharvester',  'theHarvester — OSINT',        'OSINT / DNS'],
+    ['lynis',         'lynis — System Audit',        'System Audit'],
+    ['chkrootkit',    'chkrootkit — Rootkit Check',  'System Audit'],
+    ['rkhunter',      'rkhunter — Rootkit Hunter',   'System Audit'],
+    ['medusa',        'medusa — Login Auditor',      'Password'],
+    ['john',          'john — Password Cracker',     'Password'],
+    ['hashcat',       'hashcat — GPU Hash Cracker',  'Password'],
+    ['searchsploit',  'searchsploit — Exploit-DB',   'Other'],
+    ['hping3',        'hping3 — Packet Generator',   'Other'],
+    ['generic',       'generic — Custom command',    'Other'],
+  ];
+
+  var sel = document.getElementById('ra-tool');
+  // Clear existing options except placeholder
+  sel.innerHTML = '<option value="">— choose tool —</option>';
+
+  // Group by category
+  var cats = {};
+  TOOL_LIST.forEach(function(t){
+    var cat = t[2];
+    if(!cats[cat]) cats[cat] = [];
+    cats[cat].push(t);
+  });
+
+  Object.keys(cats).forEach(function(cat){
+    var grp = document.createElement('optgroup');
+    grp.label = cat;
+    cats[cat].forEach(function(t){
+      var val = t[0], lbl = t[1];
+      // Check if tool installed (flexible match)
+      var isInstalled = val === 'generic' || installedTools.some(function(it){
+        return it === val || it.indexOf(val) !== -1 || val.indexOf(it) !== -1;
+      });
+      var opt = document.createElement('option');
+      opt.value = val;
+      opt.text  = isInstalled ? ('✓ ' + lbl) : ('✗ ' + lbl + ' (not installed)');
+      opt.disabled = !isInstalled;
+      if(!isInstalled) opt.style.color = '#666';
+      grp.appendChild(opt);
+    });
+    sel.appendChild(grp);
+  });
+
   raLoadJobs();
-  showToast('System selected',agent.client_id+' ready','success',2000);
+  var installedCount = installedTools.length;
+  showToast('System selected', agent.client_id + ' — ' + installedCount + ' tools available', 'success', 3000);
 }
 
 function raToolChange(){
@@ -9859,19 +9908,68 @@ function raSelectAgent(agent){
   _raSelectedAgent=agent.client_id;
   document.getElementById('ra-selected-label').textContent=agent.client_id+' ('+agent.hostname+')';
   document.getElementById('ra-launcher').style.display='block';
-  // Filter tool dropdown to installed tools
-  var sel=document.getElementById('ra-tool');
-  var installedTools=agent.tools||[];
-  for(var i=0;i<sel.options.length;i++){
-    var opt=sel.options[i];
-    if(opt.value&&!['generic',''].includes(opt.value)){
-      var avail=installedTools.some(function(t){return t.toLowerCase()===opt.value.toLowerCase()||t.toLowerCase().includes(opt.value.toLowerCase());});
-      opt.text=opt.text.replace(' ✓','').replace(' ✗','');
-      opt.text+=(avail?' ✓':' ✗');
-    }
-  }
+
+  // Rebuild tool dropdown: installed tools first (enabled), rest disabled
+  var installedTools=(agent.tools||[]).map(function(t){return t.toLowerCase();});
+
+  var TOOL_LIST = [
+    // [value, label, category]
+    ['nmap',          'nmap — Port Scanner',         'Network'],
+    ['nikto',         'nikto — Web Vuln Scanner',    'Web Testing'],
+    ['wpscan',        'wpscan — WordPress Scanner',  'Web Testing'],
+    ['whatweb',       'whatweb — Tech Fingerprint',  'Web Testing'],
+    ['ffuf',          'ffuf — Directory Fuzzer',     'Web Testing'],
+    ['sqlmap',        'sqlmap — SQL Injection',       'Web Testing'],
+    ['nuclei',        'nuclei — Template Scanner',   'Web Testing'],
+    ['wapiti',        'wapiti — Web App Scanner',    'Web Testing'],
+    ['dalfox',        'dalfox — XSS Scanner',        'Web Testing'],
+    ['dnsrecon',      'dnsrecon — DNS Enum',         'OSINT / DNS'],
+    ['theharvester',  'theHarvester — OSINT',        'OSINT / DNS'],
+    ['lynis',         'lynis — System Audit',        'System Audit'],
+    ['chkrootkit',    'chkrootkit — Rootkit Check',  'System Audit'],
+    ['rkhunter',      'rkhunter — Rootkit Hunter',   'System Audit'],
+    ['medusa',        'medusa — Login Auditor',      'Password'],
+    ['john',          'john — Password Cracker',     'Password'],
+    ['hashcat',       'hashcat — GPU Hash Cracker',  'Password'],
+    ['searchsploit',  'searchsploit — Exploit-DB',   'Other'],
+    ['hping3',        'hping3 — Packet Generator',   'Other'],
+    ['generic',       'generic — Custom command',    'Other'],
+  ];
+
+  var sel = document.getElementById('ra-tool');
+  // Clear existing options except placeholder
+  sel.innerHTML = '<option value="">— choose tool —</option>';
+
+  // Group by category
+  var cats = {};
+  TOOL_LIST.forEach(function(t){
+    var cat = t[2];
+    if(!cats[cat]) cats[cat] = [];
+    cats[cat].push(t);
+  });
+
+  Object.keys(cats).forEach(function(cat){
+    var grp = document.createElement('optgroup');
+    grp.label = cat;
+    cats[cat].forEach(function(t){
+      var val = t[0], lbl = t[1];
+      // Check if tool installed (flexible match)
+      var isInstalled = val === 'generic' || installedTools.some(function(it){
+        return it === val || it.indexOf(val) !== -1 || val.indexOf(it) !== -1;
+      });
+      var opt = document.createElement('option');
+      opt.value = val;
+      opt.text  = isInstalled ? ('✓ ' + lbl) : ('✗ ' + lbl + ' (not installed)');
+      opt.disabled = !isInstalled;
+      if(!isInstalled) opt.style.color = '#666';
+      grp.appendChild(opt);
+    });
+    sel.appendChild(grp);
+  });
+
   raLoadJobs();
-  showToast('System selected',agent.client_id+' ready','success',2000);
+  var installedCount = installedTools.length;
+  showToast('System selected', agent.client_id + ' — ' + installedCount + ' tools available', 'success', 3000);
 }
 
 function raToolChange(){
