@@ -868,6 +868,9 @@ document.addEventListener('DOMContentLoaded',navRestore);
       <div class="nav-section" id="admin-nav-section" style="display:none">
         <button class="nav-item" id="ni-admin" onclick="pg('admin',this)"><span class="ni">&#9881;</span> Admin Console</button>
       </div>
+      <div class="nav-section">
+        <button class="nav-item" id="ni-remote" onclick="pg('remote',this)"><span class="ni">&#9729;</span> Remote Audit</button>
+      </div>
 
       <div class="nav-section">
         <div class="nav-cat-toggle" onclick="navToggle('information')">
@@ -2789,6 +2792,132 @@ document.addEventListener('DOMContentLoaded',navRestore);
         </div>
       </div>
 
+
+      <!-- REMOTE AUDIT PAGE -->
+      <div class="page" id="page-remote">
+        <div class="page-hd">
+          <div class="page-title">Remote Audit</div>
+          <div class="page-desc">Run any security tool on connected remote systems — one command to connect</div>
+        </div>
+
+        <!-- Install banner -->
+        <div class="card card-p" style="margin-bottom:16px;border-left:3px solid var(--cyan, #00e5ff)">
+          <div class="card-title" style="margin-bottom:10px">Connect a Linux System (one command)</div>
+          <div class="scan-bar">
+            <input class="inp inp-mono" id="ra-install-cmd" readonly
+              value="curl -fsSL http://161.118.189.254:5000/agent/install.sh | bash"
+              style="font-size:12px"/>
+            <button class="btn btn-outline btn-sm" onclick="raCopyInstall()">COPY</button>
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-top:8px">
+            Once connected, the system appears below and you can run <strong>any tool</strong> on it remotely.
+          </div>
+        </div>
+
+        <!-- Connected systems -->
+        <div class="card card-p" style="margin-bottom:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div class="card-title">Connected Systems</div>
+            <button class="btn btn-outline btn-sm" onclick="raLoadAgents()">REFRESH</button>
+          </div>
+          <div id="ra-agents">Loading...</div>
+        </div>
+
+        <!-- Tool launcher -->
+        <div class="card card-p" style="margin-bottom:16px" id="ra-launcher" style="display:none">
+          <div class="card-title" style="margin-bottom:12px">
+            Run Tool on: <span id="ra-selected-label" style="color:var(--green, #00ff9d)">—</span>
+          </div>
+
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg">
+              <label>SELECT TOOL</label>
+              <select class="inp inp-mono" id="ra-tool" onchange="raToolChange()">
+                <option value="">— choose tool —</option>
+                <optgroup label="Network">
+                  <option value="nmap">nmap — Port Scanner + CVE</option>
+                </optgroup>
+                <optgroup label="Web Testing">
+                  <option value="nikto">nikto — Web Vulnerability Scanner</option>
+                  <option value="wpscan">wpscan — WordPress Scanner</option>
+                  <option value="whatweb">whatweb — Technology Fingerprint</option>
+                  <option value="ffuf">ffuf — Directory Fuzzer</option>
+                  <option value="sqlmap">sqlmap — SQL Injection Tester</option>
+                  <option value="nuclei">nuclei — Template Scanner</option>
+                  <option value="wapiti">wapiti — Web App Scanner</option>
+                  <option value="dalfox">dalfox — XSS Scanner</option>
+                </optgroup>
+                <optgroup label="OSINT / DNS">
+                  <option value="dnsrecon">dnsrecon — DNS Enumeration</option>
+                  <option value="theharvester">theHarvester — OSINT</option>
+                </optgroup>
+                <optgroup label="System Audit">
+                  <option value="lynis">lynis — System Hardening Audit</option>
+                  <option value="chkrootkit">chkrootkit — Rootkit Detection</option>
+                  <option value="rkhunter">rkhunter — Rootkit Hunter</option>
+                </optgroup>
+                <optgroup label="Password / Brute">
+                  <option value="medusa">medusa — Network Login Auditor</option>
+                  <option value="john">john — Password Cracker</option>
+                  <option value="hashcat">hashcat — GPU Hash Cracker</option>
+                </optgroup>
+                <optgroup label="Other">
+                  <option value="searchsploit">searchsploit — Exploit-DB Search</option>
+                  <option value="hping3">hping3 — Packet Generator</option>
+                  <option value="generic">generic — Custom command</option>
+                </optgroup>
+              </select>
+            </div>
+            <div class="fg">
+              <label>NMAP PROFILE (nmap only)</label>
+              <select class="inp inp-mono" id="ra-nmap-profile">
+                <option value="fast">Fast (top 100)</option>
+                <option value="balanced" selected>Balanced (top 1000)</option>
+                <option value="deep">Deep (all ports)</option>
+                <option value="very_deep">Very Deep (scripts+OS)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Dynamic arg fields -->
+          <div id="ra-tool-args">
+            <div class="fg">
+              <label>TARGET (IP / domain / URL)</label>
+              <input class="inp inp-mono" id="ra-target" type="text" placeholder="e.g. 192.168.1.1 or example.com"/>
+            </div>
+          </div>
+
+          <!-- Generic tool extra args -->
+          <div id="ra-generic-fields" style="display:none">
+            <div class="fg">
+              <label>TOOL BINARY NAME</label>
+              <input class="inp inp-mono" id="ra-generic-tool" type="text" placeholder="e.g. dirb"/>
+            </div>
+            <div class="fg">
+              <label>ARGUMENTS</label>
+              <input class="inp inp-mono" id="ra-generic-args" type="text" placeholder="e.g. http://target.com /usr/share/wordlists/dirb/common.txt"/>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+            <button class="btn btn-primary" id="ra-run-btn" onclick="raRunTool()">RUN ON REMOTE SYSTEM</button>
+            <button class="btn btn-outline btn-sm" onclick="raLoadJobs()">REFRESH JOBS</button>
+          </div>
+        </div>
+
+        <!-- Progress + output -->
+        <div class="progress-wrap" id="ra-prog"><div class="progress-bar" id="ra-pb" style="width:0%"></div></div>
+        <div class="terminal" id="ra-term"></div>
+        <div class="err-box"  id="ra-err"></div>
+        <div id="ra-res"></div>
+
+        <!-- Job queue -->
+        <div class="card card-p" style="margin-top:14px">
+          <div class="card-title" style="margin-bottom:8px">Remote Job Queue</div>
+          <div id="ra-jobs">No jobs yet.</div>
+        </div>
+      </div>
+
       <!-- ADMIN -->
       <div class="page" id="page-admin">
         <div class="page-hd" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px">
@@ -3086,7 +3215,7 @@ function pushToolCompletion(prefix,url,ok){
 }
 
 /* ==== PAGE NAV ==== */
-var PAGE_TITLES={home:'Home',scan:'Network Scanner',webdeep:'Deep Web Audit',harvester:'theHarvester',dnsrecon:'DNSRecon',nikto:'Nikto',wpscan:'WPScan',lynis:'Lynis',legion:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',brute:'Brute Force',setoolkit:'Social-Engineer Toolkit',gophish:'Gophish',evilginx2:'Evilginx2',shellphish:'ShellPhish',netcat:'Netcat',ncat:'Ncat',socat:'Socat',sliver:'Sliver',empire:'Empire',disc:'Network Discovery',hist:'Scan History',dash:'Dashboard',profile:'Profile',admin:'Admin Console',ffuf:'ffuf',nuclei:'Nuclei',whatweb:'WhatWeb',wapiti:'Wapiti',dalfox:'Dalfox',sqlmap:'SQLMap',kxss:'kxss',medusa:'Medusa',hping3:'hping3',scapy:'Scapy',yersinia:'Yersinia',hashcat:'Hashcat',john:'John the Ripper',searchsploit:'SearchSploit',seclists:'SecLists',ligolo:'Ligolo-ng',chisel:'Chisel',rlwrap:'rlwrap',pspy:'pspy',msfvenom:'msfvenom',pwncat:'pwncat',grype:'Grype',radare2:'Radare2',openvas:'OpenVAS',chkrootkit:'chkrootkit',rkhunter:'rkhunter'};
+var PAGE_TITLES={home:'Home',scan:'Network Scanner',webdeep:'Deep Web Audit',harvester:'theHarvester',dnsrecon:'DNSRecon',nikto:'Nikto',wpscan:'WPScan',lynis:'Lynis',legion:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',brute:'Brute Force',setoolkit:'Social-Engineer Toolkit',gophish:'Gophish',evilginx2:'Evilginx2',shellphish:'ShellPhish',netcat:'Netcat',ncat:'Ncat',socat:'Socat',sliver:'Sliver',empire:'Empire',disc:'Network Discovery',hist:'Scan History',dash:'Dashboard',profile:'Profile',admin:'Admin Console',remote:'Remote Audit',ffuf:'ffuf',nuclei:'Nuclei',whatweb:'WhatWeb',wapiti:'Wapiti',dalfox:'Dalfox',sqlmap:'SQLMap',kxss:'kxss',medusa:'Medusa',hping3:'hping3',scapy:'Scapy',yersinia:'Yersinia',hashcat:'Hashcat',john:'John the Ripper',searchsploit:'SearchSploit',seclists:'SecLists',ligolo:'Ligolo-ng',chisel:'Chisel',rlwrap:'rlwrap',pspy:'pspy',msfvenom:'msfvenom',pwncat:'pwncat',grype:'Grype',radare2:'Radare2',openvas:'OpenVAS',chkrootkit:'chkrootkit',rkhunter:'rkhunter'};
 function saveCurrentPage(id){try{sessionStorage.setItem('vs-page',id);}catch(e){}}
 function pg(id,el){
   document.querySelectorAll('.page').forEach(function(e){e.classList.remove('active');});
@@ -3099,6 +3228,7 @@ function pg(id,el){
   if(tt){tt.style.animation='none';requestAnimationFrame(function(){tt.style.animation='';});tt.textContent=PAGE_TITLES[id]||id;}
   saveCurrentPage(id);
   if(id==='hist')loadHist();
+  if(id==='remote'){raLoadAgents();raLoadJobs();}
   if(id==='dash')loadDash();
   if(id==='admin'){loadAdmin();setTimeout(initCliHeader,400);}
   if(id==='home'){setTimeout(loadHomeStats,80);setTimeout(renderHomeToolCatalog,40);if(currentUser)vsGreetUser(currentUser.username);}
@@ -5451,6 +5581,228 @@ function seclistsCategoryChange(){
 
 loadUser();
 setTimeout(renderHomeToolCatalog,120);
+
+/* ══ REMOTE AUDIT JS ══════════════════════════════════════════════════════ */
+var _raSelectedAgent = null;
+var _raCurrentJob    = null;
+var _raPollTimer     = null;
+
+function raCopyInstall(){
+  var el=document.getElementById('ra-install-cmd');
+  el.select();el.setSelectionRange(0,99999);
+  try{document.execCommand('copy');}catch(e){}
+  showToast('Copied','Install command copied to clipboard','success',2500);
+}
+
+async function raLoadAgents(){
+  var box=document.getElementById('ra-agents');
+  if(!box)return;
+  box.innerHTML='<span style="color:var(--text3)">Loading...</span>';
+  try{
+    var r=await fetch('/api/remote/agents');
+    var d=await r.json();
+    var agents=d.agents||[];
+    if(!agents.length){
+      box.innerHTML='<div style="color:var(--text3);font-size:12px">No systems connected yet. Run the install command on a Linux machine.</div>';
+      return;
+    }
+    var html='<div style="display:flex;flex-direction:column;gap:8px">';
+    agents.forEach(function(a){
+      var st=(a.status||'unknown').toLowerCase();
+      var col=st==='online'?'var(--green)':'var(--orange)';
+      var sel=_raSelectedAgent===a.client_id;
+      var tools=(a.tools||[]).slice(0,12).join(', ')+(a.tools&&a.tools.length>12?'...':'');
+      html+='<div class="card-p" style="border:1px solid '+(sel?'var(--green)':'var(--border)')+';border-radius:8px;cursor:pointer" onclick="raSelectAgent('+JSON.stringify(a)+')">'
+        +'<div style="display:flex;justify-content:space-between;gap:8px">'
+        +'<div><strong style="font-family:var(--mono)">'+a.client_id+(sel?' <span style=\'color:var(--green);\'>(selected)</span>':'')+'</strong>'
+        +'<div style="font-size:11px;color:var(--text3)">'+a.hostname+' · '+a.os_info+'</div></div>'
+        +'<span style="font-size:11px;color:'+col+'">'+st.toUpperCase()+'</span></div>'
+        +'<div style="font-size:10px;color:var(--text3);margin-top:4px">Tools: '+tools+'</div>'
+        +'<div style="font-size:10px;color:var(--text3)">IP: '+a.ip_seen+' · Last seen: '+a.last_seen+'</div>'
+        +'<div style="margin-top:8px;display:flex;gap:6px">'
+        +'<button class="btn btn-outline btn-sm" onclick="event.stopPropagation();raDisconnect(\'' +a.client_id+'\')">DISCONNECT</button>'
+        +'</div></div>';
+    });
+    html+='</div>';
+    box.innerHTML=html;
+  }catch(e){
+    box.innerHTML='<div class="err-box visible">'+e.message+'</div>';
+  }
+}
+
+function raSelectAgent(agent){
+  _raSelectedAgent=agent.client_id;
+  document.getElementById('ra-selected-label').textContent=agent.client_id+' ('+agent.hostname+')';
+  document.getElementById('ra-launcher').style.display='block';
+  // Filter tool dropdown to installed tools
+  var sel=document.getElementById('ra-tool');
+  var installedTools=agent.tools||[];
+  for(var i=0;i<sel.options.length;i++){
+    var opt=sel.options[i];
+    if(opt.value&&!['generic',''].includes(opt.value)){
+      var avail=installedTools.some(function(t){return t.toLowerCase()===opt.value.toLowerCase()||t.toLowerCase().includes(opt.value.toLowerCase());});
+      opt.text=opt.text.replace(' ✓','').replace(' ✗','');
+      opt.text+=(avail?' ✓':' ✗');
+    }
+  }
+  raLoadJobs();
+  showToast('System selected',agent.client_id+' ready','success',2000);
+}
+
+function raToolChange(){
+  var tool=document.getElementById('ra-tool').value;
+  document.getElementById('ra-generic-fields').style.display=tool==='generic'?'block':'none';
+}
+
+async function raRunTool(){
+  if(!_raSelectedAgent){showToast('No system','Select a connected system first','warning',3000);return;}
+  var tool=document.getElementById('ra-tool').value;
+  if(!tool){showToast('No tool','Select a tool to run','warning',3000);return;}
+
+  var target=document.getElementById('ra-target').value.trim();
+  var args={target:target};
+
+  if(tool==='nmap'){
+    args.profile=document.getElementById('ra-nmap-profile').value;
+    args.modules='ports';
+  } else if(tool==='generic'){
+    args.tool=document.getElementById('ra-generic-tool').value.trim();
+    args.args=document.getElementById('ra-generic-args').value.trim();
+    delete args.target;
+  }
+
+  var btn=document.getElementById('ra-run-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Queuing...';
+
+  try{
+    var r=await fetch('/api/remote/create-job',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({client_id:_raSelectedAgent,tool:tool,args:args})
+    });
+    var d=await r.json();
+    if(d.error){showToast('Error',d.error,'error',5000);return;}
+    _raCurrentJob=d.job_id;
+    showToast('Job queued','#'+d.job_id+' — '+tool+' on '+_raSelectedAgent,'success',3000);
+    raPollJob(d.job_id);
+    raLoadJobs();
+  }catch(e){showToast('Error',e.message,'error',5000);}
+  finally{btn.disabled=false;btn.innerHTML='RUN ON REMOTE SYSTEM';}
+}
+
+async function raPollJob(jobId){
+  if(_raPollTimer)clearInterval(_raPollTimer);
+  var term=document.getElementById('ra-term');
+  var err=document.getElementById('ra-err');
+  var res=document.getElementById('ra-res');
+  var prog=document.getElementById('ra-prog');
+  var pb=document.getElementById('ra-pb');
+  if(term){term.innerHTML='';term.classList.add('visible');}
+  if(err){err.textContent='';err.classList.remove('visible');}
+  if(res){res.innerHTML='';}
+  if(prog)prog.classList.add('active');
+  if(pb)pb.style.width='5%';
+
+  function addLine(txt,type){
+    if(!term)return;
+    var div=document.createElement('div');
+    div.className='tl-'+(type||'i');
+    var icons={i:'[*]',s:'[+]',w:'[!]',e:'[x]'};
+    div.innerHTML='<span class="tl-prefix">'+(icons[type]||'[*]')+'</span> '+txt;
+    term.appendChild(div);
+    term.scrollTop=term.scrollHeight;
+  }
+
+  addLine('Job #'+jobId+' queued — waiting for remote agent...','i');
+
+  var tries=0;
+  _raPollTimer=setInterval(async function(){
+    tries++;
+    try{
+      var r=await fetch('/api/remote/job-status/'+jobId);
+      var d=await r.json();
+      if(d.error){clearInterval(_raPollTimer);addLine(d.error,'e');return;}
+      var pct=parseInt(d.progress_pct||0);
+      if(pb)pb.style.width=pct+'%';
+      if(d.message){addLine('['+d.status+'] '+d.message, d.status==='error'?'e':(d.status==='completed'?'s':'i'));}
+      if(d.status==='completed'||d.status==='error'||d.status==='cancelled'){
+        clearInterval(_raPollTimer);
+        if(prog)prog.classList.remove('active');
+        if(pb)pb.style.width='100%';
+        var out=d.output||'';
+        var errTxt=d.error||'';
+        if(errTxt&&!out){
+          if(err){err.textContent=errTxt;err.classList.add('visible');}
+        } else {
+          if(out){
+            res.innerHTML='<div class="card card-p"><div class="card-title" style="margin-bottom:8px">'
+              +d.tool.toUpperCase()+' Output (Job #'+jobId+')'
+              +'  <span style="font-size:10px;color:var(--text3);font-family:var(--mono)">exit '+d.exit_code+'</span>'
+              +'</div><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2);max-height:500px;overflow-y:auto">'
+              +out.replace(/</g,'&lt;')+'</pre>'
+              +(errTxt?'<div style="color:var(--orange);font-size:11px;margin-top:8px">Stderr: '+errTxt.replace(/</g,'&lt;')+'</div>':'')
+              +'</div>';
+          }
+        }
+        addLine(d.status.toUpperCase()+' — exit code: '+d.exit_code, d.status==='completed'?'s':'e');
+        showToast('Job done','#'+jobId+' '+d.status,'success',4000);
+        raLoadJobs();
+      }
+    }catch(ex){addLine('Poll error: '+ex.message,'w');}
+    if(tries>300){clearInterval(_raPollTimer);addLine('Poll timeout','w');}
+  },2000);
+}
+
+async function raLoadJobs(){
+  var box=document.getElementById('ra-jobs');
+  if(!box)return;
+  var qs=_raSelectedAgent?'?client_id='+encodeURIComponent(_raSelectedAgent):'';
+  try{
+    var r=await fetch('/api/remote/jobs-overview'+qs+'&limit=15');
+    var d=await r.json();
+    var jobs=d.jobs||[];
+    if(!jobs.length){box.innerHTML='<div style="color:var(--text3);font-size:12px">No remote jobs yet.</div>';return;}
+    var html='<div style="display:flex;flex-direction:column;gap:6px">';
+    jobs.forEach(function(j){
+      var col=j.status==='completed'?'var(--green)':(j.status==='running'?'var(--yellow)':(j.status==='error'?'var(--red)':'var(--text3)'));
+      html+='<div class="card-p" style="border:1px solid var(--border);border-radius:6px">'
+        +'<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px">'
+        +'<span style="font-family:var(--mono);font-size:12px">#'+j.id+' · <strong>'+j.tool+'</strong> on '+j.client_id+'</span>'
+        +'<span style="font-size:11px;color:'+col+'">'+j.status.toUpperCase()+'</span></div>'
+        +'<div style="font-size:10px;color:var(--text3);margin-top:3px">'+j.progress_pct+'% · '+(j.message||'')+'</div>'
+        +'<div style="font-size:10px;color:var(--text3)">Created: '+j.created_at+(j.completed_at?' · Done: '+j.completed_at:'')+'</div>'
+        +'<div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap">'
+        +(j.status==='completed'||j.status==='error'?'<button class="btn btn-outline btn-sm" onclick="raViewJob('+j.id+')">VIEW</button>':'')
+        +(j.status==='pending'||j.status==='running'?'<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="raCancelJob('+j.id+')">CANCEL</button>':'')
+        +'</div></div>';
+    });
+    html+='</div>';
+    box.innerHTML=html;
+  }catch(e){box.innerHTML='<div style="color:var(--text3)">'+e.message+'</div>';}
+}
+
+async function raViewJob(jobId){raPollJob(jobId);}
+
+async function raCancelJob(jobId){
+  if(!confirm('Cancel remote job #'+jobId+'?'))return;
+  try{
+    var r=await fetch('/api/remote/jobs/'+jobId+'/cancel',{method:'POST'});
+    var d=await r.json();
+    if(d.ok)showToast('Cancelled','Job #'+jobId+' cancelled','warning',2500);
+    raLoadJobs();
+  }catch(e){showToast('Error',e.message,'error',3000);}
+}
+
+async function raDisconnect(clientId){
+  if(!confirm('Disconnect '+clientId+'? Re-run install.sh to reconnect.'))return;
+  try{
+    await fetch('/api/remote/agents/'+encodeURIComponent(clientId)+'/disconnect',{method:'POST'});
+    if(_raSelectedAgent===clientId){_raSelectedAgent=null;document.getElementById('ra-launcher').style.display='none';}
+    showToast('Disconnected',clientId+' removed','warning',3000);
+    raLoadAgents();raLoadJobs();
+  }catch(e){showToast('Error',e.message,'error',3000);}
+}
+/* ══ END REMOTE AUDIT JS ═════════════════════════════════════════════════ */
+
 setTimeout(removeQuickInstallCards,120);
 
 /* ==== NEW USER MODAL ==== */
@@ -8894,6 +9246,789 @@ def _pick_available_port(start_port: int, host: str = "0.0.0.0", attempts: int =
         finally:
             sock.close()
     raise OSError(f"No free port found in range {start_port}-{start_port + max(1, attempts) - 1}")
+
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# UNIVERSAL REMOTE AGENT — routes
+# All tools are executed on the connected remote system, not the server.
+# ══════════════════════════════════════════════════════════════════════════════
+
+import threading as _ra_threading, hashlib as _ra_hashlib
+
+_RA_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "remote_jobs.db")
+_RA_LOCK    = _ra_threading.Lock()
+_RA_JOB_LIMIT = 10
+
+def _ra_db():
+    import sqlite3 as _sq
+    con = _sq.connect(_RA_DB_PATH)
+    con.row_factory = _sq.Row
+    return con
+
+def _init_ra_db():
+    con = _ra_db()
+    con.executescript("""
+        CREATE TABLE IF NOT EXISTS ra_clients (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_id   TEXT UNIQUE NOT NULL,
+            token_hash  TEXT NOT NULL,
+            hostname    TEXT DEFAULT '',
+            os_info     TEXT DEFAULT '',
+            ip_seen     TEXT DEFAULT '',
+            tools_json  TEXT DEFAULT '[]',
+            agent_ver   TEXT DEFAULT '',
+            created_at  TEXT DEFAULT (datetime('now')),
+            last_seen   TEXT DEFAULT (datetime('now')),
+            status      TEXT DEFAULT 'online'
+        );
+        CREATE TABLE IF NOT EXISTS ra_jobs (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_id    TEXT NOT NULL,
+            tool         TEXT NOT NULL,
+            args_json    TEXT DEFAULT '{}',
+            status       TEXT DEFAULT 'pending',
+            created_at   TEXT DEFAULT (datetime('now')),
+            started_at   TEXT,
+            completed_at TEXT,
+            progress_pct INTEGER DEFAULT 0,
+            message      TEXT DEFAULT '',
+            output       TEXT DEFAULT '',
+            error        TEXT DEFAULT '',
+            exit_code    INTEGER,
+            cancel_req   INTEGER DEFAULT 0,
+            hardening_index INTEGER DEFAULT 0
+        );
+    """)
+    con.commit()
+    con.close()
+
+def _ra_hash(token):
+    return _ra_hashlib.sha256(token.encode()).hexdigest()
+
+def _ra_auth(req):
+    auth = req.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        return None
+    token = auth.split(" ", 1)[1].strip()
+    if not token:
+        return None
+    h = _ra_hash(token)
+    con = _ra_db()
+    row = con.execute(
+        "SELECT client_id FROM ra_clients WHERE token_hash=?", (h,)).fetchone()
+    if row:
+        con.execute(
+            "UPDATE ra_clients SET last_seen=datetime('now'), ip_seen=?, status='online' "
+            "WHERE client_id=?", (req.remote_addr or "", row["client_id"]))
+        con.commit()
+    con.close()
+    return row["client_id"] if row else None
+
+_init_ra_db()
+
+
+@app.route("/api/agent/register", methods=["POST"])
+def ra_register():
+    """Universal agent registration (replaces Lynis-only register)."""
+    data       = request.get_json() or {}
+    client_id  = (data.get("client_id") or "").strip()
+    hostname   = (data.get("hostname")  or "").strip()
+    os_info    = (data.get("os_info")   or "").strip()
+    tools      = data.get("tools") or []
+    agent_ver  = (data.get("agent_version") or "").strip()
+    if not client_id:
+        return jsonify({"error": "client_id required"}), 400
+    import secrets as _sec
+    token      = _sec.token_urlsafe(32)
+    token_hash = _ra_hash(token)
+    with _RA_LOCK:
+        con = _ra_db()
+        con.execute("""
+            INSERT INTO ra_clients
+              (client_id, token_hash, hostname, os_info, ip_seen, tools_json,
+               agent_ver, status)
+            VALUES(?,?,?,?,?,?,?,'online')
+            ON CONFLICT(client_id) DO UPDATE SET
+              token_hash=excluded.token_hash,
+              hostname=excluded.hostname,
+              os_info=excluded.os_info,
+              ip_seen=excluded.ip_seen,
+              tools_json=excluded.tools_json,
+              agent_ver=excluded.agent_ver,
+              last_seen=datetime('now'),
+              status='online'
+        """, (client_id, token_hash, hostname, os_info,
+              request.remote_addr or "", json.dumps(tools), agent_ver))
+        con.commit()
+        con.close()
+    u = get_current_user()
+    audit(u["id"] if u else None, u["username"] if u else "agent",
+          "REMOTE_AGENT_REGISTER", target=client_id, ip=request.remote_addr,
+          details=f"hostname={hostname};tools={len(tools)};ver={agent_ver}")
+    return jsonify({"client_id": client_id, "token": token,
+                    "api_base": request.url_root.rstrip("/")})
+
+
+@app.route("/api/agent/heartbeat", methods=["POST"])
+def ra_heartbeat():
+    """Agent sends heartbeat with current tool list."""
+    client_id = _ra_auth(request)
+    if not client_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    data  = request.get_json() or {}
+    tools = data.get("tools") or []
+    with _RA_LOCK:
+        con = _ra_db()
+        con.execute("""
+            UPDATE ra_clients
+            SET last_seen=datetime('now'), status='online',
+                tools_json=?, ip_seen=?
+            WHERE client_id=?
+        """, (json.dumps(tools), request.remote_addr or "", client_id))
+        con.commit()
+        con.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/remote/agents", methods=["GET"])
+def ra_list_agents():
+    """List all connected remote agents with their available tools."""
+    u = get_current_user()
+    if not u:
+        return jsonify({"error": "Login required"}), 401
+    with _RA_LOCK:
+        con = _ra_db()
+        rows = con.execute("""
+            SELECT client_id, hostname, os_info, ip_seen, tools_json,
+                   agent_ver, last_seen, status, created_at
+            FROM ra_clients
+            WHERE status != 'disconnected'
+            ORDER BY datetime(last_seen) DESC
+        """).fetchall()
+        con.close()
+    agents = []
+    for r in rows:
+        try: tools = json.loads(r["tools_json"] or "[]")
+        except Exception: tools = []
+        agents.append({
+            "client_id":  r["client_id"],
+            "hostname":   r["hostname"],
+            "os_info":    r["os_info"],
+            "ip_seen":    r["ip_seen"],
+            "tools":      tools,
+            "agent_ver":  r["agent_ver"],
+            "last_seen":  r["last_seen"],
+            "status":     r["status"],
+            "created_at": r["created_at"],
+        })
+    return jsonify({"agents": agents})
+
+
+@app.route("/api/remote/create-job", methods=["POST"])
+def ra_create_job():
+    """Queue a tool job for a specific remote agent."""
+    u = get_current_user()
+    if not u:
+        return jsonify({"error": "Login required"}), 401
+    data      = request.get_json() or {}
+    client_id = (data.get("client_id") or "").strip()
+    tool      = (data.get("tool") or "").strip().lower()
+    args      = data.get("args") or {}
+
+    ALLOWED_TOOLS = {
+        "nmap", "nikto", "lynis", "wpscan", "dnsrecon", "theharvester",
+        "sqlmap", "nuclei", "whatweb", "ffuf", "dirb", "medusa", "john",
+        "hashcat", "chkrootkit", "rkhunter", "wapiti", "dalfox", "hping3",
+        "searchsploit", "generic",
+    }
+    if not client_id:
+        return jsonify({"error": "client_id required"}), 400
+    if not tool or tool not in ALLOWED_TOOLS:
+        return jsonify({"error": f"Tool '{tool}' not allowed"}), 400
+
+    with _RA_LOCK:
+        con = _ra_db()
+        agent = con.execute(
+            "SELECT status FROM ra_clients WHERE client_id=?", (client_id,)).fetchone()
+        if not agent:
+            con.close()
+            return jsonify({"error": "Unknown agent — install agent on that system first"}), 404
+        q = con.execute(
+            "SELECT COUNT(*) as c FROM ra_jobs "
+            "WHERE client_id=? AND status IN ('pending','running')", (client_id,)).fetchone()
+        if q["c"] >= _RA_JOB_LIMIT:
+            con.close()
+            return jsonify({"error": f"Queue full ({_RA_JOB_LIMIT} jobs max)"}), 429
+        cur = con.execute("""
+            INSERT INTO ra_jobs (client_id, tool, args_json, status, progress_pct, message)
+            VALUES (?, ?, ?, 'pending', 0, 'Queued')
+        """, (client_id, tool, json.dumps(args)))
+        jid = cur.lastrowid
+        con.commit()
+        con.close()
+
+    audit(u["id"], u["username"], "REMOTE_JOB_CREATED", target=client_id,
+          ip=request.remote_addr,
+          details=f"tool={tool};job_id={jid};args={str(args)[:120]}")
+    return jsonify({"job_id": jid, "status": "pending", "tool": tool})
+
+
+@app.route("/api/remote/jobs", methods=["GET"])
+def ra_poll_jobs():
+    """Agent polls this endpoint for pending jobs."""
+    client_id = _ra_auth(request)
+    if not client_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    with _RA_LOCK:
+        con = _ra_db()
+        row = con.execute("""
+            SELECT id, tool, args_json FROM ra_jobs
+            WHERE client_id=? AND status='pending' AND cancel_req=0
+            ORDER BY id ASC LIMIT 1
+        """, (client_id,)).fetchone()
+        if row:
+            con.execute("""
+                UPDATE ra_jobs
+                SET status='running', started_at=datetime('now'),
+                    progress_pct=5, message='Agent started'
+                WHERE id=? AND status='pending'
+            """, (row["id"],))
+            con.commit()
+            try: args = json.loads(row["args_json"] or "{}")
+            except Exception: args = {}
+            job = {"job_id": row["id"], "tool": row["tool"], "args": args}
+        else:
+            job = {"job_id": None}
+        con.close()
+    return jsonify(job)
+
+
+@app.route("/api/remote/jobs/<int:job_id>/progress", methods=["POST"])
+def ra_job_progress(job_id):
+    """Agent sends progress updates."""
+    client_id = _ra_auth(request)
+    if not client_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json() or {}
+    pct  = max(0, min(100, int(data.get("progress_pct", 0))))
+    msg  = (data.get("message") or "")[:300]
+    with _RA_LOCK:
+        con = _ra_db()
+        con.execute("""
+            UPDATE ra_jobs SET progress_pct=?, message=?
+            WHERE id=? AND client_id=? AND status='running'
+        """, (pct, msg, job_id, client_id))
+        con.commit()
+        con.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/remote/upload", methods=["POST"])
+def ra_upload_result():
+    """Agent uploads completed job results."""
+    client_id = _ra_auth(request)
+    if not client_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    data    = request.get_json() or {}
+    job_id  = data.get("job_id")
+    if not job_id:
+        return jsonify({"error": "job_id required"}), 400
+    output  = str(data.get("output", ""))[:800000]
+    error   = str(data.get("error",  ""))[:5000]
+    exit_c  = data.get("exit_code")
+    status  = (data.get("status") or "completed").lower()
+    message = (data.get("message") or status.title())[:300]
+    hi      = int(data.get("hardening_index") or 0)
+    with _RA_LOCK:
+        con = _ra_db()
+        con.execute("""
+            UPDATE ra_jobs
+            SET status=?, completed_at=datetime('now'), progress_pct=100,
+                message=?, output=?, error=?, exit_code=?, hardening_index=?
+            WHERE id=? AND client_id=?
+        """, (status, message, output, error, exit_c, hi, job_id, client_id))
+        con.commit()
+        con.close()
+    audit(None, f"agent:{client_id}", "REMOTE_JOB_UPLOAD", target=str(job_id),
+          ip=request.remote_addr,
+          details=f"tool={data.get('tool','?')};status={status};exit={exit_c}")
+    return jsonify({"ok": True})
+
+
+@app.route("/api/remote/job-status/<int:job_id>", methods=["GET"])
+def ra_job_status(job_id):
+    """Dashboard polls job status/results."""
+    u = get_current_user()
+    if not u:
+        return jsonify({"error": "Login required"}), 401
+    with _RA_LOCK:
+        con = _ra_db()
+        row = con.execute("""
+            SELECT id, client_id, tool, args_json, status, progress_pct,
+                   message, output, error, exit_code, created_at,
+                   started_at, completed_at, hardening_index, cancel_req
+            FROM ra_jobs WHERE id=?
+        """, (job_id,)).fetchone()
+        con.close()
+    if not row:
+        return jsonify({"error": "Job not found"}), 404
+    try: args = json.loads(row["args_json"] or "{}")
+    except Exception: args = {}
+    return jsonify({
+        "job_id":         row["id"],
+        "client_id":      row["client_id"],
+        "tool":           row["tool"],
+        "args":           args,
+        "status":         row["status"],
+        "progress_pct":   row["progress_pct"],
+        "message":        row["message"],
+        "output":         row["output"],
+        "error":          row["error"],
+        "exit_code":      row["exit_code"],
+        "created_at":     row["created_at"],
+        "started_at":     row["started_at"],
+        "completed_at":   row["completed_at"],
+        "hardening_index":row["hardening_index"],
+        "cancel_req":     bool(row["cancel_req"]),
+    })
+
+
+@app.route("/api/remote/jobs-overview", methods=["GET"])
+def ra_jobs_overview():
+    u = get_current_user()
+    if not u:
+        return jsonify({"error": "Login required"}), 401
+    limit = max(1, min(100, int(request.args.get("limit", 20))))
+    client_id = request.args.get("client_id", "")
+    with _RA_LOCK:
+        con = _ra_db()
+        if client_id:
+            rows = con.execute("""
+                SELECT id, client_id, tool, status, progress_pct, message,
+                       created_at, started_at, completed_at
+                FROM ra_jobs WHERE client_id=?
+                ORDER BY id DESC LIMIT ?
+            """, (client_id, limit)).fetchall()
+        else:
+            rows = con.execute("""
+                SELECT id, client_id, tool, status, progress_pct, message,
+                       created_at, started_at, completed_at
+                FROM ra_jobs
+                ORDER BY id DESC LIMIT ?
+            """, (limit,)).fetchall()
+        con.close()
+    return jsonify({"jobs": [dict(r) for r in rows]})
+
+
+@app.route("/api/remote/jobs/<int:job_id>/cancel", methods=["POST"])
+def ra_cancel_job(job_id):
+    u = get_current_user()
+    if not u:
+        return jsonify({"error": "Login required"}), 401
+    with _RA_LOCK:
+        con = _ra_db()
+        row = con.execute(
+            "SELECT status FROM ra_jobs WHERE id=?", (job_id,)).fetchone()
+        if not row:
+            con.close()
+            return jsonify({"error": "Job not found"}), 404
+        if row["status"] in ("completed", "cancelled", "error"):
+            con.close()
+            return jsonify({"ok": True, "status": row["status"]})
+        if row["status"] == "pending":
+            con.execute("UPDATE ra_jobs SET status='cancelled' WHERE id=?", (job_id,))
+        else:
+            con.execute("UPDATE ra_jobs SET cancel_req=1 WHERE id=?", (job_id,))
+        con.commit()
+        con.close()
+    audit(u["id"], u["username"], "REMOTE_JOB_CANCEL", target=str(job_id),
+          ip=request.remote_addr)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/remote/agents/<client_id>/disconnect", methods=["POST"])
+def ra_disconnect_agent(client_id):
+    u = get_current_user()
+    if not u:
+        return jsonify({"error": "Login required"}), 401
+    import secrets as _sec2
+    with _RA_LOCK:
+        con = _ra_db()
+        con.execute("""
+            UPDATE ra_clients
+            SET status='disconnected', token_hash=?, last_seen=datetime('now')
+            WHERE client_id=?
+        """, (_ra_hash(_sec2.token_urlsafe(32)), client_id))
+        con.execute("""
+            UPDATE ra_jobs SET status='cancelled', message='Agent disconnected'
+            WHERE client_id=? AND status IN ('pending','running')
+        """, (client_id,))
+        con.commit()
+        con.close()
+    audit(u["id"], u["username"], "REMOTE_AGENT_DISCONNECT", target=client_id,
+          ip=request.remote_addr)
+    return jsonify({"ok": True})
+
+
+@app.route("/agent/universal_agent.py", methods=["GET"])
+def serve_universal_agent():
+    agent_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent")
+    return send_from_directory(agent_dir, "universal_agent.py", as_attachment=False,
+                               mimetype="text/plain")
+
+
+# ── Remote Audit page HTML (injected into the main UI) ───────────────────────
+_REMOTE_AUDIT_PAGE_HTML = """
+      <!-- REMOTE AUDIT PAGE -->
+      <div class="page" id="page-remote">
+        <div class="page-hd">
+          <div class="page-title">Remote Audit</div>
+          <div class="page-desc">Run any security tool on connected remote systems — one command to connect</div>
+        </div>
+
+        <!-- Install banner -->
+        <div class="card card-p" style="margin-bottom:16px;border-left:3px solid var(--cyan, #00e5ff)">
+          <div class="card-title" style="margin-bottom:10px">Connect a Linux System (one command)</div>
+          <div class="scan-bar">
+            <input class="inp inp-mono" id="ra-install-cmd" readonly
+              value="curl -fsSL http://161.118.189.254:5000/agent/install.sh | bash"
+              style="font-size:12px"/>
+            <button class="btn btn-outline btn-sm" onclick="raCopyInstall()">COPY</button>
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-top:8px">
+            Once connected, the system appears below and you can run <strong>any tool</strong> on it remotely.
+          </div>
+        </div>
+
+        <!-- Connected systems -->
+        <div class="card card-p" style="margin-bottom:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div class="card-title">Connected Systems</div>
+            <button class="btn btn-outline btn-sm" onclick="raLoadAgents()">REFRESH</button>
+          </div>
+          <div id="ra-agents">Loading...</div>
+        </div>
+
+        <!-- Tool launcher -->
+        <div class="card card-p" style="margin-bottom:16px" id="ra-launcher" style="display:none">
+          <div class="card-title" style="margin-bottom:12px">
+            Run Tool on: <span id="ra-selected-label" style="color:var(--green, #00ff9d)">—</span>
+          </div>
+
+          <div class="row2" style="margin-bottom:12px">
+            <div class="fg">
+              <label>SELECT TOOL</label>
+              <select class="inp inp-mono" id="ra-tool" onchange="raToolChange()">
+                <option value="">— choose tool —</option>
+                <optgroup label="Network">
+                  <option value="nmap">nmap — Port Scanner + CVE</option>
+                </optgroup>
+                <optgroup label="Web Testing">
+                  <option value="nikto">nikto — Web Vulnerability Scanner</option>
+                  <option value="wpscan">wpscan — WordPress Scanner</option>
+                  <option value="whatweb">whatweb — Technology Fingerprint</option>
+                  <option value="ffuf">ffuf — Directory Fuzzer</option>
+                  <option value="sqlmap">sqlmap — SQL Injection Tester</option>
+                  <option value="nuclei">nuclei — Template Scanner</option>
+                  <option value="wapiti">wapiti — Web App Scanner</option>
+                  <option value="dalfox">dalfox — XSS Scanner</option>
+                </optgroup>
+                <optgroup label="OSINT / DNS">
+                  <option value="dnsrecon">dnsrecon — DNS Enumeration</option>
+                  <option value="theharvester">theHarvester — OSINT</option>
+                </optgroup>
+                <optgroup label="System Audit">
+                  <option value="lynis">lynis — System Hardening Audit</option>
+                  <option value="chkrootkit">chkrootkit — Rootkit Detection</option>
+                  <option value="rkhunter">rkhunter — Rootkit Hunter</option>
+                </optgroup>
+                <optgroup label="Password / Brute">
+                  <option value="medusa">medusa — Network Login Auditor</option>
+                  <option value="john">john — Password Cracker</option>
+                  <option value="hashcat">hashcat — GPU Hash Cracker</option>
+                </optgroup>
+                <optgroup label="Other">
+                  <option value="searchsploit">searchsploit — Exploit-DB Search</option>
+                  <option value="hping3">hping3 — Packet Generator</option>
+                  <option value="generic">generic — Custom command</option>
+                </optgroup>
+              </select>
+            </div>
+            <div class="fg">
+              <label>NMAP PROFILE (nmap only)</label>
+              <select class="inp inp-mono" id="ra-nmap-profile">
+                <option value="fast">Fast (top 100)</option>
+                <option value="balanced" selected>Balanced (top 1000)</option>
+                <option value="deep">Deep (all ports)</option>
+                <option value="very_deep">Very Deep (scripts+OS)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Dynamic arg fields -->
+          <div id="ra-tool-args">
+            <div class="fg">
+              <label>TARGET (IP / domain / URL)</label>
+              <input class="inp inp-mono" id="ra-target" type="text" placeholder="e.g. 192.168.1.1 or example.com"/>
+            </div>
+          </div>
+
+          <!-- Generic tool extra args -->
+          <div id="ra-generic-fields" style="display:none">
+            <div class="fg">
+              <label>TOOL BINARY NAME</label>
+              <input class="inp inp-mono" id="ra-generic-tool" type="text" placeholder="e.g. dirb"/>
+            </div>
+            <div class="fg">
+              <label>ARGUMENTS</label>
+              <input class="inp inp-mono" id="ra-generic-args" type="text" placeholder="e.g. http://target.com /usr/share/wordlists/dirb/common.txt"/>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+            <button class="btn btn-primary" id="ra-run-btn" onclick="raRunTool()">RUN ON REMOTE SYSTEM</button>
+            <button class="btn btn-outline btn-sm" onclick="raLoadJobs()">REFRESH JOBS</button>
+          </div>
+        </div>
+
+        <!-- Progress + output -->
+        <div class="progress-wrap" id="ra-prog"><div class="progress-bar" id="ra-pb" style="width:0%"></div></div>
+        <div class="terminal" id="ra-term"></div>
+        <div class="err-box"  id="ra-err"></div>
+        <div id="ra-res"></div>
+
+        <!-- Job queue -->
+        <div class="card card-p" style="margin-top:14px">
+          <div class="card-title" style="margin-bottom:8px">Remote Job Queue</div>
+          <div id="ra-jobs">No jobs yet.</div>
+        </div>
+      </div>
+"""
+
+_REMOTE_AUDIT_JS = """
+/* ══ REMOTE AUDIT JS ══════════════════════════════════════════════════════ */
+var _raSelectedAgent = null;
+var _raCurrentJob    = null;
+var _raPollTimer     = null;
+
+function raCopyInstall(){
+  var el=document.getElementById('ra-install-cmd');
+  el.select();el.setSelectionRange(0,99999);
+  try{document.execCommand('copy');}catch(e){}
+  showToast('Copied','Install command copied to clipboard','success',2500);
+}
+
+async function raLoadAgents(){
+  var box=document.getElementById('ra-agents');
+  if(!box)return;
+  box.innerHTML='<span style="color:var(--text3)">Loading...</span>';
+  try{
+    var r=await fetch('/api/remote/agents');
+    var d=await r.json();
+    var agents=d.agents||[];
+    if(!agents.length){
+      box.innerHTML='<div style="color:var(--text3);font-size:12px">No systems connected yet. Run the install command on a Linux machine.</div>';
+      return;
+    }
+    var html='<div style="display:flex;flex-direction:column;gap:8px">';
+    agents.forEach(function(a){
+      var st=(a.status||'unknown').toLowerCase();
+      var col=st==='online'?'var(--green)':'var(--orange)';
+      var sel=_raSelectedAgent===a.client_id;
+      var tools=(a.tools||[]).slice(0,12).join(', ')+(a.tools&&a.tools.length>12?'...':'');
+      html+='<div class="card-p" style="border:1px solid '+(sel?'var(--green)':'var(--border)')+';border-radius:8px;cursor:pointer" onclick="raSelectAgent('+JSON.stringify(a)+')">'
+        +'<div style="display:flex;justify-content:space-between;gap:8px">'
+        +'<div><strong style="font-family:var(--mono)">'+a.client_id+(sel?' <span style=\'color:var(--green);\'>(selected)</span>':'')+'</strong>'
+        +'<div style="font-size:11px;color:var(--text3)">'+a.hostname+' · '+a.os_info+'</div></div>'
+        +'<span style="font-size:11px;color:'+col+'">'+st.toUpperCase()+'</span></div>'
+        +'<div style="font-size:10px;color:var(--text3);margin-top:4px">Tools: '+tools+'</div>'
+        +'<div style="font-size:10px;color:var(--text3)">IP: '+a.ip_seen+' · Last seen: '+a.last_seen+'</div>'
+        +'<div style="margin-top:8px;display:flex;gap:6px">'
+        +'<button class="btn btn-outline btn-sm" onclick="event.stopPropagation();raDisconnect(\'' +a.client_id+'\')">DISCONNECT</button>'
+        +'</div></div>';
+    });
+    html+='</div>';
+    box.innerHTML=html;
+  }catch(e){
+    box.innerHTML='<div class="err-box visible">'+e.message+'</div>';
+  }
+}
+
+function raSelectAgent(agent){
+  _raSelectedAgent=agent.client_id;
+  document.getElementById('ra-selected-label').textContent=agent.client_id+' ('+agent.hostname+')';
+  document.getElementById('ra-launcher').style.display='block';
+  // Filter tool dropdown to installed tools
+  var sel=document.getElementById('ra-tool');
+  var installedTools=agent.tools||[];
+  for(var i=0;i<sel.options.length;i++){
+    var opt=sel.options[i];
+    if(opt.value&&!['generic',''].includes(opt.value)){
+      var avail=installedTools.some(function(t){return t.toLowerCase()===opt.value.toLowerCase()||t.toLowerCase().includes(opt.value.toLowerCase());});
+      opt.text=opt.text.replace(' ✓','').replace(' ✗','');
+      opt.text+=(avail?' ✓':' ✗');
+    }
+  }
+  raLoadJobs();
+  showToast('System selected',agent.client_id+' ready','success',2000);
+}
+
+function raToolChange(){
+  var tool=document.getElementById('ra-tool').value;
+  document.getElementById('ra-generic-fields').style.display=tool==='generic'?'block':'none';
+}
+
+async function raRunTool(){
+  if(!_raSelectedAgent){showToast('No system','Select a connected system first','warning',3000);return;}
+  var tool=document.getElementById('ra-tool').value;
+  if(!tool){showToast('No tool','Select a tool to run','warning',3000);return;}
+
+  var target=document.getElementById('ra-target').value.trim();
+  var args={target:target};
+
+  if(tool==='nmap'){
+    args.profile=document.getElementById('ra-nmap-profile').value;
+    args.modules='ports';
+  } else if(tool==='generic'){
+    args.tool=document.getElementById('ra-generic-tool').value.trim();
+    args.args=document.getElementById('ra-generic-args').value.trim();
+    delete args.target;
+  }
+
+  var btn=document.getElementById('ra-run-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Queuing...';
+
+  try{
+    var r=await fetch('/api/remote/create-job',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({client_id:_raSelectedAgent,tool:tool,args:args})
+    });
+    var d=await r.json();
+    if(d.error){showToast('Error',d.error,'error',5000);return;}
+    _raCurrentJob=d.job_id;
+    showToast('Job queued','#'+d.job_id+' — '+tool+' on '+_raSelectedAgent,'success',3000);
+    raPollJob(d.job_id);
+    raLoadJobs();
+  }catch(e){showToast('Error',e.message,'error',5000);}
+  finally{btn.disabled=false;btn.innerHTML='RUN ON REMOTE SYSTEM';}
+}
+
+async function raPollJob(jobId){
+  if(_raPollTimer)clearInterval(_raPollTimer);
+  var term=document.getElementById('ra-term');
+  var err=document.getElementById('ra-err');
+  var res=document.getElementById('ra-res');
+  var prog=document.getElementById('ra-prog');
+  var pb=document.getElementById('ra-pb');
+  if(term){term.innerHTML='';term.classList.add('visible');}
+  if(err){err.textContent='';err.classList.remove('visible');}
+  if(res){res.innerHTML='';}
+  if(prog)prog.classList.add('active');
+  if(pb)pb.style.width='5%';
+
+  function addLine(txt,type){
+    if(!term)return;
+    var div=document.createElement('div');
+    div.className='tl-'+(type||'i');
+    var icons={i:'[*]',s:'[+]',w:'[!]',e:'[x]'};
+    div.innerHTML='<span class="tl-prefix">'+(icons[type]||'[*]')+'</span> '+txt;
+    term.appendChild(div);
+    term.scrollTop=term.scrollHeight;
+  }
+
+  addLine('Job #'+jobId+' queued — waiting for remote agent...','i');
+
+  var tries=0;
+  _raPollTimer=setInterval(async function(){
+    tries++;
+    try{
+      var r=await fetch('/api/remote/job-status/'+jobId);
+      var d=await r.json();
+      if(d.error){clearInterval(_raPollTimer);addLine(d.error,'e');return;}
+      var pct=parseInt(d.progress_pct||0);
+      if(pb)pb.style.width=pct+'%';
+      if(d.message){addLine('['+d.status+'] '+d.message, d.status==='error'?'e':(d.status==='completed'?'s':'i'));}
+      if(d.status==='completed'||d.status==='error'||d.status==='cancelled'){
+        clearInterval(_raPollTimer);
+        if(prog)prog.classList.remove('active');
+        if(pb)pb.style.width='100%';
+        var out=d.output||'';
+        var errTxt=d.error||'';
+        if(errTxt&&!out){
+          if(err){err.textContent=errTxt;err.classList.add('visible');}
+        } else {
+          if(out){
+            res.innerHTML='<div class="card card-p"><div class="card-title" style="margin-bottom:8px">'
+              +d.tool.toUpperCase()+' Output (Job #'+jobId+')'
+              +'  <span style="font-size:10px;color:var(--text3);font-family:var(--mono)">exit '+d.exit_code+'</span>'
+              +'</div><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2);max-height:500px;overflow-y:auto">'
+              +out.replace(/</g,'&lt;')+'</pre>'
+              +(errTxt?'<div style="color:var(--orange);font-size:11px;margin-top:8px">Stderr: '+errTxt.replace(/</g,'&lt;')+'</div>':'')
+              +'</div>';
+          }
+        }
+        addLine(d.status.toUpperCase()+' — exit code: '+d.exit_code, d.status==='completed'?'s':'e');
+        showToast('Job done','#'+jobId+' '+d.status,'success',4000);
+        raLoadJobs();
+      }
+    }catch(ex){addLine('Poll error: '+ex.message,'w');}
+    if(tries>300){clearInterval(_raPollTimer);addLine('Poll timeout','w');}
+  },2000);
+}
+
+async function raLoadJobs(){
+  var box=document.getElementById('ra-jobs');
+  if(!box)return;
+  var qs=_raSelectedAgent?'?client_id='+encodeURIComponent(_raSelectedAgent):'';
+  try{
+    var r=await fetch('/api/remote/jobs-overview'+qs+'&limit=15');
+    var d=await r.json();
+    var jobs=d.jobs||[];
+    if(!jobs.length){box.innerHTML='<div style="color:var(--text3);font-size:12px">No remote jobs yet.</div>';return;}
+    var html='<div style="display:flex;flex-direction:column;gap:6px">';
+    jobs.forEach(function(j){
+      var col=j.status==='completed'?'var(--green)':(j.status==='running'?'var(--yellow)':(j.status==='error'?'var(--red)':'var(--text3)'));
+      html+='<div class="card-p" style="border:1px solid var(--border);border-radius:6px">'
+        +'<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px">'
+        +'<span style="font-family:var(--mono);font-size:12px">#'+j.id+' · <strong>'+j.tool+'</strong> on '+j.client_id+'</span>'
+        +'<span style="font-size:11px;color:'+col+'">'+j.status.toUpperCase()+'</span></div>'
+        +'<div style="font-size:10px;color:var(--text3);margin-top:3px">'+j.progress_pct+'% · '+(j.message||'')+'</div>'
+        +'<div style="font-size:10px;color:var(--text3)">Created: '+j.created_at+(j.completed_at?' · Done: '+j.completed_at:'')+'</div>'
+        +'<div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap">'
+        +(j.status==='completed'||j.status==='error'?'<button class="btn btn-outline btn-sm" onclick="raViewJob('+j.id+')">VIEW</button>':'')
+        +(j.status==='pending'||j.status==='running'?'<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="raCancelJob('+j.id+')">CANCEL</button>':'')
+        +'</div></div>';
+    });
+    html+='</div>';
+    box.innerHTML=html;
+  }catch(e){box.innerHTML='<div style="color:var(--text3)">'+e.message+'</div>';}
+}
+
+async function raViewJob(jobId){raPollJob(jobId);}
+
+async function raCancelJob(jobId){
+  if(!confirm('Cancel remote job #'+jobId+'?'))return;
+  try{
+    var r=await fetch('/api/remote/jobs/'+jobId+'/cancel',{method:'POST'});
+    var d=await r.json();
+    if(d.ok)showToast('Cancelled','Job #'+jobId+' cancelled','warning',2500);
+    raLoadJobs();
+  }catch(e){showToast('Error',e.message,'error',3000);}
+}
+
+async function raDisconnect(clientId){
+  if(!confirm('Disconnect '+clientId+'? Re-run install.sh to reconnect.'))return;
+  try{
+    await fetch('/api/remote/agents/'+encodeURIComponent(clientId)+'/disconnect',{method:'POST'});
+    if(_raSelectedAgent===clientId){_raSelectedAgent=null;document.getElementById('ra-launcher').style.display='none';}
+    showToast('Disconnected',clientId+' removed','warning',3000);
+    raLoadAgents();raLoadJobs();
+  }catch(e){showToast('Error',e.message,'error',3000);}
+}
+/* ══ END REMOTE AUDIT JS ═════════════════════════════════════════════════ */
+"""
+
 
 
 if __name__ == "__main__":
