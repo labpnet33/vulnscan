@@ -225,19 +225,19 @@ This project supports running Lynis on **user Linux systems** via outbound HTTP(
 
 ### Server used in this deployment
 
-- `http://161.118.189.254:5000`
+- `http://161.118.189.254`
 
 ### One-line install (copy/paste on user Linux machine)
 
 ```bash
-curl -fsSL http://161.118.189.254:5000/agent/install.sh | bash
+curl -fsSL http://161.118.189.254/agent/install.sh | bash
 ```
 
 > Optional: pass your own ID via `bash -s -- my-client-id`. If omitted, installer auto-generates a unique ID (hostname + random suffix).
 
 ### What the install flow does
 
-1. Checks connectivity to `http://161.118.189.254:5000/health`.
+1. Checks connectivity to `http://161.118.189.254/health`.
 2. Downloads `lynis_pull_agent.py` and installer script from the server.
 3. Installs a systemd service (`vulnscan-lynis-agent`) for auto-start on boot.
 4. Registers the endpoint so it appears in the Lynis dashboard as a detected system.
@@ -246,7 +246,7 @@ curl -fsSL http://161.118.189.254:5000/agent/install.sh | bash
 
 ```bash
 # Register and get token
-curl -sS -X POST http://161.118.189.254:5000/api/agent/register \
+curl -sS -X POST http://161.118.189.254/api/agent/register \
   -H "Content-Type: application/json" \
   -d '{"client_id":"my-client-id","hostname":"myhost","os_info":"Linux"}'
 ```
@@ -254,7 +254,7 @@ curl -sS -X POST http://161.118.189.254:5000/api/agent/register \
 Then run installer with token:
 
 ```bash
-curl -fsSL http://161.118.189.254:5000/agent/install.sh | bash -s -- my-client-id <TOKEN>
+curl -fsSL http://161.118.189.254/agent/install.sh | bash -s -- my-client-id <TOKEN>
 ```
 
 ### Dashboard workflow (Lynis page)

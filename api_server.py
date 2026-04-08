@@ -54,7 +54,7 @@ TIMEOUT_WEB_DEEP   = 1800  # 30 min
 
 AGENT_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_jobs.db")
 AGENT_LOCK = threading.Lock()
-AGENT_SERVER_URL = os.environ.get("VULNSCAN_AGENT_SERVER_URL", "http://161.118.189.254:5000")
+AGENT_SERVER_URL = os.environ.get("VULNSCAN_AGENT_SERVER_URL", "http://161.118.189.254")
 LYNIS_QUEUE_LIMIT = 8
 LYNIS_OVERVIEW_LIMIT_DEFAULT = 12
 
@@ -1216,14 +1216,14 @@ document.addEventListener('DOMContentLoaded',navRestore);
           <div class="fg" style="margin-bottom:10px">
             <label>ONE-LINE AGENT INSTALL (Linux)</label>
             <div class="scan-bar">
-              <input class="inp inp-mono" id="ly-install-cmd" type="text" readonly value="curl -fsSL http://161.118.189.254:5000/agent/install.sh | bash"/>
+              <input class="inp inp-mono" id="ly-install-cmd" type="text" readonly value="curl -fsSL http://161.118.189.254/agent/install.sh | bash"/>
               <button class="btn btn-outline btn-sm" onclick="copyLynisInstallCmd()">COPY</button>
             </div>
           </div>
           <div class="fg" style="margin-bottom:10px">
             <label>ONE-LINE AGENT INSTALL (Windows PowerShell + WSL)</label>
             <div class="scan-bar">
-              <input class="inp inp-mono" id="ly-install-cmd-win" type="text" readonly value="powershell -ExecutionPolicy Bypass -Command &quot;iwr -UseBasicParsing http://161.118.189.254:5000/agent/install.ps1 | iex&quot;"/>
+              <input class="inp inp-mono" id="ly-install-cmd-win" type="text" readonly value="powershell -ExecutionPolicy Bypass -Command &quot;iwr -UseBasicParsing http://161.118.189.254/agent/install.ps1 | iex&quot;"/>
               <button class="btn btn-outline btn-sm" onclick="copyLynisInstallCmdWin()">COPY</button>
             </div>
           </div>
@@ -2805,7 +2805,7 @@ document.addEventListener('DOMContentLoaded',navRestore);
           <div class="card-title" style="margin-bottom:10px">Connect a Linux System (one command)</div>
           <div class="scan-bar">
             <input class="inp inp-mono" id="ra-install-cmd" readonly
-              value="curl -fsSL http://161.118.189.254:5000/agent/install.sh | bash"
+              value="curl -fsSL http://161.118.189.254/agent/install.sh | bash"
               style="font-size:12px"/>
             <button class="btn btn-outline btn-sm" onclick="raCopyInstall()">COPY</button>
           </div>
@@ -9692,7 +9692,7 @@ _REMOTE_AUDIT_PAGE_HTML = """
           <div class="card-title" style="margin-bottom:10px">Connect a Linux System (one command)</div>
           <div class="scan-bar">
             <input class="inp inp-mono" id="ra-install-cmd" readonly
-              value="curl -fsSL http://161.118.189.254:5000/agent/install.sh | bash"
+              value="curl -fsSL http://161.118.189.254/agent/install.sh | bash"
               style="font-size:12px"/>
             <button class="btn btn-outline btn-sm" onclick="raCopyInstall()">COPY</button>
           </div>

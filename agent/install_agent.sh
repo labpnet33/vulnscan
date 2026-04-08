@@ -3,7 +3,7 @@ set -euo pipefail
 
 CLIENT_ID="${1:-}"
 TOKEN="${2:-}"
-API_BASE="${3:-http://161.118.189.254:5000}"
+API_BASE="${3:-http://161.118.189.254}"
 
 if [[ -z "$CLIENT_ID" ]]; then
   base_host="$(hostname -s 2>/dev/null || echo linux-client)"

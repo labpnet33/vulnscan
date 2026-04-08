@@ -1,7 +1,7 @@
 param(
   [string]$ClientId = "",
   [string]$Token = "",
-  [string]$ServerUrl = "http://161.118.189.254:5000"
+  [string]$ServerUrl = "http://161.118.189.254"
 )
 
 $ErrorActionPreference = "Stop"
