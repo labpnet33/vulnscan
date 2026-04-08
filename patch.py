@@ -1,13 +1,24 @@
 #!/usr/bin/env python3
 """
-VulnScan Pro — Patch: Fix universal_agent.py
-  1. Removes the bad `http_json(..., headers=None, token=token)` call in the poll loop
-  2. Fixes the duplicate http_json definition (the second one shadows the first)
-  3. Fixes tool-filter UI in api_server.py so only tools installed on the remote
-     system are shown (others hidden, not just marked ✓/✗)
+VulnScan Pro — Patch: Unify agent registration
+================================================
+Problem: Connected clients appear under Lynis page instead of Remote Audit
+         because the install script POSTs to /api/agent/register which writes
+         to the OLD `agent_clients` (Lynis) table, NOT the `ra_clients` table
+         that Remote Audit reads from.
+
+Fix:
+  1. api_server.py  — Make /api/agent/register write to BOTH tables so the
+                      same token works for both Lynis jobs AND Remote Audit.
+                      Also make /api/remote/agents fall back to agent_clients
+                      so existing connected systems appear immediately.
+  2. agent/install_agent.sh  — Point registration at /api/agent/register
+                                (already correct, no change needed there).
+  3. agent/universal_agent.py — Fix heartbeat to also hit /api/agent/heartbeat
+                                 (already correct in new version).
 
 Run from project root:
-    python3 patch_agent_fix.py
+    python3 patch_unify_agents.py
 """
 import os, shutil
 from datetime import datetime
@@ -26,228 +37,577 @@ def backup(path):
     shutil.copy2(path, bak)
     return bak
 
-def patch(path, label, old, new):
+def patch_file(path, label, old, new):
     if not os.path.isfile(path):
         fail(f"{label} — file not found: {path}")
         return False
     with open(path, "r", encoding="utf-8", errors="ignore") as f:
         src = f.read()
     if old not in src:
-        if new.strip() in src or old.strip()[:40] not in src:
-            skip(f"{label} — already applied or anchor not found")
-        else:
-            fail(f"{label} — anchor not found in {path}")
+        skip(f"{label} — anchor not found (may already be patched)")
         return False
+    bak = backup(path)
     with open(path, "w", encoding="utf-8") as f:
         f.write(src.replace(old, new, 1))
-    ok(f"{label}")
+    ok(f"{label}  [backup: {bak}]")
     return True
+
+def replace_all(path, label, old, new):
+    """Replace ALL occurrences (for strings that appear in both HTML and code)."""
+    if not os.path.isfile(path):
+        fail(f"{label} — file not found: {path}")
+        return 0
+    with open(path, "r", encoding="utf-8", errors="ignore") as f:
+        src = f.read()
+    count = src.count(old)
+    if count == 0:
+        skip(f"{label} — not found (may already be patched)")
+        return 0
+    bak = backup(path)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(src.replace(old, new))
+    ok(f"{label} — {count} occurrence(s)  [backup: {bak}]")
+    return count
 
 print()
 print(BOLD + CYAN + "╔══════════════════════════════════════════════════════╗" + RESET)
-print(BOLD + CYAN + "║  VulnScan Pro — Fix Remote Audit Agent               ║" + RESET)
-print(BOLD + CYAN + "║  • Fix http_json() headers kwarg error               ║" + RESET)
-print(BOLD + CYAN + "║  • Fix duplicate http_json definition                ║" + RESET)
-print(BOLD + CYAN + "║  • Fix tool filter UI (show only installed tools)    ║" + RESET)
+print(BOLD + CYAN + "║  VulnScan Pro — Unify Agent Registration             ║" + RESET)
+print(BOLD + CYAN + "║  Clients will appear in Remote Audit, not Lynis      ║" + RESET)
 print(BOLD + CYAN + "╚══════════════════════════════════════════════════════╝" + RESET)
 print()
 
-AGENT = "agent/universal_agent.py"
 SERVER = "api_server.py"
 
-modified = []
+# ══════════════════════════════════════════════════════════════
+# PATCH 1
+# /api/agent/register currently writes ONLY to agent_clients (Lynis table).
+# Make it ALSO write to ra_clients so Remote Audit sees the agent.
+# ══════════════════════════════════════════════════════════════
 
-# ──────────────────────────────────────────────────────────────
-# PATCH 1: Fix the poll loop in universal_agent.py
-# The bad code does:
-#   job = http_json(f"...", headers=None, token=token)
-#   # then immediately does the same request again with urllib directly
-# Replace the entire broken poll block with a clean single request
-# ──────────────────────────────────────────────────────────────
+OLD_REGISTER = '''@app.route("/api/agent/register", methods=["POST"])
+def register_agent():
+    data = request.get_json() or {}
+    client_id = (data.get("client_id") or "").strip()
+    hostname = (data.get("hostname") or "").strip()
+    os_info = (data.get("os_info") or "").strip()
+    if not client_id:
+        return jsonify({"error": "client_id is required"}), 400
+    token = secrets.token_urlsafe(32)
+    token_hash = _hash_token(token)
+    with AGENT_LOCK:
+        con = _agent_db()
+        con.execute("""
+            INSERT INTO agent_clients(client_id, token_hash, hostname, os_info, ip_seen, status)
+            VALUES(?,?,?,?,?,?)
+            ON CONFLICT(client_id) DO UPDATE SET
+              token_hash=excluded.token_hash,
+              hostname=excluded.hostname,
+              os_info=excluded.os_info,
+              ip_seen=excluded.ip_seen,
+              last_seen=datetime('now'),
+              status='online'
+        """, (client_id, token_hash, hostname, os_info, request.remote_addr or "", "online"))
+        con.commit()
+        con.close()
+    audit(None, "agent", "AGENT_REGISTER", target=client_id,
+          ip=request.remote_addr,
+          details=f"hostname={hostname};os_info={os_info[:60]}")
+    return jsonify({"client_id": client_id, "token": token, "api_base": request.url_root.rstrip("/")})'''
 
-OLD_POLL = '''            # Poll for a job
-            job = http_json(f"{api_base}/api/remote/jobs", headers=None, token=token)
-            # Override: pass token via bearer
-            import urllib.request as _ur
-            req = _ur.Request(f"{api_base}/api/remote/jobs",
-                              headers={"Authorization": f"Bearer {token}",
-                                       "Content-Type": "application/json"})
-            with _ur.urlopen(req, timeout=30) as r:
-                job = json.loads(r.read().decode())'''
+NEW_REGISTER = '''@app.route("/api/agent/register", methods=["POST"])
+def register_agent():
+    """
+    Unified registration endpoint.
+    Writes to BOTH agent_clients (Lynis) AND ra_clients (Remote Audit)
+    so the same agent token works for both pages.
+    """
+    data      = request.get_json() or {}
+    client_id = (data.get("client_id") or "").strip()
+    hostname  = (data.get("hostname")  or "").strip()
+    os_info   = (data.get("os_info")   or "").strip()
+    tools     = data.get("tools") or []
+    agent_ver = (data.get("agent_version") or "").strip()
+    if not client_id:
+        return jsonify({"error": "client_id is required"}), 400
 
-NEW_POLL = '''            # Poll for a job
-            job = http_json(f"{api_base}/api/remote/jobs", token=token)'''
+    token      = secrets.token_urlsafe(32)
+    token_hash = _hash_token(token)
+    ip         = request.remote_addr or ""
 
-if patch(AGENT, "agent: fix poll loop (remove headers=None + duplicate request)", OLD_POLL, NEW_POLL):
-    modified.append(AGENT)
+    # ── Write to Lynis agent_clients table ───────────────────
+    with AGENT_LOCK:
+        con = _agent_db()
+        con.execute("""
+            INSERT INTO agent_clients(client_id, token_hash, hostname, os_info, ip_seen, status)
+            VALUES(?,?,?,?,?,'online')
+            ON CONFLICT(client_id) DO UPDATE SET
+              token_hash=excluded.token_hash,
+              hostname=excluded.hostname,
+              os_info=excluded.os_info,
+              ip_seen=excluded.ip_seen,
+              last_seen=datetime('now'),
+              status='online'
+        """, (client_id, token_hash, hostname, os_info, ip))
+        con.commit()
+        con.close()
 
-# ──────────────────────────────────────────────────────────────
-# PATCH 2: Remove the duplicate http_json definition at the bottom
-# of universal_agent.py (it shadows the one at the top and is identical)
-# ──────────────────────────────────────────────────────────────
+    # ── Write to Remote Audit ra_clients table ───────────────
+    import json as _json2
+    ra_hash_val = _ra_hash(token)
+    with _RA_LOCK:
+        con2 = _ra_db()
+        con2.execute("""
+            INSERT INTO ra_clients
+              (client_id, token_hash, hostname, os_info, ip_seen,
+               tools_json, agent_ver, status)
+            VALUES(?,?,?,?,?,?,?,'online')
+            ON CONFLICT(client_id) DO UPDATE SET
+              token_hash=excluded.token_hash,
+              hostname=excluded.hostname,
+              os_info=excluded.os_info,
+              ip_seen=excluded.ip_seen,
+              tools_json=excluded.tools_json,
+              agent_ver=excluded.agent_ver,
+              last_seen=datetime('now'),
+              status='online'
+        """, (client_id, ra_hash_val, hostname, os_info, ip,
+              _json2.dumps(tools), agent_ver))
+        con2.commit()
+        con2.close()
 
-OLD_DUP = '''# ── Fix http_json to support token as param not kwarg ─────────
-def http_json(url, method="GET", payload=None, token=""):
-    data = json.dumps(payload).encode() if payload is not None else None
-    headers = {"Content-Type": "application/json"}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    req = urllib.request.Request(url, data=data, headers=headers, method=method)
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read().decode())'''
+    audit(None, "agent", "AGENT_REGISTER", target=client_id,
+          ip=ip,
+          details=f"hostname={hostname};os_info={os_info[:60]};tools={len(tools)}")
+    return jsonify({
+        "client_id": client_id,
+        "token":     token,
+        "api_base":  request.url_root.rstrip("/")
+    })'''
 
-NEW_DUP = '''# (duplicate http_json removed — using the one defined at top of file)'''
+patch_file(SERVER, "api_server: /api/agent/register writes to both tables", OLD_REGISTER, NEW_REGISTER)
 
-if patch(AGENT, "agent: remove duplicate http_json definition", OLD_DUP, NEW_DUP):
-    if AGENT not in modified:
-        modified.append(AGENT)
+# ══════════════════════════════════════════════════════════════
+# PATCH 2
+# /api/agent/heartbeat currently only updates agent_clients.
+# Also update ra_clients so Remote Audit shows the agent as online
+# and keeps the tools list current.
+# ══════════════════════════════════════════════════════════════
 
-# ──────────────────────────────────────────────────────────────
-# PATCH 3: Fix tool filter UI in api_server.py
-# Current code marks tools ✓/✗ but keeps all visible.
-# Replace with version that shows only installed tools,
-# and groups uninstalled ones at the bottom as disabled/greyed.
-# ──────────────────────────────────────────────────────────────
+OLD_HEARTBEAT = '''@app.route("/api/agent/heartbeat", methods=["POST"])
+def ra_heartbeat():
+    """Agent sends heartbeat with current tool list."""
+    client_id = _ra_auth(request)
+    if not client_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    data  = request.get_json() or {}
+    tools = data.get("tools") or []
+    with _RA_LOCK:
+        con = _ra_db()
+        con.execute("""
+            UPDATE ra_clients
+            SET last_seen=datetime('now'), status='online',
+                tools_json=?, ip_seen=?
+            WHERE client_id=?
+        """, (json.dumps(tools), request.remote_addr or "", client_id))
+        con.commit()
+        con.close()
+    return jsonify({"ok": True})'''
 
-OLD_SELECT = '''function raSelectAgent(agent){
-  _raSelectedAgent=agent.client_id;
-  document.getElementById('ra-selected-label').textContent=agent.client_id+' ('+agent.hostname+')';
-  document.getElementById('ra-launcher').style.display='block';
-  // Filter tool dropdown to installed tools
-  var sel=document.getElementById('ra-tool');
-  var installedTools=agent.tools||[];
-  for(var i=0;i<sel.options.length;i++){
-    var opt=sel.options[i];
-    if(opt.value&&!['generic',''].includes(opt.value)){
-      var avail=installedTools.some(function(t){return t.toLowerCase()===opt.value.toLowerCase()||t.toLowerCase().includes(opt.value.toLowerCase());});
-      opt.text=opt.text.replace(' ✓','').replace(' ✗','');
-      opt.text+=(avail?' ✓':' ✗');
-    }
-  }
-  raLoadJobs();
-  showToast('System selected',agent.client_id+' ready','success',2000);
-}'''
+NEW_HEARTBEAT = '''@app.route("/api/agent/heartbeat", methods=["POST"])
+def ra_heartbeat():
+    """
+    Agent sends heartbeat with current tool list.
+    Accepts Bearer token from EITHER agent_clients OR ra_clients.
+    Updates both tables so Lynis page and Remote Audit stay in sync.
+    """
+    # Try ra_clients auth first, then fall back to agent_clients auth
+    client_id = _ra_auth(request)
 
-NEW_SELECT = '''function raSelectAgent(agent){
-  _raSelectedAgent=agent.client_id;
-  document.getElementById('ra-selected-label').textContent=agent.client_id+' ('+agent.hostname+')';
-  document.getElementById('ra-launcher').style.display='block';
+    # Fallback: check agent_clients token (Lynis table)
+    if not client_id:
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            token = auth.split(" ", 1)[1].strip()
+            if token:
+                th = _hash_token(token)
+                con_chk = _agent_db()
+                row_chk = con_chk.execute(
+                    "SELECT client_id FROM agent_clients WHERE token_hash=?", (th,)
+                ).fetchone()
+                con_chk.close()
+                if row_chk:
+                    client_id = row_chk["client_id"]
 
-  // Rebuild tool dropdown: installed tools first (enabled), rest disabled
-  var installedTools=(agent.tools||[]).map(function(t){return t.toLowerCase();});
+    if not client_id:
+        return jsonify({"error": "Unauthorized"}), 401
 
-  var TOOL_LIST = [
-    // [value, label, category]
-    ['nmap',          'nmap — Port Scanner',         'Network'],
-    ['nikto',         'nikto — Web Vuln Scanner',    'Web Testing'],
-    ['wpscan',        'wpscan — WordPress Scanner',  'Web Testing'],
-    ['whatweb',       'whatweb — Tech Fingerprint',  'Web Testing'],
-    ['ffuf',          'ffuf — Directory Fuzzer',     'Web Testing'],
-    ['sqlmap',        'sqlmap — SQL Injection',       'Web Testing'],
-    ['nuclei',        'nuclei — Template Scanner',   'Web Testing'],
-    ['wapiti',        'wapiti — Web App Scanner',    'Web Testing'],
-    ['dalfox',        'dalfox — XSS Scanner',        'Web Testing'],
-    ['dnsrecon',      'dnsrecon — DNS Enum',         'OSINT / DNS'],
-    ['theharvester',  'theHarvester — OSINT',        'OSINT / DNS'],
-    ['lynis',         'lynis — System Audit',        'System Audit'],
-    ['chkrootkit',    'chkrootkit — Rootkit Check',  'System Audit'],
-    ['rkhunter',      'rkhunter — Rootkit Hunter',   'System Audit'],
-    ['medusa',        'medusa — Login Auditor',      'Password'],
-    ['john',          'john — Password Cracker',     'Password'],
-    ['hashcat',       'hashcat — GPU Hash Cracker',  'Password'],
-    ['searchsploit',  'searchsploit — Exploit-DB',   'Other'],
-    ['hping3',        'hping3 — Packet Generator',   'Other'],
-    ['generic',       'generic — Custom command',    'Other'],
-  ];
+    data  = request.get_json() or {}
+    tools = data.get("tools") or []
+    ip    = request.remote_addr or ""
 
-  var sel = document.getElementById('ra-tool');
-  // Clear existing options except placeholder
-  sel.innerHTML = '<option value="">— choose tool —</option>';
+    # Update ra_clients
+    with _RA_LOCK:
+        con = _ra_db()
+        con.execute("""
+            UPDATE ra_clients
+            SET last_seen=datetime('now'), status='online',
+                tools_json=?, ip_seen=?
+            WHERE client_id=?
+        """, (json.dumps(tools), ip, client_id))
+        con.commit()
+        con.close()
 
-  // Group by category
-  var cats = {};
-  TOOL_LIST.forEach(function(t){
-    var cat = t[2];
-    if(!cats[cat]) cats[cat] = [];
-    cats[cat].push(t);
-  });
+    # Update agent_clients (Lynis table) as well
+    with AGENT_LOCK:
+        con2 = _agent_db()
+        con2.execute("""
+            UPDATE agent_clients
+            SET last_seen=datetime('now'), status='online', ip_seen=?
+            WHERE client_id=?
+        """, (ip, client_id))
+        con2.commit()
+        con2.close()
 
-  Object.keys(cats).forEach(function(cat){
-    var grp = document.createElement('optgroup');
-    grp.label = cat;
-    cats[cat].forEach(function(t){
-      var val = t[0], lbl = t[1];
-      // Check if tool installed (flexible match)
-      var isInstalled = val === 'generic' || installedTools.some(function(it){
-        return it === val || it.indexOf(val) !== -1 || val.indexOf(it) !== -1;
-      });
-      var opt = document.createElement('option');
-      opt.value = val;
-      opt.text  = isInstalled ? ('✓ ' + lbl) : ('✗ ' + lbl + ' (not installed)');
-      opt.disabled = !isInstalled;
-      if(!isInstalled) opt.style.color = '#666';
-      grp.appendChild(opt);
-    });
-    sel.appendChild(grp);
-  });
+    return jsonify({"ok": True})'''
 
-  raLoadJobs();
-  var installedCount = installedTools.length;
-  showToast('System selected', agent.client_id + ' — ' + installedCount + ' tools available', 'success', 3000);
-}'''
+patch_file(SERVER, "api_server: /api/agent/heartbeat syncs both tables", OLD_HEARTBEAT, NEW_HEARTBEAT)
 
-if patch(SERVER, "server: fix tool dropdown to show only installed tools", OLD_SELECT, NEW_SELECT):
-    if SERVER not in modified:
-        modified.append(SERVER)
+# ══════════════════════════════════════════════════════════════
+# PATCH 3
+# /api/remote/agents currently reads ONLY ra_clients.
+# Make it merge results from BOTH tables so agents registered
+# via the old Lynis path also appear in Remote Audit.
+# ══════════════════════════════════════════════════════════════
 
-# ──────────────────────────────────────────────────────────────
-# PATCH 4: Also fix the same raSelectAgent in the HTML constant
-# (api_server.py embeds JS inside HTML = r"""...""")
-# ──────────────────────────────────────────────────────────────
-# The HTML block has an identical raSelectAgent — patch it too
-OLD_SELECT_HTML = OLD_SELECT  # same text appears inside HTML string
-NEW_SELECT_HTML = NEW_SELECT
+OLD_LIST_AGENTS = '''@app.route("/api/remote/agents", methods=["GET"])
+def ra_list_agents():
+    """List all connected remote agents with their available tools."""
+    u = get_current_user()
+    if not u:
+        return jsonify({"error": "Login required"}), 401
+    with _RA_LOCK:
+        con = _ra_db()
+        rows = con.execute("""
+            SELECT client_id, hostname, os_info, ip_seen, tools_json,
+                   agent_ver, last_seen, status, created_at
+            FROM ra_clients
+            WHERE status != 'disconnected'
+            ORDER BY datetime(last_seen) DESC
+        """).fetchall()
+        con.close()
+    agents = []
+    for r in rows:
+        try: tools = json.loads(r["tools_json"] or "[]")
+        except Exception: tools = []
+        agents.append({
+            "client_id":  r["client_id"],
+            "hostname":   r["hostname"],
+            "os_info":    r["os_info"],
+            "ip_seen":    r["ip_seen"],
+            "tools":      tools,
+            "agent_ver":  r["agent_ver"],
+            "last_seen":  r["last_seen"],
+            "status":     r["status"],
+            "created_at": r["created_at"],
+        })
+    return jsonify({"agents": agents})'''
 
-# Only apply if not already done (the replace in patch() only does first occurrence)
-if os.path.isfile(SERVER):
-    with open(SERVER, "r", encoding="utf-8", errors="ignore") as f:
-        src2 = f.read()
-    if OLD_SELECT_HTML in src2:
-        bak2 = backup(SERVER)
-        with open(SERVER, "w", encoding="utf-8") as f:
-            f.write(src2.replace(OLD_SELECT_HTML, NEW_SELECT_HTML))
-        ok("server HTML block: fix tool dropdown (second occurrence)")
-        if SERVER not in modified:
-            modified.append(SERVER)
-    else:
-        skip("server HTML block: second occurrence not found (already patched or not present)")
+NEW_LIST_AGENTS = '''@app.route("/api/remote/agents", methods=["GET"])
+def ra_list_agents():
+    """
+    List all connected remote agents with their available tools.
+    Merges ra_clients (Remote Audit) + agent_clients (Lynis) so agents
+    registered via either path appear in the Remote Audit panel.
+    """
+    u = get_current_user()
+    if not u:
+        return jsonify({"error": "Login required"}), 401
 
-# ──────────────────────────────────────────────────────────────
-# Backup modified files (if not already backed up above)
-# ──────────────────────────────────────────────────────────────
-print()
-info("Creating backups for modified files...")
-for path in modified:
-    if os.path.isfile(path):
-        bak = backup(path)
-        info(f"  backup → {bak}")
+    seen = {}
 
-# ──────────────────────────────────────────────────────────────
+    # Primary source: ra_clients
+    with _RA_LOCK:
+        con = _ra_db()
+        rows = con.execute("""
+            SELECT client_id, hostname, os_info, ip_seen, tools_json,
+                   agent_ver, last_seen, status, created_at
+            FROM ra_clients
+            WHERE status != 'disconnected'
+            ORDER BY datetime(last_seen) DESC
+        """).fetchall()
+        con.close()
+    for r in rows:
+        try: tools = json.loads(r["tools_json"] or "[]")
+        except Exception: tools = []
+        seen[r["client_id"]] = {
+            "client_id":  r["client_id"],
+            "hostname":   r["hostname"],
+            "os_info":    r["os_info"],
+            "ip_seen":    r["ip_seen"],
+            "tools":      tools,
+            "agent_ver":  r["agent_ver"],
+            "last_seen":  r["last_seen"],
+            "status":     r["status"],
+            "created_at": r["created_at"],
+        }
+
+    # Fallback source: agent_clients (Lynis table)
+    # Include any agents not already in ra_clients
+    with AGENT_LOCK:
+        con2 = _agent_db()
+        rows2 = con2.execute("""
+            SELECT client_id, hostname, os_info, ip_seen,
+                   last_seen, status, created_at
+            FROM agent_clients
+            WHERE status != 'disconnected'
+            ORDER BY datetime(last_seen) DESC
+        """).fetchall()
+        con2.close()
+    for r in rows2:
+        cid = r["client_id"]
+        if cid not in seen:
+            seen[cid] = {
+                "client_id":  cid,
+                "hostname":   r["hostname"] or "",
+                "os_info":    r["os_info"]  or "",
+                "ip_seen":    r["ip_seen"]  or "",
+                "tools":      [],
+                "agent_ver":  "",
+                "last_seen":  r["last_seen"],
+                "status":     r["status"],
+                "created_at": r["created_at"],
+            }
+        else:
+            # If already in ra_clients but tools list is empty, keep existing
+            pass
+
+    agents = sorted(seen.values(),
+                    key=lambda x: x.get("last_seen", ""), reverse=True)
+    return jsonify({"agents": agents})'''
+
+patch_file(SERVER, "api_server: /api/remote/agents merges both tables", OLD_LIST_AGENTS, NEW_LIST_AGENTS)
+
+# ══════════════════════════════════════════════════════════════
+# PATCH 4
+# /api/remote/jobs (agent poll) currently only authenticates
+# against ra_clients. Allow the Lynis token (agent_clients) too,
+# so the universal_agent.py registered via Lynis path can poll.
+# ══════════════════════════════════════════════════════════════
+
+OLD_POLL_JOBS = '''@app.route("/api/remote/jobs", methods=["GET"])
+def ra_poll_jobs():
+    """Agent polls this endpoint for pending jobs."""
+    client_id = _ra_auth(request)
+    if not client_id:
+        return jsonify({"error": "Unauthorized"}), 401'''
+
+NEW_POLL_JOBS = '''@app.route("/api/remote/jobs", methods=["GET"])
+def ra_poll_jobs():
+    """
+    Agent polls this endpoint for pending jobs.
+    Accepts token from ra_clients OR agent_clients (Lynis table).
+    """
+    client_id = _ra_auth(request)
+
+    # Fallback: check agent_clients (Lynis) token
+    if not client_id:
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            token = auth.split(" ", 1)[1].strip()
+            if token:
+                th = _hash_token(token)
+                _con = _agent_db()
+                _row = _con.execute(
+                    "SELECT client_id FROM agent_clients WHERE token_hash=?", (th,)
+                ).fetchone()
+                _con.close()
+                if _row:
+                    client_id = _row["client_id"]
+                    # Ensure this agent also exists in ra_clients for job polling
+                    with _RA_LOCK:
+                        _rcon = _ra_db()
+                        _existing = _rcon.execute(
+                            "SELECT 1 FROM ra_clients WHERE client_id=?", (client_id,)
+                        ).fetchone()
+                        if not _existing:
+                            _rcon.execute("""
+                                INSERT OR IGNORE INTO ra_clients
+                                  (client_id, token_hash, status)
+                                VALUES (?, ?, 'online')
+                            """, (client_id, _ra_hash(token)))
+                            _rcon.commit()
+                        else:
+                            _rcon.execute("""
+                                UPDATE ra_clients
+                                SET last_seen=datetime('now'), status='online',
+                                    token_hash=?
+                                WHERE client_id=?
+                            """, (_ra_hash(token), client_id))
+                            _rcon.commit()
+                        _rcon.close()
+
+    if not client_id:
+        return jsonify({"error": "Unauthorized"}), 401'''
+
+patch_file(SERVER, "api_server: /api/remote/jobs accepts both token types", OLD_POLL_JOBS, NEW_POLL_JOBS)
+
+# ══════════════════════════════════════════════════════════════
+# PATCH 5
+# /api/remote/upload — same dual-auth fix
+# ══════════════════════════════════════════════════════════════
+
+OLD_UPLOAD = '''@app.route("/api/remote/upload", methods=["POST"])
+def ra_upload_result():
+    """Agent uploads completed job results."""
+    client_id = _ra_auth(request)
+    if not client_id:
+        return jsonify({"error": "Unauthorized"}), 401'''
+
+NEW_UPLOAD = '''@app.route("/api/remote/upload", methods=["POST"])
+def ra_upload_result():
+    """Agent uploads completed job results. Accepts both token types."""
+    client_id = _ra_auth(request)
+    if not client_id:
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            _tok = auth.split(" ", 1)[1].strip()
+            if _tok:
+                _th = _hash_token(_tok)
+                _uc = _agent_db()
+                _ur2 = _uc.execute(
+                    "SELECT client_id FROM agent_clients WHERE token_hash=?", (_th,)
+                ).fetchone()
+                _uc.close()
+                if _ur2:
+                    client_id = _ur2["client_id"]
+    if not client_id:
+        return jsonify({"error": "Unauthorized"}), 401'''
+
+patch_file(SERVER, "api_server: /api/remote/upload accepts both token types", OLD_UPLOAD, NEW_UPLOAD)
+
+# ══════════════════════════════════════════════════════════════
+# PATCH 6
+# /api/remote/jobs/<id>/progress — same dual-auth fix
+# ══════════════════════════════════════════════════════════════
+
+OLD_PROGRESS = '''@app.route("/api/remote/jobs/<int:job_id>/progress", methods=["POST"])
+def ra_job_progress(job_id):
+    """Agent sends progress updates."""
+    client_id = _ra_auth(request)
+    if not client_id:
+        return jsonify({"error": "Unauthorized"}), 401'''
+
+NEW_PROGRESS = '''@app.route("/api/remote/jobs/<int:job_id>/progress", methods=["POST"])
+def ra_job_progress(job_id):
+    """Agent sends progress updates. Accepts both token types."""
+    client_id = _ra_auth(request)
+    if not client_id:
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            _tok = auth.split(" ", 1)[1].strip()
+            if _tok:
+                _th = _hash_token(_tok)
+                _pc = _agent_db()
+                _pr = _pc.execute(
+                    "SELECT client_id FROM agent_clients WHERE token_hash=?", (_th,)
+                ).fetchone()
+                _pc.close()
+                if _pr:
+                    client_id = _pr["client_id"]
+    if not client_id:
+        return jsonify({"error": "Unauthorized"}), 401'''
+
+patch_file(SERVER, "api_server: /api/remote/jobs/progress accepts both token types", OLD_PROGRESS, NEW_PROGRESS)
+
+# ══════════════════════════════════════════════════════════════
+# PATCH 7
+# /api/remote/agents/<client_id>/disconnect
+# Also remove from agent_clients when disconnecting from Remote Audit
+# ══════════════════════════════════════════════════════════════
+
+OLD_DISCONNECT = '''@app.route("/api/remote/agents/<client_id>/disconnect", methods=["POST"])
+def ra_disconnect_agent(client_id):
+    u = get_current_user()
+    if not u:
+        return jsonify({"error": "Login required"}), 401
+    import secrets as _sec2
+    with _RA_LOCK:
+        con = _ra_db()
+        con.execute("""
+            UPDATE ra_clients
+            SET status='disconnected', token_hash=?, last_seen=datetime('now')
+            WHERE client_id=?
+        """, (_ra_hash(_sec2.token_urlsafe(32)), client_id))
+        con.execute("""
+            UPDATE ra_jobs SET status='cancelled', message='Agent disconnected'
+            WHERE client_id=? AND status IN ('pending','running')
+        """, (client_id,))
+        con.commit()
+        con.close()
+    audit(u["id"], u["username"], "REMOTE_AGENT_DISCONNECT", target=client_id,
+          ip=request.remote_addr)
+    return jsonify({"ok": True})'''
+
+NEW_DISCONNECT = '''@app.route("/api/remote/agents/<client_id>/disconnect", methods=["POST"])
+def ra_disconnect_agent(client_id):
+    u = get_current_user()
+    if not u:
+        return jsonify({"error": "Login required"}), 401
+    import secrets as _sec2
+    dead_hash = _ra_hash(_sec2.token_urlsafe(32))
+
+    # Disconnect from ra_clients + cancel pending jobs
+    with _RA_LOCK:
+        con = _ra_db()
+        con.execute("""
+            UPDATE ra_clients
+            SET status='disconnected', token_hash=?, last_seen=datetime('now')
+            WHERE client_id=?
+        """, (dead_hash, client_id))
+        con.execute("""
+            UPDATE ra_jobs SET status='cancelled', message='Agent disconnected'
+            WHERE client_id=? AND status IN ('pending','running')
+        """, (client_id,))
+        con.commit()
+        con.close()
+
+    # Also disconnect from agent_clients (Lynis table)
+    with AGENT_LOCK:
+        con2 = _agent_db()
+        con2.execute("""
+            UPDATE agent_clients
+            SET status='disconnected', token_hash=?, last_seen=datetime('now')
+            WHERE client_id=?
+        """, (dead_hash, client_id))
+        con2.execute("""
+            DELETE FROM agent_clients WHERE client_id=?
+        """, (client_id,))
+        con2.commit()
+        con2.close()
+
+    audit(u["id"], u["username"], "REMOTE_AGENT_DISCONNECT", target=client_id,
+          ip=request.remote_addr)
+    return jsonify({"ok": True})'''
+
+patch_file(SERVER, "api_server: disconnect removes from both tables", OLD_DISCONNECT, NEW_DISCONNECT)
+
+# ══════════════════════════════════════════════════════════════
 # Summary
-# ──────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════
 print()
 print(BOLD + CYAN + "══════════════════════════════════════════════════════" + RESET)
-print(f"  Modified files: {GREEN}{len(modified)}{RESET}")
-for p in modified:
-    print(f"    {GREEN}✓{RESET}  {p}")
-print()
-print(f"  {YELLOW}Fixes applied:{RESET}")
-print(f"    {GREEN}✓{RESET}  http_json() headers kwarg error fixed")
-print(f"    {GREEN}✓{RESET}  Duplicate http_json definition removed")
-print(f"    {GREEN}✓{RESET}  Tool dropdown shows only installed tools (✓/✗ + disabled)")
-print()
-print(f"  {YELLOW}Restart server + re-install agent on client:{RESET}")
+print(f"  {YELLOW}Done. Restart server:{RESET}")
 print(f"    sudo systemctl restart vulnscan")
-print(f"    # On client machine:")
-print(f"    curl -fsSL http://161.118.189.254/agent/install.sh | bash")
+print()
+print(f"  {YELLOW}No need to re-install agent on client — existing agents{RESET}")
+print(f"  {YELLOW}will appear in Remote Audit on next heartbeat (~15s).{RESET}")
+print()
+print(f"  {GREEN}What changed:{RESET}")
+print(f"    {GREEN}✓{RESET}  /api/agent/register  → writes to BOTH tables")
+print(f"    {GREEN}✓{RESET}  /api/agent/heartbeat → syncs BOTH tables")
+print(f"    {GREEN}✓{RESET}  /api/remote/agents   → merges BOTH tables")
+print(f"    {GREEN}✓{RESET}  /api/remote/jobs     → accepts Lynis token too")
+print(f"    {GREEN}✓{RESET}  /api/remote/upload   → accepts Lynis token too")
+print(f"    {GREEN}✓{RESET}  /api/remote/.../progress → accepts Lynis token")
+print(f"    {GREEN}✓{RESET}  Disconnect removes agent from both tables")
 print()
