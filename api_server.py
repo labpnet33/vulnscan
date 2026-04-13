@@ -1057,10 +1057,6 @@ document.addEventListener('DOMContentLoaded',navRestore);
         <button class="nav-item" id="ni-admin" onclick="pg('admin',this)"><span class="ni">&#9881;</span> Admin Console</button>
       </div>
       <div class="nav-section">
-        <button class="nav-item" id="ni-remote" onclick="pg('remote',this)"><span class="ni">&#9729;</span> Remote Audit</button>
-      </div>
-
-      <div class="nav-section">
         <div class="nav-cat-toggle" onclick="navToggle('information')">
           <span class="nav-cat-label">INFORMATION</span>
           <span class="nav-cat-arrow" id="na-information">&#9660;</span>
@@ -1069,7 +1065,6 @@ document.addEventListener('DOMContentLoaded',navRestore);
           <button class="nav-item" id="ni-scan" onclick="pg('scan',this)"><span class="ni">&#9675;</span> Network Scanner</button>
           <button class="nav-item" id="ni-dnsrecon" onclick="pg('dnsrecon',this)"><span class="ni">&#9675;</span> DNSRecon</button>
           <button class="nav-item" id="ni-disc" onclick="pg('disc',this)"><span class="ni">&#9675;</span> Net Discovery</button>
-          <button class="nav-item" id="ni-harvester" onclick="pg('harvester',this)"><span class="ni">&#9675;</span> theHarvester</button>
           <button class="nav-item" id="ni-sub" onclick="pg('sub',this)"><span class="ni">&#9675;</span> Subdomain Finder</button>
           <button class="nav-item" id="ni-legion" onclick="pg('legion',this)"><span class="ni">&#9675;</span> Legion</button>
           <button class="nav-item" id="ni-searchsploit" onclick="pg('searchsploit',this)"><span class="ni">&#9675;</span> SearchSploit</button>
@@ -1142,14 +1137,8 @@ document.addEventListener('DOMContentLoaded',navRestore);
         </div>
         <div class="nav-cat-items collapsed" id="nc-c2" style="max-height:0">
           <button class="nav-item" id="ni-netcat" onclick="pg('netcat',this)"><span class="ni">&#9675;</span> Netcat</button>
-          <button class="nav-item" id="ni-ncat" onclick="pg('ncat',this)"><span class="ni">&#9675;</span> Ncat</button>
           <button class="nav-item" id="ni-socat" onclick="pg('socat',this)"><span class="ni">&#9675;</span> Socat</button>
-          <button class="nav-item" id="ni-sliver" onclick="pg('sliver',this)"><span class="ni">&#9675;</span> Sliver</button>
-          <button class="nav-item" id="ni-empire" onclick="pg('empire',this)"><span class="ni">&#9675;</span> Empire</button>
           <button class="nav-item" id="ni-ligolo" onclick="pg('ligolo',this)"><span class="ni">&#9675;</span> Ligolo-ng</button>
-          <button class="nav-item" id="ni-chisel" onclick="pg('chisel',this)"><span class="ni">&#9675;</span> Chisel</button>
-          <button class="nav-item" id="ni-rlwrap" onclick="pg('rlwrap',this)"><span class="ni">&#9675;</span> rlwrap</button>
-          <button class="nav-item" id="ni-pspy" onclick="pg('pspy',this)"><span class="ni">&#9675;</span> pspy</button>
         </div>
       </div>
 
@@ -1160,8 +1149,6 @@ document.addEventListener('DOMContentLoaded',navRestore);
         </div>
         <div class="nav-cat-items collapsed" id="nc-exploitation" style="max-height:0">
           <button class="nav-item" id="ni-msfvenom" onclick="pg('msfvenom',this)"><span class="ni">&#9675;</span> msfvenom</button>
-          <button class="nav-item" id="ni-pwncat" onclick="pg('pwncat',this)"><span class="ni">&#9675;</span> pwncat</button>
-          <button class="nav-item" id="ni-grype" onclick="pg('grype',this)"><span class="ni">&#9675;</span> Grype</button>
         </div>
       </div>
 
@@ -1284,33 +1271,6 @@ document.addEventListener('DOMContentLoaded',navRestore);
         <div class="terminal" id="wd-term"></div>
         <div class="err-box" id="wd-err"></div>
         <div id="wd-res"></div>
-      </div>
-
-      <!-- HARVESTER -->
-      <div class="page" id="page-harvester">
-        <div class="page-hd"><div class="page-title">theHarvester</div><div class="page-desc">OSINT email, subdomain, and IP reconnaissance</div></div>
-        <div class="notice">&#9888; Only perform reconnaissance on domains you own or have explicit written permission to test.</div>
-        <div class="card card-p" style="margin-bottom:14px">
-          <div class="row2" style="margin-bottom:12px">
-            <div class="fg"><label>TARGET DOMAIN</label><input class="inp inp-mono" id="hv-target" type="text" placeholder="example.com"/></div>
-            <div class="fg"><label>RESULT LIMIT</label><input class="inp inp-mono" id="hv-limit" type="number" value="500" min="50" max="2000"/></div>
-          </div>
-          <div class="fg"><label>DATA SOURCES (hold Ctrl/Cmd for multiple)</label>
-            <select class="inp inp-mono" id="hv-sources" multiple style="height:90px;padding:6px">
-              <option value="google" selected>Google</option><option value="bing" selected>Bing</option>
-              <option value="linkedin">LinkedIn</option><option value="dnsdumpster" selected>DNSDumpster</option>
-              <option value="crtsh" selected>crt.sh</option><option value="hackertarget">HackerTarget</option>
-              <option value="baidu">Baidu</option><option value="yahoo">Yahoo</option>
-            </select>
-          </div>
-          <button class="btn btn-primary" id="hv-btn" onclick="doHarvest()">RUN HARVESTER</button>
-          <button class="btn btn-outline btn-sm" id="hv-cancel" onclick="cancelScan('hv')" style="display:none;color:var(--red);margin-left:8px">CANCEL</button>
-          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:10px">&#9432; May take 30--120s depending on sources.</div>
-        </div>
-        <div class="progress-wrap" id="hv-prog"><div class="progress-bar" id="hv-pb" style="width:0%"></div></div>
-        <div class="terminal" id="hv-term"></div>
-        <div class="err-box" id="hv-err"></div>
-        <div id="hv-res"></div>
       </div>
 
       <!-- DNSRECON -->
@@ -1789,27 +1749,6 @@ document.addEventListener('DOMContentLoaded',navRestore);
         <div id="nc-res"></div>
       </div>
 
-      <div class="page" id="page-ncat">
-        <div class="page-hd"><div class="page-title">Ncat</div><div class="page-desc">Run ncat with validated arguments</div></div>
-        <div class="notice">&#9888; Authorized red-team/lab use only.</div>
-        <div class="card card-p" style="margin-bottom:14px">
-          <div class="row2" style="margin-bottom:12px">
-            <div class="fg"><label>MODE</label><select class="inp inp-mono" id="nct-mode"><option value="connect">Connect</option><option value="listen">Listen</option></select></div>
-            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="nct-timeout" type="number" value="90" min="10" max="600"/></div>
-          </div>
-          <div class="row2" style="margin-bottom:12px">
-            <div class="fg"><label>TARGET HOST</label><input class="inp inp-mono" id="nct-host" type="text" placeholder="127.0.0.1"/></div>
-            <div class="fg"><label>PORT</label><input class="inp inp-mono" id="nct-port" type="number" value="4444" min="1" max="65535"/></div>
-          </div>
-          <div class="fg"><label>EXTRA ARGUMENTS</label><input class="inp inp-mono" id="nct-extra" type="text" placeholder="-v -n"/></div>
-          <button class="btn btn-primary" id="nct-btn" onclick="runNcat()">RUN NCAT</button>
-        </div>
-        <div class="progress-wrap" id="nct-prog"><div class="progress-bar" id="nct-pb" style="width:0%"></div></div>
-        <div class="terminal" id="nct-term"></div>
-        <div class="err-box" id="nct-err"></div>
-        <div id="nct-res"></div>
-      </div>
-
       <div class="page" id="page-socat">
         <div class="page-hd"><div class="page-title">Socat</div><div class="page-desc">Bridge two sockets/channels with socat</div></div>
         <div class="notice">&#9888; Authorized red-team/lab use only.</div>
@@ -1828,40 +1767,6 @@ document.addEventListener('DOMContentLoaded',navRestore);
         <div class="terminal" id="sc-term"></div>
         <div class="err-box" id="sc-err"></div>
         <div id="sc-res"></div>
-      </div>
-
-      <div class="page" id="page-sliver">
-        <div class="page-hd"><div class="page-title">Sliver</div><div class="page-desc">Run Sliver client/server binary commands</div></div>
-        <div class="notice">&#9888; Authorized red-team engagements only.</div>
-        <div class="card card-p" style="margin-bottom:14px">
-          <div class="row2" style="margin-bottom:12px">
-            <div class="fg"><label>OPERATION</label><select class="inp inp-mono" id="sv-op"><option value="help">Help / capability check</option><option value="version">Version check</option><option value="custom">Custom arguments</option></select></div>
-            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="sv-timeout" type="number" value="90" min="10" max="600"/></div>
-          </div>
-          <div class="fg"><label>CUSTOM ARGUMENTS</label><input class="inp inp-mono" id="sv-args" type="text" placeholder="version"/></div>
-          <button class="btn btn-primary" id="sv-btn" onclick="runSliver()">RUN SLIVER</button>
-        </div>
-        <div class="progress-wrap" id="sv-prog"><div class="progress-bar" id="sv-pb" style="width:0%"></div></div>
-        <div class="terminal" id="sv-term"></div>
-        <div class="err-box" id="sv-err"></div>
-        <div id="sv-res"></div>
-      </div>
-
-      <div class="page" id="page-empire">
-        <div class="page-hd"><div class="page-title">Empire</div><div class="page-desc">Run Empire framework CLI checks/commands</div></div>
-        <div class="notice">&#9888; Authorized red-team engagements only.</div>
-        <div class="card card-p" style="margin-bottom:14px">
-          <div class="row2" style="margin-bottom:12px">
-            <div class="fg"><label>OPERATION</label><select class="inp inp-mono" id="em-op"><option value="help">Help / capability check</option><option value="version">Version check</option><option value="custom">Custom arguments</option></select></div>
-            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="em-timeout" type="number" value="90" min="10" max="600"/></div>
-          </div>
-          <div class="fg"><label>CUSTOM ARGUMENTS</label><input class="inp inp-mono" id="em-args" type="text" placeholder="server --help"/></div>
-          <button class="btn btn-primary" id="em-btn" onclick="runEmpire()">RUN EMPIRE</button>
-        </div>
-        <div class="progress-wrap" id="em-prog"><div class="progress-bar" id="em-pb" style="width:0%"></div></div>
-        <div class="terminal" id="em-term"></div>
-        <div class="err-box" id="em-err"></div>
-        <div id="em-res"></div>
       </div>
 
       <!-- NETWORK DISCOVERY -->
@@ -2578,114 +2483,6 @@ document.addEventListener('DOMContentLoaded',navRestore);
           <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">tunneling</span><span class="tag">ligolo-ng</span></div>
         </div>
       </div>
-      <!-- CHISEL -->
-      <div class="page" id="page-chisel">
-        <div class="page-hd"><div class="page-title">Chisel</div><div class="page-desc">Fast TCP/UDP tunnel over HTTP using SSH transport</div></div>
-        <div class="notice">&#9888; Authorized use only. Only run Chisel on systems you own or have explicit written permission to test.</div>
-        <div class="card card-p" style="margin-bottom:14px">
-          <div class="fg"><label>MODE</label>
-            <select class="inp inp-mono" id="chisel-mode" onchange="chiselModeChange()">
-              <option value="server" selected>Server (attacker/relay)</option>
-              <option value="client">Client (pivot host)</option>
-              <option value="help">Help / version</option>
-            </select>
-          </div>
-          <div id="chisel-server-fields">
-            <div class="row2" style="margin-bottom:12px">
-              <div class="fg"><label>LISTEN PORT</label><input class="inp inp-mono" id="chisel-server-port" type="number" value="8080"/></div>
-              <div class="fg"><label>AUTH (user:pass, optional)</label><input class="inp inp-mono" id="chisel-server-auth" type="text" placeholder="admin:secret"/></div>
-            </div>
-            <div class="pills" style="margin-bottom:12px">
-              <button class="pill on" id="chisel-socks5" onclick="this.classList.toggle('on')">SOCKS5 proxy (--socks5)</button>
-              <button class="pill" id="chisel-reverse" onclick="this.classList.toggle('on')">Allow reverse (--reverse)</button>
-            </div>
-          </div>
-          <div id="chisel-client-fields" style="display:none">
-            <div class="row2" style="margin-bottom:12px">
-              <div class="fg"><label>SERVER URL</label><input class="inp inp-mono" id="chisel-server-url" type="text" placeholder="http://192.168.1.100:8080"/></div>
-              <div class="fg"><label>AUTH (user:pass, optional)</label><input class="inp inp-mono" id="chisel-client-auth" type="text" placeholder="admin:secret"/></div>
-            </div>
-            <div class="fg" style="margin-bottom:12px"><label>TUNNELS (one per line)</label>
-              <textarea class="inp inp-mono" id="chisel-tunnels" rows="3" placeholder="socks&#10;R:8888:127.0.0.1:8888&#10;3306:127.0.0.1:3306"></textarea>
-            </div>
-          </div>
-          <div class="fg" style="margin-bottom:12px"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="chisel-timeout" type="number" value="60" min="10" max="300"/></div>
-          <button class="btn btn-primary" id="chisel-btn" onclick="runChisel()">RUN CHISEL</button>
-        </div>
-        <div class="progress-wrap" id="chisel-prog"><div class="progress-bar" id="chisel-pb" style="width:0%"></div></div>
-        <div class="terminal" id="chisel-term"></div>
-        <div class="err-box" id="chisel-err"></div>
-        <div id="chisel-res"></div>
-        <div class="card card-p" style="margin-top:10px">
-          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
-          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install chisel</div>
-          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">tunneling</span><span class="tag">chisel</span></div>
-        </div>
-      </div>
-      <!-- RLWRAP -->
-      <div class="page" id="page-rlwrap">
-        <div class="page-hd"><div class="page-title">rlwrap</div><div class="page-desc">Readline wrapper — adds command history to any CLI tool</div></div>
-        <div class="notice">&#9888; Authorized use only. Only run rlwrap on systems you own or have explicit written permission to test.</div>
-        <div class="card card-p" style="margin-bottom:14px">
-          <div class="fg"><label>COMMAND TO WRAP</label><input class="inp inp-mono" id="rlwrap-cmd" type="text" placeholder="nc -lvnp 4444"/></div>
-          <div class="row3" style="margin-bottom:12px">
-            <div class="fg"><label>HISTORY SIZE (-s)</label><input class="inp inp-mono" id="rlwrap-history" type="number" value="1000" min="0" max="100000"/></div>
-            <div class="fg"><label>WORD CHARS (-w)</label><input class="inp inp-mono" id="rlwrap-wordchars" type="text" value="a-zA-Z0-9_-"/></div>
-            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="rlwrap-timeout" type="number" value="60" min="10" max="300"/></div>
-          </div>
-          <div class="pills" style="margin-bottom:12px">
-            <button class="pill on" id="rlwrap-ansi" onclick="this.classList.toggle('on')">ANSI colour fix (-A)</button>
-            <button class="pill" id="rlwrap-noecho" onclick="this.classList.toggle('on')">No echo</button>
-          </div>
-          <div style="background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--blue);border-radius:var(--radius);padding:8px 12px;font-size:12px;color:var(--text2);margin-bottom:12px">
-            <strong>Typical use:</strong> <code style="font-family:var(--mono)">rlwrap -A nc -lvnp 4444</code>
-          </div>
-          <button class="btn btn-primary" id="rlwrap-btn" onclick="runRlwrap()">RUN RLWRAP</button>
-        </div>
-        <div class="progress-wrap" id="rlwrap-prog"><div class="progress-bar" id="rlwrap-pb" style="width:0%"></div></div>
-        <div class="terminal" id="rlwrap-term"></div>
-        <div class="err-box" id="rlwrap-err"></div>
-        <div id="rlwrap-res"></div>
-        <div class="card card-p" style="margin-top:10px">
-          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
-          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install rlwrap</div>
-          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">tunneling</span><span class="tag">rlwrap</span></div>
-        </div>
-      </div>
-      <!-- PSPY -->
-      <div class="page" id="page-pspy">
-        <div class="page-hd"><div class="page-title">pspy</div><div class="page-desc">Process spy — monitor Linux processes without root privileges</div></div>
-        <div class="notice">&#9888; Authorized use only. Only run pspy on systems you own or have explicit written permission to test.</div>
-        <div class="card card-p" style="margin-bottom:14px">
-          <div class="row3" style="margin-bottom:12px">
-            <div class="fg"><label>PSPY BINARY PATH</label><input class="inp inp-mono" id="pspy-path" type="text" value="/usr/local/bin/pspy64" placeholder="/tmp/pspy64"/></div>
-            <div class="fg"><label>WATCH INTERVAL (ms)</label><input class="inp inp-mono" id="pspy-interval" type="number" value="100" min="10" max="10000"/></div>
-            <div class="fg"><label>MONITOR DURATION (sec)</label><input class="inp inp-mono" id="pspy-duration" type="number" value="30" min="10" max="300"/></div>
-          </div>
-          <div class="row2" style="margin-bottom:12px">
-            <div class="fg"><label>FILTER PATTERN (grep, optional)</label><input class="inp inp-mono" id="pspy-filter" type="text" placeholder="cron|bash|python|root"/></div>
-            <div class="fg">
-              <label>OPTIONS</label>
-              <div class="pills" style="margin-top:6px">
-                <button class="pill on" id="pspy-fs" onclick="this.classList.toggle('on')">Watch filesystem (-f)</button>
-              </div>
-            </div>
-          </div>
-          <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:10px">
-            &#9432; Download: <a href="https://github.com/DominicBreuker/pspy/releases" target="_blank" style="color:var(--blue)">github.com/DominicBreuker/pspy/releases</a>
-          </div>
-          <button class="btn btn-primary" id="pspy-btn" onclick="runPspy()">RUN PSPY</button>
-        </div>
-        <div class="progress-wrap" id="pspy-prog"><div class="progress-bar" id="pspy-pb" style="width:0%"></div></div>
-        <div class="terminal" id="pspy-term"></div>
-        <div class="err-box" id="pspy-err"></div>
-        <div id="pspy-res"></div>
-        <div class="card card-p" style="margin-top:10px">
-          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
-          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">Download from github.com/DominicBreuker/pspy</div>
-          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">tunneling</span><span class="tag">pspy</span></div>
-        </div>
-      </div>
       <!-- MSFVENOM -->
       <div class="page" id="page-msfvenom">
         <div class="page-hd"><div class="page-title">msfvenom</div><div class="page-desc">Metasploit payload generator and encoder</div></div>
@@ -2741,99 +2538,6 @@ document.addEventListener('DOMContentLoaded',navRestore);
           <div class="card-title" style="margin-bottom:8px">Quick Install</div>
           <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install metasploit-framework</div>
           <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">exploit</span><span class="tag">msfvenom</span></div>
-        </div>
-      </div>
-      <!-- PWNCAT -->
-      <div class="page" id="page-pwncat">
-        <div class="page-hd"><div class="page-title">pwncat</div><div class="page-desc">Feature-rich reverse/bind shell handler with post-exploitation</div></div>
-        <div class="notice">&#9888; Authorized use only. Only run pwncat on systems you own or have explicit written permission to test.</div>
-        <div class="card card-p" style="margin-bottom:14px">
-          <div class="fg"><label>CONNECTION MODE</label>
-            <select class="inp inp-mono" id="pwncat-mode" onchange="pwncatModeChange()">
-              <option value="listen" selected>Listen (reverse shell)</option>
-              <option value="connect">Connect (bind shell)</option>
-              <option value="ssh">SSH connect</option>
-              <option value="help">Help</option>
-            </select>
-          </div>
-          <div id="pwncat-listen-fields">
-            <div class="row2" style="margin-bottom:12px">
-              <div class="fg"><label>LISTEN HOST</label><input class="inp inp-mono" id="pwncat-lhost" type="text" value="0.0.0.0"/></div>
-              <div class="fg"><label>LISTEN PORT</label><input class="inp inp-mono" id="pwncat-lport" type="number" value="4444" min="1" max="65535"/></div>
-            </div>
-          </div>
-          <div id="pwncat-connect-fields" style="display:none">
-            <div class="row2" style="margin-bottom:12px">
-              <div class="fg"><label>REMOTE HOST</label><input class="inp inp-mono" id="pwncat-rhost" type="text" placeholder="192.168.1.100"/></div>
-              <div class="fg"><label>REMOTE PORT</label><input class="inp inp-mono" id="pwncat-rport" type="number" value="4444"/></div>
-            </div>
-          </div>
-          <div id="pwncat-ssh-fields" style="display:none">
-            <div class="row3" style="margin-bottom:12px">
-              <div class="fg"><label>SSH HOST</label><input class="inp inp-mono" id="pwncat-sshhost" type="text" placeholder="192.168.1.100"/></div>
-              <div class="fg"><label>SSH PORT</label><input class="inp inp-mono" id="pwncat-sshport" type="number" value="22"/></div>
-              <div class="fg"><label>SSH USER</label><input class="inp inp-mono" id="pwncat-sshuser" type="text" placeholder="root"/></div>
-            </div>
-          </div>
-          <div class="fg" style="margin-bottom:12px"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="pwncat-timeout" type="number" value="60" min="10" max="300"/></div>
-          <button class="btn btn-primary" id="pwncat-btn" onclick="runPwncat()">RUN PWNCAT</button>
-        </div>
-        <div class="progress-wrap" id="pwncat-prog"><div class="progress-bar" id="pwncat-pb" style="width:0%"></div></div>
-        <div class="terminal" id="pwncat-term"></div>
-        <div class="err-box" id="pwncat-err"></div>
-        <div id="pwncat-res"></div>
-        <div class="card card-p" style="margin-top:10px">
-          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
-          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">pip3 install pwncat-cs --break-system-packages</div>
-          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">exploit</span><span class="tag">pwncat</span></div>
-        </div>
-      </div>
-      <!-- GRYPE -->
-      <div class="page" id="page-grype">
-        <div class="page-hd"><div class="page-title">Grype</div><div class="page-desc">Vulnerability scanner for container images and filesystems</div></div>
-        <div class="notice">&#9888; Authorized use only. Only run Grype on systems you own or have explicit written permission to test.</div>
-        <div class="card card-p" style="margin-bottom:14px">
-          <div class="fg"><label>TARGET (image, dir, or file)</label><input class="inp inp-mono" id="grype-target" type="text" placeholder="ubuntu:22.04  OR  nginx:latest  OR  /path/to/dir"/></div>
-          <div class="row3" style="margin-bottom:12px">
-            <div class="fg"><label>SCOPE</label>
-              <select class="inp inp-mono" id="grype-scope">
-                <option value="">Auto</option><option value="all-layers">All layers</option>
-                <option value="squashed">Squashed</option>
-              </select>
-            </div>
-            <div class="fg"><label>SEVERITY THRESHOLD</label>
-              <select class="inp inp-mono" id="grype-severity">
-                <option value="">Show all</option><option value="--fail-on critical">Critical only</option>
-                <option value="--fail-on high">High+</option><option value="--fail-on medium">Medium+</option>
-              </select>
-            </div>
-            <div class="fg"><label>OUTPUT FORMAT</label>
-              <select class="inp inp-mono" id="grype-format">
-                <option value="table" selected>Table</option><option value="json">JSON</option>
-                <option value="cyclonedx">CycloneDX</option><option value="sarif">SARIF</option>
-              </select>
-            </div>
-          </div>
-          <div class="row2" style="margin-bottom:12px">
-            <div class="fg">
-              <label>OPTIONS</label>
-              <div class="pills" style="margin-top:6px">
-                <button class="pill on" id="grype-only-fixed" onclick="this.classList.toggle('on')">Only fixed</button>
-                <button class="pill" id="grype-update-db" onclick="this.classList.toggle('on')">Update DB first</button>
-              </div>
-            </div>
-            <div class="fg"><label>TIMEOUT (sec)</label><input class="inp inp-mono" id="grype-timeout" type="number" value="180" min="30" max="1800"/></div>
-          </div>
-          <button class="btn btn-primary" id="grype-btn" onclick="runGrype()">RUN GRYPE</button>
-        </div>
-        <div class="progress-wrap" id="grype-prog"><div class="progress-bar" id="grype-pb" style="width:0%"></div></div>
-        <div class="terminal" id="grype-term"></div>
-        <div class="err-box" id="grype-err"></div>
-        <div id="grype-res"></div>
-        <div class="card card-p" style="margin-top:10px">
-          <div class="card-title" style="margin-bottom:8px">Quick Install</div>
-          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh</div>
-          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"><span class="tag">exploit</span><span class="tag">grype</span></div>
         </div>
       </div>
       <!-- RADARE2 -->
@@ -2981,131 +2685,6 @@ document.addEventListener('DOMContentLoaded',navRestore);
       </div>
 
 
-      <!-- REMOTE AUDIT PAGE -->
-      <div class="page" id="page-remote">
-        <div class="page-hd">
-          <div class="page-title">Remote Audit</div>
-          <div class="page-desc">Run any security tool on connected remote systems — one command to connect</div>
-        </div>
-
-        <!-- Install banner -->
-        <div class="card card-p" style="margin-bottom:16px;border-left:3px solid var(--cyan, #00e5ff)">
-          <div class="card-title" style="margin-bottom:10px">Connect a Linux System (one command)</div>
-          <div class="scan-bar">
-            <input class="inp inp-mono" id="ra-install-cmd" readonly
-              value="curl -fsSL http://161.118.189.254/agent/install.sh | bash"
-              style="font-size:12px"/>
-            <button class="btn btn-outline btn-sm" onclick="raCopyInstall()">COPY</button>
-          </div>
-          <div style="font-size:11px;color:var(--text3);margin-top:8px">
-            Once connected, the system appears below and you can run <strong>any tool</strong> on it remotely.
-          </div>
-        </div>
-
-        <!-- Connected systems -->
-        <div class="card card-p" style="margin-bottom:16px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-            <div class="card-title">Connected Systems</div>
-            <button class="btn btn-outline btn-sm" onclick="raLoadAgents()">REFRESH</button>
-          </div>
-          <div id="ra-agents">Loading...</div>
-        </div>
-
-        <!-- Tool launcher -->
-        <div class="card card-p" style="margin-bottom:16px" id="ra-launcher" style="display:none">
-          <div class="card-title" style="margin-bottom:12px">
-            Run Tool on: <span id="ra-selected-label" style="color:var(--green, #00ff9d)">—</span>
-          </div>
-
-          <div class="row2" style="margin-bottom:12px">
-            <div class="fg">
-              <label>SELECT TOOL</label>
-              <select class="inp inp-mono" id="ra-tool" onchange="raToolChange()">
-                <option value="">— choose tool —</option>
-                <optgroup label="Network">
-                  <option value="nmap">nmap — Port Scanner + CVE</option>
-                </optgroup>
-                <optgroup label="Web Testing">
-                  <option value="nikto">nikto — Web Vulnerability Scanner</option>
-                  <option value="wpscan">wpscan — WordPress Scanner</option>
-                  <option value="whatweb">whatweb — Technology Fingerprint</option>
-                  <option value="ffuf">ffuf — Directory Fuzzer</option>
-                  <option value="sqlmap">sqlmap — SQL Injection Tester</option>
-                  <option value="nuclei">nuclei — Template Scanner</option>
-                  <option value="wapiti">wapiti — Web App Scanner</option>
-                  <option value="dalfox">dalfox — XSS Scanner</option>
-                </optgroup>
-                <optgroup label="OSINT / DNS">
-                  <option value="dnsrecon">dnsrecon — DNS Enumeration</option>
-                  <option value="theharvester">theHarvester — OSINT</option>
-                </optgroup>
-                <optgroup label="System Audit">
-                  <option value="lynis">lynis — System Hardening Audit</option>
-                  <option value="chkrootkit">chkrootkit — Rootkit Detection</option>
-                  <option value="rkhunter">rkhunter — Rootkit Hunter</option>
-                </optgroup>
-                <optgroup label="Password / Brute">
-                  <option value="medusa">medusa — Network Login Auditor</option>
-                  <option value="john">john — Password Cracker</option>
-                  <option value="hashcat">hashcat — GPU Hash Cracker</option>
-                </optgroup>
-                <optgroup label="Other">
-                  <option value="searchsploit">searchsploit — Exploit-DB Search</option>
-                  <option value="hping3">hping3 — Packet Generator</option>
-                  <option value="generic">generic — Custom command</option>
-                </optgroup>
-              </select>
-            </div>
-            <div class="fg">
-              <label>NMAP PROFILE (nmap only)</label>
-              <select class="inp inp-mono" id="ra-nmap-profile">
-                <option value="fast">Fast (top 100)</option>
-                <option value="balanced" selected>Balanced (top 1000)</option>
-                <option value="deep">Deep (all ports)</option>
-                <option value="very_deep">Very Deep (scripts+OS)</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Dynamic arg fields -->
-          <div id="ra-tool-args">
-            <div class="fg">
-              <label>TARGET (IP / domain / URL)</label>
-              <input class="inp inp-mono" id="ra-target" type="text" placeholder="e.g. 192.168.1.1 or example.com"/>
-            </div>
-          </div>
-
-          <!-- Generic tool extra args -->
-          <div id="ra-generic-fields" style="display:none">
-            <div class="fg">
-              <label>TOOL BINARY NAME</label>
-              <input class="inp inp-mono" id="ra-generic-tool" type="text" placeholder="e.g. dirb"/>
-            </div>
-            <div class="fg">
-              <label>ARGUMENTS</label>
-              <input class="inp inp-mono" id="ra-generic-args" type="text" placeholder="e.g. http://target.com /usr/share/wordlists/dirb/common.txt"/>
-            </div>
-          </div>
-
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
-            <button class="btn btn-primary" id="ra-run-btn" onclick="raRunTool()">RUN ON REMOTE SYSTEM</button>
-            <button class="btn btn-outline btn-sm" onclick="raLoadJobs()">REFRESH JOBS</button>
-          </div>
-        </div>
-
-        <!-- Progress + output -->
-        <div class="progress-wrap" id="ra-prog"><div class="progress-bar" id="ra-pb" style="width:0%"></div></div>
-        <div class="terminal" id="ra-term"></div>
-        <div class="err-box"  id="ra-err"></div>
-        <div id="ra-res"></div>
-
-        <!-- Job queue -->
-        <div class="card card-p" style="margin-top:14px">
-          <div class="card-title" style="margin-bottom:8px">Remote Job Queue</div>
-          <div id="ra-jobs">No jobs yet.</div>
-        </div>
-      </div>
-
       <!-- ADMIN -->
       <div class="page" id="page-admin">
         <div class="page-hd" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px">
@@ -3176,7 +2755,7 @@ document.addEventListener('DOMContentLoaded',navRestore);
                 <button class="cli-quick-btn" onclick="cliQuick('ss -tlnp')">ss -tlnp</button>
                 <button class="cli-quick-btn" onclick="cliQuick('uname -a')">uname</button>
                 <button class="cli-quick-btn" onclick="cliQuick('ip addr')">ip addr</button>
-                <button class="cli-quick-btn" onclick="cliQuick('which nmap nikto lynis dnsrecon theharvester wpscan')">check tools</button>
+                <button class="cli-quick-btn" onclick="cliQuick('which nmap nikto lynis dnsrecon wpscan')">check tools</button>
                 <button class="cli-quick-btn" onclick="cliQuick('journalctl -n 30 --no-pager')">recent logs</button>
                 <button class="cli-quick-btn" onclick="cliQuick('cat /etc/os-release')">OS info</button>
                 <button class="cli-quick-btn" onclick="cliQuick('last -n 10')">last logins</button>
@@ -3284,8 +2863,8 @@ var _vsNotifUnread=0;
 var _vsRecentCompleted=[];
 var _vsKnownCompleted={};
 var _vsNotifPollTimer=null;
-var _vsToolPages={scan:'scan',wd:'webdeep',hv:'harvester',dr:'dnsrecon',nk:'nikto',wp:'wpscan',ly:'lynis',lg:'legion',sub:'sub',dir:'dir',disc:'disc',set:'setoolkit',gp:'gophish',eg:'evilginx2',sp:'shellphish',nc:'netcat',nct:'ncat',sc:'socat',sv:'sliver',em:'empire',ffuf:'ffuf',nuclei:'nuclei',whatweb:'whatweb',wapiti:'wapiti',dalfox:'dalfox',sqlmap:'sqlmap',kxss:'kxss',medusa:'medusa',hping3:'hping3',scapy:'scapy',yersinia:'yersinia',hashcat:'hashcat',john:'john',searchsploit:'searchsploit',msfvenom:'msfvenom',grype:'grype',radare2:'radare2',openvas:'openvas',chkrootkit:'chkrootkit',rkhunter:'rkhunter',pspy:'pspy',pwncat:'pwncat',ligolo:'ligolo',chisel:'chisel',rlwrap:'rlwrap'};
-var _vsToolNames={scan:'Network Scanner',wd:'Deep Web Audit',hv:'theHarvester',dr:'DNSRecon',nk:'Nikto',wp:'WPScan',ly:'Lynis',lg:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',disc:'Network Discovery',set:'SET',gp:'Gophish',eg:'Evilginx2',sp:'ShellPhish',nc:'Netcat',nct:'Ncat',sc:'Socat',sv:'Sliver',em:'Empire'};
+var _vsToolPages={scan:'scan',wd:'webdeep',dr:'dnsrecon',nk:'nikto',wp:'wpscan',ly:'lynis',lg:'legion',sub:'sub',dir:'dir',disc:'disc',set:'setoolkit',gp:'gophish',eg:'evilginx2',sp:'shellphish',nc:'netcat',sc:'socat',ffuf:'ffuf',nuclei:'nuclei',whatweb:'whatweb',wapiti:'wapiti',dalfox:'dalfox',sqlmap:'sqlmap',kxss:'kxss',medusa:'medusa',hping3:'hping3',scapy:'scapy',yersinia:'yersinia',hashcat:'hashcat',john:'john',searchsploit:'searchsploit',msfvenom:'msfvenom',radare2:'radare2',openvas:'openvas',chkrootkit:'chkrootkit',rkhunter:'rkhunter',ligolo:'ligolo'};
+var _vsToolNames={scan:'Network Scanner',wd:'Deep Web Audit',dr:'DNSRecon',nk:'Nikto',wp:'WPScan',ly:'Lynis',lg:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',disc:'Network Discovery',set:'SET',gp:'Gophish',eg:'Evilginx2',sp:'ShellPhish',nc:'Netcat',sc:'Socat'};
 var _vsToolCompletions=[];
 function updateNotificationBadge(){
   var badge=document.getElementById('notif-badge');if(!badge)return;
@@ -3373,7 +2952,6 @@ async function fetchWithTimeout(url,options,timeoutMs,prefix){
 function inferToolPrefix(url,options){
   var u=String(url||'');
   if(u.indexOf('/scan')===0)return 'scan';
-  if(u.indexOf('/harvester')===0)return 'hv';
   if(u.indexOf('/dnsrecon')===0)return 'dr';
   if(u.indexOf('/nikto')===0)return 'nk';
   if(u.indexOf('/wpscan')===0)return 'wp';
@@ -3387,7 +2965,7 @@ function inferToolPrefix(url,options){
     try{
       var b=options&&options.body?JSON.parse(options.body):{};
       var tool=(b.tool||'').toLowerCase();
-      var map={'setoolkit':'set','gophish':'gp','evilginx2':'eg','shellphish':'sp','netcat':'nc','ncat':'nct','socat':'sc','sliver':'sv','empire':'em','ffuf':'ffuf','nuclei':'nuclei','whatweb':'whatweb','wapiti':'wapiti','dalfox':'dalfox','sqlmap':'sqlmap','kxss':'kxss','medusa':'medusa','hping3':'hping3','scapy':'scapy','yersinia':'yersinia','hashcat':'hashcat','john':'john','searchsploit':'searchsploit','msfvenom':'msfvenom','grype':'grype','radare2':'radare2','openvas':'openvas','chkrootkit':'chkrootkit','rkhunter':'rkhunter','pspy':'pspy','pwncat':'pwncat','ligolo-ng':'ligolo','chisel':'chisel','rlwrap':'rlwrap'};
+      var map={'setoolkit':'set','gophish':'gp','evilginx2':'eg','shellphish':'sp','netcat':'nc','socat':'sc','ffuf':'ffuf','nuclei':'nuclei','whatweb':'whatweb','wapiti':'wapiti','dalfox':'dalfox','sqlmap':'sqlmap','kxss':'kxss','medusa':'medusa','hping3':'hping3','scapy':'scapy','yersinia':'yersinia','hashcat':'hashcat','john':'john','searchsploit':'searchsploit','msfvenom':'msfvenom','radare2':'radare2','openvas':'openvas','chkrootkit':'chkrootkit','rkhunter':'rkhunter','ligolo-ng':'ligolo'};
       return map[tool]||'scan';
     }catch(e){return 'scan';}
   }
@@ -3403,7 +2981,7 @@ function pushToolCompletion(prefix,url,ok){
 }
 
 /* ==== PAGE NAV ==== */
-var PAGE_TITLES={home:'Home',scan:'Network Scanner',webdeep:'Deep Web Audit',harvester:'theHarvester',dnsrecon:'DNSRecon',nikto:'Nikto',wpscan:'WPScan',lynis:'Lynis',legion:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',brute:'Brute Force',setoolkit:'Social-Engineer Toolkit',gophish:'Gophish',evilginx2:'Evilginx2',shellphish:'ShellPhish',netcat:'Netcat',ncat:'Ncat',socat:'Socat',sliver:'Sliver',empire:'Empire',disc:'Network Discovery',hist:'Scan History',dash:'Dashboard',profile:'Profile',admin:'Admin Console',remote:'Remote Audit',ffuf:'ffuf',nuclei:'Nuclei',whatweb:'WhatWeb',wapiti:'Wapiti',dalfox:'Dalfox',sqlmap:'SQLMap',kxss:'kxss',medusa:'Medusa',hping3:'hping3',scapy:'Scapy',yersinia:'Yersinia',hashcat:'Hashcat',john:'John the Ripper',searchsploit:'SearchSploit',seclists:'SecLists',ligolo:'Ligolo-ng',chisel:'Chisel',rlwrap:'rlwrap',pspy:'pspy',msfvenom:'msfvenom',pwncat:'pwncat',grype:'Grype',radare2:'Radare2',openvas:'OpenVAS',chkrootkit:'chkrootkit',rkhunter:'rkhunter'};
+var PAGE_TITLES={home:'Home',scan:'Network Scanner',webdeep:'Deep Web Audit',dnsrecon:'DNSRecon',nikto:'Nikto',wpscan:'WPScan',lynis:'Lynis',legion:'Legion',sub:'Subdomain Finder',dir:'Directory Buster',brute:'Brute Force',setoolkit:'Social-Engineer Toolkit',gophish:'Gophish',evilginx2:'Evilginx2',shellphish:'ShellPhish',netcat:'Netcat',socat:'Socat',disc:'Network Discovery',hist:'Scan History',dash:'Dashboard',profile:'Profile',admin:'Admin Console',ffuf:'ffuf',nuclei:'Nuclei',whatweb:'WhatWeb',wapiti:'Wapiti',dalfox:'Dalfox',sqlmap:'SQLMap',kxss:'kxss',medusa:'Medusa',hping3:'hping3',scapy:'Scapy',yersinia:'Yersinia',hashcat:'Hashcat',john:'John the Ripper',searchsploit:'SearchSploit',seclists:'SecLists',ligolo:'Ligolo-ng',msfvenom:'msfvenom',radare2:'Radare2',openvas:'OpenVAS',chkrootkit:'chkrootkit',rkhunter:'rkhunter'};
 function saveCurrentPage(id){try{sessionStorage.setItem('vs-page',id);}catch(e){}}
 function pg(id,el){
   document.querySelectorAll('.page').forEach(function(e){e.classList.remove('active');});
@@ -3416,7 +2994,6 @@ function pg(id,el){
   if(tt){tt.style.animation='none';requestAnimationFrame(function(){tt.style.animation='';});tt.textContent=PAGE_TITLES[id]||id;}
   saveCurrentPage(id);
   if(id==='hist')loadHist();
-  if(id==='remote'){raLoadAgents();raLoadJobs();}
   if(id==='dash')loadDash();
   if(id==='admin'){loadAdmin();setTimeout(initCliHeader,400);}
   if(id==='home'){setTimeout(loadHomeStats,80);setTimeout(renderHomeToolCatalog,40);if(currentUser)vsGreetUser(currentUser.username);}
@@ -3621,13 +3198,13 @@ function animateCount(el,target){
   requestAnimationFrame(step);
 }
 var HOME_TOOL_CATALOG=[
-  {label:'INFORMATION',color:'#5a9fe0',tools:[['scan','Network Scanner','Port scan · CVE lookup · SSL · DNS · Headers'],['dnsrecon','DNSRecon','DNS enumeration and zone analysis'],['disc','Net Discovery','Discover live hosts on a subnet'],['harvester','theHarvester','OSINT emails, subdomains, IPs'],['sub','Subdomain Finder','DNS brute-force + passive enumeration'],['legion','Legion','Auto-recon framework'],['searchsploit','SearchSploit','Exploit-DB offline search'],['seclists','SecLists','Security wordlists browser']]},
+  {label:'INFORMATION',color:'#5a9fe0',tools:[['scan','Network Scanner','Port scan · CVE lookup · SSL · DNS · Headers'],['dnsrecon','DNSRecon','DNS enumeration and zone analysis'],['disc','Net Discovery','Discover live hosts on a subnet'],['sub','Subdomain Finder','DNS brute-force + passive enumeration'],['legion','Legion','Auto-recon framework'],['searchsploit','SearchSploit','Exploit-DB offline search'],['seclists','SecLists','Security wordlists browser']]},
   {label:'WEB TESTING',color:'#00e5ff',tools:[['webdeep','Deep Web Audit','Full multi-tool website assessment'],['nikto','Nikto','Web server vulnerability scanner'],['wpscan','WPScan','WordPress security scanner'],['dir','Dir Buster','Hidden paths and file enumeration'],['ffuf','ffuf','Fast web fuzzer'],['nuclei','Nuclei','Template-based vuln scanner'],['whatweb','WhatWeb','Web technology fingerprinter'],['wapiti','Wapiti','Web app vulnerability scanner'],['dalfox','Dalfox','XSS parameter analysis'],['sqlmap','SQLMap','SQL injection detection'],['kxss','kxss','XSS reflection checker']]},
   {label:'ATTACKS',color:'#ff6b35',tools:[['brute','Brute Force','Credential testing HTTP/SSH'],['medusa','Medusa','Fast parallel network login auditor'],['hping3','hping3','TCP/IP packet assembler'],['scapy','Scapy','Interactive packet manipulation'],['yersinia','Yersinia','Network protocol attacks']]},
   {label:'PASSWORD ATTACKS',color:'#ff3366',tools:[['hashcat','Hashcat','GPU-based password recovery'],['john','John the Ripper','Versatile password cracker']]},
   {label:'SOCIAL ENGINEERING',color:'#b06fff',tools:[['setoolkit','SET','Social-Engineer Toolkit'],['gophish','Gophish','Phishing campaign manager'],['evilginx2','Evilginx2','Reverse-proxy phishing simulation'],['shellphish','ShellPhish','Template-driven phishing framework']]},
-  {label:'C2 / PIVOTING',color:'#ffd60a',tools:[['netcat','Netcat','TCP/UDP networking utility'],['ncat','Ncat','Nmap Netcat replacement'],['socat','Socat','Bidirectional data relay'],['sliver','Sliver','C2 framework'],['empire','Empire','Post-exploitation framework'],['ligolo','Ligolo-ng','Advanced tunneling tool'],['chisel','Chisel','TCP/UDP tunnel over HTTP'],['rlwrap','rlwrap','Readline wrapper for CLI tools'],['pspy','pspy','Process spy without root']]},
-  {label:'EXPLOIT / PAYLOAD',color:'#e05a4e',tools:[['msfvenom','msfvenom','Metasploit payload generator'],['pwncat','pwncat','Reverse shell handler'],['grype','Grype','Container vulnerability scanner']]},
+  {label:'C2 / PIVOTING',color:'#ffd60a',tools:[['netcat','Netcat','TCP/UDP networking utility'],['socat','Socat','Bidirectional data relay'],['ligolo','Ligolo-ng','Advanced tunneling tool']]},
+  {label:'EXPLOIT / PAYLOAD',color:'#e05a4e',tools:[['msfvenom','msfvenom','Metasploit payload generator']]},
   {label:'REVERSE ENGINEERING',color:'#00ff9d',tools:[['radare2','Radare2','Reverse engineering framework']]},
   {label:'AUDITING',color:'#3db870',tools:[['lynis','Lynis','System audit · hardening · compliance'],['openvas','OpenVAS','Open vulnerability assessment'],['chkrootkit','chkrootkit','Local rootkit detector'],['rkhunter','rkhunter','Rootkit Hunter']]}
 ];
@@ -3736,7 +3313,7 @@ function mkTool(prefix){
     res:function(html){var e=document.getElementById(prefix+'-res');if(e){e.innerHTML=html;e.style.display='block';}}
   };
 }
-var hvTool=mkTool('hv'),drTool=mkTool('dr'),nkTool=mkTool('nk'),wpTool=mkTool('wp'),lyTool=mkTool('ly'),lgTool=mkTool('lg'),wdTool=mkTool('wd'),setTool=mkTool('set'),gpTool=mkTool('gp'),egTool=mkTool('eg'),spTool=mkTool('sp'),ncTool=mkTool('nc'),nctTool=mkTool('nct'),scTool=mkTool('sc'),svTool=mkTool('sv'),emTool=mkTool('em');
+var drTool=mkTool('dr'),nkTool=mkTool('nk'),wpTool=mkTool('wp'),lyTool=mkTool('ly'),lgTool=mkTool('lg'),wdTool=mkTool('wd'),setTool=mkTool('set'),gpTool=mkTool('gp'),egTool=mkTool('eg'),spTool=mkTool('sp'),ncTool=mkTool('nc'),scTool=mkTool('sc');
 
 /* ==== DEEP WEB AUDIT ==== */
 var _wdES=null;
@@ -3798,30 +3375,6 @@ function renderWebDeep(d){
   if(d.key_findings&&d.key_findings.length){html+='<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">Key Findings</div><ul class="mit-list">'+d.key_findings.map(function(f){return'<li class="mit-item"><span class="mit-bullet">&#8250;</span><span>'+f+'</span></li>';}).join('')+'</ul></div>';}
   html+='<div class="card"><div class="card-header"><div class="card-title">Detailed JSON Report</div></div><div class="card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+JSON.stringify(d.details||{},null,2)+'</pre></div></div>';
   wdTool.res(html);
-}
-
-/* ==== HARVESTER ==== */
-async function doHarvest(){
-  var target=document.getElementById('hv-target').value.trim();if(!target){alert('Enter a domain');return;}
-  var srcEl=document.getElementById('hv-sources');var sources=Array.from(srcEl.selectedOptions).map(function(o){return o.value;}).join(',');
-  var limit=document.getElementById('hv-limit').value||500;
-  var btn=document.getElementById('hv-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
-  hvTool.start();hvTool.log('Target: '+target,'i');hvTool.log('Sources: '+sources,'i');hvTool.log('Launching theHarvester...','w');
-  try{
-    var r=await fetchWithTimeout('/harvester',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target:target,sources:sources,limit:parseInt(limit)})},180000,'hv');
-    var d=await r.json();hvTool.end();
-    if(d.error){hvTool.log(d.error,'e');hvTool.err(d.error);}
-    else{hvTool.log('Done -- '+(d.emails?d.emails.length:0)+' emails, '+(d.hosts?d.hosts.length:0)+' hosts','s');renderHarvest(d);showToast('theHarvester','Found '+(d.emails?d.emails.length:0)+' emails','success');}
-  }catch(e){hvTool.end();hvTool.err(e.message);}
-  finally{btn.disabled=false;btn.innerHTML='RUN HARVESTER';}
-}
-function renderHarvest(d){
-  var emails=d.emails||[],hosts=d.hosts||[],subs=d.subdomains||[],ips=d.ips||[];
-  var html='<div class="stats" style="margin-bottom:14px"><div class="stat"><div class="stat-val">'+emails.length+'</div><div class="stat-lbl">EMAILS</div></div><div class="stat"><div class="stat-val">'+hosts.length+'</div><div class="stat-lbl">HOSTS</div></div><div class="stat"><div class="stat-val">'+subs.length+'</div><div class="stat-lbl">SUBDOMAINS</div></div><div class="stat"><div class="stat-val">'+ips.length+'</div><div class="stat-lbl">IPs</div></div></div>';
-  if(emails.length)html+='<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">Emails ('+emails.length+')</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+emails.map(function(e){return'<span class="tag">'+e+'</span>';}).join('')+'</div></div>';
-  if(subs.length)html+='<div class="card card-p" style="margin-bottom:10px"><div class="card-title" style="margin-bottom:8px">Subdomains ('+subs.length+')</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+subs.map(function(s){return'<span class="tag">'+s+'</span>';}).join('')+'</div></div>';
-  if(hosts.length)html+='<div class="card" style="margin-bottom:10px"><div class="card-header"><div class="card-title">Hosts</div></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>HOST</th><th>IP</th></tr></thead><tbody>'+hosts.map(function(h){return'<tr><td>'+(h.host||h)+'</td><td style="color:var(--text3)">'+(h.ip||'--')+'</td></tr>';}).join('')+'</tbody></table></div></div>';
-  hvTool.res(html);
 }
 
 /* ==== DNSRECON ==== */
@@ -4127,19 +3680,6 @@ async function runNetcat(){
   }catch(e){ncTool.end();ncTool.err(e.message);}
   finally{btn.disabled=false;btn.innerHTML='RUN NETCAT';}
 }
-async function runNcat(){
-  var mode=document.getElementById('nct-mode').value, host=document.getElementById('nct-host').value.trim(), port=parseInt(document.getElementById('nct-port').value||'0',10), extra=document.getElementById('nct-extra').value.trim(), timeout=parseInt(document.getElementById('nct-timeout').value||'90',10);
-  if(!port||port<1||port>65535){alert('Enter a valid port');return;}
-  if(mode==='connect'&&!host){alert('Enter target host for connect mode');return;}
-  var args=(mode==='listen'?('-l -p '+port):((host+' '+port)))+(extra?' '+extra:'');
-  var btn=document.getElementById('nct-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
-  nctTool.start();nctTool.log('Executing ncat mode: '+mode,'i');
-  try{
-    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'ncat',operation:'custom',args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'nct');
-    var d=await r.json();nctTool.end();if(d.error){nctTool.err(d.error);}else{nctTool.log('Ncat command completed','s');renderSocialTool(nctTool,d);}
-  }catch(e){nctTool.end();nctTool.err(e.message);}
-  finally{btn.disabled=false;btn.innerHTML='RUN NCAT';}
-}
 async function runSocat(){
   var left=document.getElementById('sc-left').value.trim(), right=document.getElementById('sc-right').value.trim(), extra=document.getElementById('sc-extra').value.trim(), timeout=parseInt(document.getElementById('sc-timeout').value||'90',10);
   if(!left||!right){alert('Enter both left and right addresses');return;}
@@ -4152,27 +3692,6 @@ async function runSocat(){
   }catch(e){scTool.end();scTool.err(e.message);}
   finally{btn.disabled=false;btn.innerHTML='RUN SOCAT';}
 }
-async function runSliver(){
-  var op=document.getElementById('sv-op').value, args=document.getElementById('sv-args').value.trim(), timeout=parseInt(document.getElementById('sv-timeout').value||'90',10);
-  var btn=document.getElementById('sv-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
-  svTool.start();svTool.log('Executing Sliver operation: '+op,'i');
-  try{
-    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'sliver',operation:op,args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'sv');
-    var d=await r.json();svTool.end();if(d.error){svTool.err(d.error);}else{svTool.log('Sliver command completed','s');renderSocialTool(svTool,d);}
-  }catch(e){svTool.end();svTool.err(e.message);}
-  finally{btn.disabled=false;btn.innerHTML='RUN SLIVER';}
-}
-async function runEmpire(){
-  var op=document.getElementById('em-op').value, args=document.getElementById('em-args').value.trim(), timeout=parseInt(document.getElementById('em-timeout').value||'90',10);
-  var btn=document.getElementById('em-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
-  emTool.start();emTool.log('Executing Empire operation: '+op,'i');
-  try{
-    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'empire',operation:op,args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'em');
-    var d=await r.json();emTool.end();if(d.error){emTool.err(d.error);}else{emTool.log('Empire command completed','s');renderSocialTool(emTool,d);}
-  }catch(e){emTool.end();emTool.err(e.message);}
-  finally{btn.disabled=false;btn.innerHTML='RUN EMPIRE';}
-}
-
 /* ==== LYNIS ==== */
 var _lyAgentTimer=null;
 var _lySelectedAgentId='';
@@ -5363,33 +4882,6 @@ async function runMsfvenom(){
   finally{btn.disabled=false;btn.innerHTML='GENERATE PAYLOAD';}
 }
 
-/* grype */
-async function runGrype(){
-  var target=document.getElementById('grype-target').value.trim();
-  if(!target){alert('Enter a container image or path');return;}
-  var scope=document.getElementById('grype-scope').value||'';
-  var severity=document.getElementById('grype-severity').value||'';
-  var format=document.getElementById('grype-format').value||'table';
-  var timeout=parseInt(document.getElementById('grype-timeout').value||'180',10);
-  var onlyFixed=document.getElementById('grype-only-fixed').classList.contains('on');
-  var update=document.getElementById('grype-update-db').classList.contains('on');
-  var args=(update?'--update-db ':'')+'"'+target+'" -o '+format;
-  if(scope)args+=' --scope '+scope;
-  if(severity)args+=' '+severity;
-  if(onlyFixed)args+=' --only-fixed';
-  var btn=document.getElementById('grype-btn');
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Scanning...';
-  var t=mkTool('grype');t.start();t.log('Grype → '+target,'i');
-  try{
-    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'grype',operation:'custom',args:args,timeout:timeout})},Math.max(60000,timeout*1000+5000),'grype');
-    var d=await r.json();t.end();
-    if(d.error){t.err(d.error);}
-    else{t.log('Grype done','s');
-      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||'No vulnerabilities found.')+'</pre></div>');}
-  }catch(e){t.end();t.err(e.message);}
-  finally{btn.disabled=false;btn.innerHTML='RUN GRYPE';}
-}
-
 /* radare2 */
 var _r2Templates={
   info:'i\nil\niz\niS\nii\nie',
@@ -5497,67 +4989,6 @@ async function runRkhunterUpdate(){
   }catch(e){t.end();t.err(e.message);}
 }
 
-/* pspy */
-async function runPspy(){
-  var duration=parseInt(document.getElementById('pspy-duration').value||'30',10);
-  var interval=document.getElementById('pspy-interval').value||'100';
-  var filter=document.getElementById('pspy-filter').value.trim();
-  var pspyPath=document.getElementById('pspy-path').value.trim()||'pspy64';
-  var fs=document.getElementById('pspy-fs').classList.contains('on');
-  var args='-i '+interval+' -p';
-  if(fs)args+=' -f';
-  var btn=document.getElementById('pspy-btn');
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Monitoring...';
-  var t=mkTool('pspy');t.start();t.log('pspy monitoring for '+duration+'s...','i');
-  try{
-    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'pspy',operation:'custom',args:args,timeout:duration})},Math.max(20000,(duration+5)*1000),'pspy');
-    var d=await r.json();t.end();
-    var output=d.stdout||'';
-    if(filter)output=output.split('\n').filter(function(l){return new RegExp(filter,'i').test(l);}).join('\n');
-    t.log('Done — '+output.split('\n').filter(Boolean).length+' line(s)','s');
-    t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(output||'No processes captured.')+'</pre></div>');
-  }catch(e){t.end();t.err(e.message);}
-  finally{btn.disabled=false;btn.innerHTML='RUN PSPY';}
-}
-
-/* pwncat */
-function pwncatModeChange(){
-  var mode=document.getElementById('pwncat-mode').value;
-  document.getElementById('pwncat-listen-fields').style.display=mode==='listen'?'block':'none';
-  document.getElementById('pwncat-connect-fields').style.display=mode==='connect'?'block':'none';
-  document.getElementById('pwncat-ssh-fields').style.display=mode==='ssh'?'block':'none';
-}
-async function runPwncat(){
-  var mode=document.getElementById('pwncat-mode').value||'listen';
-  var timeout=parseInt(document.getElementById('pwncat-timeout').value||'60',10);
-  var args='--help';
-  if(mode==='listen'){
-    var lhost=document.getElementById('pwncat-lhost').value||'0.0.0.0';
-    var lport=document.getElementById('pwncat-lport').value||'4444';
-    args='-lp '+lport+' --host "'+lhost+'"';
-  }else if(mode==='connect'){
-    var rhost=document.getElementById('pwncat-rhost').value.trim();
-    var rport=document.getElementById('pwncat-rport').value||'4444';
-    args='"'+rhost+':'+rport+'"';
-  }else if(mode==='ssh'){
-    var sh=document.getElementById('pwncat-sshhost').value.trim();
-    var sp=document.getElementById('pwncat-sshport').value||'22';
-    var su=document.getElementById('pwncat-sshuser').value.trim();
-    args='ssh://'+su+'@'+sh+':'+sp;
-  }
-  var btn=document.getElementById('pwncat-btn');
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
-  var t=mkTool('pwncat');t.start();t.log('pwncat '+mode,'i');
-  try{
-    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'pwncat',operation:'custom',args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'pwncat');
-    var d=await r.json();t.end();
-    if(d.error){t.err(d.error);}
-    else{t.log('pwncat done (exit '+d.exit_code+')','s');
-      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||d.stderr||'(no output)')+'</pre></div>');}
-  }catch(e){t.end();t.err(e.message);}
-  finally{btn.disabled=false;btn.innerHTML='RUN PWNCAT';}
-}
-
 /* ligolo */
 function ligoloComponentChange(){
   var comp=document.getElementById('ligolo-component').value;
@@ -5589,72 +5020,6 @@ async function runLigolo(){
       t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||d.stderr||'(no output)')+'</pre></div>');}
   }catch(e){t.end();t.err(e.message);}
   finally{btn.disabled=false;btn.innerHTML='RUN LIGOLO-NG';}
-}
-
-/* chisel */
-function chiselModeChange(){
-  var mode=document.getElementById('chisel-mode').value;
-  document.getElementById('chisel-server-fields').style.display=mode==='server'?'block':'none';
-  document.getElementById('chisel-client-fields').style.display=mode==='client'?'block':'none';
-}
-async function runChisel(){
-  var mode=document.getElementById('chisel-mode').value||'server';
-  var timeout=parseInt(document.getElementById('chisel-timeout').value||'60',10);
-  var args=mode+' ';
-  if(mode==='server'){
-    var port=document.getElementById('chisel-server-port').value||'8080';
-    var auth=document.getElementById('chisel-server-auth').value.trim();
-    var socks5=document.getElementById('chisel-socks5').classList.contains('on');
-    var reverse=document.getElementById('chisel-reverse').classList.contains('on');
-    args+='--port='+port;
-    if(auth)args+=' --auth="'+auth+'"';
-    if(socks5)args+=' --socks5';
-    if(reverse)args+=' --reverse';
-  }else if(mode==='client'){
-    var url=document.getElementById('chisel-server-url').value.trim();
-    var cauth=document.getElementById('chisel-client-auth').value.trim();
-    var tunnels=document.getElementById('chisel-tunnels').value.trim().split('\n').filter(Boolean).join(' ');
-    if(!url){alert('Enter server URL');return;}
-    args+='"'+url+'" '+(tunnels||'socks');
-    if(cauth)args+=' --auth="'+cauth+'"';
-  }else{
-    args='--help';
-  }
-  var btn=document.getElementById('chisel-btn');
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
-  var t=mkTool('chisel');t.start();t.log('chisel '+mode,'i');
-  try{
-    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'chisel',operation:'custom',args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'chisel');
-    var d=await r.json();t.end();
-    if(d.error){t.err(d.error);}
-    else{t.log('Done (exit '+d.exit_code+')','s');
-      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||d.stderr||'(no output)')+'</pre></div>');}
-  }catch(e){t.end();t.err(e.message);}
-  finally{btn.disabled=false;btn.innerHTML='RUN CHISEL';}
-}
-
-/* rlwrap */
-async function runRlwrap(){
-  var cmd=document.getElementById('rlwrap-cmd').value.trim();
-  if(!cmd){alert('Enter a command to wrap, e.g. nc -lvnp 4444');return;}
-  var hist=document.getElementById('rlwrap-history').value||'1000';
-  var wordchars=document.getElementById('rlwrap-wordchars').value||'a-zA-Z0-9_-';
-  var timeout=parseInt(document.getElementById('rlwrap-timeout').value||'60',10);
-  var ansi=document.getElementById('rlwrap-ansi').classList.contains('on');
-  var args='-s '+hist+' -w "'+wordchars+'"';
-  if(ansi)args+=' -A';
-  args+=' '+cmd;
-  var btn=document.getElementById('rlwrap-btn');
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
-  var t=mkTool('rlwrap');t.start();t.log('rlwrap '+cmd,'i');
-  try{
-    var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'rlwrap',operation:'custom',args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'rlwrap');
-    var d=await r.json();t.end();
-    if(d.error){t.err(d.error);}
-    else{t.log('Done (exit '+d.exit_code+')','s');
-      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||d.stderr||'(no output)')+'</pre></div>');}
-  }catch(e){t.end();t.err(e.message);}
-  finally{btn.disabled=false;btn.innerHTML='RUN RLWRAP';}
 }
 
 /* scapy */
@@ -5770,276 +5135,6 @@ function seclistsCategoryChange(){
 loadUser();
 setTimeout(renderHomeToolCatalog,120);
 
-/* ══ REMOTE AUDIT JS ══════════════════════════════════════════════════════ */
-var _raSelectedAgent = null;
-var _raCurrentJob    = null;
-var _raPollTimer     = null;
-
-function raCopyInstall(){
-  var el=document.getElementById('ra-install-cmd');
-  el.select();el.setSelectionRange(0,99999);
-  try{document.execCommand('copy');}catch(e){}
-  showToast('Copied','Install command copied to clipboard','success',2500);
-}
-
-async function raLoadAgents(){
-  var box=document.getElementById('ra-agents');
-  if(!box)return;
-  box.innerHTML='<span style="color:var(--text3)">Loading...</span>';
-  try{
-    var r=await fetch('/api/remote/agents');
-    var d=await r.json();
-    var agents=d.agents||[];
-    if(!agents.length){
-      box.innerHTML='<div style="color:var(--text3);font-size:12px">No systems connected yet. Run the install command on a Linux machine.</div>';
-      return;
-    }
-    var html='<div style="display:flex;flex-direction:column;gap:8px">';
-    agents.forEach(function(a){
-      var st=(a.status||'unknown').toLowerCase();
-      var col=st==='online'?'var(--green)':'var(--orange)';
-      var sel=_raSelectedAgent===a.client_id;
-      var tools=(a.tools||[]).slice(0,12).join(', ')+(a.tools&&a.tools.length>12?'...':'');
-      html+='<div class="card-p" style="border:1px solid '+(sel?'var(--green)':'var(--border)')+';border-radius:8px;cursor:pointer" onclick="raSelectAgent('+JSON.stringify(a)+')">'
-        +'<div style="display:flex;justify-content:space-between;gap:8px">'
-        +'<div><strong style="font-family:var(--mono)">'+a.client_id+(sel?' <span style=\'color:var(--green);\'>(selected)</span>':'')+'</strong>'
-        +'<div style="font-size:11px;color:var(--text3)">'+a.hostname+' · '+a.os_info+'</div></div>'
-        +'<span style="font-size:11px;color:'+col+'">'+st.toUpperCase()+'</span></div>'
-        +'<div style="font-size:10px;color:var(--text3);margin-top:4px">Tools: '+tools+'</div>'
-        +'<div style="font-size:10px;color:var(--text3)">IP: '+a.ip_seen+' · Last seen: '+a.last_seen+'</div>'
-        +'<div style="margin-top:8px;display:flex;gap:6px">'
-        +'<button class="btn btn-outline btn-sm" onclick="event.stopPropagation();raDisconnect(\'' +a.client_id+'\')">DISCONNECT</button>'
-        +'</div></div>';
-    });
-    html+='</div>';
-    box.innerHTML=html;
-  }catch(e){
-    box.innerHTML='<div class="err-box visible">'+e.message+'</div>';
-  }
-}
-
-function raSelectAgent(agent){
-  _raSelectedAgent=agent.client_id;
-  document.getElementById('ra-selected-label').textContent=agent.client_id+' ('+agent.hostname+')';
-  document.getElementById('ra-launcher').style.display='block';
-
-  // Rebuild tool dropdown: installed tools first (enabled), rest disabled
-  var installedTools=(agent.tools||[]).map(function(t){return t.toLowerCase();});
-
-  var TOOL_LIST = [
-    // [value, label, category]
-    ['nmap',          'nmap — Port Scanner',         'Network'],
-    ['nikto',         'nikto — Web Vuln Scanner',    'Web Testing'],
-    ['wpscan',        'wpscan — WordPress Scanner',  'Web Testing'],
-    ['whatweb',       'whatweb — Tech Fingerprint',  'Web Testing'],
-    ['ffuf',          'ffuf — Directory Fuzzer',     'Web Testing'],
-    ['sqlmap',        'sqlmap — SQL Injection',       'Web Testing'],
-    ['nuclei',        'nuclei — Template Scanner',   'Web Testing'],
-    ['wapiti',        'wapiti — Web App Scanner',    'Web Testing'],
-    ['dalfox',        'dalfox — XSS Scanner',        'Web Testing'],
-    ['dnsrecon',      'dnsrecon — DNS Enum',         'OSINT / DNS'],
-    ['theharvester',  'theHarvester — OSINT',        'OSINT / DNS'],
-    ['lynis',         'lynis — System Audit',        'System Audit'],
-    ['chkrootkit',    'chkrootkit — Rootkit Check',  'System Audit'],
-    ['rkhunter',      'rkhunter — Rootkit Hunter',   'System Audit'],
-    ['medusa',        'medusa — Login Auditor',      'Password'],
-    ['john',          'john — Password Cracker',     'Password'],
-    ['hashcat',       'hashcat — GPU Hash Cracker',  'Password'],
-    ['searchsploit',  'searchsploit — Exploit-DB',   'Other'],
-    ['hping3',        'hping3 — Packet Generator',   'Other'],
-    ['generic',       'generic — Custom command',    'Other'],
-  ];
-
-  var sel = document.getElementById('ra-tool');
-  // Clear existing options except placeholder
-  sel.innerHTML = '<option value="">— choose tool —</option>';
-
-  // Group by category
-  var cats = {};
-  TOOL_LIST.forEach(function(t){
-    var cat = t[2];
-    if(!cats[cat]) cats[cat] = [];
-    cats[cat].push(t);
-  });
-
-  Object.keys(cats).forEach(function(cat){
-    var grp = document.createElement('optgroup');
-    grp.label = cat;
-    cats[cat].forEach(function(t){
-      var val = t[0], lbl = t[1];
-      // Check if tool installed (flexible match)
-      var isInstalled = val === 'generic' || installedTools.some(function(it){
-        return it === val || it.indexOf(val) !== -1 || val.indexOf(it) !== -1;
-      });
-      var opt = document.createElement('option');
-      opt.value = val;
-      opt.text  = isInstalled ? ('✓ ' + lbl) : ('✗ ' + lbl + ' (not installed)');
-      opt.disabled = !isInstalled;
-      if(!isInstalled) opt.style.color = '#666';
-      grp.appendChild(opt);
-    });
-    sel.appendChild(grp);
-  });
-
-  raLoadJobs();
-  var installedCount = installedTools.length;
-  showToast('System selected', agent.client_id + ' — ' + installedCount + ' tools available', 'success', 3000);
-}
-
-function raToolChange(){
-  var tool=document.getElementById('ra-tool').value;
-  document.getElementById('ra-generic-fields').style.display=tool==='generic'?'block':'none';
-}
-
-async function raRunTool(){
-  if(!_raSelectedAgent){showToast('No system','Select a connected system first','warning',3000);return;}
-  var tool=document.getElementById('ra-tool').value;
-  if(!tool){showToast('No tool','Select a tool to run','warning',3000);return;}
-
-  var target=document.getElementById('ra-target').value.trim();
-  var args={target:target};
-
-  if(tool==='nmap'){
-    args.profile=document.getElementById('ra-nmap-profile').value;
-    args.modules='ports';
-  } else if(tool==='generic'){
-    args.tool=document.getElementById('ra-generic-tool').value.trim();
-    args.args=document.getElementById('ra-generic-args').value.trim();
-    delete args.target;
-  }
-
-  var btn=document.getElementById('ra-run-btn');
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Queuing...';
-
-  try{
-    var r=await fetch('/api/remote/create-job',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({client_id:_raSelectedAgent,tool:tool,args:args})
-    });
-    var d=await r.json();
-    if(d.error){showToast('Error',d.error,'error',5000);return;}
-    _raCurrentJob=d.job_id;
-    showToast('Job queued','#'+d.job_id+' — '+tool+' on '+_raSelectedAgent,'success',3000);
-    raPollJob(d.job_id);
-    raLoadJobs();
-  }catch(e){showToast('Error',e.message,'error',5000);}
-  finally{btn.disabled=false;btn.innerHTML='RUN ON REMOTE SYSTEM';}
-}
-
-async function raPollJob(jobId){
-  if(_raPollTimer)clearInterval(_raPollTimer);
-  var term=document.getElementById('ra-term');
-  var err=document.getElementById('ra-err');
-  var res=document.getElementById('ra-res');
-  var prog=document.getElementById('ra-prog');
-  var pb=document.getElementById('ra-pb');
-  if(term){term.innerHTML='';term.classList.add('visible');}
-  if(err){err.textContent='';err.classList.remove('visible');}
-  if(res){res.innerHTML='';}
-  if(prog)prog.classList.add('active');
-  if(pb)pb.style.width='5%';
-
-  function addLine(txt,type){
-    if(!term)return;
-    var div=document.createElement('div');
-    div.className='tl-'+(type||'i');
-    var icons={i:'[*]',s:'[+]',w:'[!]',e:'[x]'};
-    div.innerHTML='<span class="tl-prefix">'+(icons[type]||'[*]')+'</span> '+txt;
-    term.appendChild(div);
-    term.scrollTop=term.scrollHeight;
-  }
-
-  addLine('Job #'+jobId+' queued — waiting for remote agent...','i');
-
-  var tries=0;
-  _raPollTimer=setInterval(async function(){
-    tries++;
-    try{
-      var r=await fetch('/api/remote/job-status/'+jobId);
-      var d=await r.json();
-      if(d.error){clearInterval(_raPollTimer);addLine(d.error,'e');return;}
-      var pct=parseInt(d.progress_pct||0);
-      if(pb)pb.style.width=pct+'%';
-      if(d.message){addLine('['+d.status+'] '+d.message, d.status==='error'?'e':(d.status==='completed'?'s':'i'));}
-      if(d.status==='completed'||d.status==='error'||d.status==='cancelled'){
-        clearInterval(_raPollTimer);
-        if(prog)prog.classList.remove('active');
-        if(pb)pb.style.width='100%';
-        var out=d.output||'';
-        var errTxt=d.error||'';
-        if(errTxt&&!out){
-          if(err){err.textContent=errTxt;err.classList.add('visible');}
-        } else {
-          if(out){
-            res.innerHTML='<div class="card card-p"><div class="card-title" style="margin-bottom:8px">'
-              +d.tool.toUpperCase()+' Output (Job #'+jobId+')'
-              +'  <span style="font-size:10px;color:var(--text3);font-family:var(--mono)">exit '+d.exit_code+'</span>'
-              +'</div><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2);max-height:500px;overflow-y:auto">'
-              +out.replace(/</g,'&lt;')+'</pre>'
-              +(errTxt?'<div style="color:var(--orange);font-size:11px;margin-top:8px">Stderr: '+errTxt.replace(/</g,'&lt;')+'</div>':'')
-              +'</div>';
-          }
-        }
-        addLine(d.status.toUpperCase()+' — exit code: '+d.exit_code, d.status==='completed'?'s':'e');
-        showToast('Job done','#'+jobId+' '+d.status,'success',4000);
-        raLoadJobs();
-      }
-    }catch(ex){addLine('Poll error: '+ex.message,'w');}
-    if(tries>300){clearInterval(_raPollTimer);addLine('Poll timeout','w');}
-  },2000);
-}
-
-async function raLoadJobs(){
-  var box=document.getElementById('ra-jobs');
-  if(!box)return;
-  var qs=_raSelectedAgent?'?client_id='+encodeURIComponent(_raSelectedAgent):'';
-  try{
-    var r=await fetch('/api/remote/jobs-overview'+qs+'&limit=15');
-    var d=await r.json();
-    var jobs=d.jobs||[];
-    if(!jobs.length){box.innerHTML='<div style="color:var(--text3);font-size:12px">No remote jobs yet.</div>';return;}
-    var html='<div style="display:flex;flex-direction:column;gap:6px">';
-    jobs.forEach(function(j){
-      var col=j.status==='completed'?'var(--green)':(j.status==='running'?'var(--yellow)':(j.status==='error'?'var(--red)':'var(--text3)'));
-      html+='<div class="card-p" style="border:1px solid var(--border);border-radius:6px">'
-        +'<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px">'
-        +'<span style="font-family:var(--mono);font-size:12px">#'+j.id+' · <strong>'+j.tool+'</strong> on '+j.client_id+'</span>'
-        +'<span style="font-size:11px;color:'+col+'">'+j.status.toUpperCase()+'</span></div>'
-        +'<div style="font-size:10px;color:var(--text3);margin-top:3px">'+j.progress_pct+'% · '+(j.message||'')+'</div>'
-        +'<div style="font-size:10px;color:var(--text3)">Created: '+j.created_at+(j.completed_at?' · Done: '+j.completed_at:'')+'</div>'
-        +'<div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap">'
-        +(j.status==='completed'||j.status==='error'?'<button class="btn btn-outline btn-sm" onclick="raViewJob('+j.id+')">VIEW</button>':'')
-        +(j.status==='pending'||j.status==='running'?'<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="raCancelJob('+j.id+')">CANCEL</button>':'')
-        +'</div></div>';
-    });
-    html+='</div>';
-    box.innerHTML=html;
-  }catch(e){box.innerHTML='<div style="color:var(--text3)">'+e.message+'</div>';}
-}
-
-async function raViewJob(jobId){raPollJob(jobId);}
-
-async function raCancelJob(jobId){
-  if(!confirm('Cancel remote job #'+jobId+'?'))return;
-  try{
-    var r=await fetch('/api/remote/jobs/'+jobId+'/cancel',{method:'POST'});
-    var d=await r.json();
-    if(d.ok)showToast('Cancelled','Job #'+jobId+' cancelled','warning',2500);
-    raLoadJobs();
-  }catch(e){showToast('Error',e.message,'error',3000);}
-}
-
-async function raDisconnect(clientId){
-  if(!confirm('Disconnect '+clientId+'? Re-run install.sh to reconnect.'))return;
-  try{
-    await fetch('/api/remote/agents/'+encodeURIComponent(clientId)+'/disconnect',{method:'POST'});
-    if(_raSelectedAgent===clientId){_raSelectedAgent=null;document.getElementById('ra-launcher').style.display='none';}
-    showToast('Disconnected',clientId+' removed','warning',3000);
-    raLoadAgents();raLoadJobs();
-  }catch(e){showToast('Error',e.message,'error',3000);}
-}
-/* ══ END REMOTE AUDIT JS ═════════════════════════════════════════════════ */
-
 setTimeout(removeQuickInstallCards,120);
 
 /* ==== NEW USER MODAL ==== */
@@ -6128,7 +5223,6 @@ TOOL_INSTALL_MAP = {
     "lynis":        ("lynis",        "lynis"),
     "dnsrecon":     ("dnsrecon",     "dnsrecon"),
     "legion":       ("legion",       "legion"),
-    "theharvester": ("theharvester", "theHarvester"),
     "wpscan":       (None,            "wpscan"),
     "dig":          ("dnsutils",     "dig"),
     "proxychains4": ("proxychains4", "proxychains4"),
@@ -6153,14 +5247,9 @@ TOOL_INSTALL_MAP = {
     "kxss":         (None,            "kxss"),
     "seclists":     ("seclists",     "seclists"),
     "nuclei":       ("nuclei",       "nuclei"),
-    "grype":        ("grype",        "grype"),
     "msfvenom":     ("metasploit-framework", "msfvenom"),
-    "pwncat":       ("pwncat",       "pwncat"),
-    "rlwrap":       ("rlwrap",       "rlwrap"),
     "radare2":      ("radare2",      "radare2"),
     "ligolo-ng":    ("ligolo-ng",    "ligolo-ng"),
-    "chisel":       ("chisel",       "chisel"),
-    "pspy":         (None,            "pspy"),
 }
 
 
@@ -6539,9 +5628,9 @@ def _social_tool_binary(tool_name: str, script_path: str = ""):
         "kxss": "kxss", "medusa": "medusa", "hping3": "hping3",
         "scapy": "scapy3", "yersinia": "yersinia", "hashcat": "hashcat",
         "john": "john", "searchsploit": "searchsploit", "seclists": "ls",
-        "ligolo-ng": "ligolo-ng", "chisel": "chisel", "rlwrap": "rlwrap",
-        "pspy": "pspy", "msfvenom": "msfvenom", "pwncat": "pwncat",
-        "grype": "grype", "radare2": "r2", "openvas": "openvas",
+        "ligolo-ng": "ligolo-ng",  
+         "msfvenom": "msfvenom", 
+         "radare2": "r2", "openvas": "openvas",
         "chkrootkit": "chkrootkit", "rkhunter": "rkhunter",
     }
     if tool_name in generic_tools:
@@ -6881,7 +5970,7 @@ def social_tool_run():
     timeout = int(data.get("timeout") or 90)
     timeout = max(10, min(600, timeout))
 
-    if tool not in {"setoolkit", "gophish", "evilginx2", "shellphish", "netcat", "ncat", "socat", "sliver", "empire", "ffuf", "nuclei", "whatweb", "wapiti", "dalfox", "sqlmap", "kxss", "medusa", "hping3", "scapy", "yersinia", "hashcat", "john", "searchsploit", "seclists", "ligolo-ng", "chisel", "rlwrap", "pspy", "msfvenom", "pwncat", "grype", "radare2", "openvas", "chkrootkit", "rkhunter"}:
+    if tool not in {"setoolkit", "gophish", "evilginx2", "shellphish", "netcat", "socat", "ffuf", "nuclei", "whatweb", "wapiti", "dalfox", "sqlmap", "kxss", "medusa", "hping3", "scapy", "yersinia", "hashcat", "john", "searchsploit", "seclists", "ligolo-ng", "msfvenom", "radare2", "openvas", "chkrootkit", "rkhunter"}:
         return jsonify({"error": "Unsupported tool."}), 400
     if operation not in {"help", "version", "custom"}:
         operation = "help"
@@ -10167,407 +9256,6 @@ def serve_universal_agent():
     agent_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent")
     return send_from_directory(agent_dir, "universal_agent.py", as_attachment=False,
                                mimetype="text/plain")
-
-
-# ── Remote Audit page HTML (injected into the main UI) ───────────────────────
-_REMOTE_AUDIT_PAGE_HTML = """
-      <!-- REMOTE AUDIT PAGE -->
-      <div class="page" id="page-remote">
-        <div class="page-hd">
-          <div class="page-title">Remote Audit</div>
-          <div class="page-desc">Run any security tool on connected remote systems — one command to connect</div>
-        </div>
-
-        <!-- Install banner -->
-        <div class="card card-p" style="margin-bottom:16px;border-left:3px solid var(--cyan, #00e5ff)">
-          <div class="card-title" style="margin-bottom:10px">Connect a Linux System (one command)</div>
-          <div class="scan-bar">
-            <input class="inp inp-mono" id="ra-install-cmd" readonly
-              value="curl -fsSL http://161.118.189.254/agent/install.sh | bash"
-              style="font-size:12px"/>
-            <button class="btn btn-outline btn-sm" onclick="raCopyInstall()">COPY</button>
-          </div>
-          <div style="font-size:11px;color:var(--text3);margin-top:8px">
-            Once connected, the system appears below and you can run <strong>any tool</strong> on it remotely.
-          </div>
-        </div>
-
-        <!-- Connected systems -->
-        <div class="card card-p" style="margin-bottom:16px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-            <div class="card-title">Connected Systems</div>
-            <button class="btn btn-outline btn-sm" onclick="raLoadAgents()">REFRESH</button>
-          </div>
-          <div id="ra-agents">Loading...</div>
-        </div>
-
-        <!-- Tool launcher -->
-        <div class="card card-p" style="margin-bottom:16px" id="ra-launcher" style="display:none">
-          <div class="card-title" style="margin-bottom:12px">
-            Run Tool on: <span id="ra-selected-label" style="color:var(--green, #00ff9d)">—</span>
-          </div>
-
-          <div class="row2" style="margin-bottom:12px">
-            <div class="fg">
-              <label>SELECT TOOL</label>
-              <select class="inp inp-mono" id="ra-tool" onchange="raToolChange()">
-                <option value="">— choose tool —</option>
-                <optgroup label="Network">
-                  <option value="nmap">nmap — Port Scanner + CVE</option>
-                </optgroup>
-                <optgroup label="Web Testing">
-                  <option value="nikto">nikto — Web Vulnerability Scanner</option>
-                  <option value="wpscan">wpscan — WordPress Scanner</option>
-                  <option value="whatweb">whatweb — Technology Fingerprint</option>
-                  <option value="ffuf">ffuf — Directory Fuzzer</option>
-                  <option value="sqlmap">sqlmap — SQL Injection Tester</option>
-                  <option value="nuclei">nuclei — Template Scanner</option>
-                  <option value="wapiti">wapiti — Web App Scanner</option>
-                  <option value="dalfox">dalfox — XSS Scanner</option>
-                </optgroup>
-                <optgroup label="OSINT / DNS">
-                  <option value="dnsrecon">dnsrecon — DNS Enumeration</option>
-                  <option value="theharvester">theHarvester — OSINT</option>
-                </optgroup>
-                <optgroup label="System Audit">
-                  <option value="lynis">lynis — System Hardening Audit</option>
-                  <option value="chkrootkit">chkrootkit — Rootkit Detection</option>
-                  <option value="rkhunter">rkhunter — Rootkit Hunter</option>
-                </optgroup>
-                <optgroup label="Password / Brute">
-                  <option value="medusa">medusa — Network Login Auditor</option>
-                  <option value="john">john — Password Cracker</option>
-                  <option value="hashcat">hashcat — GPU Hash Cracker</option>
-                </optgroup>
-                <optgroup label="Other">
-                  <option value="searchsploit">searchsploit — Exploit-DB Search</option>
-                  <option value="hping3">hping3 — Packet Generator</option>
-                  <option value="generic">generic — Custom command</option>
-                </optgroup>
-              </select>
-            </div>
-            <div class="fg">
-              <label>NMAP PROFILE (nmap only)</label>
-              <select class="inp inp-mono" id="ra-nmap-profile">
-                <option value="fast">Fast (top 100)</option>
-                <option value="balanced" selected>Balanced (top 1000)</option>
-                <option value="deep">Deep (all ports)</option>
-                <option value="very_deep">Very Deep (scripts+OS)</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Dynamic arg fields -->
-          <div id="ra-tool-args">
-            <div class="fg">
-              <label>TARGET (IP / domain / URL)</label>
-              <input class="inp inp-mono" id="ra-target" type="text" placeholder="e.g. 192.168.1.1 or example.com"/>
-            </div>
-          </div>
-
-          <!-- Generic tool extra args -->
-          <div id="ra-generic-fields" style="display:none">
-            <div class="fg">
-              <label>TOOL BINARY NAME</label>
-              <input class="inp inp-mono" id="ra-generic-tool" type="text" placeholder="e.g. dirb"/>
-            </div>
-            <div class="fg">
-              <label>ARGUMENTS</label>
-              <input class="inp inp-mono" id="ra-generic-args" type="text" placeholder="e.g. http://target.com /usr/share/wordlists/dirb/common.txt"/>
-            </div>
-          </div>
-
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
-            <button class="btn btn-primary" id="ra-run-btn" onclick="raRunTool()">RUN ON REMOTE SYSTEM</button>
-            <button class="btn btn-outline btn-sm" onclick="raLoadJobs()">REFRESH JOBS</button>
-          </div>
-        </div>
-
-        <!-- Progress + output -->
-        <div class="progress-wrap" id="ra-prog"><div class="progress-bar" id="ra-pb" style="width:0%"></div></div>
-        <div class="terminal" id="ra-term"></div>
-        <div class="err-box"  id="ra-err"></div>
-        <div id="ra-res"></div>
-
-        <!-- Job queue -->
-        <div class="card card-p" style="margin-top:14px">
-          <div class="card-title" style="margin-bottom:8px">Remote Job Queue</div>
-          <div id="ra-jobs">No jobs yet.</div>
-        </div>
-      </div>
-"""
-
-_REMOTE_AUDIT_JS = """
-/* ══ REMOTE AUDIT JS ══════════════════════════════════════════════════════ */
-var _raSelectedAgent = null;
-var _raCurrentJob    = null;
-var _raPollTimer     = null;
-
-function raCopyInstall(){
-  var el=document.getElementById('ra-install-cmd');
-  el.select();el.setSelectionRange(0,99999);
-  try{document.execCommand('copy');}catch(e){}
-  showToast('Copied','Install command copied to clipboard','success',2500);
-}
-
-async function raLoadAgents(){
-  var box=document.getElementById('ra-agents');
-  if(!box)return;
-  box.innerHTML='<span style="color:var(--text3)">Loading...</span>';
-  try{
-    var r=await fetch('/api/remote/agents');
-    var d=await r.json();
-    var agents=d.agents||[];
-    if(!agents.length){
-      box.innerHTML='<div style="color:var(--text3);font-size:12px">No systems connected yet. Run the install command on a Linux machine.</div>';
-      return;
-    }
-    var html='<div style="display:flex;flex-direction:column;gap:8px">';
-    agents.forEach(function(a){
-      var st=(a.status||'unknown').toLowerCase();
-      var col=st==='online'?'var(--green)':'var(--orange)';
-      var sel=_raSelectedAgent===a.client_id;
-      var tools=(a.tools||[]).slice(0,12).join(', ')+(a.tools&&a.tools.length>12?'...':'');
-      html+='<div class="card-p" style="border:1px solid '+(sel?'var(--green)':'var(--border)')+';border-radius:8px;cursor:pointer" onclick="raSelectAgent('+JSON.stringify(a)+')">'
-        +'<div style="display:flex;justify-content:space-between;gap:8px">'
-        +'<div><strong style="font-family:var(--mono)">'+a.client_id+(sel?' <span style=\'color:var(--green);\'>(selected)</span>':'')+'</strong>'
-        +'<div style="font-size:11px;color:var(--text3)">'+a.hostname+' · '+a.os_info+'</div></div>'
-        +'<span style="font-size:11px;color:'+col+'">'+st.toUpperCase()+'</span></div>'
-        +'<div style="font-size:10px;color:var(--text3);margin-top:4px">Tools: '+tools+'</div>'
-        +'<div style="font-size:10px;color:var(--text3)">IP: '+a.ip_seen+' · Last seen: '+a.last_seen+'</div>'
-        +'<div style="margin-top:8px;display:flex;gap:6px">'
-        +'<button class="btn btn-outline btn-sm" onclick="event.stopPropagation();raDisconnect(\'' +a.client_id+'\')">DISCONNECT</button>'
-        +'</div></div>';
-    });
-    html+='</div>';
-    box.innerHTML=html;
-  }catch(e){
-    box.innerHTML='<div class="err-box visible">'+e.message+'</div>';
-  }
-}
-
-function raSelectAgent(agent){
-  _raSelectedAgent=agent.client_id;
-  document.getElementById('ra-selected-label').textContent=agent.client_id+' ('+agent.hostname+')';
-  document.getElementById('ra-launcher').style.display='block';
-
-  // Rebuild tool dropdown: installed tools first (enabled), rest disabled
-  var installedTools=(agent.tools||[]).map(function(t){return t.toLowerCase();});
-
-  var TOOL_LIST = [
-    // [value, label, category]
-    ['nmap',          'nmap — Port Scanner',         'Network'],
-    ['nikto',         'nikto — Web Vuln Scanner',    'Web Testing'],
-    ['wpscan',        'wpscan — WordPress Scanner',  'Web Testing'],
-    ['whatweb',       'whatweb — Tech Fingerprint',  'Web Testing'],
-    ['ffuf',          'ffuf — Directory Fuzzer',     'Web Testing'],
-    ['sqlmap',        'sqlmap — SQL Injection',       'Web Testing'],
-    ['nuclei',        'nuclei — Template Scanner',   'Web Testing'],
-    ['wapiti',        'wapiti — Web App Scanner',    'Web Testing'],
-    ['dalfox',        'dalfox — XSS Scanner',        'Web Testing'],
-    ['dnsrecon',      'dnsrecon — DNS Enum',         'OSINT / DNS'],
-    ['theharvester',  'theHarvester — OSINT',        'OSINT / DNS'],
-    ['lynis',         'lynis — System Audit',        'System Audit'],
-    ['chkrootkit',    'chkrootkit — Rootkit Check',  'System Audit'],
-    ['rkhunter',      'rkhunter — Rootkit Hunter',   'System Audit'],
-    ['medusa',        'medusa — Login Auditor',      'Password'],
-    ['john',          'john — Password Cracker',     'Password'],
-    ['hashcat',       'hashcat — GPU Hash Cracker',  'Password'],
-    ['searchsploit',  'searchsploit — Exploit-DB',   'Other'],
-    ['hping3',        'hping3 — Packet Generator',   'Other'],
-    ['generic',       'generic — Custom command',    'Other'],
-  ];
-
-  var sel = document.getElementById('ra-tool');
-  // Clear existing options except placeholder
-  sel.innerHTML = '<option value="">— choose tool —</option>';
-
-  // Group by category
-  var cats = {};
-  TOOL_LIST.forEach(function(t){
-    var cat = t[2];
-    if(!cats[cat]) cats[cat] = [];
-    cats[cat].push(t);
-  });
-
-  Object.keys(cats).forEach(function(cat){
-    var grp = document.createElement('optgroup');
-    grp.label = cat;
-    cats[cat].forEach(function(t){
-      var val = t[0], lbl = t[1];
-      // Check if tool installed (flexible match)
-      var isInstalled = val === 'generic' || installedTools.some(function(it){
-        return it === val || it.indexOf(val) !== -1 || val.indexOf(it) !== -1;
-      });
-      var opt = document.createElement('option');
-      opt.value = val;
-      opt.text  = isInstalled ? ('✓ ' + lbl) : ('✗ ' + lbl + ' (not installed)');
-      opt.disabled = !isInstalled;
-      if(!isInstalled) opt.style.color = '#666';
-      grp.appendChild(opt);
-    });
-    sel.appendChild(grp);
-  });
-
-  raLoadJobs();
-  var installedCount = installedTools.length;
-  showToast('System selected', agent.client_id + ' — ' + installedCount + ' tools available', 'success', 3000);
-}
-
-function raToolChange(){
-  var tool=document.getElementById('ra-tool').value;
-  document.getElementById('ra-generic-fields').style.display=tool==='generic'?'block':'none';
-}
-
-async function raRunTool(){
-  if(!_raSelectedAgent){showToast('No system','Select a connected system first','warning',3000);return;}
-  var tool=document.getElementById('ra-tool').value;
-  if(!tool){showToast('No tool','Select a tool to run','warning',3000);return;}
-
-  var target=document.getElementById('ra-target').value.trim();
-  var args={target:target};
-
-  if(tool==='nmap'){
-    args.profile=document.getElementById('ra-nmap-profile').value;
-    args.modules='ports';
-  } else if(tool==='generic'){
-    args.tool=document.getElementById('ra-generic-tool').value.trim();
-    args.args=document.getElementById('ra-generic-args').value.trim();
-    delete args.target;
-  }
-
-  var btn=document.getElementById('ra-run-btn');
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Queuing...';
-
-  try{
-    var r=await fetch('/api/remote/create-job',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({client_id:_raSelectedAgent,tool:tool,args:args})
-    });
-    var d=await r.json();
-    if(d.error){showToast('Error',d.error,'error',5000);return;}
-    _raCurrentJob=d.job_id;
-    showToast('Job queued','#'+d.job_id+' — '+tool+' on '+_raSelectedAgent,'success',3000);
-    raPollJob(d.job_id);
-    raLoadJobs();
-  }catch(e){showToast('Error',e.message,'error',5000);}
-  finally{btn.disabled=false;btn.innerHTML='RUN ON REMOTE SYSTEM';}
-}
-
-async function raPollJob(jobId){
-  if(_raPollTimer)clearInterval(_raPollTimer);
-  var term=document.getElementById('ra-term');
-  var err=document.getElementById('ra-err');
-  var res=document.getElementById('ra-res');
-  var prog=document.getElementById('ra-prog');
-  var pb=document.getElementById('ra-pb');
-  if(term){term.innerHTML='';term.classList.add('visible');}
-  if(err){err.textContent='';err.classList.remove('visible');}
-  if(res){res.innerHTML='';}
-  if(prog)prog.classList.add('active');
-  if(pb)pb.style.width='5%';
-
-  function addLine(txt,type){
-    if(!term)return;
-    var div=document.createElement('div');
-    div.className='tl-'+(type||'i');
-    var icons={i:'[*]',s:'[+]',w:'[!]',e:'[x]'};
-    div.innerHTML='<span class="tl-prefix">'+(icons[type]||'[*]')+'</span> '+txt;
-    term.appendChild(div);
-    term.scrollTop=term.scrollHeight;
-  }
-
-  addLine('Job #'+jobId+' queued — waiting for remote agent...','i');
-
-  var tries=0;
-  _raPollTimer=setInterval(async function(){
-    tries++;
-    try{
-      var r=await fetch('/api/remote/job-status/'+jobId);
-      var d=await r.json();
-      if(d.error){clearInterval(_raPollTimer);addLine(d.error,'e');return;}
-      var pct=parseInt(d.progress_pct||0);
-      if(pb)pb.style.width=pct+'%';
-      if(d.message){addLine('['+d.status+'] '+d.message, d.status==='error'?'e':(d.status==='completed'?'s':'i'));}
-      if(d.status==='completed'||d.status==='error'||d.status==='cancelled'){
-        clearInterval(_raPollTimer);
-        if(prog)prog.classList.remove('active');
-        if(pb)pb.style.width='100%';
-        var out=d.output||'';
-        var errTxt=d.error||'';
-        if(errTxt&&!out){
-          if(err){err.textContent=errTxt;err.classList.add('visible');}
-        } else {
-          if(out){
-            res.innerHTML='<div class="card card-p"><div class="card-title" style="margin-bottom:8px">'
-              +d.tool.toUpperCase()+' Output (Job #'+jobId+')'
-              +'  <span style="font-size:10px;color:var(--text3);font-family:var(--mono)">exit '+d.exit_code+'</span>'
-              +'</div><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2);max-height:500px;overflow-y:auto">'
-              +out.replace(/</g,'&lt;')+'</pre>'
-              +(errTxt?'<div style="color:var(--orange);font-size:11px;margin-top:8px">Stderr: '+errTxt.replace(/</g,'&lt;')+'</div>':'')
-              +'</div>';
-          }
-        }
-        addLine(d.status.toUpperCase()+' — exit code: '+d.exit_code, d.status==='completed'?'s':'e');
-        showToast('Job done','#'+jobId+' '+d.status,'success',4000);
-        raLoadJobs();
-      }
-    }catch(ex){addLine('Poll error: '+ex.message,'w');}
-    if(tries>300){clearInterval(_raPollTimer);addLine('Poll timeout','w');}
-  },2000);
-}
-
-async function raLoadJobs(){
-  var box=document.getElementById('ra-jobs');
-  if(!box)return;
-  var qs=_raSelectedAgent?'?client_id='+encodeURIComponent(_raSelectedAgent):'';
-  try{
-    var r=await fetch('/api/remote/jobs-overview'+qs+'&limit=15');
-    var d=await r.json();
-    var jobs=d.jobs||[];
-    if(!jobs.length){box.innerHTML='<div style="color:var(--text3);font-size:12px">No remote jobs yet.</div>';return;}
-    var html='<div style="display:flex;flex-direction:column;gap:6px">';
-    jobs.forEach(function(j){
-      var col=j.status==='completed'?'var(--green)':(j.status==='running'?'var(--yellow)':(j.status==='error'?'var(--red)':'var(--text3)'));
-      html+='<div class="card-p" style="border:1px solid var(--border);border-radius:6px">'
-        +'<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px">'
-        +'<span style="font-family:var(--mono);font-size:12px">#'+j.id+' · <strong>'+j.tool+'</strong> on '+j.client_id+'</span>'
-        +'<span style="font-size:11px;color:'+col+'">'+j.status.toUpperCase()+'</span></div>'
-        +'<div style="font-size:10px;color:var(--text3);margin-top:3px">'+j.progress_pct+'% · '+(j.message||'')+'</div>'
-        +'<div style="font-size:10px;color:var(--text3)">Created: '+j.created_at+(j.completed_at?' · Done: '+j.completed_at:'')+'</div>'
-        +'<div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap">'
-        +(j.status==='completed'||j.status==='error'?'<button class="btn btn-outline btn-sm" onclick="raViewJob('+j.id+')">VIEW</button>':'')
-        +(j.status==='pending'||j.status==='running'?'<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="raCancelJob('+j.id+')">CANCEL</button>':'')
-        +'</div></div>';
-    });
-    html+='</div>';
-    box.innerHTML=html;
-  }catch(e){box.innerHTML='<div style="color:var(--text3)">'+e.message+'</div>';}
-}
-
-async function raViewJob(jobId){raPollJob(jobId);}
-
-async function raCancelJob(jobId){
-  if(!confirm('Cancel remote job #'+jobId+'?'))return;
-  try{
-    var r=await fetch('/api/remote/jobs/'+jobId+'/cancel',{method:'POST'});
-    var d=await r.json();
-    if(d.ok)showToast('Cancelled','Job #'+jobId+' cancelled','warning',2500);
-    raLoadJobs();
-  }catch(e){showToast('Error',e.message,'error',3000);}
-}
-
-async function raDisconnect(clientId){
-  if(!confirm('Disconnect '+clientId+'? Re-run install.sh to reconnect.'))return;
-  try{
-    await fetch('/api/remote/agents/'+encodeURIComponent(clientId)+'/disconnect',{method:'POST'});
-    if(_raSelectedAgent===clientId){_raSelectedAgent=null;document.getElementById('ra-launcher').style.display='none';}
-    showToast('Disconnected',clientId+' removed','warning',3000);
-    raLoadAgents();raLoadJobs();
-  }catch(e){showToast('Error',e.message,'error',3000);}
-}
-/* ══ END REMOTE AUDIT JS ═════════════════════════════════════════════════ */
-"""
 
 
 
