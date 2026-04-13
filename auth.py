@@ -3,7 +3,8 @@
 Authentication module for VulnScan Pro
 Handles: register, login, logout, verify email, password reset, session management
 """
-import os, secrets, hashlib, re, string
+import os, secrets, hashlib, re, string, time
+from collections import deque
 from datetime import datetime, timedelta
 from functools import wraps
 from flask import request, jsonify, session
@@ -12,6 +13,19 @@ from database import (get_user_by_username, get_user_by_email, get_user_by_id,
                       update_last_login, audit)
 
 SECRET_KEY = os.environ.get("VULNSCAN_SECRET", "change-this-secret-key-in-production-2024")
+
+_RATE_BUCKETS = {}  # key -> deque[timestamps]
+_LOGIN_FAILS = {}   # username -> {"count": int, "locked_until": float}
+_LAST_RATE_CLEANUP = 0.0
+
+RATE_WINDOWS = {
+    "login": (60, 10),
+    "register": (3600, 20),
+    "forgot": (3600, 20),
+    "reset": (3600, 30),
+}
+LOCKOUT_ATTEMPTS = int(os.environ.get("VULNSCAN_LOCKOUT_ATTEMPTS", "8"))
+LOCKOUT_SECONDS = int(os.environ.get("VULNSCAN_LOCKOUT_SECONDS", "900"))
 
 # ── Password hashing ───────────────────────────
 def hash_password(password):
@@ -33,9 +47,11 @@ def gen_token(length=32):
 
 # ── Validation ─────────────────────────────────
 def validate_password(pwd):
-    if len(pwd) < 8: return False, "Password must be at least 8 characters"
+    if len(pwd) < 12: return False, "Password must be at least 12 characters"
     if not re.search(r'[A-Z]', pwd): return False, "Password must contain an uppercase letter"
+    if not re.search(r'[a-z]', pwd): return False, "Password must contain a lowercase letter"
     if not re.search(r'[0-9]', pwd): return False, "Password must contain a number"
+    if not re.search(r'[^A-Za-z0-9]', pwd): return False, "Password must contain a symbol"
     return True, "OK"
 
 def validate_email(email):
@@ -46,6 +62,70 @@ def validate_username(username):
     if len(username) > 30: return False, "Username too long"
     if not re.match(r'^[a-zA-Z0-9_-]+$', username): return False, "Username can only contain letters, numbers, _ and -"
     return True, "OK"
+
+def _client_ip():
+    xff = (request.headers.get("X-Forwarded-For") or "").split(",")[0].strip()
+    return xff or request.remote_addr or "unknown"
+
+def _enforce_rate_limit(name, identity):
+    global _LAST_RATE_CLEANUP
+    window, limit = RATE_WINDOWS[name]
+    now = time.time()
+    if now - _LAST_RATE_CLEANUP > 300:
+        _cleanup_tracking(now)
+        _LAST_RATE_CLEANUP = now
+    key = f"{name}:{identity}"
+    bucket = _RATE_BUCKETS.get(key)
+    if bucket is None:
+        bucket = deque()
+        _RATE_BUCKETS[key] = bucket
+    while bucket and now - bucket[0] >= window:
+        bucket.popleft()
+    if len(bucket) >= limit:
+        retry = int(window - (now - bucket[0])) if bucket else window
+        return False, retry
+    bucket.append(now)
+    return True, 0
+
+def _cleanup_tracking(now=None):
+    now = now or time.time()
+    for key, bucket in list(_RATE_BUCKETS.items()):
+        try:
+            name, _ = key.split(":", 1)
+            window = RATE_WINDOWS[name][0]
+        except Exception:
+            window = 3600
+        while bucket and now - bucket[0] >= window:
+            bucket.popleft()
+        if not bucket:
+            _RATE_BUCKETS.pop(key, None)
+    for username, info in list(_LOGIN_FAILS.items()):
+        if info.get("locked_until", 0) <= now and info.get("count", 0) == 0:
+            _LOGIN_FAILS.pop(username, None)
+
+def _is_locked(username):
+    info = _LOGIN_FAILS.get(username.lower())
+    if not info:
+        return False, 0
+    now = time.time()
+    locked_until = info.get("locked_until", 0)
+    if locked_until > now:
+        return True, int(locked_until - now)
+    if info.get("count", 0) == 0:
+        _LOGIN_FAILS.pop(username.lower(), None)
+    return False, 0
+
+def _record_login_failure(username):
+    key = username.lower()
+    info = _LOGIN_FAILS.get(key, {"count": 0, "locked_until": 0})
+    info["count"] += 1
+    if info["count"] >= LOCKOUT_ATTEMPTS:
+        info["locked_until"] = time.time() + LOCKOUT_SECONDS
+        info["count"] = 0
+    _LOGIN_FAILS[key] = info
+
+def _clear_login_failures(username):
+    _LOGIN_FAILS.pop(username.lower(), None)
 
 # ── Session helpers ────────────────────────────
 def get_current_user():
@@ -189,6 +269,9 @@ def register_auth_routes(app):
     @app.route("/api/register", methods=["POST"])
     def api_register():
         try:
+            ok_rl, retry = _enforce_rate_limit("register", _client_ip())
+            if not ok_rl:
+                return jsonify({"error": f"Too many registration attempts. Retry in {retry}s"}), 429
             d = request.get_json() or {}
             username = d.get("username", "").strip()
             email = d.get("email", "").strip()
@@ -251,22 +334,35 @@ def register_auth_routes(app):
 
     @app.route("/api/login", methods=["POST"])
     def api_login():
+        ok_rl, retry = _enforce_rate_limit("login", _client_ip())
+        if not ok_rl:
+            return jsonify({"error": f"Too many login attempts. Retry in {retry}s"}), 429
         d = request.get_json() or {}
         username = d.get("username", "").strip()
         password = d.get("password", "")
 
+        locked, retry = _is_locked(username)
+        if locked:
+            return jsonify({"error": f"Account temporarily locked. Retry in {retry}s"}), 429
+
         user = get_user_by_username(username)
-        if not user: return jsonify({"error": "Invalid username or password"}), 401
+        if not user:
+            _record_login_failure(username)
+            return jsonify({"error": "Invalid username or password"}), 401
         if not verify_password(password, user["password_hash"]):
             audit(user["id"], username, "LOGIN_FAIL", ip=request.remote_addr)
+            _record_login_failure(username)
             return jsonify({"error": "Invalid username or password"}), 401
         if not user["is_active"]: return jsonify({"error": "Account is disabled. Contact admin."}), 403
         if not user["is_verified"]: return jsonify({"error": "Please verify your email first. Check your inbox.", "unverified": True}), 403
 
+        _clear_login_failures(username)
         session.permanent = True
         session["user_id"] = user["id"]
         session["username"] = user["username"]
         session["role"] = user["role"]
+        session["csrf_token"] = secrets.token_urlsafe(32)
+        session["last_seen_at"] = int(time.time())
 
         update_last_login(user["id"], request.remote_addr)
         audit(user["id"], username, "LOGIN", ip=request.remote_addr, ua=request.headers.get("User-Agent", ""))
@@ -275,7 +371,8 @@ def register_auth_routes(app):
             "success": True,
             "username": user["username"],
             "role": user["role"],
-            "full_name": user.get("full_name", "")
+            "full_name": user.get("full_name", ""),
+            "csrf_token": session["csrf_token"]
         })
 
     @app.route("/api/logout", methods=["POST"])
@@ -302,6 +399,15 @@ def register_auth_routes(app):
             "login_count": user.get("login_count", 0)
         })
 
+    @app.route("/api/csrf-token")
+    @login_required
+    def api_csrf_token():
+        tok = session.get("csrf_token")
+        if not tok:
+            tok = secrets.token_urlsafe(32)
+            session["csrf_token"] = tok
+        return jsonify({"csrf_token": tok})
+
     @app.route("/api/verify/<token>")
     def api_verify(token):
         user = get_user_by_token(token)
@@ -312,6 +418,9 @@ def register_auth_routes(app):
 
     @app.route("/api/forgot-password", methods=["POST"])
     def api_forgot():
+        ok_rl, retry = _enforce_rate_limit("forgot", _client_ip())
+        if not ok_rl:
+            return jsonify({"error": f"Too many reset requests. Retry in {retry}s"}), 429
         d = request.get_json() or {}
         email = d.get("email", "").strip()
         user = get_user_by_email(email)
@@ -326,6 +435,9 @@ def register_auth_routes(app):
 
     @app.route("/api/reset-password", methods=["POST"])
     def api_reset():
+        ok_rl, retry = _enforce_rate_limit("reset", _client_ip())
+        if not ok_rl:
+            return jsonify({"error": f"Too many reset attempts. Retry in {retry}s"}), 429
         d = request.get_json() or {}
         token = d.get("token", "")
         password = d.get("password", "")
