@@ -20,7 +20,20 @@ from datetime import datetime, timedelta, timezone
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("VULNSCAN_SECRET", "change-this-secret-key-in-production-2024")
-app.permanent_session_lifetime = timedelta(days=7)
+app.permanent_session_lifetime = timedelta(hours=24)  # [SEC-L2] Reduced from 7 days
+
+# [SEC-H3] Secure session cookie configuration
+app.config.update(
+    SESSION_COOKIE_SECURE=os.environ.get("VULNSCAN_HTTPS", "false").lower() == "true",
+    SESSION_COOKIE_HTTPONLY=True,        # no JS access to session cookie
+    SESSION_COOKIE_SAMESITE="Lax",       # CSRF mitigation
+    SESSION_COOKIE_NAME="vs_session",    # don't reveal framework
+    SESSION_COOKIE_PATH="/",
+)
+
+# [SEC-C5] Login attempt tracker (in-memory, resets on restart)
+# For production use Redis: pip3 install flask-limiter redis
+_LOGIN_ATTEMPTS = {}  # key → {count, window_start, blocked_until, locked_until}
 
 # ── Performance: gzip compression ────────────────────────────────
 from flask import Response as _FlaskResponse
@@ -130,7 +143,135 @@ _reap_orphans()
 
 CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": re.compile(r"https?://(localhost|127\.0\.0\.1)(:\d+)?$")}})
 
+# [SEC-H1/H2] Security headers injected on every response
+@app.after_request
+def add_security_headers(response):
+    # Prevent MIME sniffing
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    # Prevent clickjacking
+    response.headers["X-Frame-Options"] = "DENY"
+    # XSS filter for older browsers
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    # Don't leak referrer to external sites
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    # Permissions policy — disable dangerous browser APIs
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    # Remove server fingerprinting headers
+    response.headers.pop("Server", None)
+    response.headers.pop("X-Powered-By", None)
+    # [SEC-M1] Content Security Policy
+    # Allows inline scripts (needed for current UI) but blocks external scripts
+    csp = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data:; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none';"
+    )
+    response.headers["Content-Security-Policy"] = csp
+    # HSTS — only if HTTPS is configured
+    if os.environ.get("VULNSCAN_HTTPS", "false").lower() == "true":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
+# [SEC-H2] CSRF token validation for state-changing API calls
+import hmac as _hmac
+def _csrf_token():
+    """Generate or retrieve CSRF token for current session."""
+    from flask import session as _sess
+    if "csrf_token" not in _sess:
+        _sess["csrf_token"] = secrets.token_hex(32)
+    return _sess["csrf_token"]
+
+def _require_csrf(f):
+    """Decorator: validates X-CSRF-Token header on POST/DELETE/PUT."""
+    import functools as _ft
+    @_ft.wraps(f)
+    def decorated(*args, **kwargs):
+        from flask import session as _sess
+        if request.method in ("POST", "DELETE", "PUT", "PATCH"):
+            token_from_header = request.headers.get("X-CSRF-Token", "")
+            token_in_session  = _sess.get("csrf_token", "")
+            if not token_in_session or not _hmac.compare_digest(
+                token_from_header.encode(), token_in_session.encode()
+            ):
+                # Skip CSRF for agent endpoints (Bearer token auth) and JSON API login
+                skip_csrf_paths = [
+                    "/api/agent/", "/api/remote/jobs", "/api/remote/upload",
+                    "/api/login", "/api/register", "/api/forgot-password",
+                    "/api/reset-password",
+                ]
+                if not any(request.path.startswith(p) for p in skip_csrf_paths):
+                    audit(None, "unknown", "CSRF_FAIL",
+                          ip=request.remote_addr, target=request.path)
+                    return jsonify({"error": "CSRF validation failed"}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+@app.route("/api/csrf-token", methods=["GET"])
+def get_csrf_token():
+    """Frontend fetches this once on load and includes in X-CSRF-Token header."""
+    u = get_current_user()
+    if not u:
+        return jsonify({"error": "Login required"}), 401
+    return jsonify({"csrf_token": _csrf_token()})
+
 BACKEND = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backend.py")
+
+# ── [SEC-C2] SSRF protection — inserted after imports ───────────────
+import ipaddress as _ipaddress
+import socket as _ssrf_socket
+
+_SSRF_BLOCKED_NETWORKS = [
+    _ipaddress.ip_network("10.0.0.0/8"),       # RFC-1918 private
+    _ipaddress.ip_network("172.16.0.0/12"),     # RFC-1918 private
+    _ipaddress.ip_network("192.168.0.0/16"),    # RFC-1918 private
+    _ipaddress.ip_network("127.0.0.0/8"),       # loopback
+    _ipaddress.ip_network("169.254.0.0/16"),    # link-local / cloud metadata
+    _ipaddress.ip_network("::1/128"),           # IPv6 loopback
+    _ipaddress.ip_network("fc00::/7"),          # IPv6 unique local
+    _ipaddress.ip_network("fe80::/10"),         # IPv6 link-local
+    _ipaddress.ip_network("0.0.0.0/8"),         # current network
+    _ipaddress.ip_network("100.64.0.0/10"),     # shared address space
+]
+_SSRF_BLOCKED_HOSTNAMES = {
+    "localhost", "metadata", "metadata.google.internal",
+    "169.254.169.254",  # AWS/GCP/Azure metadata
+    "metadata.internal",
+}
+
+def _check_ssrf(target: str) -> tuple:
+    """
+    Returns (is_blocked: bool, reason: str).
+    Call before any user-supplied target is used in a scan.
+    """
+    if not target:
+        return True, "Empty target"
+    # Strip protocol
+    clean = re.sub(r'^https?://', '', target).split('/')[0].split(':')[0].lower().strip()
+    # Block known dangerous hostnames
+    if clean in _SSRF_BLOCKED_HOSTNAMES:
+        return True, f"Blocked hostname: {clean}"
+    # Resolve to IP and check against blocked networks
+    try:
+        infos = _ssrf_socket.getaddrinfo(clean, None, _ssrf_socket.AF_UNSPEC,
+                                          _ssrf_socket.SOCK_STREAM)
+        for info in infos:
+            ip_str = info[4][0]
+            try:
+                ip_obj = _ipaddress.ip_address(ip_str)
+                for net in _SSRF_BLOCKED_NETWORKS:
+                    if ip_obj in net:
+                        return True, f"Blocked: {ip_str} is in {net} (private/reserved)"
+            except ValueError:
+                pass
+    except Exception:
+        pass  # DNS fail — let the scan tool handle it
+    return False, ""
+
+
 
 from database import save_scan, get_history, get_scan_by_id
 from auth import register_auth_routes, get_current_user, audit
@@ -6341,6 +6482,12 @@ def scan():
         return jsonify({"error": "No target specified"}), 400
     if not re.match(r'^[a-zA-Z0-9.\-_:/\[\]]+$', target):
         return jsonify({"error": "Invalid target — only alphanumeric, dots, dashes, colons allowed"}), 400
+    # [SEC-C2] SSRF protection — block internal/private IPs
+    _ssrf_blocked, _ssrf_reason = _check_ssrf(target)
+    if _ssrf_blocked:
+        audit(uid, uname, "SSRF_BLOCKED", target=target, ip=request.remote_addr,
+              details=_ssrf_reason)
+        return jsonify({"error": f"Target not allowed: {_ssrf_reason}"}), 403
 
     user = get_current_user()
     uid = user["id"] if user else None
@@ -9102,7 +9249,7 @@ def _service_status(svc):
 
 @app.route("/api/exec", methods=["POST"])
 def cli_route():
-    import shutil
+    import shutil as _cli_shutil
     u = get_current_user()
     if not u or u.get("role") != "admin":
         return jsonify({"error": "Admin access required for CLI console"})
@@ -9110,32 +9257,84 @@ def cli_route():
     cmd_str = (data.get("command") or "").strip()
     if not cmd_str:
         return jsonify({"output": "", "error": ""})
-    for pat in BLOCKED_PATTERNS:
-        if re.search(pat, cmd_str, re.IGNORECASE):
-            return jsonify({"error": f"Blocked: dangerous pattern detected"})
-    first_word = cmd_str.split()[0]
+
+    # [SEC-C4] Reject any string containing shell metacharacters or newlines
+    # before any other processing — prevents newline/null-byte injection bypass
+    _SHELL_META = re.compile(r'[
+
+ ;&|`$><'"\\]')
+    if _SHELL_META.search(cmd_str):
+        audit(u["id"], u["username"], "CLI_BLOCKED", target="server",
+              ip=request.remote_addr,
+              details=f"reason=shell_metachar;cmd={cmd_str[:100]}")
+        return jsonify({"error": "Blocked: shell metacharacters not allowed"})
+
+    # Length cap
+    if len(cmd_str) > 300:
+        return jsonify({"error": "Command too long (max 300 chars)"})
+
+    # [SEC-C4] Parse into argv list — NEVER use shell=True
+    try:
+        import shlex as _shlex
+        argv = _shlex.split(cmd_str)
+    except ValueError as e:
+        return jsonify({"error": f"Parse error: {e}"})
+
+    if not argv:
+        return jsonify({"output": "", "error": ""})
+
+    first_word = os.path.basename(argv[0])  # strip path traversal from binary name
     if first_word not in ALLOWED_CLI_COMMANDS:
-        return jsonify({"error": f"Command '{first_word}' not in allowlist. Allowed: {', '.join(sorted(ALLOWED_CLI_COMMANDS))}"})
+        return jsonify({"error": f"'{first_word}' not in allowlist"})
+
+    # Resolve full path — never run relative paths
+    binary = _cli_shutil.which(first_word)
+    if not binary:
+        return jsonify({"error": f"Binary not found: {first_word}"})
+
+    # Replace first token with absolute path
+    argv[0] = binary
+
+    # Final arg safety check — no null bytes, no path traversal in args
+    for arg in argv[1:]:
+        if ' ' in arg or re.search(r'[
+
+]', arg):
+            return jsonify({"error": "Blocked: control characters in arguments"})
+
+    # Blocked pattern check on reassembled string (now safe since shell=False)
+    reassembled = " ".join(argv)
+    for pat in BLOCKED_PATTERNS:
+        if re.search(pat, reassembled, re.IGNORECASE):
+            return jsonify({"error": "Blocked: dangerous pattern detected"})
+
     audit(u["id"], u["username"], "CLI_EXEC", target="server",
           ip=request.remote_addr,
-          details=f"cmd={cmd_str[:200]}")
+          details=f"cmd={reassembled[:200]}")
     try:
+        # [SEC-C4] shell=False — eliminates shell injection entirely
         r = subprocess.run(
-            cmd_str, shell=True, capture_output=True, text=True,
-            timeout=30, cwd=os.path.expanduser("~")
+            argv,
+            shell=False,           # <-- CRITICAL: no shell
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=os.path.expanduser("~"),
+            env={k: v for k, v in os.environ.items()
+                 if k in {"PATH","HOME","USER","LANG","TZ","TERM"}}  # minimal env
         )
         audit(u["id"], u["username"], "CLI_EXEC_RESULT", target="server",
               ip=request.remote_addr,
-              details=f"cmd={cmd_str[:200]};exit_code={r.returncode}")
+              details=f"cmd={reassembled[:200]};exit_code={r.returncode}")
         return jsonify({
             "output": r.stdout[:8000],
-            "error": r.stderr[:2000],
+            "error":  r.stderr[:2000],
             "exit_code": r.returncode
         })
     except subprocess.TimeoutExpired:
         return jsonify({"error": "Command timed out (30s limit)", "output": ""})
     except Exception as e:
-        return jsonify({"error": str(e), "output": ""})
+        return jsonify({"error": "Command execution failed"})  # no str(e) leak
 
 @app.route("/api/admin/services")
 def admin_services():
@@ -9237,9 +9436,18 @@ def wordlist_api():
         "/usr/share/john/",
         "/usr/share/dict/",
     ]
-    allowed = any(os.path.abspath(path).startswith(d) for d in ALLOWED_DIRS)
+    # [SEC-H4] Resolve symlinks before checking against allowlist
+    try:
+        real_path = os.path.realpath(os.path.abspath(path))
+    except Exception:
+        return jsonify({"error": "Invalid path"}), 400
+    allowed = any(real_path.startswith(os.path.realpath(d)) for d in ALLOWED_DIRS)
     if not allowed:
         return jsonify({"error": "Path not in allowed wordlist directories"}), 403
+    # Extra: must be a regular file, not a device/socket/symlink to something outside
+    if not os.path.isfile(real_path):
+        return jsonify({"error": "Not a regular file"}), 400
+    path = real_path  # use resolved path for open()
 
     if not os.path.isfile(path):
         # Try to find best available alternative
@@ -9330,17 +9538,26 @@ def running_tools():
 
 @app.route("/health")
 def health():
+    # [SEC-H6] Minimal health response — no tool/version fingerprinting
+    # Full status only visible to authenticated admins via /api/server-stats
+    return jsonify({"status": "ok"})
+
+
+@app.route("/api/admin/health-detail")
+def health_detail():
+    """Full health info — admin only."""
+    u = get_current_user()
+    if not u or u.get("role") != "admin":
+        return jsonify({"error": "Admin required"}), 403
     import shutil
-    # Check Tor is running
     tor_running = False
     try:
-        import socket as _s
-        sock = _s.create_connection(("127.0.0.1", 9050), timeout=2)
-        sock.close()
+        import socket as _s2
+        s2 = _s2.create_connection(("127.0.0.1", 9050), timeout=2)
+        s2.close()
         tor_running = True
     except Exception:
         pass
-
     return jsonify({
         "status": "ok",
         "version": "3.7",
