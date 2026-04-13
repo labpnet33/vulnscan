@@ -407,13 +407,25 @@ def network_discovery(subnet):
 # ─── CVE LOOKUP (via Tor) ─────────────────────
 NVD_API_KEY = ""  # Optional: free key from https://nvd.nist.gov/developers/request-an-api-key
 
+# Module-level CVE cache (survives within a single scan run)
+_NVD_CACHE = {}
+_NVD_CACHE_TTL = 3600  # 1 hour
+
 def search_nvd_cves(product, version="", retries=3):
     """
     Query NVD for CVEs. Routes through Tor for anonymity.
-    Increased timeout and retry delays for Tor latency.
+    Results are cached for 1 hour to avoid hammering the API.
     """
     if not product:
         return []
+
+    # Check cache first
+    cache_key = f"{product.lower().strip()}:{version.lower().strip()}"
+    if cache_key in _NVD_CACHE:
+        cached_result, cached_time = _NVD_CACHE[cache_key]
+        if time.monotonic() - cached_time < _NVD_CACHE_TTL:
+            return cached_result
+
     try:
         kw = f"{product} {version}".strip()
         url = (f"https://services.nvd.nist.gov/rest/json/cves/2.0"
@@ -469,6 +481,13 @@ def search_nvd_cves(product, version="", retries=3):
                 "references": [r.get("url", "") for r in cve.get("references", [])[:3]],
                 "published": cve.get("published", "")[:10]
             })
+
+        # Store in cache
+        _NVD_CACHE[cache_key] = (cves, time.monotonic())
+        # Prune cache if too large
+        if len(_NVD_CACHE) > 300:
+            oldest_key = min(_NVD_CACHE, key=lambda k: _NVD_CACHE[k][1])
+            del _NVD_CACHE[oldest_key]
         return cves
 
     except Exception as e:

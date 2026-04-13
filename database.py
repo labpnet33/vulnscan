@@ -24,6 +24,24 @@ def _sb():
     from supabase_config import supabase
     return supabase()
 
+def _sb_retry(fn, retries=2):
+    """Execute fn(client) with automatic reconnect on failure."""
+    import time as _t3
+    from supabase_config import supabase, reset_client
+    for attempt in range(retries + 1):
+        try:
+            return fn(supabase())
+        except Exception as e:
+            err = str(e).lower()
+            # Connection-level errors: reset and retry
+            if attempt < retries and any(
+                kw in err for kw in ("connection", "timeout", "reset", "closed", "eof")
+            ):
+                reset_client()
+                _t3.sleep(0.5 * (attempt + 1))
+                continue
+            raise
+
 def _now():
     return datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
 

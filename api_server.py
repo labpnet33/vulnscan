@@ -22,6 +22,112 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("VULNSCAN_SECRET", "change-this-secret-key-in-production-2024")
 app.permanent_session_lifetime = timedelta(days=7)
 
+# ── Performance: gzip compression ────────────────────────────────
+from flask import Response as _FlaskResponse
+import gzip as _gzip, functools as _functools
+try:
+    from flask_compress import Compress as _Compress
+    _Compress(app)
+except ImportError:
+    pass  # Optional — install: pip3 install flask-compress --break-system-packages
+
+# ── Performance: Global subprocess registry ───────────────────────
+# Tracks every running tool process so we can kill orphans on restart
+# and enforce per-tool timeouts without leaving zombie processes.
+import threading as _perf_threading
+_PROC_REGISTRY = {}          # pid → {"proc": Popen, "label": str, "started": float}
+_PROC_REGISTRY_LOCK = _perf_threading.Lock()
+_MAX_CONCURRENT_TOOLS = int(os.environ.get("VULNSCAN_MAX_TOOLS", "3"))
+_TOOL_SEMAPHORE = _perf_threading.Semaphore(_MAX_CONCURRENT_TOOLS)
+
+def _register_proc(proc, label="tool"):
+    with _PROC_REGISTRY_LOCK:
+        _PROC_REGISTRY[proc.pid] = {
+            "proc": proc, "label": label, "started": time.monotonic()
+        }
+
+def _unregister_proc(proc):
+    with _PROC_REGISTRY_LOCK:
+        _PROC_REGISTRY.pop(proc.pid, None)
+
+def _kill_all_tools():
+    """Kill every tracked subprocess — call on server shutdown or /api/kill-all."""
+    with _PROC_REGISTRY_LOCK:
+        pids = list(_PROC_REGISTRY.keys())
+    for pid in pids:
+        try:
+            import signal as _sig
+            os.kill(pid, _sig.SIGTERM)
+        except Exception:
+            pass
+    time.sleep(1)
+    with _PROC_REGISTRY_LOCK:
+        _PROC_REGISTRY.clear()
+
+# ── Performance: LRU cache for CVE lookups (avoids hammering NVD) ─
+import functools as _functools2
+_CVE_CACHE = {}          # (product, version) → (results, expiry_monotonic)
+_CVE_CACHE_TTL = 3600    # 1 hour
+
+def _cached_cve(product, version=""):
+    key = (product.lower().strip(), version.lower().strip())
+    entry = _CVE_CACHE.get(key)
+    if entry:
+        results, expiry = entry
+        if time.monotonic() < expiry:
+            return results, True   # cache hit
+    return None, False
+
+def _store_cve(product, version, results):
+    key = (product.lower().strip(), version.lower().strip())
+    _CVE_CACHE[key] = (results, time.monotonic() + _CVE_CACHE_TTL)
+    # Prune old entries if cache grows too large
+    if len(_CVE_CACHE) > 500:
+        now = time.monotonic()
+        expired = [k for k, (_, exp) in _CVE_CACHE.items() if now > exp]
+        for k in expired:
+            del _CVE_CACHE[k]
+
+# ── Kill orphaned tool processes left over from a previous run ─────
+def _reap_orphans():
+    """
+    On startup, kill any child nmap/nikto/etc. processes left over
+    from a previous unclean shutdown that might be holding resources.
+    """
+    ORPHAN_NAMES = {
+        "nmap", "nikto", "lynis", "dnsrecon", "theharvester",
+        "wpscan", "sqlmap", "nuclei", "ffuf", "medusa", "john",
+        "hashcat", "chkrootkit", "rkhunter",
+    }
+    killed = 0
+    try:
+        import subprocess as _sp2
+        result = _sp2.run(["ps", "aux"], capture_output=True, text=True, timeout=5)
+        own_pid = str(os.getpid())
+        for line in result.stdout.splitlines():
+            parts = line.split()
+            if len(parts) < 11:
+                continue
+            pid_str = parts[1]
+            cmd = parts[10].lower()
+            if pid_str == own_pid:
+                continue
+            for name in ORPHAN_NAMES:
+                if name in cmd:
+                    try:
+                        os.kill(int(pid_str), 9)
+                        killed += 1
+                    except Exception:
+                        pass
+                    break
+    except Exception:
+        pass
+    if killed:
+        print(f"[perf] Reaped {killed} orphaned tool process(es) on startup", flush=True)
+
+_reap_orphans()
+
+
 CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": re.compile(r"https?://(localhost|127\.0\.0\.1)(:\d+)?$")}})
 
 BACKEND = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backend.py")
@@ -137,24 +243,50 @@ init_agent_db()
 def run_backend(*args, timeout=300):
     """
     Run backend.py as a subprocess. Returns parsed JSON dict.
-    Increased default timeout for Tor-routed scans.
+    - Acquires global semaphore (max _MAX_CONCURRENT_TOOLS at once).
+    - Registers process in _PROC_REGISTRY for cleanup tracking.
+    - Caps captured output to 5 MB to prevent memory exhaustion.
     """
     cmd = [sys.executable, BACKEND] + list(args)
+    label = " ".join(str(a) for a in args[:3])
+
+    if not _TOOL_SEMAPHORE.acquire(blocking=True, timeout=30):
+        return {"error": f"Server busy — too many concurrent scans ({_MAX_CONCURRENT_TOOLS} max). Please wait and try again."}
+
+    proc = None
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-    except subprocess.TimeoutExpired:
-        return {"error": f"Backend process timed out after {timeout}s. Through Tor this is normal — try a smaller scan scope or increase the timeout."}
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        _register_proc(proc, label=label)
+
+        try:
+            MAX_OUTPUT = 5 * 1024 * 1024  # 5 MB cap
+            stdout_bytes, stderr_bytes = proc.communicate(timeout=timeout)
+            stdout = stdout_bytes[:MAX_OUTPUT].decode("utf-8", errors="replace")
+            stderr = stderr_bytes[:65536].decode("utf-8", errors="replace")
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.communicate()
+            return {"error": f"Backend process timed out after {timeout}s. Try a smaller scan scope."}
+
     except FileNotFoundError:
         return {"error": f"Python interpreter not found: {sys.executable}"}
+    finally:
+        if proc:
+            _unregister_proc(proc)
+        _TOOL_SEMAPHORE.release()
 
-    if r.stderr and r.stderr.strip():
-        print(f"[backend stderr] {r.stderr.strip()[:500]}", file=sys.stderr)
+    if stderr and stderr.strip():
+        print(f"[backend stderr] {stderr.strip()[:500]}", file=sys.stderr)
 
-    if not r.stdout or not r.stdout.strip():
-        err_detail = r.stderr.strip()[:300] if r.stderr else "No output from backend"
+    if not stdout or not stdout.strip():
+        err_detail = stderr.strip()[:300] if stderr else "No output from backend"
         return {"error": f"Backend returned no output. Details: {err_detail}"}
 
-    raw = r.stdout.strip()
+    raw = stdout.strip()
     start = raw.find('{')
     end = raw.rfind('}')
     if start == -1 or end == -1:
@@ -6404,7 +6536,7 @@ import struct as _struct
 # Session store: session_id → {"proc", "master_fd", "output_q", "alive", "created"}
 _SET_SESSIONS = {}
 _SET_SESSIONS_LOCK = _threading.Lock()
-_SET_SESSION_TTL = 1800  # 30 minutes
+_SET_SESSION_TTL = 300   # 5 minutes — reduced to free resources faster
 
 def _reap_old_set_sessions():
     """Kill sessions older than TTL."""
@@ -6721,36 +6853,56 @@ def social_tool_run():
           "SOCIAL_TOOL_RUN", target=tool, ip=request.remote_addr,
           details=f"operation={operation};args={args_text[:120]};cmd={' '.join(cmd[:5])}")
 
+    if not _TOOL_SEMAPHORE.acquire(blocking=True, timeout=15):
+        return jsonify({"error": f"Server busy — max {_MAX_CONCURRENT_TOOLS} concurrent tools. Try again shortly."}), 429
+
+    _pobj = None
     start = time.monotonic()
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-        elapsed = int((time.monotonic() - start) * 1000)
-        audit(user["id"] if user else None, user["username"] if user else "anon",
-              "SOCIAL_TOOL_RESULT", target=tool, ip=request.remote_addr,
-              details=f"exit_code={proc.returncode};duration_ms={elapsed};operation={operation}")
-        return jsonify({
-            "tool": tool,
-            "operation": operation,
-            "command": " ".join(cmd),
-            "exit_code": proc.returncode,
-            "stdout": (proc.stdout or "")[-50000:],
-            "stderr": (proc.stderr or "")[-50000:],
-            "duration_ms": elapsed,
-        })
-    except subprocess.TimeoutExpired as te:
-        elapsed = int((time.monotonic() - start) * 1000)
-        return jsonify({
-            "tool": tool,
-            "operation": operation,
-            "command": " ".join(cmd),
-            "exit_code": None,
-            "stdout": ((te.stdout or "") if te.stdout else "")[-20000:],
-            "stderr": ((te.stderr or "") if te.stderr else "")[-20000:],
-            "duration_ms": elapsed,
-            "error": f"Command timed out after {timeout}s."
-        }), 408
+        _pobj = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        _register_proc(_pobj, label=tool)
+        _MAX_OUT = 2 * 1024 * 1024  # 2 MB cap per tool
+        try:
+            _stdout_b, _stderr_b = _pobj.communicate(timeout=timeout)
+            _stdout = _stdout_b[:_MAX_OUT].decode("utf-8", errors="replace")
+            _stderr = _stderr_b[:65536].decode("utf-8", errors="replace")
+            elapsed = int((time.monotonic() - start) * 1000)
+            audit(user["id"] if user else None, user["username"] if user else "anon",
+                  "SOCIAL_TOOL_RESULT", target=tool, ip=request.remote_addr,
+                  details=f"exit_code={_pobj.returncode};duration_ms={elapsed};operation={operation}")
+            return jsonify({
+                "tool": tool,
+                "operation": operation,
+                "command": " ".join(cmd),
+                "exit_code": _pobj.returncode,
+                "stdout": _stdout[-50000:],
+                "stderr": _stderr[-10000:],
+                "duration_ms": elapsed,
+            })
+        except subprocess.TimeoutExpired:
+            _pobj.kill()
+            _pobj.communicate()
+            elapsed = int((time.monotonic() - start) * 1000)
+            return jsonify({
+                "tool": tool,
+                "operation": operation,
+                "command": " ".join(cmd),
+                "exit_code": None,
+                "stdout": "",
+                "stderr": "",
+                "duration_ms": elapsed,
+                "error": f"Command timed out after {timeout}s."
+            }), 408
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    finally:
+        if _pobj:
+            _unregister_proc(_pobj)
+        _TOOL_SEMAPHORE.release()
 
 
 @app.route("/discover")
@@ -9142,6 +9294,38 @@ def wordlist_api():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/kill-all-tools", methods=["POST"])
+def kill_all_tools():
+    """Emergency endpoint: kill every running scan tool immediately."""
+    u = get_current_user()
+    if not u or u.get("role") != "admin":
+        return jsonify({"error": "Admin required"}), 403
+    _kill_all_tools()
+    audit(u["id"], u["username"], "KILL_ALL_TOOLS",
+          target="server", ip=request.remote_addr)
+    return jsonify({"ok": True, "message": "All tool processes terminated"})
+
+
+@app.route("/api/running-tools", methods=["GET"])
+def running_tools():
+    """List currently running tool processes (admin only)."""
+    u = get_current_user()
+    if not u or u.get("role") != "admin":
+        return jsonify({"error": "Admin required"}), 403
+    now = time.monotonic()
+    with _PROC_REGISTRY_LOCK:
+        procs = [
+            {
+                "pid": pid,
+                "label": info["label"],
+                "runtime_secs": round(now - info["started"], 1),
+                "alive": info["proc"].poll() is None,
+            }
+            for pid, info in _PROC_REGISTRY.items()
+        ]
+    return jsonify({"running": procs, "count": len(procs), "max": _MAX_CONCURRENT_TOOLS})
 
 
 @app.route("/health")
