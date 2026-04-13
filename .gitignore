@@ -2,3 +2,10 @@ __pycache__/
 *.bak
 *.db
 harvester-env/
+
+# Secrets / local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
