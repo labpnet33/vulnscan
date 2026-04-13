@@ -4,6 +4,7 @@ Authentication module for VulnScan Pro
 Handles: register, login, logout, verify email, password reset, session management
 """
 import os, secrets, hashlib, re, string, time
+from collections import deque
 from datetime import datetime, timedelta
 from functools import wraps
 from flask import request, jsonify, session
@@ -13,8 +14,9 @@ from database import (get_user_by_username, get_user_by_email, get_user_by_id,
 
 SECRET_KEY = os.environ.get("VULNSCAN_SECRET", "change-this-secret-key-in-production-2024")
 
-_RATE_BUCKETS = {}  # key -> [timestamps]
+_RATE_BUCKETS = {}  # key -> deque[timestamps]
 _LOGIN_FAILS = {}   # username -> {"count": int, "locked_until": float}
+_LAST_RATE_CLEANUP = 0.0
 
 RATE_WINDOWS = {
     "login": (60, 10),
@@ -66,17 +68,40 @@ def _client_ip():
     return xff or request.remote_addr or "unknown"
 
 def _enforce_rate_limit(name, identity):
+    global _LAST_RATE_CLEANUP
     window, limit = RATE_WINDOWS[name]
     now = time.time()
+    if now - _LAST_RATE_CLEANUP > 300:
+        _cleanup_tracking(now)
+        _LAST_RATE_CLEANUP = now
     key = f"{name}:{identity}"
-    bucket = _RATE_BUCKETS.get(key, [])
-    bucket = [t for t in bucket if now - t < window]
+    bucket = _RATE_BUCKETS.get(key)
+    if bucket is None:
+        bucket = deque()
+        _RATE_BUCKETS[key] = bucket
+    while bucket and now - bucket[0] >= window:
+        bucket.popleft()
     if len(bucket) >= limit:
         retry = int(window - (now - bucket[0])) if bucket else window
         return False, retry
     bucket.append(now)
-    _RATE_BUCKETS[key] = bucket
     return True, 0
+
+def _cleanup_tracking(now=None):
+    now = now or time.time()
+    for key, bucket in list(_RATE_BUCKETS.items()):
+        try:
+            name, _ = key.split(":", 1)
+            window = RATE_WINDOWS[name][0]
+        except Exception:
+            window = 3600
+        while bucket and now - bucket[0] >= window:
+            bucket.popleft()
+        if not bucket:
+            _RATE_BUCKETS.pop(key, None)
+    for username, info in list(_LOGIN_FAILS.items()):
+        if info.get("locked_until", 0) <= now and info.get("count", 0) == 0:
+            _LOGIN_FAILS.pop(username, None)
 
 def _is_locked(username):
     info = _LOGIN_FAILS.get(username.lower())
@@ -86,6 +111,8 @@ def _is_locked(username):
     locked_until = info.get("locked_until", 0)
     if locked_until > now:
         return True, int(locked_until - now)
+    if info.get("count", 0) == 0:
+        _LOGIN_FAILS.pop(username.lower(), None)
     return False, 0
 
 def _record_login_failure(username):

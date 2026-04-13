@@ -209,19 +209,40 @@ def get_scan_stats():
     r = _sb().table("scans").select("id", count="exact").execute()
     stats["total_scans"] = r.count or 0
 
-    # CVE sums — fetch all and sum client-side
-    r2 = _sb().table("scans").select("total_cves,critical_cves").execute()
-    rows = r2.data or []
-    stats["total_cves"]    = sum(row.get("total_cves", 0) or 0 for row in rows)
-    stats["critical_cves"] = sum(row.get("critical_cves", 0) or 0 for row in rows)
+    # CVE sums — page through rows to avoid loading whole table into memory
+    stats["total_cves"] = 0
+    stats["critical_cves"] = 0
+    page_size = 1000
+    start = 0
+    while True:
+        chunk = _sb().table("scans").select("total_cves,critical_cves").range(
+            start, start + page_size - 1
+        ).execute().data or []
+        if not chunk:
+            break
+        stats["total_cves"] += sum(row.get("total_cves", 0) or 0 for row in chunk)
+        stats["critical_cves"] += sum(row.get("critical_cves", 0) or 0 for row in chunk)
+        if len(chunk) < page_size:
+            break
+        start += page_size
 
-    # User counts
-    ru = _sb().table("users").select(
-        "id,is_active,is_verified", count="exact").execute()
-    urows = ru.data or []
-    stats["total_users"]    = ru.count or len(urows)
-    stats["active_users"]   = sum(1 for u in urows if u.get("is_active"))
-    stats["verified_users"] = sum(1 for u in urows if u.get("is_verified"))
+    # User counts — page to reduce peak memory
+    ru = _sb().table("users").select("id", count="exact").limit(1).execute()
+    stats["total_users"] = ru.count or 0
+    stats["active_users"] = 0
+    stats["verified_users"] = 0
+    start = 0
+    while True:
+        urows = _sb().table("users").select("is_active,is_verified").range(
+            start, start + page_size - 1
+        ).execute().data or []
+        if not urows:
+            break
+        stats["active_users"] += sum(1 for u in urows if u.get("is_active"))
+        stats["verified_users"] += sum(1 for u in urows if u.get("is_verified"))
+        if len(urows) < page_size:
+            break
+        start += page_size
 
     # Scans today
     today = datetime.utcnow().strftime("%Y-%m-%d")

@@ -32,6 +32,7 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE=os.environ.get("VULNSCAN_COOKIE_SAMESITE", "Lax"),
     SESSION_COOKIE_SECURE=os.environ.get("VULNSCAN_COOKIE_SECURE", "0").lower() in {"1", "true", "yes"},
+    MAX_CONTENT_LENGTH=int(os.environ.get("VULNSCAN_MAX_CONTENT_LENGTH", str(2 * 1024 * 1024))),
 )
 SESSION_IDLE_TIMEOUT_SECONDS = int(os.environ.get("VULNSCAN_IDLE_TIMEOUT_SECONDS", "1800"))
 
