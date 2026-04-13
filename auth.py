@@ -24,18 +24,35 @@ RATE_WINDOWS = {
     "forgot": (3600, 20),
     "reset": (3600, 30),
 }
-LOCKOUT_ATTEMPTS = int(os.environ.get("VULNSCAN_LOCKOUT_ATTEMPTS", "8"))
+LOCKOUT_ATTEMPTS = int(os.environ.get("VULNSCAN_LOCKOUT_ATTEMPTS", "5"))
 LOCKOUT_SECONDS = int(os.environ.get("VULNSCAN_LOCKOUT_SECONDS", "900"))
+
+try:
+    from argon2 import PasswordHasher
+    from argon2.exceptions import VerifyMismatchError
+    _ARGON2 = PasswordHasher(
+        time_cost=int(os.environ.get("VULNSCAN_ARGON2_TIME_COST", "3")),
+        memory_cost=int(os.environ.get("VULNSCAN_ARGON2_MEMORY_KIB", "65536")),
+        parallelism=int(os.environ.get("VULNSCAN_ARGON2_PARALLELISM", "2")),
+    )
+except Exception:
+    _ARGON2 = None
+    VerifyMismatchError = Exception
 
 # ── Password hashing ───────────────────────────
 def hash_password(password):
+    if _ARGON2:
+        return "argon2$" + _ARGON2.hash(password)
     salt = secrets.token_hex(16)
     h = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 260000)
-    return f"{salt}:{h.hex()}"
+    return f"pbkdf2${salt}:{h.hex()}"
 
 def verify_password(password, stored):
     try:
-        salt, h = stored.split(":")
+        if stored.startswith("argon2$") and _ARGON2:
+            return _ARGON2.verify(stored.split("$", 1)[1], password)
+        pb = stored.split("$", 1)[-1]
+        salt, h = pb.split(":")
         new_h = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 260000)
         return secrets.compare_digest(h, new_h.hex())
     except Exception:
@@ -327,10 +344,8 @@ def register_auth_routes(app):
                 "verification_email_sent": bool(verification_email_sent)
             })
         except Exception as e:
-            import traceback
             print(f"[!] Registration error: {e}")
-            traceback.print_exc()
-            return jsonify({"error": f"Registration failed: {str(e)}"}), 500
+            return jsonify({"error": "Registration failed. Please try again."}), 500
 
     @app.route("/api/login", methods=["POST"])
     def api_login():
@@ -353,6 +368,8 @@ def register_auth_routes(app):
             audit(user["id"], username, "LOGIN_FAIL", ip=request.remote_addr)
             _record_login_failure(username)
             return jsonify({"error": "Invalid username or password"}), 401
+        if user["password_hash"] and user["password_hash"].startswith("pbkdf2$"):
+            update_user(user["id"], password_hash=hash_password(password))
         if not user["is_active"]: return jsonify({"error": "Account is disabled. Contact admin."}), 403
         if not user["is_verified"]: return jsonify({"error": "Please verify your email first. Check your inbox.", "unverified": True}), 403
 
