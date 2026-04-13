@@ -14,13 +14,26 @@ PROXYCHAINS CONFIG (/etc/proxychains4.conf or /etc/proxychains.conf):
 """
 import json, re, sys, os, subprocess, io, sqlite3, secrets, hashlib, threading, shlex, time, shutil, socket
 from urllib.parse import urlparse
-from flask import Flask, request, jsonify, Response, send_file, send_from_directory
+from flask import Flask, request, jsonify, Response, send_file, send_from_directory, session
 from flask_cors import CORS
 from datetime import datetime, timedelta, timezone
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("VULNSCAN_SECRET", "change-this-secret-key-in-production-2024")
+_configured_secret = os.environ.get("VULNSCAN_SECRET", "").strip()
+if _configured_secret:
+    app.secret_key = _configured_secret
+else:
+    # Never run with a known static key in production. Ephemeral key is safer
+    # than a predictable fallback and forces secure deployment configuration.
+    app.secret_key = secrets.token_urlsafe(64)
+    print("[WARN] VULNSCAN_SECRET is not set. Using ephemeral secret key.", flush=True)
 app.permanent_session_lifetime = timedelta(days=7)
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE=os.environ.get("VULNSCAN_COOKIE_SAMESITE", "Lax"),
+    SESSION_COOKIE_SECURE=os.environ.get("VULNSCAN_COOKIE_SECURE", "0").lower() in {"1", "true", "yes"},
+)
+SESSION_IDLE_TIMEOUT_SECONDS = int(os.environ.get("VULNSCAN_IDLE_TIMEOUT_SECONDS", "1800"))
 
 # ── Performance: gzip compression ────────────────────────────────
 from flask import Response as _FlaskResponse
@@ -129,6 +142,48 @@ _reap_orphans()
 
 
 CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": re.compile(r"https?://(localhost|127\.0\.0\.1)(:\d+)?$")}})
+
+
+@app.after_request
+def _set_security_headers(resp):
+    """Apply baseline HTTP hardening headers for API/UI responses."""
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    resp.headers.setdefault("X-Frame-Options", "DENY")
+    resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    resp.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    resp.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+    if request.is_secure or os.environ.get("VULNSCAN_FORCE_HSTS", "0").lower() in {"1", "true", "yes"}:
+        resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    return resp
+
+
+@app.before_request
+def _csrf_protect_authenticated_api():
+    """
+    CSRF protection for authenticated browser-session API calls.
+    Requires X-CSRF-Token header to match session token for state-changing methods.
+    """
+    if not session.get("user_id"):
+        return None
+
+    now = int(time.time())
+    last_seen = int(session.get("last_seen_at", now))
+    if SESSION_IDLE_TIMEOUT_SECONDS > 0 and now - last_seen > SESSION_IDLE_TIMEOUT_SECONDS:
+        session.clear()
+        if request.path.startswith("/api/"):
+            return jsonify({"error": "Session expired due to inactivity. Please log in again."}), 401
+        return None
+    session["last_seen_at"] = now
+
+    if request.method in {"GET", "HEAD", "OPTIONS"}:
+        return None
+    if not request.path.startswith("/api/"):
+        return None
+    sent = request.headers.get("X-CSRF-Token", "")
+    expected = session.get("csrf_token", "")
+    if not sent or not expected or not secrets.compare_digest(sent, expected):
+        return jsonify({"error": "Invalid CSRF token"}), 403
+    return None
 
 BACKEND = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backend.py")
 
