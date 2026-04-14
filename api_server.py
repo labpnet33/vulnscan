@@ -31,7 +31,7 @@ app.permanent_session_lifetime = timedelta(hours=int(os.environ.get("VULNSCAN_SE
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE=os.environ.get("VULNSCAN_COOKIE_SAMESITE", "Strict"),
-    SESSION_COOKIE_SECURE=os.environ.get("VULNSCAN_COOKIE_SECURE", "1").lower() in {"1", "true", "yes"},
+    SESSION_COOKIE_SECURE=os.environ.get("VULNSCAN_COOKIE_SECURE", "0").lower() in {"1", "true", "yes"},
     MAX_CONTENT_LENGTH=int(os.environ.get("VULNSCAN_MAX_CONTENT_LENGTH", str(2 * 1024 * 1024))),
 )
 SESSION_IDLE_TIMEOUT_SECONDS = int(os.environ.get("VULNSCAN_IDLE_TIMEOUT_SECONDS", "900"))
@@ -142,7 +142,7 @@ def _reap_orphans():
 _reap_orphans()
 
 
-CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": re.compile(r"https?://(localhost|127\.0\.0\.1)(:\d+)?$")}})
+CORS(app, supports_credentials=True, resources={r"/*": {"origins": re.compile(r"https?://.*")}})
 
 
 @app.after_request
@@ -3034,44 +3034,7 @@ async function doLogin(){
   try{
     var r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,password:pass})});
     var d=await r.json();
-    if(d.success){authMsg('Welcome back, '+d.username+'!','ok');setTimeout(function(){document.getElementById('auth-overlay').style.display='none';/* ==== GENERIC TOOL RUNNER ==== */
-async function runGenericTool(pageId, toolBin){
-  var argsEl=document.getElementById(pageId+'-args');
-  var timeoutEl=document.getElementById(pageId+'-timeout');
-  var binEl=document.getElementById(pageId+'-bin');
-  var btn=document.getElementById(pageId+'-btn');
-  if(!argsEl||!btn)return;
-  var args=(argsEl.value||'--help').trim();
-  var timeout=parseInt((timeoutEl&&timeoutEl.value)||'90',10);
-  var bin=(binEl&&binEl.value)||toolBin;
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
-  var t=mkTool(pageId);t.start();t.log('Running: '+bin+' '+args,'i');
-  try{
-    var r=await fetchWithTimeout('/social-tools/run',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({tool:pageId==='john'?'john':bin,operation:'custom',args:args,timeout:timeout})
-    },Math.max(20000,timeout*1000+5000),pageId);
-    var d=await r.json();t.end();
-    if(d.error){t.err(d.error);}
-    else{t.log('Command completed (exit '+d.exit_code+')','s');
-      var html='<div class="card card-p"><div class="card-title" style="margin-bottom:8px">Output</div>'
-        +'<pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'
-        +(d.stdout||'(no stdout)')+'</pre>'
-        +(d.stderr?'<div class="card-title" style="margin:8px 0">Stderr</div><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--orange)">'+d.stderr+'</pre>':'')
-        +'</div>';
-      t.res(html);}
-  }catch(e){t.end();t.err(e.message);}
-  finally{btn.disabled=false;btn.innerHTML='RUN '+bin.toUpperCase();}
-}
-/* ==== BRUTE AUTOLOAD ==== */
-function bfAutoLoad(){
-  var um=document.getElementById('bf-user-mode');
-  var pm=document.getElementById('bf-pass-mode');
-  if(um&&um.value!=='manual')bfWordlistMode('user');
-  if(pm&&pm.value!=='manual')bfWordlistMode('pass');
-}
-
-loadUser();},700);}
+    if(d.success){authMsg('Welcome back, '+d.username+'!','ok');setTimeout(function(){document.getElementById('auth-overlay').style.display='none';loadUser();},700);}
     else authMsg(d.error||'Login failed');
   }catch(e){authMsg('Connection error: '+e.message);}
   finally{btn.disabled=false;btn.innerHTML='LOGIN';}
@@ -5137,6 +5100,43 @@ function seclistsCategoryChange(){
 }
 
 /* END TOOL-SPECIFIC JS HELPERS */
+
+/* ==== GENERIC TOOL RUNNER ==== */
+async function runGenericTool(pageId, toolBin){
+  var argsEl=document.getElementById(pageId+'-args');
+  var timeoutEl=document.getElementById(pageId+'-timeout');
+  var binEl=document.getElementById(pageId+'-bin');
+  var btn=document.getElementById(pageId+'-btn');
+  if(!argsEl||!btn)return;
+  var args=(argsEl.value||'--help').trim();
+  var timeout=parseInt((timeoutEl&&timeoutEl.value)||'90',10);
+  var bin=(binEl&&binEl.value)||toolBin;
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  var t=mkTool(pageId);t.start();t.log('Running: '+bin+' '+args,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({tool:pageId==='john'?'john':bin,operation:'custom',args:args,timeout:timeout})
+    },Math.max(20000,timeout*1000+5000),pageId);
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{t.log('Command completed (exit '+d.exit_code+')','s');
+      var html='<div class="card card-p"><div class="card-title" style="margin-bottom:8px">Output</div>'
+        +'<pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'
+        +(d.stdout||'(no stdout)')+'</pre>'
+        +(d.stderr?'<div class="card-title" style="margin:8px 0">Stderr</div><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--orange)">'+d.stderr+'</pre>':'')
+        +'</div>';
+      t.res(html);}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN '+bin.toUpperCase();}
+}
+/* ==== BRUTE AUTOLOAD ==== */
+function bfAutoLoad(){
+  var um=document.getElementById('bf-user-mode');
+  var pm=document.getElementById('bf-pass-mode');
+  if(um&&um.value!=='manual')bfWordlistMode('user');
+  if(pm&&pm.value!=='manual')bfWordlistMode('pass');
+}
 
 loadUser();
 setTimeout(renderHomeToolCatalog,120);

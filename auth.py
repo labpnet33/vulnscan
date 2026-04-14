@@ -374,23 +374,26 @@ def register_auth_routes(app):
         if not user["is_verified"]: return jsonify({"error": "Please verify your email first. Check your inbox.", "unverified": True}), 403
 
         _clear_login_failures(username)
+        session.clear()
         session.permanent = True
         session["user_id"] = user["id"]
         session["username"] = user["username"]
         session["role"] = user["role"]
         session["csrf_token"] = secrets.token_urlsafe(32)
         session["last_seen_at"] = int(time.time())
+        session.modified = True
 
         update_last_login(user["id"], request.remote_addr)
         audit(user["id"], username, "LOGIN", ip=request.remote_addr, ua=request.headers.get("User-Agent", ""))
 
-        return jsonify({
+        resp = jsonify({
             "success": True,
             "username": user["username"],
             "role": user["role"],
             "full_name": user.get("full_name", ""),
             "csrf_token": session["csrf_token"]
         })
+        return resp
 
     @app.route("/api/logout", methods=["POST"])
     def api_logout():
