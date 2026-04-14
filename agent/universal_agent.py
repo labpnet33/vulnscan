@@ -341,8 +341,6 @@ def run_generic(args):
     }
     tool    = (args.get("tool") or "").lower().strip()
     raw_args= (args.get("args") or "").strip()
-    if any(ch in raw_args for ch in ["\n", "\r", ";", "|", "&", "`"]):
-        return {"error": "Unsafe generic arguments rejected", "output": ""}
     if tool not in SAFE_TOOLS:
         return {"error": f"Tool '{tool}' not in agent allowlist", "output": ""}
     bin_ = which(tool)
@@ -353,10 +351,7 @@ def run_generic(args):
         return {"error": f"{tool} not installed on this system", "output": ""}
     try:
         import shlex
-        cmd_args = shlex.split(raw_args)
-        if any((len(a) > 256 or re.search(r"[^\w\-./:=@,+%]", a)) for a in cmd_args):
-            return {"error": "Unsafe generic arguments rejected", "output": ""}
-        cmd = [bin_] + cmd_args
+        cmd = [bin_] + shlex.split(raw_args)
         r = subprocess.run(cmd, capture_output=True, text=True,
                            timeout=TOOL_TIMEOUT.get(tool, TOOL_TIMEOUT["default"]))
         return {"output": (r.stdout or "") + (r.stderr or ""), "exit_code": r.returncode}

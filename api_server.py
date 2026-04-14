@@ -12,7 +12,7 @@ PROXYCHAINS CONFIG (/etc/proxychains4.conf or /etc/proxychains.conf):
   [ProxyList]
   socks5 127.0.0.1 9050
 """
-import json, re, sys, os, subprocess, io, sqlite3, secrets, hashlib, threading, shlex, time, shutil, socket, ipaddress
+import json, re, sys, os, subprocess, io, sqlite3, secrets, hashlib, threading, shlex, time, shutil, socket
 from urllib.parse import urlparse
 from flask import Flask, request, jsonify, Response, send_file, send_from_directory, session
 from flask_cors import CORS
@@ -27,14 +27,14 @@ else:
     # than a predictable fallback and forces secure deployment configuration.
     app.secret_key = secrets.token_urlsafe(64)
     print("[WARN] VULNSCAN_SECRET is not set. Using ephemeral secret key.", flush=True)
-app.permanent_session_lifetime = timedelta(hours=int(os.environ.get("VULNSCAN_SESSION_LIFETIME_HOURS", "12")))
+app.permanent_session_lifetime = timedelta(days=7)
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE=os.environ.get("VULNSCAN_COOKIE_SAMESITE", "Strict"),
+    SESSION_COOKIE_SAMESITE=os.environ.get("VULNSCAN_COOKIE_SAMESITE", "Lax"),
     SESSION_COOKIE_SECURE=os.environ.get("VULNSCAN_COOKIE_SECURE", "0").lower() in {"1", "true", "yes"},
     MAX_CONTENT_LENGTH=int(os.environ.get("VULNSCAN_MAX_CONTENT_LENGTH", str(2 * 1024 * 1024))),
 )
-SESSION_IDLE_TIMEOUT_SECONDS = int(os.environ.get("VULNSCAN_IDLE_TIMEOUT_SECONDS", "900"))
+SESSION_IDLE_TIMEOUT_SECONDS = int(os.environ.get("VULNSCAN_IDLE_TIMEOUT_SECONDS", "1800"))
 
 # ── Performance: gzip compression ────────────────────────────────
 from flask import Response as _FlaskResponse
@@ -142,7 +142,7 @@ def _reap_orphans():
 _reap_orphans()
 
 
-CORS(app, supports_credentials=True, resources={r"/*": {"origins": re.compile(r"https?://.*")}})
+CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": re.compile(r"https?://(localhost|127\.0\.0\.1)(:\d+)?$")}})
 
 
 @app.after_request
@@ -153,7 +153,6 @@ def _set_security_headers(resp):
     resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     resp.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
     resp.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
-    resp.headers.setdefault("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
     if request.is_secure or os.environ.get("VULNSCAN_FORCE_HSTS", "0").lower() in {"1", "true", "yes"}:
         resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
     return resp
@@ -195,11 +194,6 @@ from auth import register_auth_routes, get_current_user, audit
 register_auth_routes(app)
 
 GRADE_COL = {"A+": "#00ff9d", "A": "#00e5ff", "B": "#ffd60a", "C": "#ff6b35", "D": "#ff6b35", "F": "#ff3366"}
-
-@app.errorhandler(Exception)
-def _handle_uncaught_error(err):
-    print(f"[!] Unhandled server error: {err}", file=sys.stderr, flush=True)
-    return jsonify({"error": "Internal server error"}), 500
 
 # ── Tor / proxychains config ──────────────────────────────────────────────────
 TOR_SOCKS_HOST = "127.0.0.1"
@@ -3034,7 +3028,44 @@ async function doLogin(){
   try{
     var r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,password:pass})});
     var d=await r.json();
-    if(d.success){authMsg('Welcome back, '+d.username+'!','ok');setTimeout(function(){document.getElementById('auth-overlay').style.display='none';loadUser();},700);}
+    if(d.success){authMsg('Welcome back, '+d.username+'!','ok');setTimeout(function(){document.getElementById('auth-overlay').style.display='none';/* ==== GENERIC TOOL RUNNER ==== */
+async function runGenericTool(pageId, toolBin){
+  var argsEl=document.getElementById(pageId+'-args');
+  var timeoutEl=document.getElementById(pageId+'-timeout');
+  var binEl=document.getElementById(pageId+'-bin');
+  var btn=document.getElementById(pageId+'-btn');
+  if(!argsEl||!btn)return;
+  var args=(argsEl.value||'--help').trim();
+  var timeout=parseInt((timeoutEl&&timeoutEl.value)||'90',10);
+  var bin=(binEl&&binEl.value)||toolBin;
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
+  var t=mkTool(pageId);t.start();t.log('Running: '+bin+' '+args,'i');
+  try{
+    var r=await fetchWithTimeout('/social-tools/run',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({tool:pageId==='john'?'john':bin,operation:'custom',args:args,timeout:timeout})
+    },Math.max(20000,timeout*1000+5000),pageId);
+    var d=await r.json();t.end();
+    if(d.error){t.err(d.error);}
+    else{t.log('Command completed (exit '+d.exit_code+')','s');
+      var html='<div class="card card-p"><div class="card-title" style="margin-bottom:8px">Output</div>'
+        +'<pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'
+        +(d.stdout||'(no stdout)')+'</pre>'
+        +(d.stderr?'<div class="card-title" style="margin:8px 0">Stderr</div><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--orange)">'+d.stderr+'</pre>':'')
+        +'</div>';
+      t.res(html);}
+  }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN '+bin.toUpperCase();}
+}
+/* ==== BRUTE AUTOLOAD ==== */
+function bfAutoLoad(){
+  var um=document.getElementById('bf-user-mode');
+  var pm=document.getElementById('bf-pass-mode');
+  if(um&&um.value!=='manual')bfWordlistMode('user');
+  if(pm&&pm.value!=='manual')bfWordlistMode('pass');
+}
+
+loadUser();},700);}
     else authMsg(d.error||'Login failed');
   }catch(e){authMsg('Connection error: '+e.message);}
   finally{btn.disabled=false;btn.innerHTML='LOGIN';}
@@ -5101,43 +5132,6 @@ function seclistsCategoryChange(){
 
 /* END TOOL-SPECIFIC JS HELPERS */
 
-/* ==== GENERIC TOOL RUNNER ==== */
-async function runGenericTool(pageId, toolBin){
-  var argsEl=document.getElementById(pageId+'-args');
-  var timeoutEl=document.getElementById(pageId+'-timeout');
-  var binEl=document.getElementById(pageId+'-bin');
-  var btn=document.getElementById(pageId+'-btn');
-  if(!argsEl||!btn)return;
-  var args=(argsEl.value||'--help').trim();
-  var timeout=parseInt((timeoutEl&&timeoutEl.value)||'90',10);
-  var bin=(binEl&&binEl.value)||toolBin;
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
-  var t=mkTool(pageId);t.start();t.log('Running: '+bin+' '+args,'i');
-  try{
-    var r=await fetchWithTimeout('/social-tools/run',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({tool:pageId==='john'?'john':bin,operation:'custom',args:args,timeout:timeout})
-    },Math.max(20000,timeout*1000+5000),pageId);
-    var d=await r.json();t.end();
-    if(d.error){t.err(d.error);}
-    else{t.log('Command completed (exit '+d.exit_code+')','s');
-      var html='<div class="card card-p"><div class="card-title" style="margin-bottom:8px">Output</div>'
-        +'<pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'
-        +(d.stdout||'(no stdout)')+'</pre>'
-        +(d.stderr?'<div class="card-title" style="margin:8px 0">Stderr</div><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--orange)">'+d.stderr+'</pre>':'')
-        +'</div>';
-      t.res(html);}
-  }catch(e){t.end();t.err(e.message);}
-  finally{btn.disabled=false;btn.innerHTML='RUN '+bin.toUpperCase();}
-}
-/* ==== BRUTE AUTOLOAD ==== */
-function bfAutoLoad(){
-  var um=document.getElementById('bf-user-mode');
-  var pm=document.getElementById('bf-pass-mode');
-  if(um&&um.value!=='manual')bfWordlistMode('user');
-  if(pm&&pm.value!=='manual')bfWordlistMode('pass');
-}
-
 loadUser();
 setTimeout(renderHomeToolCatalog,120);
 
@@ -5270,21 +5264,6 @@ def _normalize_target_url(url):
     host = host.split(":")[0].strip().lower()
     if not host or not re.match(r"^[a-z0-9.\-]+$", host):
         return "", "", ""
-    if host in {"localhost"}:
-        return "", "", ""
-    try:
-        ip = ipaddress.ip_address(host)
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved:
-            return "", "", ""
-    except ValueError:
-        try:
-            resolved = {ai[4][0] for ai in socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)}
-            for rip in resolved:
-                ip = ipaddress.ip_address(rip)
-                if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved:
-                    return "", "", ""
-        except Exception:
-            return "", "", ""
     base = f"{parsed.scheme}://{host}"
     return raw, base, host
 
@@ -7534,8 +7513,6 @@ def report():
           _rpt_user["username"] if _rpt_user else "anon",
           "PDF_REPORT_GENERATED", target=target, ip=request.remote_addr,
           details=f"scan_time={scan_time};open_ports={data.get('summary',{}).get('open_ports',0)};total_cves={data.get('summary',{}).get('total_cves',0)}")
-    target = str(target)[:255]
-    scan_time = str(scan_time)[:32]
     summary    = data.get("summary", {})
     modules    = data.get("modules", {})
     hosts      = modules.get("ports", {}).get("hosts", [])
@@ -7598,9 +7575,7 @@ def report():
     S_DISC     = sty("disc",  fontName="Courier", fontSize=7, textColor=C_MUTED,
                      alignment=TA_CENTER, leading=11)
 
-    from xml.sax.saxutils import escape as _xml_escape
     def p(t, s=None):    return Paragraph(str(t), s or S_BODY)
-    def u(t): return _xml_escape(str(t))
     def sp(h=6):         return Spacer(1, h)
     def hr(col=None):
         return HRFlowable(width="100%", thickness=0.4,
@@ -7892,16 +7867,16 @@ def report():
                 if len(cve.get("description", "")) > 90:
                     desc += "…"
                 cve_rows.append([
-                    p(f'<link href="{u(cve.get("references", [""])[0] or "https://nvd.nist.gov")}">'
+                    p(f'<link href="{cve.get("references", [""])[0] or "https://nvd.nist.gov"}">'
                       f'<font color="#{C_CYAN.hexval()[1:].upper()}">'
-                      f'{u(cve.get("id",""))}</font></link>',
+                      f'{cve.get("id","")}</font></link>',
                       sty("ci", fontName="Courier-Bold", fontSize=7, textColor=C_CYAN)),
                     p(f'<font color="#{col.hexval()[1:].upper()}">{sev}</font>',
                       sty("cs", fontName="Courier-Bold", fontSize=7, textColor=col)),
                     p(str(score) if score else "—",
                       sty("csc", fontName="Courier-Bold", fontSize=7, textColor=col)),
-                    p(u(cve.get("published", "")[:10]), S_MONO_SM),
-                    p(u(desc), S_MONO_SM),
+                    p(cve.get("published", "")[:10], S_MONO_SM),
+                    p(desc, S_MONO_SM),
                 ])
 
             story.append(KeepTogether([
@@ -8063,7 +8038,7 @@ def report():
                   sty("hg", fontName="Helvetica-Bold", fontSize=28,
                       textColor=hgcol, leading=32, alignment=TA_CENTER)),
                 [
-                    p(u(hdr_data.get("url", "")), sty("hu", fontName="Courier-Bold",
+                    p(hdr_data.get("url", ""), sty("hu", fontName="Courier-Bold",
                       fontSize=8, textColor=C_WHITE)),
                     p(f'HTTP {hdr_data.get("status_code","")}  ·  '
                       f'Score {hdr_score}/100  ·  '
@@ -8211,7 +8186,6 @@ BLOCKED_PATTERNS = [
     r'mkfs', r'fdisk', r';.*rm\s', r'\|\s*sh\b', r'curl.*\|.*bash',
     r'wget.*\|.*sh', r'base64.*decode.*\|'
 ]
-_CLI_FORBIDDEN_CHARS = {"\n", "\r", ";", "|", "&", "`", "$", ">", "<"}
 
 MONITORED_SERVICES = {
     "apache2": {
@@ -8273,6 +8247,7 @@ def _service_status(svc):
 
 @app.route("/api/exec", methods=["POST"])
 def cli_route():
+    import shutil
     u = get_current_user()
     if not u or u.get("role") != "admin":
         return jsonify({"error": "Admin access required for CLI console"})
@@ -8283,26 +8258,15 @@ def cli_route():
     for pat in BLOCKED_PATTERNS:
         if re.search(pat, cmd_str, re.IGNORECASE):
             return jsonify({"error": f"Blocked: dangerous pattern detected"})
-    if any(ch in cmd_str for ch in _CLI_FORBIDDEN_CHARS):
-        return jsonify({"error": "Blocked: shell control characters are not allowed"})
-    try:
-        parsed = shlex.split(cmd_str)
-    except Exception:
-        return jsonify({"error": "Invalid command syntax"})
-    if not parsed:
-        return jsonify({"output": "", "error": ""})
-    first_word = parsed[0]
+    first_word = cmd_str.split()[0]
     if first_word not in ALLOWED_CLI_COMMANDS:
         return jsonify({"error": f"Command '{first_word}' not in allowlist. Allowed: {', '.join(sorted(ALLOWED_CLI_COMMANDS))}"})
-    for arg in parsed[1:]:
-        if len(arg) > 256 or re.search(r"[^\w\-./:=@,+%]", arg):
-            return jsonify({"error": "Blocked: unsupported argument characters"})
     audit(u["id"], u["username"], "CLI_EXEC", target="server",
           ip=request.remote_addr,
           details=f"cmd={cmd_str[:200]}")
     try:
         r = subprocess.run(
-            parsed, shell=False, capture_output=True, text=True,
+            cmd_str, shell=True, capture_output=True, text=True,
             timeout=30, cwd=os.path.expanduser("~")
         )
         audit(u["id"], u["username"], "CLI_EXEC_RESULT", target="server",
@@ -8418,17 +8382,49 @@ def wordlist_api():
         "/usr/share/john/",
         "/usr/share/dict/",
     ]
-    real = os.path.realpath(path)
-    allowed = any(real.startswith(os.path.realpath(d)) for d in ALLOWED_DIRS)
+    allowed = any(os.path.abspath(path).startswith(d) for d in ALLOWED_DIRS)
     if not allowed:
         return jsonify({"error": "Path not in allowed wordlist directories"}), 403
 
-    if not os.path.isfile(real):
-        return jsonify({"error": f"Wordlist not found: {path}. Install: sudo apt install wordlists seclists"})
+    if not os.path.isfile(path):
+        # Try to find best available alternative
+        alternatives = {
+            "/usr/share/wordlists/rockyou.txt": [
+                "/usr/share/john/password.lst",
+                "/usr/share/dict/words",
+            ],
+            "/usr/share/seclists/Usernames/top-usernames-shortlist.txt": [
+                "/usr/share/seclists/Usernames/Names/names.txt",
+                "/usr/share/wordlists/rockyou.txt",
+            ],
+            "/usr/share/seclists/Passwords/Common-Credentials/10k-most-common.txt": [
+                "/usr/share/seclists/Passwords/Common-Credentials/100k-most-common.txt",
+                "/usr/share/wordlists/rockyou.txt",
+                "/usr/share/john/password.lst",
+            ],
+        }
+        fallbacks = alternatives.get(path, [])
+        found_alt = next((p for p in fallbacks if os.path.isfile(p)), None)
+        if found_alt:
+            path = found_alt
+        else:
+            # Scan the allowed dir for best match
+            for d in ALLOWED_DIRS:
+                if os.path.isdir(d):
+                    for root, dirs, files in os.walk(d):
+                        for fn in files:
+                            fp = os.path.join(root, fn)
+                            if os.path.isfile(fp) and os.path.getsize(fp) > 100:
+                                path = fp
+                                break
+                        if path != request.args.get("path", ""):
+                            break
+            if not os.path.isfile(path):
+                return jsonify({"error": f"Wordlist not found: {path}. Install: sudo apt install wordlists seclists"})
 
     try:
         words = []
-        with open(real, "r", encoding="utf-8", errors="ignore") as f:
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
             for line in f:
                 w = line.strip()
                 if w and not w.startswith("#") and len(w) <= 128:
@@ -8436,8 +8432,8 @@ def wordlist_api():
                 if len(words) >= limit:
                     break
         return jsonify({
-            "path": real,
-            "filename": os.path.basename(real),
+            "path": path,
+            "filename": os.path.basename(path),
             "words": words,
             "total_loaded": len(words),
         })
@@ -8479,7 +8475,27 @@ def running_tools():
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()})
+    import shutil
+    # Check Tor is running
+    tor_running = False
+    try:
+        import socket as _s
+        sock = _s.create_connection(("127.0.0.1", 9050), timeout=2)
+        sock.close()
+        tor_running = True
+    except Exception:
+        pass
+
+    return jsonify({
+        "status": "ok",
+        "version": "3.7",
+        "nmap": bool(shutil.which("nmap")),
+        "dig": bool(shutil.which("dig")),
+        "proxychains4": bool(shutil.which("proxychains4") or shutil.which("proxychains")),
+        "tor_running": tor_running,
+        "tor_port": TOR_SOCKS_PORT,
+        "python": sys.version
+    })
 
 
 # ── Server Statistics route ───────────────────────────────────────────────────
@@ -8914,16 +8930,6 @@ def ra_create_job():
     client_id = (data.get("client_id") or "").strip()
     tool      = (data.get("tool") or "").strip().lower()
     args      = data.get("args") or {}
-    if not isinstance(args, dict):
-        return jsonify({"error": "args must be an object"}), 400
-    if len(args) > 30:
-        return jsonify({"error": "Too many arguments"}), 400
-    for k, v in args.items():
-        if not re.match(r"^[a-zA-Z0-9_.-]{1,64}$", str(k)):
-            return jsonify({"error": "Invalid argument name"}), 400
-        sv = str(v)
-        if len(sv) > 500 or any(ch in sv for ch in ["\n", "\r", "`", ";", "|", "&"]):
-            return jsonify({"error": f"Invalid value for '{k}'"}), 400
 
     ALLOWED_TOOLS = {
         "nmap", "nikto", "lynis", "wpscan", "dnsrecon", "theharvester",
