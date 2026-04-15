@@ -148,6 +148,16 @@ TUNNELING_AND_PIVOTING_TOOLS=(
   "rlwrap"
 )
 
+LEGION_RECON_TOOLS=(
+  "samba"
+  "smbclient"
+  "snmp"
+  "snmpd"
+  "hydra"
+  "finger"
+  "nbtscan"
+)
+
 CORE_PLATFORM_TOOLS=(
   "dnsutils"        # provides dig
   "proxychains4"
@@ -165,6 +175,7 @@ TOOLS_BY_CATEGORY=(
   "EXPLOIT_AND_POSTEXP_TOOLS"
   "BINARY_AND_REVERSE_TOOLS"
   "TUNNELING_AND_PIVOTING_TOOLS"
+  "LEGION_RECON_TOOLS"
   "CORE_PLATFORM_TOOLS"
 )
 

