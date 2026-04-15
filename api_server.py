@@ -4875,8 +4875,6 @@ function parseHashcatOutput(output){
   }
   
   return passwords;
-}}
-  finally{btn.disabled=false;btn.innerHTML='RUN HASHCAT';}
 }
 
 /* john */
