@@ -472,7 +472,7 @@ Please use [GitHub Issues](https://github.com/labpnet33/vulnscan/issues) to repo
 
 **Vijay Katariya**  
 Creator & Lead Developer  
-[Organization](https://github.com/labpnet33)
+[Motalund Organization](https://github.com/labpnet33)
 
 ---
 
@@ -495,5 +495,5 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ---
 
 <div align="center">
-  <sub>Built with ⚡ by Vijay Katariya · Organization</sub>
+  <sub>Built with ⚡ by Vijay Katariya · Motalund Organization</sub>
 </div>
