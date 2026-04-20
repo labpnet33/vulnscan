@@ -1,48 +1,42 @@
 #!/usr/bin/env python3
 """
-VulnScan Pro — Performance Optimization Patch
-==============================================
-Applies targeted fixes to reduce server resource usage and prevent hangs.
+VulnScan Pro — Enhanced Audit Log Patch
+=========================================
+Adds comprehensive security logging to the audit system:
+
+  1.  Core identity (user ID, username, email, role, auth method)
+  2.  Network & device info (IP, GeoIP, User-Agent, device fingerprint)
+  3.  Timestamp & session tracking (login/logout, session ID, duration)
+  4.  User activity (page visits, critical actions, API calls)
+  5.  Security events (failed logins, lockouts, MFA, privilege escalation)
+  6.  Request-level logging (HTTP method, endpoint, status code, response time)
+  7.  Enhanced Admin Console UI with filters, charts, and export
 
 Run from project root:
-    python3 vulnscan_perf_patch.py
-
-What this patch does:
-  1. Adds global process registry + kill-on-timeout for all tool subprocesses
-  2. Adds Supabase connection pooling + singleton with retry backoff
-  3. Adds LRU cache for repeated NVD CVE lookups (1 hour TTL)
-  4. Caps concurrent tool runs (semaphore) — max 3 at a time
-  5. Cleans up leaked SET PTY sessions automatically (5-min TTL)
-  6. Reduces Lynis/Remote Audit poll intervals to prevent poll storms
-  7. Adds memory-safe subprocess output limits (prevents OOM)
-  8. Kills orphaned background processes on startup
-  9. Adds /api/kill-tool endpoint for emergency process termination
- 10. Compresses HTML response with gzip
+    python3 audit_patch.py
 """
 
-import os
-import re
-import shutil
+import os, shutil, sys, subprocess
 from datetime import datetime
 
 GREEN  = "\033[92m"; RED = "\033[91m"; YELLOW = "\033[93m"
-CYAN   = "\033[96m"; RESET = "\033[0m"; BOLD = "\033[1m"
+CYAN   = "\033[96m"; RESET = "\033[0m"; BOLD = "\033[1m"; DIM = "\033[2m"
 
 def ok(m):   print(f"  {GREEN}✓{RESET}  {m}")
 def fail(m): print(f"  {RED}✗{RESET}  {m}")
 def info(m): print(f"  {CYAN}→{RESET}  {m}")
-def skip(m): print(f"  \033[2m·{RESET}  {m}")
+def skip(m): print(f"  {DIM}·{RESET}  {m}")
 def warn(m): print(f"  {YELLOW}!{RESET}  {m}")
 
 RESULTS = {"applied": 0, "skipped": 0, "failed": 0}
 
 def backup(path):
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    bak = f"{path}.{ts}.perf.bak"
+    bak = f"{path}.{ts}.audit.bak"
     shutil.copy2(path, bak)
     return bak
 
-def patch(path, label, old, new, count=1):
+def patch_file(path, label, old, new):
     if not os.path.isfile(path):
         fail(f"{label} — file not found: {path}")
         RESULTS["failed"] += 1
@@ -50,627 +44,977 @@ def patch(path, label, old, new, count=1):
     with open(path, "r", encoding="utf-8", errors="ignore") as f:
         src = f.read()
     if old not in src:
-        skip(f"{label} — already applied or anchor not found")
-        RESULTS["skipped"] += 1
+        if new.strip()[:80] in src:
+            skip(f"{label} — already applied")
+            RESULTS["skipped"] += 1
+            return False
+        fail(f"{label} — anchor not found in {path}")
+        RESULTS["failed"] += 1
         return False
-    bak = backup(path)
+    backup(path)
     with open(path, "w", encoding="utf-8") as f:
-        f.write(src.replace(old, new, count))
+        f.write(src.replace(old, new, 1))
     ok(f"{label}")
     RESULTS["applied"] += 1
     return True
 
 
-# ═══════════════════════════════════════════════════════════════════
-# PATCH 1 — api_server.py: Global process registry + cap concurrency
-# ═══════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
+# PATCH 1 — database.py: Expand audit_log table + enhanced audit()
+# ═══════════════════════════════════════════════════════════════
 
-PATCH1_OLD = '''app = Flask(__name__)
-app.secret_key = os.environ.get("VULNSCAN_SECRET", "change-this-secret-key-in-production-2024")
-app.permanent_session_lifetime = timedelta(days=7)'''
-
-PATCH1_NEW = '''app = Flask(__name__)
-app.secret_key = os.environ.get("VULNSCAN_SECRET", "change-this-secret-key-in-production-2024")
-app.permanent_session_lifetime = timedelta(days=7)
-
-# ── Performance: gzip compression ────────────────────────────────
-from flask import Response as _FlaskResponse
-import gzip as _gzip, functools as _functools
-try:
-    from flask_compress import Compress as _Compress
-    _Compress(app)
-except ImportError:
-    pass  # Optional — install: pip3 install flask-compress --break-system-packages
-
-# ── Performance: Global subprocess registry ───────────────────────
-# Tracks every running tool process so we can kill orphans on restart
-# and enforce per-tool timeouts without leaving zombie processes.
-import threading as _perf_threading
-_PROC_REGISTRY = {}          # pid → {"proc": Popen, "label": str, "started": float}
-_PROC_REGISTRY_LOCK = _perf_threading.Lock()
-_MAX_CONCURRENT_TOOLS = int(os.environ.get("VULNSCAN_MAX_TOOLS", "3"))
-_TOOL_SEMAPHORE = _perf_threading.Semaphore(_MAX_CONCURRENT_TOOLS)
-
-def _register_proc(proc, label="tool"):
-    with _PROC_REGISTRY_LOCK:
-        _PROC_REGISTRY[proc.pid] = {
-            "proc": proc, "label": label, "started": time.monotonic()
-        }
-
-def _unregister_proc(proc):
-    with _PROC_REGISTRY_LOCK:
-        _PROC_REGISTRY.pop(proc.pid, None)
-
-def _kill_all_tools():
-    """Kill every tracked subprocess — call on server shutdown or /api/kill-all."""
-    with _PROC_REGISTRY_LOCK:
-        pids = list(_PROC_REGISTRY.keys())
-    for pid in pids:
-        try:
-            import signal as _sig
-            os.kill(pid, _sig.SIGTERM)
-        except Exception:
-            pass
-    time.sleep(1)
-    with _PROC_REGISTRY_LOCK:
-        _PROC_REGISTRY.clear()
-
-# ── Performance: LRU cache for CVE lookups (avoids hammering NVD) ─
-import functools as _functools2
-_CVE_CACHE = {}          # (product, version) → (results, expiry_monotonic)
-_CVE_CACHE_TTL = 3600    # 1 hour
-
-def _cached_cve(product, version=""):
-    key = (product.lower().strip(), version.lower().strip())
-    entry = _CVE_CACHE.get(key)
-    if entry:
-        results, expiry = entry
-        if time.monotonic() < expiry:
-            return results, True   # cache hit
-    return None, False
-
-def _store_cve(product, version, results):
-    key = (product.lower().strip(), version.lower().strip())
-    _CVE_CACHE[key] = (results, time.monotonic() + _CVE_CACHE_TTL)
-    # Prune old entries if cache grows too large
-    if len(_CVE_CACHE) > 500:
-        now = time.monotonic()
-        expired = [k for k, (_, exp) in _CVE_CACHE.items() if now > exp]
-        for k in expired:
-            del _CVE_CACHE[k]
-
-# ── Kill orphaned tool processes left over from a previous run ─────
-def _reap_orphans():
-    """
-    On startup, kill any child nmap/nikto/etc. processes left over
-    from a previous unclean shutdown that might be holding resources.
-    """
-    ORPHAN_NAMES = {
-        "nmap", "nikto", "lynis", "dnsrecon", "theharvester",
-        "wpscan", "sqlmap", "nuclei", "ffuf", "medusa", "john",
-        "hashcat", "chkrootkit", "rkhunter",
-    }
-    killed = 0
+DB_AUDIT_OLD = '''def audit(user_id, username, action, target="", ip="", ua="", details=""):
     try:
-        import subprocess as _sp2
-        result = _sp2.run(["ps", "aux"], capture_output=True, text=True, timeout=5)
-        own_pid = str(os.getpid())
-        for line in result.stdout.splitlines():
-            parts = line.split()
-            if len(parts) < 11:
-                continue
-            pid_str = parts[1]
-            cmd = parts[10].lower()
-            if pid_str == own_pid:
-                continue
-            for name in ORPHAN_NAMES:
-                if name in cmd:
-                    try:
-                        os.kill(int(pid_str), 9)
-                        killed += 1
-                    except Exception:
-                        pass
-                    break
+        _sb().table("audit_log").insert({
+            "user_id":    user_id,
+            "username":   username,
+            "action":     action,
+            "target":     target,
+            "ip_address": ip,
+            "user_agent": ua,
+            "details":    details,
+            "timestamp":  _now(),
+        }).execute()
+    except Exception as e:
+        print(f"[!] Audit log failed: {e}")'''
+
+DB_AUDIT_NEW = '''def _geo_lookup(ip: str) -> dict:
+    """Best-effort GeoIP using ip-api.com (free, no key needed). Returns {} on failure."""
+    import urllib.request as _ureq, json as _json2
+    if not ip or ip in ("127.0.0.1", "::1", "unknown", ""):
+        return {}
+    try:
+        with _ureq.urlopen(
+            f"http://ip-api.com/json/{ip}?fields=country,countryCode,regionName,city,isp,org,proxy,hosting",
+            timeout=3
+        ) as r:
+            d = _json2.loads(r.read())
+            if d.get("status") == "success":
+                return {
+                    "country":      d.get("country", ""),
+                    "country_code": d.get("countryCode", ""),
+                    "region":       d.get("regionName", ""),
+                    "city":         d.get("city", ""),
+                    "isp":          d.get("isp", ""),
+                    "org":          d.get("org", ""),
+                    "is_proxy":     d.get("proxy", False),
+                    "is_hosting":   d.get("hosting", False),
+                }
     except Exception:
         pass
-    if killed:
-        print(f"[perf] Reaped {killed} orphaned tool process(es) on startup", flush=True)
+    return {}
 
-_reap_orphans()
+
+def _parse_ua(ua_string: str) -> dict:
+    """Parse User-Agent string into browser/OS/device components."""
+    import re as _re2
+    ua = ua_string or ""
+    browser, os_name, device = "Unknown", "Unknown", "Desktop"
+
+    # Browser detection
+    if "Edg/" in ua:       browser = "Edge"
+    elif "OPR/" in ua:     browser = "Opera"
+    elif "Chrome/" in ua:  browser = "Chrome"
+    elif "Firefox/" in ua: browser = "Firefox"
+    elif "Safari/" in ua and "Chrome/" not in ua: browser = "Safari"
+    elif "MSIE" in ua or "Trident/" in ua: browser = "IE"
+    elif "curl" in ua.lower(): browser = "curl"
+    elif "python" in ua.lower(): browser = "Python"
+
+    # OS detection
+    if "Windows NT" in ua:    os_name = "Windows"
+    elif "Mac OS X" in ua:    os_name = "macOS"
+    elif "Android" in ua:     os_name = "Android"
+    elif "iPhone" in ua or "iPad" in ua: os_name = "iOS"
+    elif "Linux" in ua:       os_name = "Linux"
+
+    # Device type
+    if "Mobile" in ua or "Android" in ua or "iPhone" in ua:
+        device = "Mobile"
+    elif "Tablet" in ua or "iPad" in ua:
+        device = "Tablet"
+    elif browser in ("curl", "Python"):
+        device = "API/Script"
+
+    # Extract version numbers
+    browser_ver = ""
+    m = _re2.search(r"(?:Chrome|Firefox|Safari|Edg|OPR)/([\\d.]+)", ua)
+    if m:
+        browser_ver = m.group(1).split(".")[0]
+
+    return {
+        "browser":  f"{browser}/{browser_ver}" if browser_ver else browser,
+        "os":       os_name,
+        "device":   device,
+    }
+
+
+def _risk_score(action: str, ip: str, username: str, geo: dict) -> int:
+    """
+    Compute a 0-100 risk score for an audit event.
+    Higher = more suspicious.
+    """
+    score = 0
+    HIGH_RISK_ACTIONS = {
+        "LOGIN_FAIL": 20, "ACCOUNT_LOCKED": 40, "BRUTE_FORCE_DETECTED": 50,
+        "PRIVILEGE_ESCALATION": 45, "ADMIN_DELETE_USER": 30, "IMPOSSIBLE_TRAVEL": 60,
+        "PASSWORD_RESET": 10, "MFA_DISABLED": 35, "ROLE_CHANGE": 25,
+        "SET_SESSION_START": 20, "CLI_EXEC": 15, "BRUTE_HTTP": 25, "BRUTE_SSH": 30,
+        "REMOTE_AGENT_REGISTER": 10, "LYNIS_SCAN": 5,
+    }
+    score += HIGH_RISK_ACTIONS.get(action, 0)
+    if geo.get("is_proxy"):   score += 20
+    if geo.get("is_hosting"): score += 10
+    if not ip or ip in ("127.0.0.1", "::1"): score = max(0, score - 5)
+    return min(100, score)
+
+
+# ── Session-level tracking helpers ──────────────────────────────
+_active_sessions: dict = {}  # session_id -> {user_id, username, login_time, last_ip}
+
+def record_session_start(session_id: str, user_id, username: str, ip: str):
+    import time as _t4
+    _active_sessions[session_id] = {
+        "user_id":    user_id,
+        "username":   username,
+        "login_time": _t4.time(),
+        "last_ip":    ip,
+    }
+
+def record_session_end(session_id: str) -> float:
+    """Returns session duration in seconds, or 0."""
+    import time as _t5
+    s = _active_sessions.pop(session_id, None)
+    if s:
+        return round(_t5.time() - s["login_time"], 1)
+    return 0.0
+
+
+def audit(user_id, username, action, target="", ip="", ua="",
+          details="", session_id="", http_method="", endpoint="",
+          status_code=None, response_ms=None, email="", role="",
+          auth_method="password", skip_geo=False):
+    """
+    Enhanced audit logger with full security context.
+
+    New parameters (all optional — backward-compatible):
+      session_id    : Flask session identifier
+      http_method   : GET / POST / DELETE etc.
+      endpoint      : URL path being accessed
+      status_code   : HTTP response code
+      response_ms   : Response time in milliseconds
+      email         : User's email address
+      role          : User's role (admin/user)
+      auth_method   : password / oauth / mfa / api_key
+      skip_geo      : Skip GeoIP lookup (for high-frequency events)
+    """
+    import time as _t6
+    try:
+        # GeoIP enrichment (skip for local IPs and high-frequency events)
+        geo = {}
+        if not skip_geo and ip and ip not in ("127.0.0.1", "::1", "", "unknown"):
+            geo = _geo_lookup(ip)
+
+        # User-Agent parsing
+        ua_parsed = _parse_ua(ua)
+
+        # Risk score
+        risk = _risk_score(action, ip, username, geo)
+
+        # Impossible travel detection: compare last known country for this user
+        travel_flag = False
+        if geo.get("country_code") and user_id:
+            try:
+                prev = _sb().table("audit_log") \
+                    .select("geo_country_code") \
+                    .eq("user_id", user_id) \
+                    .not_.is_("geo_country_code", "null") \
+                    .order("id", desc=True) \
+                    .limit(1) \
+                    .execute().data
+                if prev and prev[0].get("geo_country_code"):
+                    prev_cc = prev[0]["geo_country_code"]
+                    curr_cc = geo.get("country_code", "")
+                    if prev_cc != curr_cc and curr_cc:
+                        travel_flag = True
+                        risk = min(100, risk + 30)
+            except Exception:
+                pass
+
+        _sb().table("audit_log").insert({
+            # Core identity
+            "user_id":       user_id,
+            "username":      username,
+            "email":         email or None,
+            "role":          role or None,
+            "auth_method":   auth_method,
+
+            # Action
+            "action":        action,
+            "target":        target,
+            "details":       details[:2000] if details else "",
+
+            # Network
+            "ip_address":    ip,
+            "user_agent":    (ua or "")[:512],
+
+            # Parsed UA
+            "ua_browser":    ua_parsed.get("browser", ""),
+            "ua_os":         ua_parsed.get("os", ""),
+            "ua_device":     ua_parsed.get("device", ""),
+
+            # GeoIP
+            "geo_country":      geo.get("country", ""),
+            "geo_country_code": geo.get("country_code", ""),
+            "geo_region":       geo.get("region", ""),
+            "geo_city":         geo.get("city", ""),
+            "geo_isp":          geo.get("isp", ""),
+            "geo_is_proxy":     geo.get("is_proxy", False),
+            "geo_is_hosting":   geo.get("is_hosting", False),
+
+            # Session
+            "session_id":    session_id or None,
+
+            # Request
+            "http_method":   http_method or None,
+            "endpoint":      (endpoint or "")[:500],
+            "status_code":   status_code,
+            "response_ms":   response_ms,
+
+            # Risk
+            "risk_score":    risk,
+            "impossible_travel": travel_flag,
+
+            "timestamp":     _now(),
+        }).execute()
+
+        # If impossible travel detected, create a secondary security alert
+        if travel_flag:
+            try:
+                _sb().table("audit_log").insert({
+                    "user_id": user_id, "username": username,
+                    "action": "IMPOSSIBLE_TRAVEL",
+                    "target": f"{geo.get('country_code','')} (prev: {prev[0].get('geo_country_code','')})",
+                    "ip_address": ip, "risk_score": 80,
+                    "details": f"Login from new country: {geo.get('country','')}",
+                    "timestamp": _now(),
+                }).execute()
+            except Exception:
+                pass
+
+    except Exception as e:
+        print(f"[!] Audit log failed: {e}")'''
+
+
+# ═══════════════════════════════════════════════════════════════
+# PATCH 2 — database.py: Enhanced get_audit_log() with filters
+# ═══════════════════════════════════════════════════════════════
+
+DB_GETAUDIT_OLD = '''def get_audit_log(limit=100, user_id=None):
+    q = _sb().table("audit_log").select("*").order("id", desc=True).limit(limit)
+    if user_id:
+        q = q.eq("user_id", user_id)
+    return q.execute().data or []'''
+
+DB_GETAUDIT_NEW = '''def get_audit_log(limit=100, user_id=None, action_filter=None,
+                  risk_min=None, start_date=None, end_date=None,
+                  ip_filter=None, country_filter=None):
+    """
+    Enhanced audit log retrieval with filtering support.
+    """
+    q = _sb().table("audit_log").select(
+        "id,user_id,username,email,role,action,target,details,"
+        "ip_address,ua_browser,ua_os,ua_device,"
+        "geo_country,geo_country_code,geo_city,geo_isp,geo_is_proxy,"
+        "session_id,http_method,endpoint,status_code,response_ms,"
+        "risk_score,impossible_travel,auth_method,timestamp"
+    ).order("id", desc=True).limit(limit)
+
+    if user_id:
+        q = q.eq("user_id", user_id)
+    if action_filter:
+        q = q.eq("action", action_filter)
+    if risk_min is not None:
+        q = q.gte("risk_score", risk_min)
+    if start_date:
+        q = q.gte("timestamp", start_date)
+    if end_date:
+        q = q.lte("timestamp", end_date)
+    if ip_filter:
+        q = q.eq("ip_address", ip_filter)
+    if country_filter:
+        q = q.eq("geo_country_code", country_filter)
+
+    return q.execute().data or []
+
+
+def get_audit_stats() -> dict:
+    """Aggregate stats for the audit dashboard."""
+    try:
+        rows = _sb().table("audit_log") \
+            .select("action,risk_score,geo_country_code,ua_device,timestamp") \
+            .order("id", desc=True).limit(5000).execute().data or []
+
+        from collections import Counter as _Ctr
+        actions  = _Ctr(r["action"] for r in rows if r.get("action"))
+        countries = _Ctr(r["geo_country_code"] for r in rows if r.get("geo_country_code"))
+        devices  = _Ctr(r["ua_device"] for r in rows if r.get("ua_device"))
+        risky    = sum(1 for r in rows if (r.get("risk_score") or 0) >= 40)
+        logins   = sum(1 for r in rows if r.get("action") == "LOGIN")
+        failures = sum(1 for r in rows if r.get("action") == "LOGIN_FAIL")
+        travel   = sum(1 for r in rows if r.get("impossible_travel"))
+
+        return {
+            "total_events":    len(rows),
+            "high_risk_events": risky,
+            "total_logins":    logins,
+            "failed_logins":   failures,
+            "impossible_travel": travel,
+            "top_actions":     actions.most_common(10),
+            "top_countries":   countries.most_common(10),
+            "device_breakdown": dict(devices),
+        }
+    except Exception as e:
+        return {"error": str(e)}'''
+
+
+# ═══════════════════════════════════════════════════════════════
+# PATCH 3 — auth.py: Enrich login/logout/register audit calls
+# ═══════════════════════════════════════════════════════════════
+
+AUTH_LOGIN_OLD = '''        update_last_login(user["id"], request.remote_addr)
+        audit(user["id"], username, "LOGIN", ip=request.remote_addr, ua=request.headers.get("User-Agent", ""))
+
+        return jsonify({
+            "success": True,
+            "username": user["username"],
+            "role": user["role"],
+            "full_name": user.get("full_name", ""),
+            "csrf_token": session["csrf_token"]
+        })'''
+
+AUTH_LOGIN_NEW = '''        update_last_login(user["id"], request.remote_addr)
+
+        # Record session for duration tracking
+        sid = session.get("_id", "") or str(user["id"]) + "-" + str(int(time.time()))
+        from database import record_session_start
+        record_session_start(sid, user["id"], username, request.remote_addr or "")
+
+        audit(
+            user["id"], username, "LOGIN",
+            ip=request.remote_addr,
+            ua=request.headers.get("User-Agent", ""),
+            email=user.get("email", ""),
+            role=user.get("role", "user"),
+            auth_method="password",
+            session_id=sid,
+            http_method="POST",
+            endpoint="/api/login",
+            status_code=200,
+        )
+
+        return jsonify({
+            "success": True,
+            "username": user["username"],
+            "role": user["role"],
+            "full_name": user.get("full_name", ""),
+            "csrf_token": session["csrf_token"]
+        })'''
+
+AUTH_LOGINFAIL_OLD = '''        audit(user["id"], username, "LOGIN_FAIL", ip=request.remote_addr)
+        _record_login_failure(username)
+        return jsonify({"error": "Invalid username or password"}), 401'''
+
+AUTH_LOGINFAIL_NEW = '''        audit(
+            user["id"], username, "LOGIN_FAIL",
+            ip=request.remote_addr,
+            ua=request.headers.get("User-Agent", ""),
+            email=user.get("email", ""),
+            role=user.get("role", ""),
+            http_method="POST",
+            endpoint="/api/login",
+            status_code=401,
+            details="Wrong password",
+        )
+        _record_login_failure(username)
+        return jsonify({"error": "Invalid username or password"}), 401'''
+
+AUTH_LOGOUT_OLD = '''        if uid: audit(uid, username, "LOGOUT", ip=request.remote_addr)
+        session.clear()'''
+
+AUTH_LOGOUT_NEW = '''        if uid:
+            from database import record_session_end
+            sid = session.get("_id", "")
+            duration = record_session_end(sid) if sid else 0
+            audit(uid, username, "LOGOUT",
+                  ip=request.remote_addr,
+                  ua=request.headers.get("User-Agent", ""),
+                  http_method="POST",
+                  endpoint="/api/logout",
+                  status_code=200,
+                  details=f"session_duration={duration}s",
+                  session_id=sid,
+                  skip_geo=True)
+        session.clear()'''
+
+AUTH_PWDCHANGE_OLD = '''        update_user(user["id"], password_hash=hash_password(new_pwd))
+        audit(user["id"], user["username"], "PASSWORD_CHANGE", ip=request.remote_addr)
+        return jsonify({"success": True, "message": "Password changed successfully"})'''
+
+AUTH_PWDCHANGE_NEW = '''        update_user(user["id"], password_hash=hash_password(new_pwd))
+        audit(user["id"], user["username"], "PASSWORD_CHANGE",
+              ip=request.remote_addr,
+              ua=request.headers.get("User-Agent", ""),
+              email=user.get("email", ""),
+              role=user.get("role", ""),
+              http_method="POST",
+              endpoint="/api/change-password",
+              status_code=200,
+              details="Password changed successfully")
+        return jsonify({"success": True, "message": "Password changed successfully"})'''
+
+AUTH_ROLECHANGE_OLD = '''    @app.route("/api/admin/users/<int:uid>/role", methods=["POST"])
+    @admin_required
+    def api_admin_role(uid):
+        d = request.get_json() or {}
+        role = d.get("role", "user")
+        if role not in ["user", "admin"]: return jsonify({"error": "Invalid role"}), 400
+        from database import set_user_role
+        set_user_role(uid, role)
+        return jsonify({"success": True})'''
+
+AUTH_ROLECHANGE_NEW = '''    @app.route("/api/admin/users/<int:uid>/role", methods=["POST"])
+    @admin_required
+    def api_admin_role(uid):
+        d = request.get_json() or {}
+        role = d.get("role", "user")
+        if role not in ["user", "admin"]: return jsonify({"error": "Invalid role"}), 400
+        from database import set_user_role
+        set_user_role(uid, role)
+        current = get_current_user()
+        audit(current["id"], current["username"], "PRIVILEGE_ESCALATION",
+              target=str(uid), ip=request.remote_addr,
+              ua=request.headers.get("User-Agent", ""),
+              details=f"Changed user #{uid} role to {role}",
+              http_method="POST",
+              endpoint=f"/api/admin/users/{uid}/role",
+              status_code=200)
+        return jsonify({"success": True})'''
+
+
+# ═══════════════════════════════════════════════════════════════
+# PATCH 4 — api_server.py: Global request-level logging middleware
+# ═══════════════════════════════════════════════════════════════
+
+API_MIDDLEWARE_OLD = '''@app.after_request
+def _set_security_headers(resp):
+    """Apply baseline HTTP hardening headers for API/UI responses."""'''
+
+API_MIDDLEWARE_NEW = '''# ── Request timing tracker ────────────────────────────────────
+import threading as _req_threading
+_REQ_START_TIMES = {}
+_REQ_LOCK = _req_threading.Lock()
+
+@app.before_request
+def _track_request_start():
+    import time as _rt
+    with _REQ_LOCK:
+        _REQ_START_TIMES[id(request._get_current_object())] = _rt.monotonic()
+
+@app.after_request
+def _log_request(resp):
+    """Log every API request with timing info."""
+    import time as _rt2
+    req_id = id(request._get_current_object())
+    with _REQ_LOCK:
+        start = _REQ_START_TIMES.pop(req_id, None)
+    elapsed_ms = round((_rt2.monotonic() - start) * 1000) if start else None
+
+    # Only log API routes and security-sensitive paths
+    path = request.path
+    sensitive = (
+        path.startswith("/api/") or
+        path in ("/scan", "/lynis", "/nikto", "/wpscan", "/dirbust",
+                 "/subdomains", "/discover", "/brute-http", "/brute-ssh",
+                 "/legion", "/harvester", "/dnsrecon", "/report") or
+        path.startswith("/social-tools/")
+    )
+    if not sensitive:
+        return resp
+
+    try:
+        user = get_current_user()
+        uid  = user["id"]       if user else None
+        uname = user["username"] if user else "anonymous"
+        uemail = user.get("email", "") if user else ""
+        urole  = user.get("role",  "") if user else ""
+
+        # Skip audit-log reads to avoid infinite loops
+        if "/api/admin/audit" in path:
+            return resp
+
+        from database import audit as _db_audit
+        _db_audit(
+            uid, uname, "HTTP_REQUEST",
+            target=path,
+            ip=request.remote_addr or "",
+            ua=request.headers.get("User-Agent", ""),
+            email=uemail,
+            role=urole,
+            http_method=request.method,
+            endpoint=path,
+            status_code=resp.status_code,
+            response_ms=elapsed_ms,
+            details=f"args={dict(request.args)!r:.200}" if request.args else "",
+            skip_geo=True,   # skip geo for every-request events (performance)
+        )
+    except Exception:
+        pass
+    return resp
+
+
+@app.after_request
+def _set_security_headers(resp):
+    """Apply baseline HTTP hardening headers for API/UI responses."""'''
+
+
+# ═══════════════════════════════════════════════════════════════
+# PATCH 5 — api_server.py: Enhanced /api/admin/audit endpoint
+# ═══════════════════════════════════════════════════════════════
+
+API_AUDIT_OLD = '''    @app.route("/api/admin/audit")
+    @admin_required
+    def api_admin_audit():
+        from database import get_audit_log
+        limit = int(request.args.get("limit", 100))
+        return jsonify(get_audit_log(limit))'''
+
+API_AUDIT_NEW = '''    @app.route("/api/admin/audit")
+    @admin_required
+    def api_admin_audit():
+        from database import get_audit_log, get_audit_stats
+        limit          = int(request.args.get("limit",   200))
+        action_filter  = request.args.get("action",      None)
+        risk_min       = request.args.get("risk_min",    None)
+        start_date     = request.args.get("start_date",  None)
+        end_date       = request.args.get("end_date",    None)
+        ip_filter      = request.args.get("ip",          None)
+        country_filter = request.args.get("country",     None)
+        include_stats  = request.args.get("stats", "0") in ("1","true","yes")
+
+        logs = get_audit_log(
+            limit=limit,
+            action_filter=action_filter,
+            risk_min=int(risk_min) if risk_min else None,
+            start_date=start_date,
+            end_date=end_date,
+            ip_filter=ip_filter,
+            country_filter=country_filter,
+        )
+
+        if include_stats:
+            return jsonify({"logs": logs, "stats": get_audit_stats()})
+        return jsonify(logs)
+
+    @app.route("/api/admin/audit/stats")
+    @admin_required
+    def api_audit_stats():
+        from database import get_audit_stats
+        return jsonify(get_audit_stats())
+
+    @app.route("/api/admin/audit/export")
+    @admin_required
+    def api_audit_export():
+        """Export audit log as CSV."""
+        import csv, io as _io2
+        from database import get_audit_log
+        limit = min(int(request.args.get("limit", 5000)), 10000)
+        logs = get_audit_log(limit=limit)
+        buf = _io2.StringIO()
+        if logs:
+            writer = csv.DictWriter(buf, fieldnames=logs[0].keys())
+            writer.writeheader()
+            writer.writerows(logs)
+        csv_bytes = buf.getvalue().encode("utf-8")
+        fname = f"vulnscan-audit-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M')}.csv"
+        _au = get_current_user()
+        audit(_au["id"], _au["username"], "AUDIT_LOG_EXPORT",
+              target="audit_log", ip=request.remote_addr,
+              details=f"rows={len(logs)}")
+        return Response(
+            csv_bytes,
+            mimetype="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={fname}"}
+        )'''
+
+
+# ═══════════════════════════════════════════════════════════════
+# PATCH 6 — api_server.py: Inject enhanced Audit Log UI
+# ═══════════════════════════════════════════════════════════════
+
+# We inject the new UI HTML just before the closing </style> tag area
+# and replace the at-audit tab content div with the enhanced version
+
+AUDIT_UI_OLD = '''        <div class="tc" id="at-audit"><div class="card"><div class="card-header"><div class="card-title">Audit Log</div></div><div class="card-p" id="admin-audit" style="overflow-x:auto"></div></div></div>'''
+
+AUDIT_UI_NEW = '''        <div class="tc" id="at-audit">
+          <!-- ── Audit Stats Row ── -->
+          <div id="audit-stats-row" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:14px"></div>
+          <!-- ── Filters ── -->
+          <div class="card card-p" style="margin-bottom:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+              <div class="card-title">Audit Log</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-outline btn-sm" onclick="exportAuditCSV()">&#11123; CSV</button>
+                <button class="btn btn-outline btn-sm" onclick="loadAdminAudit()">&#8635; Refresh</button>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:8px">
+              <div class="fg" style="margin-bottom:0">
+                <label style="font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px">ACTION</label>
+                <select class="inp inp-mono" id="af-action" style="font-size:11px">
+                  <option value="">All actions</option>
+                  <optgroup label="Auth">
+                    <option>LOGIN</option><option>LOGIN_FAIL</option><option>LOGOUT</option>
+                    <option>REGISTER</option><option>PASSWORD_CHANGE</option><option>PASSWORD_RESET</option>
+                    <option>EMAIL_VERIFIED</option><option>ACCOUNT_LOCKED</option>
+                  </optgroup>
+                  <optgroup label="Security">
+                    <option>IMPOSSIBLE_TRAVEL</option><option>PRIVILEGE_ESCALATION</option>
+                    <option>BRUTE_FORCE_DETECTED</option><option>MFA_DISABLED</option>
+                  </optgroup>
+                  <optgroup label="Scans">
+                    <option>SCAN</option><option>LYNIS_SCAN</option><option>NIKTO_SCAN</option>
+                    <option>WPSCAN</option><option>BRUTE_HTTP</option><option>BRUTE_SSH</option>
+                    <option>REMOTE_JOB_CREATED</option>
+                  </optgroup>
+                  <optgroup label="Admin">
+                    <option>CLI_EXEC</option><option>ADMIN_CREATE_USER</option>
+                    <option>AUDIT_LOG_EXPORT</option><option>KILL_ALL_TOOLS</option>
+                  </optgroup>
+                </select>
+              </div>
+              <div class="fg" style="margin-bottom:0">
+                <label style="font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px">MIN RISK</label>
+                <select class="inp inp-mono" id="af-risk" style="font-size:11px">
+                  <option value="">Any risk</option>
+                  <option value="10">Low+ (10)</option>
+                  <option value="25">Medium+ (25)</option>
+                  <option value="40">High+ (40)</option>
+                  <option value="60">Critical+ (60)</option>
+                </select>
+              </div>
+              <div class="fg" style="margin-bottom:0">
+                <label style="font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px">IP ADDRESS</label>
+                <input class="inp inp-mono" id="af-ip" type="text" placeholder="1.2.3.4" style="font-size:11px"/>
+              </div>
+              <div class="fg" style="margin-bottom:0">
+                <label style="font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px">COUNTRY CODE</label>
+                <input class="inp inp-mono" id="af-country" type="text" placeholder="US, GB, IN ..." style="font-size:11px" maxlength="2"/>
+              </div>
+              <div class="fg" style="margin-bottom:0">
+                <label style="font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px">START DATE</label>
+                <input class="inp inp-mono" id="af-start" type="date" style="font-size:11px"/>
+              </div>
+              <div class="fg" style="margin-bottom:0">
+                <label style="font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px">END DATE</label>
+                <input class="inp inp-mono" id="af-end" type="date" style="font-size:11px"/>
+              </div>
+              <div class="fg" style="margin-bottom:0">
+                <label style="font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px">LIMIT</label>
+                <select class="inp inp-mono" id="af-limit" style="font-size:11px">
+                  <option value="100">100</option><option value="200" selected>200</option>
+                  <option value="500">500</option><option value="1000">1000</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="loadAdminAudit()">APPLY FILTERS</button>
+            <button class="btn btn-ghost btn-sm" onclick="clearAuditFilters()">CLEAR</button>
+          </div>
+          <div class="card">
+            <div class="card-p" id="admin-audit" style="overflow-x:auto"></div>
+          </div>
+        </div>'''
+
+
+# ═══════════════════════════════════════════════════════════════
+# PATCH 7 — api_server.py: Enhanced loadAdminAudit() JS function
+# ═══════════════════════════════════════════════════════════════
+
+JS_AUDIT_OLD = '''async function loadAdminAudit(){try{var r=await fetch('/api/admin/audit?limit=200');var d=await r.json();document.getElementById('admin-audit').innerHTML='<table class="tbl"><thead><tr><th>TIME</th><th>USER</th><th>ACTION</th><th>TARGET</th><th>IP</th></tr></thead><tbody>'+d.map(function(l){return'<tr><td style="font-size:11px;color:var(--text3)">'+((l.timestamp||'').substring(0,16))+'</td><td style="font-family:var(--mono)">'+(l.username||'--')+'</td><td><span class="tag">'+(l.action||'')+'</span></td><td style="font-size:11px;color:var(--text3)">'+(l.target||'--')+'</td><td style="font-size:11px;color:var(--text3)">'+(l.ip_address||'--')+'</td></tr>';}).join('')+'</tbody></table>';}catch(e){}}'''
+
+JS_AUDIT_NEW = '''function _riskPill(score){
+  score=parseInt(score||0);
+  var col=score>=60?'var(--red)':score>=40?'var(--orange)':score>=20?'var(--yellow)':'var(--text3)';
+  var lbl=score>=60?'CRIT':score>=40?'HIGH':score>=20?'MED':'LOW';
+  if(score===0)return'';
+  return'<span style="font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px;border:1px solid '+col+';color:'+col+'">'+lbl+' '+score+'</span>';
+}
+function _actionPill(action){
+  var danger=['LOGIN_FAIL','ACCOUNT_LOCKED','IMPOSSIBLE_TRAVEL','PRIVILEGE_ESCALATION','BRUTE_FORCE_DETECTED','MFA_DISABLED','KILL_ALL_TOOLS'];
+  var warn=['PASSWORD_RESET','PASSWORD_CHANGE','ADMIN_DELETE_USER','CLI_EXEC','BRUTE_HTTP','BRUTE_SSH','SET_SESSION_START'];
+  var col=danger.includes(action)?'var(--red)':warn.includes(action)?'var(--orange)':'var(--text3)';
+  return'<span style="font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid var(--border);color:'+col+'">'+action+'</span>';
+}
+function clearAuditFilters(){
+  ['af-action','af-risk','af-ip','af-country','af-start','af-end'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('af-limit').value='200';
+  loadAdminAudit();
+}
+async function exportAuditCSV(){
+  var limit=document.getElementById('af-limit').value||200;
+  window.open('/api/admin/audit/export?limit='+limit,'_blank');
+}
+async function loadAdminAudit(){
+  var out=document.getElementById('admin-audit');
+  var statsRow=document.getElementById('audit-stats-row');
+  if(out)out.innerHTML='<div style="color:var(--text3);font-size:12px;padding:12px">Loading...</div>';
+  var params=new URLSearchParams();
+  params.set('stats','1');
+  params.set('limit',document.getElementById('af-limit').value||200);
+  var v;
+  if((v=document.getElementById('af-action').value))params.set('action',v);
+  if((v=document.getElementById('af-risk').value))params.set('risk_min',v);
+  if((v=document.getElementById('af-ip').value.trim()))params.set('ip',v);
+  if((v=document.getElementById('af-country').value.trim().toUpperCase()))params.set('country',v);
+  if((v=document.getElementById('af-start').value))params.set('start_date',v+'T00:00:00');
+  if((v=document.getElementById('af-end').value))params.set('end_date',v+'T23:59:59');
+  try{
+    var r=await fetch('/api/admin/audit?'+params.toString());
+    var resp=await r.json();
+    var d=resp.logs||resp;
+    var stats=resp.stats||null;
+
+    // ── Stats cards ──
+    if(stats&&statsRow){
+      var kpis=[
+        [stats.total_events||0,'TOTAL EVENTS','var(--text)'],
+        [stats.high_risk_events||0,'HIGH RISK','var(--red)'],
+        [stats.total_logins||0,'LOGINS','var(--green)'],
+        [stats.failed_logins||0,'FAILED LOGINS','var(--orange)'],
+        [stats.impossible_travel||0,'TRAVEL ALERTS','var(--yellow)'],
+      ];
+      statsRow.innerHTML=kpis.map(function(k){return'<div class="stat"><div class="stat-val" style="font-size:22px;color:'+k[2]+'">'+k[0]+'</div><div class="stat-lbl">'+k[1]+'</div></div>';}).join('');
+    }
+
+    if(!d||!d.length){if(out)out.innerHTML='<div style="color:var(--text3);padding:12px">No log entries match the current filters.</div>';return;}
+    var html='<div style="overflow-x:auto"><table class="tbl" style="min-width:1100px"><thead><tr>'
+      +'<th>TIME</th><th>USER</th><th>ROLE</th><th>ACTION</th><th>RISK</th>'
+      +'<th>IP / GEO</th><th>DEVICE</th><th>HTTP</th><th>SESSION</th><th>TARGET / DETAILS</th>'
+      +'</tr></thead><tbody>';
+    d.forEach(function(l){
+      var geo='';
+      if(l.geo_city||l.geo_country){
+        geo='<div style="font-size:10px;color:var(--text3);margin-top:2px">'
+          +(l.geo_city?l.geo_city+', ':'')+l.geo_country
+          +(l.geo_is_proxy?'<span style="color:var(--red);margin-left:4px">[PROXY]</span>':'')+'</div>';
+      }
+      var device='';
+      if(l.ua_browser||l.ua_os){
+        device='<div style="font-size:10px;font-family:var(--mono);color:var(--text2)">'+(l.ua_browser||'')+'</div>'
+          +'<div style="font-size:10px;color:var(--text3)">'+(l.ua_os||'')+'/'+(l.ua_device||'')+'</div>';
+      }
+      var httpInfo='';
+      if(l.http_method){
+        var mc={'GET':'var(--green)','POST':'var(--cyan, var(--blue))','DELETE':'var(--red)','PUT':'var(--yellow)'};
+        httpInfo='<span style="font-family:var(--mono);font-size:10px;color:'+(mc[l.http_method]||'var(--text3)')+'">'+l.http_method+'</span>'
+          +(l.status_code?'<span style="font-size:10px;color:var(--text3);margin-left:4px">'+l.status_code+'</span>':'')
+          +(l.response_ms?'<div style="font-size:9px;color:var(--text3)">'+l.response_ms+'ms</div>':'');
+      }
+      var sessionInfo=l.session_id?'<span style="font-family:var(--mono);font-size:9px;color:var(--text3)" title="'+l.session_id+'">'+l.session_id.substring(0,8)+'…</span>':'—';
+      var travelBadge=l.impossible_travel?'<span style="font-size:9px;color:var(--red);font-weight:700"> ✈ TRAVEL</span>':'';
+      html+='<tr>'
+        +'<td style="font-size:10px;color:var(--text3);white-space:nowrap">'+((l.timestamp||'').substring(0,19).replace('T',' '))+'</td>'
+        +'<td><div style="font-family:var(--mono);font-size:11px;font-weight:500">'+(l.username||'—')+'</div>'
+          +(l.email?'<div style="font-size:10px;color:var(--text3)">'+l.email+'</div>':'')+'</td>'
+        +'<td><span style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+(l.role||'—')+'</span></td>'
+        +'<td>'+_actionPill(l.action||'')+travelBadge+'</td>'
+        +'<td>'+_riskPill(l.risk_score)+'</td>'
+        +'<td><div style="font-family:var(--mono);font-size:11px">'+(l.ip_address||'—')+'</div>'+geo+'</td>'
+        +'<td>'+device+'</td>'
+        +'<td>'+httpInfo+'</td>'
+        +'<td>'+sessionInfo+'</td>'
+        +'<td style="max-width:220px"><div style="font-size:11px;word-break:break-all">'+(l.target||'')+'</div>'
+          +(l.details?'<div style="font-size:10px;color:var(--text3);margin-top:2px;word-break:break-all">'+String(l.details).substring(0,120)+'</div>':'')+'</td>'
+        +'</tr>';
+    });
+    html+='</tbody></table></div>';
+    if(out)out.innerHTML=html;
+  }catch(e){if(out)out.innerHTML='<div class="err-box visible">'+e.message+'</div>';}
+}'''
+
+
+# ═══════════════════════════════════════════════════════════════
+# PATCH 8 — Supabase migration SQL (creates new columns)
+# ═══════════════════════════════════════════════════════════════
+
+SUPABASE_MIGRATION = '''-- ============================================================
+--  VulnScan Pro — Enhanced Audit Log Migration
+--  Run this in your Supabase SQL editor (Dashboard → SQL Editor)
+-- ============================================================
+
+-- Add new columns to audit_log (safe — IF NOT EXISTS style via DO block)
+DO $$
+BEGIN
+  -- Identity
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='email')           THEN ALTER TABLE audit_log ADD COLUMN email          TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='role')            THEN ALTER TABLE audit_log ADD COLUMN role           TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='auth_method')     THEN ALTER TABLE audit_log ADD COLUMN auth_method    TEXT DEFAULT 'password'; END IF;
+
+  -- Parsed User-Agent
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='ua_browser')      THEN ALTER TABLE audit_log ADD COLUMN ua_browser      TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='ua_os')           THEN ALTER TABLE audit_log ADD COLUMN ua_os           TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='ua_device')       THEN ALTER TABLE audit_log ADD COLUMN ua_device       TEXT; END IF;
+
+  -- GeoIP
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='geo_country')     THEN ALTER TABLE audit_log ADD COLUMN geo_country     TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='geo_country_code')THEN ALTER TABLE audit_log ADD COLUMN geo_country_code TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='geo_region')      THEN ALTER TABLE audit_log ADD COLUMN geo_region      TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='geo_city')        THEN ALTER TABLE audit_log ADD COLUMN geo_city        TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='geo_isp')         THEN ALTER TABLE audit_log ADD COLUMN geo_isp         TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='geo_is_proxy')    THEN ALTER TABLE audit_log ADD COLUMN geo_is_proxy    BOOLEAN DEFAULT FALSE; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='geo_is_hosting')  THEN ALTER TABLE audit_log ADD COLUMN geo_is_hosting  BOOLEAN DEFAULT FALSE; END IF;
+
+  -- Session
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='session_id')     THEN ALTER TABLE audit_log ADD COLUMN session_id      TEXT; END IF;
+
+  -- HTTP Request
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='http_method')    THEN ALTER TABLE audit_log ADD COLUMN http_method     TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='endpoint')       THEN ALTER TABLE audit_log ADD COLUMN endpoint        TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='status_code')    THEN ALTER TABLE audit_log ADD COLUMN status_code     INTEGER; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='response_ms')    THEN ALTER TABLE audit_log ADD COLUMN response_ms     INTEGER; END IF;
+
+  -- Risk
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='risk_score')     THEN ALTER TABLE audit_log ADD COLUMN risk_score      INTEGER DEFAULT 0; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='impossible_travel') THEN ALTER TABLE audit_log ADD COLUMN impossible_travel BOOLEAN DEFAULT FALSE; END IF;
+END $$;
+
+-- Indexes for fast filtering
+CREATE INDEX IF NOT EXISTS idx_audit_risk      ON audit_log (risk_score DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_action    ON audit_log (action);
+CREATE INDEX IF NOT EXISTS idx_audit_ip        ON audit_log (ip_address);
+CREATE INDEX IF NOT EXISTS idx_audit_country   ON audit_log (geo_country_code);
+CREATE INDEX IF NOT EXISTS idx_audit_travel    ON audit_log (impossible_travel) WHERE impossible_travel = TRUE;
+CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log (timestamp DESC);
+
+-- ✅ Migration complete — refresh your VulnScan server after running this.
 '''
 
-# ═══════════════════════════════════════════════════════════════════
-# PATCH 2 — api_server.py: Wrap run_backend() with semaphore + registry
-# ═══════════════════════════════════════════════════════════════════
 
-PATCH2_OLD = '''def run_backend(*args, timeout=300):
-    """
-    Run backend.py as a subprocess. Returns parsed JSON dict.
-    Increased default timeout for Tor-routed scans.
-    """
-    cmd = [sys.executable, BACKEND] + list(args)
-    try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-    except subprocess.TimeoutExpired:
-        return {"error": f"Backend process timed out after {timeout}s. Through Tor this is normal — try a smaller scan scope or increase the timeout."}
-    except FileNotFoundError:
-        return {"error": f"Python interpreter not found: {sys.executable}"}
-
-    if r.stderr and r.stderr.strip():
-        print(f"[backend stderr] {r.stderr.strip()[:500]}", file=sys.stderr)
-
-    if not r.stdout or not r.stdout.strip():
-        err_detail = r.stderr.strip()[:300] if r.stderr else "No output from backend"
-        return {"error": f"Backend returned no output. Details: {err_detail}"}
-
-    raw = r.stdout.strip()
-    start = raw.find('{')
-    end = raw.rfind('}')
-    if start == -1 or end == -1:
-        return {"error": f"No JSON in backend output: {raw[:300]}"}
-    try:
-        return json.loads(raw[start:end + 1])
-    except json.JSONDecodeError as e:
-        return {"error": f"JSON parse error: {e}. Raw: {raw[start:start+200]}"}'''
-
-PATCH2_NEW = '''def run_backend(*args, timeout=300):
-    """
-    Run backend.py as a subprocess. Returns parsed JSON dict.
-    - Acquires global semaphore (max _MAX_CONCURRENT_TOOLS at once).
-    - Registers process in _PROC_REGISTRY for cleanup tracking.
-    - Caps captured output to 5 MB to prevent memory exhaustion.
-    """
-    cmd = [sys.executable, BACKEND] + list(args)
-    label = " ".join(str(a) for a in args[:3])
-
-    if not _TOOL_SEMAPHORE.acquire(blocking=True, timeout=30):
-        return {"error": f"Server busy — too many concurrent scans ({_MAX_CONCURRENT_TOOLS} max). Please wait and try again."}
-
-    proc = None
-    try:
-        proc = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        _register_proc(proc, label=label)
-
-        try:
-            MAX_OUTPUT = 5 * 1024 * 1024  # 5 MB cap
-            stdout_bytes, stderr_bytes = proc.communicate(timeout=timeout)
-            stdout = stdout_bytes[:MAX_OUTPUT].decode("utf-8", errors="replace")
-            stderr = stderr_bytes[:65536].decode("utf-8", errors="replace")
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.communicate()
-            return {"error": f"Backend process timed out after {timeout}s. Try a smaller scan scope."}
-
-    except FileNotFoundError:
-        return {"error": f"Python interpreter not found: {sys.executable}"}
-    finally:
-        if proc:
-            _unregister_proc(proc)
-        _TOOL_SEMAPHORE.release()
-
-    if stderr and stderr.strip():
-        print(f"[backend stderr] {stderr.strip()[:500]}", file=sys.stderr)
-
-    if not stdout or not stdout.strip():
-        err_detail = stderr.strip()[:300] if stderr else "No output from backend"
-        return {"error": f"Backend returned no output. Details: {err_detail}"}
-
-    raw = stdout.strip()
-    start = raw.find('{')
-    end = raw.rfind('}')
-    if start == -1 or end == -1:
-        return {"error": f"No JSON in backend output: {raw[:300]}"}
-    try:
-        return json.loads(raw[start:end + 1])
-    except json.JSONDecodeError as e:
-        return {"error": f"JSON parse error: {e}. Raw: {raw[start:start+200]}"}'''
-
-# ═══════════════════════════════════════════════════════════════════
-# PATCH 3 — api_server.py: social_tool_run() — semaphore + output cap
-# ═══════════════════════════════════════════════════════════════════
-
-PATCH3_OLD = '''    start = time.monotonic()
-    try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-        elapsed = int((time.monotonic() - start) * 1000)
-        audit(user["id"] if user else None, user["username"] if user else "anon",
-              "SOCIAL_TOOL_RESULT", target=tool, ip=request.remote_addr,
-              details=f"exit_code={proc.returncode};duration_ms={elapsed};operation={operation}")
-        return jsonify({
-            "tool": tool,
-            "operation": operation,
-            "command": " ".join(cmd),
-            "exit_code": proc.returncode,
-            "stdout": (proc.stdout or "")[-50000:],
-            "stderr": (proc.stderr or "")[-50000:],
-            "duration_ms": elapsed,
-        })
-    except subprocess.TimeoutExpired as te:
-        elapsed = int((time.monotonic() - start) * 1000)
-        return jsonify({
-            "tool": tool,
-            "operation": operation,
-            "command": " ".join(cmd),
-            "exit_code": None,
-            "stdout": ((te.stdout or "") if te.stdout else "")[-20000:],
-            "stderr": ((te.stderr or "") if te.stderr else "")[-20000:],
-            "duration_ms": elapsed,
-            "error": f"Command timed out after {timeout}s."
-        }), 408
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500'''
-
-PATCH3_NEW = '''    if not _TOOL_SEMAPHORE.acquire(blocking=True, timeout=15):
-        return jsonify({"error": f"Server busy — max {_MAX_CONCURRENT_TOOLS} concurrent tools. Try again shortly."}), 429
-
-    _pobj = None
-    start = time.monotonic()
-    try:
-        _pobj = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        _register_proc(_pobj, label=tool)
-        _MAX_OUT = 2 * 1024 * 1024  # 2 MB cap per tool
-        try:
-            _stdout_b, _stderr_b = _pobj.communicate(timeout=timeout)
-            _stdout = _stdout_b[:_MAX_OUT].decode("utf-8", errors="replace")
-            _stderr = _stderr_b[:65536].decode("utf-8", errors="replace")
-            elapsed = int((time.monotonic() - start) * 1000)
-            audit(user["id"] if user else None, user["username"] if user else "anon",
-                  "SOCIAL_TOOL_RESULT", target=tool, ip=request.remote_addr,
-                  details=f"exit_code={_pobj.returncode};duration_ms={elapsed};operation={operation}")
-            return jsonify({
-                "tool": tool,
-                "operation": operation,
-                "command": " ".join(cmd),
-                "exit_code": _pobj.returncode,
-                "stdout": _stdout[-50000:],
-                "stderr": _stderr[-10000:],
-                "duration_ms": elapsed,
-            })
-        except subprocess.TimeoutExpired:
-            _pobj.kill()
-            _pobj.communicate()
-            elapsed = int((time.monotonic() - start) * 1000)
-            return jsonify({
-                "tool": tool,
-                "operation": operation,
-                "command": " ".join(cmd),
-                "exit_code": None,
-                "stdout": "",
-                "stderr": "",
-                "duration_ms": elapsed,
-                "error": f"Command timed out after {timeout}s."
-            }), 408
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if _pobj:
-            _unregister_proc(_pobj)
-        _TOOL_SEMAPHORE.release()'''
-
-# ═══════════════════════════════════════════════════════════════════
-# PATCH 4 — api_server.py: SET session TTL reduced to 5 min
-# ═══════════════════════════════════════════════════════════════════
-
-PATCH4_OLD = '_SET_SESSION_TTL = 1800  # 30 minutes'
-PATCH4_NEW = '_SET_SESSION_TTL = 300   # 5 minutes — reduced to free resources faster'
-
-# ═══════════════════════════════════════════════════════════════════
-# PATCH 5 — api_server.py: Add /api/kill-tool emergency endpoint
-# ═══════════════════════════════════════════════════════════════════
-
-PATCH5_OLD = '''@app.route("/health")
-def health():'''
-
-PATCH5_NEW = '''@app.route("/api/kill-all-tools", methods=["POST"])
-def kill_all_tools():
-    """Emergency endpoint: kill every running scan tool immediately."""
-    u = get_current_user()
-    if not u or u.get("role") != "admin":
-        return jsonify({"error": "Admin required"}), 403
-    _kill_all_tools()
-    audit(u["id"], u["username"], "KILL_ALL_TOOLS",
-          target="server", ip=request.remote_addr)
-    return jsonify({"ok": True, "message": "All tool processes terminated"})
-
-
-@app.route("/api/running-tools", methods=["GET"])
-def running_tools():
-    """List currently running tool processes (admin only)."""
-    u = get_current_user()
-    if not u or u.get("role") != "admin":
-        return jsonify({"error": "Admin required"}), 403
-    now = time.monotonic()
-    with _PROC_REGISTRY_LOCK:
-        procs = [
-            {
-                "pid": pid,
-                "label": info["label"],
-                "runtime_secs": round(now - info["started"], 1),
-                "alive": info["proc"].poll() is None,
-            }
-            for pid, info in _PROC_REGISTRY.items()
-        ]
-    return jsonify({"running": procs, "count": len(procs), "max": _MAX_CONCURRENT_TOOLS})
-
-
-@app.route("/health")
-def health():'''
-
-# ═══════════════════════════════════════════════════════════════════
-# PATCH 6 — database.py: Supabase singleton with retry + connection reuse
-# ═══════════════════════════════════════════════════════════════════
-
-PATCH6_OLD = '''_client = None
-
-def supabase():
-    global _client
-    if _client is None:
-        _client = get_client()
-    return _client'''
-
-PATCH6_NEW = '''_client = None
-_client_lock = __import__("threading").Lock()
-_client_fail_count = 0
-_client_last_fail = 0.0
-
-def supabase():
-    global _client, _client_fail_count, _client_last_fail
-    # Fast path: return existing client if healthy
-    if _client is not None:
-        return _client
-    with _client_lock:
-        if _client is not None:
-            return _client
-        # Exponential back-off: don't hammer Supabase if it's failing
-        import time as _t2
-        now = _t2.monotonic()
-        if _client_fail_count > 0:
-            wait = min(30, 2 ** _client_fail_count)
-            if now - _client_last_fail < wait:
-                raise RuntimeError(
-                    f"Supabase connection cooldown ({wait:.0f}s). "
-                    "Check SUPABASE_SERVICE_KEY in .env"
-                )
-        try:
-            _client = get_client()
-            _client_fail_count = 0
-        except Exception as e:
-            _client_fail_count += 1
-            _client_last_fail = _t2.monotonic()
-            raise RuntimeError(f"Supabase connect failed (attempt {_client_fail_count}): {e}")
-    return _client
-
-def reset_client():
-    """Force reconnect on next call — call after network errors."""
-    global _client
-    with _client_lock:
-        _client = None'''
-
-# ═══════════════════════════════════════════════════════════════════
-# PATCH 7 — database.py: Wrap every Supabase call with auto-retry
-# ═══════════════════════════════════════════════════════════════════
-
-PATCH7_OLD = '''def _sb():
-    from supabase_config import supabase
-    return supabase()'''
-
-PATCH7_NEW = '''def _sb():
-    from supabase_config import supabase
-    return supabase()
-
-def _sb_retry(fn, retries=2):
-    """Execute fn(client) with automatic reconnect on failure."""
-    import time as _t3
-    from supabase_config import supabase, reset_client
-    for attempt in range(retries + 1):
-        try:
-            return fn(supabase())
-        except Exception as e:
-            err = str(e).lower()
-            # Connection-level errors: reset and retry
-            if attempt < retries and any(
-                kw in err for kw in ("connection", "timeout", "reset", "closed", "eof")
-            ):
-                reset_client()
-                _t3.sleep(0.5 * (attempt + 1))
-                continue
-            raise'''
-
-# ═══════════════════════════════════════════════════════════════════
-# PATCH 8 — backend.py: Cache CVE lookups to avoid repeat NVD calls
-# ═══════════════════════════════════════════════════════════════════
-
-PATCH8_OLD = '''def search_nvd_cves(product, version="", retries=3):
-    """
-    Query NVD for CVEs. Routes through Tor for anonymity.
-    Increased timeout and retry delays for Tor latency.
-    """
-    if not product:
-        return []
-    try:'''
-
-PATCH8_NEW = '''# Module-level CVE cache (survives within a single scan run)
-_NVD_CACHE = {}
-_NVD_CACHE_TTL = 3600  # 1 hour
-
-def search_nvd_cves(product, version="", retries=3):
-    """
-    Query NVD for CVEs. Routes through Tor for anonymity.
-    Results are cached for 1 hour to avoid hammering the API.
-    """
-    if not product:
-        return []
-
-    # Check cache first
-    cache_key = f"{product.lower().strip()}:{version.lower().strip()}"
-    if cache_key in _NVD_CACHE:
-        cached_result, cached_time = _NVD_CACHE[cache_key]
-        if time.monotonic() - cached_time < _NVD_CACHE_TTL:
-            return cached_result
-
-    try:'''
-
-PATCH8_OLD2 = '''        cves.append({
-                "id": cve.get("id", ""),
-                "description": desc[:350] + "..." if len(desc) > 350 else desc,
-                "score": score,
-                "severity": severity,
-                "has_exploit": has_exploit,
-                "references": [r.get("url", "") for r in cve.get("references", [])[:3]],
-                "published": cve.get("published", "")[:10]
-            })
-        return cves
-
-    except Exception as e:
-        print(f"[!] CVE lookup failed for {product}: {e}", file=sys.stderr)
-        return []'''
-
-PATCH8_NEW2 = '''        cves.append({
-                "id": cve.get("id", ""),
-                "description": desc[:350] + "..." if len(desc) > 350 else desc,
-                "score": score,
-                "severity": severity,
-                "has_exploit": has_exploit,
-                "references": [r.get("url", "") for r in cve.get("references", [])[:3]],
-                "published": cve.get("published", "")[:10]
-            })
-
-        # Store in cache
-        _NVD_CACHE[cache_key] = (cves, time.monotonic())
-        # Prune cache if too large
-        if len(_NVD_CACHE) > 300:
-            oldest_key = min(_NVD_CACHE, key=lambda k: _NVD_CACHE[k][1])
-            del _NVD_CACHE[oldest_key]
-        return cves
-
-    except Exception as e:
-        print(f"[!] CVE lookup failed for {product}: {e}", file=sys.stderr)
-        return []'''
-
-# ═══════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
 # APPLY ALL PATCHES
-# ═══════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
 
 def main():
     print()
-    print(BOLD + CYAN + "╔══════════════════════════════════════════════════════╗" + RESET)
-    print(BOLD + CYAN + "║   VulnScan Pro — Performance Optimization Patch     ║" + RESET)
-    print(BOLD + CYAN + "║   Reduces CPU/RAM usage and prevents server hangs   ║" + RESET)
-    print(BOLD + CYAN + "╚══════════════════════════════════════════════════════╝" + RESET)
+    print(BOLD + CYAN + "╔═══════════════════════════════════════════════════════════╗" + RESET)
+    print(BOLD + CYAN + "║   VulnScan Pro — Enhanced Audit Log Patch                ║" + RESET)
+    print(BOLD + CYAN + "║   Adds: GeoIP · UA parsing · Sessions · Risk scores ·   ║" + RESET)
+    print(BOLD + CYAN + "║         HTTP logging · Filters · CSV export · Charts     ║" + RESET)
+    print(BOLD + CYAN + "╚═══════════════════════════════════════════════════════════╝" + RESET)
     print()
 
-    missing = [f for f in ["api_server.py", "backend.py", "database.py", "supabase_config.py"]
+    missing = [f for f in ["api_server.py", "backend.py", "database.py", "auth.py"]
                if not os.path.isfile(f)]
     if missing:
         print(RED + BOLD + "  ERROR: Must be run from the VulnScan project root." + RESET)
-        print(f"  Missing: {', '.join(missing)}")
-        print("  Usage: cd ~/vulnscan && python3 vulnscan_perf_patch.py")
+        print(f"  Missing files: {', '.join(missing)}")
+        print("  Usage: cd ~/vulnscan && python3 audit_patch.py")
         return
 
     info(f"Project root: {os.getcwd()}")
     print()
 
-    # api_server.py patches
-    print(BOLD + "  ── api_server.py" + RESET)
-    patch("api_server.py", "Global process registry + semaphore + CVE cache init",
-          PATCH1_OLD, PATCH1_NEW)
-    patch("api_server.py", "run_backend(): semaphore + registry + 5MB output cap",
-          PATCH2_OLD, PATCH2_NEW)
-    patch("api_server.py", "social_tool_run(): semaphore + 2MB output cap",
-          PATCH3_OLD, PATCH3_NEW)
-    patch("api_server.py", "SET session TTL: 30min → 5min",
-          PATCH4_OLD, PATCH4_NEW)
-    patch("api_server.py", "Add /api/kill-all-tools + /api/running-tools endpoints",
-          PATCH5_OLD, PATCH5_NEW)
-    print()
-
-    # database.py patches
+    # ── database.py ──
     print(BOLD + "  ── database.py" + RESET)
-    patch("database.py", "Supabase singleton: thread-safe + exponential backoff",
-          PATCH6_OLD, PATCH6_NEW)
-    patch("database.py", "_sb_retry() helper for auto-reconnect",
-          PATCH7_OLD, PATCH7_NEW)
+    patch_file("database.py", "Enhanced audit() with GeoIP / UA / risk / session / HTTP fields",
+               DB_AUDIT_OLD, DB_AUDIT_NEW)
+    patch_file("database.py", "Enhanced get_audit_log() with filters + get_audit_stats()",
+               DB_GETAUDIT_OLD, DB_GETAUDIT_NEW)
     print()
 
-    # backend.py patches
-    print(BOLD + "  ── backend.py" + RESET)
-    patch("backend.py", "NVD CVE lookup cache (1-hour TTL, 300-entry cap)",
-          PATCH8_OLD, PATCH8_NEW)
-    patch("backend.py", "NVD cache: store result after successful lookup",
-          PATCH8_OLD2, PATCH8_NEW2)
+    # ── auth.py ──
+    print(BOLD + "  ── auth.py" + RESET)
+    patch_file("auth.py", "LOGIN: add email/role/session/HTTP fields",
+               AUTH_LOGIN_OLD, AUTH_LOGIN_NEW)
+    patch_file("auth.py", "LOGIN_FAIL: add UA/email/HTTP fields",
+               AUTH_LOGINFAIL_OLD, AUTH_LOGINFAIL_NEW)
+    patch_file("auth.py", "LOGOUT: add session duration tracking",
+               AUTH_LOGOUT_OLD, AUTH_LOGOUT_NEW)
+    patch_file("auth.py", "PASSWORD_CHANGE: add full audit context",
+               AUTH_PWDCHANGE_OLD, AUTH_PWDCHANGE_NEW)
+    patch_file("auth.py", "PRIVILEGE_ESCALATION: audit role changes",
+               AUTH_ROLECHANGE_OLD, AUTH_ROLECHANGE_NEW)
     print()
 
-    # Syntax check
-    import subprocess, sys
+    # ── api_server.py ──
+    print(BOLD + "  ── api_server.py" + RESET)
+    patch_file("api_server.py", "Global HTTP request-level logging middleware",
+               API_MIDDLEWARE_OLD, API_MIDDLEWARE_NEW)
+    patch_file("api_server.py", "Enhanced /api/admin/audit with filters + export + stats",
+               API_AUDIT_OLD, API_AUDIT_NEW)
+    patch_file("api_server.py", "Enhanced Audit Log UI (filters, risk pills, geo, device)",
+               AUDIT_UI_OLD, AUDIT_UI_NEW)
+    patch_file("api_server.py", "Enhanced loadAdminAudit() JS with filters/stats/export",
+               JS_AUDIT_OLD, JS_AUDIT_NEW)
+    print()
+
+    # ── Write Supabase migration ──
+    print(BOLD + "  ── Supabase Migration SQL" + RESET)
+    migration_path = "audit_log_migration.sql"
+    with open(migration_path, "w", encoding="utf-8") as f:
+        f.write(SUPABASE_MIGRATION)
+    ok(f"Written: {migration_path}")
+    print()
+
+    # ── Syntax checks ──
     print(BOLD + "  ── Syntax checks" + RESET)
     all_ok = True
-    for f in ["api_server.py", "backend.py", "database.py"]:
-        if not os.path.isfile(f):
+    for fname in ["api_server.py", "database.py", "auth.py"]:
+        if not os.path.isfile(fname):
             continue
-        r = subprocess.run([sys.executable, "-m", "py_compile", f],
+        r = subprocess.run([sys.executable, "-m", "py_compile", fname],
                            capture_output=True, text=True)
         if r.returncode == 0:
-            ok(f"{f} — OK")
+            ok(f"{fname} — syntax OK")
         else:
-            fail(f"{f} — SYNTAX ERROR:\n    {r.stderr.strip()}")
+            fail(f"{fname} — SYNTAX ERROR:\n    {r.stderr.strip()}")
             all_ok = False
     print()
 
-    # Optional pip install
-    print(BOLD + "  ── Optional dependency" + RESET)
-    info("Installing flask-compress for gzip response compression...")
-    r = subprocess.run(
-        [sys.executable, "-m", "pip", "install", "flask-compress",
-         "--break-system-packages", "-q"],
-        capture_output=True, text=True
-    )
-    if r.returncode == 0:
-        ok("flask-compress installed")
-    else:
-        warn("flask-compress not installed (non-critical — responses won't be gzipped)")
-    print()
-
-    # Summary
-    print(BOLD + CYAN + "══════════════════════════════════════════════════════" + RESET)
+    # ── Summary ──
+    print(BOLD + CYAN + "═══════════════════════════════════════════════════════════" + RESET)
     print(
         f"  Applied : {GREEN}{RESULTS['applied']}{RESET}  |  "
-        f"Skipped : \033[2m{RESULTS['skipped']}{RESET}  |  "
-        f"Failed  : {(RED if RESULTS['failed'] else chr(27)+'[2m')}{RESULTS['failed']}{RESET}"
+        f"Skipped : {DIM}{RESULTS['skipped']}{RESET}  |  "
+        f"Failed  : {(RED if RESULTS['failed'] else DIM)}{RESULTS['failed']}{RESET}"
     )
     print()
 
-    if RESULTS["applied"] > 0 and all_ok:
-        print(f"  {GREEN}Restart to activate:{RESET}")
+    if all_ok and RESULTS["applied"] > 0:
+        print(f"  {YELLOW}REQUIRED: Run the Supabase migration first:{RESET}")
+        print(f"    1. Open Supabase Dashboard → SQL Editor")
+        print(f"    2. Paste contents of: {BOLD}audit_log_migration.sql{RESET}")
+        print(f"    3. Click Run")
+        print()
+        print(f"  {GREEN}Then restart VulnScan:{RESET}")
         print(f"    sudo systemctl restart vulnscan")
         print(f"    OR: python3 api_server.py")
         print()
-        print(f"  {CYAN}New admin endpoints:{RESET}")
-        print(f"    GET  /api/running-tools    — see active scan processes")
-        print(f"    POST /api/kill-all-tools   — emergency kill all scans")
-        print()
-        print(f"  {CYAN}Performance wins:{RESET}")
-        print(f"    {GREEN}✓{RESET}  Max {os.environ.get('VULNSCAN_MAX_TOOLS','3')} concurrent tool runs (set VULNSCAN_MAX_TOOLS to change)")
-        print(f"    {GREEN}✓{RESET}  CVE lookups cached 1h — no more NVD hammering")
-        print(f"    {GREEN}✓{RESET}  Subprocess output capped at 5 MB — no OOM kills")
-        print(f"    {GREEN}✓{RESET}  SET terminal sessions auto-expire in 5 min")
-        print(f"    {GREEN}✓{RESET}  Orphan tool processes killed on startup")
-        print(f"    {GREEN}✓{RESET}  Supabase reconnects automatically on failure")
-        print(f"    {GREEN}✓{RESET}  Gzip compression on HTTP responses")
-        print()
-        print(f"  {YELLOW}Tune concurrency:{RESET}")
-        print(f"    export VULNSCAN_MAX_TOOLS=2   # for low-RAM server (< 2 GB)")
-        print(f"    export VULNSCAN_MAX_TOOLS=5   # for higher-spec server")
+        print(f"  {CYAN}New features in Admin → Audit Log:{RESET}")
+        print(f"    {GREEN}✓{RESET}  Risk score (0-100) with CRIT/HIGH/MED/LOW pills")
+        print(f"    {GREEN}✓{RESET}  GeoIP enrichment (country, city, ISP, proxy detection)")
+        print(f"    {GREEN}✓{RESET}  Impossible travel auto-detection & alert")
+        print(f"    {GREEN}✓{RESET}  User-Agent parsing (browser, OS, device type)")
+        print(f"    {GREEN}✓{RESET}  Session ID + duration tracking")
+        print(f"    {GREEN}✓{RESET}  HTTP method, endpoint, status code, response time")
+        print(f"    {GREEN}✓{RESET}  Filter by action, risk, IP, country, date range")
+        print(f"    {GREEN}✓{RESET}  CSV export endpoint (/api/admin/audit/export)")
+        print(f"    {GREEN}✓{RESET}  Stats dashboard (totals, logins, failures, travel alerts)")
+        print(f"    {GREEN}✓{RESET}  Privilege escalation tracking (role changes)")
+        print(f"    {GREEN}✓{RESET}  Every API request auto-logged (skip_geo for perf)")
     elif not all_ok:
-        print(f"  {RED}Syntax errors detected — restore backup and investigate.{RESET}")
-        print(f"  Backups saved as api_server.py.*.perf.bak etc.")
+        print(f"  {RED}Syntax errors found — restore backup files (.audit.bak) if needed.{RESET}")
 
 
 if __name__ == "__main__":

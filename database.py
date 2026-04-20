@@ -256,26 +256,285 @@ def get_scan_stats():
 # AUDIT LOG — signatures identical to original
 # ══════════════════════════════════════════════════════════════
 
-def audit(user_id, username, action, target="", ip="", ua="", details=""):
+def _geo_lookup(ip: str) -> dict:
+    """Best-effort GeoIP using ip-api.com (free, no key needed). Returns {} on failure."""
+    import urllib.request as _ureq, json as _json2
+    if not ip or ip in ("127.0.0.1", "::1", "unknown", ""):
+        return {}
     try:
+        with _ureq.urlopen(
+            f"http://ip-api.com/json/{ip}?fields=country,countryCode,regionName,city,isp,org,proxy,hosting",
+            timeout=3
+        ) as r:
+            d = _json2.loads(r.read())
+            if d.get("status") == "success":
+                return {
+                    "country":      d.get("country", ""),
+                    "country_code": d.get("countryCode", ""),
+                    "region":       d.get("regionName", ""),
+                    "city":         d.get("city", ""),
+                    "isp":          d.get("isp", ""),
+                    "org":          d.get("org", ""),
+                    "is_proxy":     d.get("proxy", False),
+                    "is_hosting":   d.get("hosting", False),
+                }
+    except Exception:
+        pass
+    return {}
+
+
+def _parse_ua(ua_string: str) -> dict:
+    """Parse User-Agent string into browser/OS/device components."""
+    import re as _re2
+    ua = ua_string or ""
+    browser, os_name, device = "Unknown", "Unknown", "Desktop"
+
+    # Browser detection
+    if "Edg/" in ua:       browser = "Edge"
+    elif "OPR/" in ua:     browser = "Opera"
+    elif "Chrome/" in ua:  browser = "Chrome"
+    elif "Firefox/" in ua: browser = "Firefox"
+    elif "Safari/" in ua and "Chrome/" not in ua: browser = "Safari"
+    elif "MSIE" in ua or "Trident/" in ua: browser = "IE"
+    elif "curl" in ua.lower(): browser = "curl"
+    elif "python" in ua.lower(): browser = "Python"
+
+    # OS detection
+    if "Windows NT" in ua:    os_name = "Windows"
+    elif "Mac OS X" in ua:    os_name = "macOS"
+    elif "Android" in ua:     os_name = "Android"
+    elif "iPhone" in ua or "iPad" in ua: os_name = "iOS"
+    elif "Linux" in ua:       os_name = "Linux"
+
+    # Device type
+    if "Mobile" in ua or "Android" in ua or "iPhone" in ua:
+        device = "Mobile"
+    elif "Tablet" in ua or "iPad" in ua:
+        device = "Tablet"
+    elif browser in ("curl", "Python"):
+        device = "API/Script"
+
+    # Extract version numbers
+    browser_ver = ""
+    m = _re2.search(r"(?:Chrome|Firefox|Safari|Edg|OPR)/([\d.]+)", ua)
+    if m:
+        browser_ver = m.group(1).split(".")[0]
+
+    return {
+        "browser":  f"{browser}/{browser_ver}" if browser_ver else browser,
+        "os":       os_name,
+        "device":   device,
+    }
+
+
+def _risk_score(action: str, ip: str, username: str, geo: dict) -> int:
+    """
+    Compute a 0-100 risk score for an audit event.
+    Higher = more suspicious.
+    """
+    score = 0
+    HIGH_RISK_ACTIONS = {
+        "LOGIN_FAIL": 20, "ACCOUNT_LOCKED": 40, "BRUTE_FORCE_DETECTED": 50,
+        "PRIVILEGE_ESCALATION": 45, "ADMIN_DELETE_USER": 30, "IMPOSSIBLE_TRAVEL": 60,
+        "PASSWORD_RESET": 10, "MFA_DISABLED": 35, "ROLE_CHANGE": 25,
+        "SET_SESSION_START": 20, "CLI_EXEC": 15, "BRUTE_HTTP": 25, "BRUTE_SSH": 30,
+        "REMOTE_AGENT_REGISTER": 10, "LYNIS_SCAN": 5,
+    }
+    score += HIGH_RISK_ACTIONS.get(action, 0)
+    if geo.get("is_proxy"):   score += 20
+    if geo.get("is_hosting"): score += 10
+    if not ip or ip in ("127.0.0.1", "::1"): score = max(0, score - 5)
+    return min(100, score)
+
+
+# ── Session-level tracking helpers ──────────────────────────────
+_active_sessions: dict = {}  # session_id -> {user_id, username, login_time, last_ip}
+
+def record_session_start(session_id: str, user_id, username: str, ip: str):
+    import time as _t4
+    _active_sessions[session_id] = {
+        "user_id":    user_id,
+        "username":   username,
+        "login_time": _t4.time(),
+        "last_ip":    ip,
+    }
+
+def record_session_end(session_id: str) -> float:
+    """Returns session duration in seconds, or 0."""
+    import time as _t5
+    s = _active_sessions.pop(session_id, None)
+    if s:
+        return round(_t5.time() - s["login_time"], 1)
+    return 0.0
+
+
+def audit(user_id, username, action, target="", ip="", ua="",
+          details="", session_id="", http_method="", endpoint="",
+          status_code=None, response_ms=None, email="", role="",
+          auth_method="password", skip_geo=False):
+    """
+    Enhanced audit logger with full security context.
+
+    New parameters (all optional — backward-compatible):
+      session_id    : Flask session identifier
+      http_method   : GET / POST / DELETE etc.
+      endpoint      : URL path being accessed
+      status_code   : HTTP response code
+      response_ms   : Response time in milliseconds
+      email         : User's email address
+      role          : User's role (admin/user)
+      auth_method   : password / oauth / mfa / api_key
+      skip_geo      : Skip GeoIP lookup (for high-frequency events)
+    """
+    import time as _t6
+    try:
+        # GeoIP enrichment (skip for local IPs and high-frequency events)
+        geo = {}
+        if not skip_geo and ip and ip not in ("127.0.0.1", "::1", "", "unknown"):
+            geo = _geo_lookup(ip)
+
+        # User-Agent parsing
+        ua_parsed = _parse_ua(ua)
+
+        # Risk score
+        risk = _risk_score(action, ip, username, geo)
+
+        # Impossible travel detection: compare last known country for this user
+        travel_flag = False
+        if geo.get("country_code") and user_id:
+            try:
+                prev = _sb().table("audit_log")                     .select("geo_country_code")                     .eq("user_id", user_id)                     .not_.is_("geo_country_code", "null")                     .order("id", desc=True)                     .limit(1)                     .execute().data
+                if prev and prev[0].get("geo_country_code"):
+                    prev_cc = prev[0]["geo_country_code"]
+                    curr_cc = geo.get("country_code", "")
+                    if prev_cc != curr_cc and curr_cc:
+                        travel_flag = True
+                        risk = min(100, risk + 30)
+            except Exception:
+                pass
+
         _sb().table("audit_log").insert({
-            "user_id":    user_id,
-            "username":   username,
-            "action":     action,
-            "target":     target,
-            "ip_address": ip,
-            "user_agent": ua,
-            "details":    details,
-            "timestamp":  _now(),
+            # Core identity
+            "user_id":       user_id,
+            "username":      username,
+            "email":         email or None,
+            "role":          role or None,
+            "auth_method":   auth_method,
+
+            # Action
+            "action":        action,
+            "target":        target,
+            "details":       details[:2000] if details else "",
+
+            # Network
+            "ip_address":    ip,
+            "user_agent":    (ua or "")[:512],
+
+            # Parsed UA
+            "ua_browser":    ua_parsed.get("browser", ""),
+            "ua_os":         ua_parsed.get("os", ""),
+            "ua_device":     ua_parsed.get("device", ""),
+
+            # GeoIP
+            "geo_country":      geo.get("country", ""),
+            "geo_country_code": geo.get("country_code", ""),
+            "geo_region":       geo.get("region", ""),
+            "geo_city":         geo.get("city", ""),
+            "geo_isp":          geo.get("isp", ""),
+            "geo_is_proxy":     geo.get("is_proxy", False),
+            "geo_is_hosting":   geo.get("is_hosting", False),
+
+            # Session
+            "session_id":    session_id or None,
+
+            # Request
+            "http_method":   http_method or None,
+            "endpoint":      (endpoint or "")[:500],
+            "status_code":   status_code,
+            "response_ms":   response_ms,
+
+            # Risk
+            "risk_score":    risk,
+            "impossible_travel": travel_flag,
+
+            "timestamp":     _now(),
         }).execute()
+
+        # If impossible travel detected, create a secondary security alert
+        if travel_flag:
+            try:
+                _sb().table("audit_log").insert({
+                    "user_id": user_id, "username": username,
+                    "action": "IMPOSSIBLE_TRAVEL",
+                    "target": f"{geo.get('country_code','')} (prev: {prev[0].get('geo_country_code','')})",
+                    "ip_address": ip, "risk_score": 80,
+                    "details": f"Login from new country: {geo.get('country','')}",
+                    "timestamp": _now(),
+                }).execute()
+            except Exception:
+                pass
+
     except Exception as e:
         print(f"[!] Audit log failed: {e}")
 
-def get_audit_log(limit=100, user_id=None):
-    q = _sb().table("audit_log").select("*").order("id", desc=True).limit(limit)
+def get_audit_log(limit=100, user_id=None, action_filter=None,
+                  risk_min=None, start_date=None, end_date=None,
+                  ip_filter=None, country_filter=None):
+    """
+    Enhanced audit log retrieval with filtering support.
+    """
+    q = _sb().table("audit_log").select(
+        "id,user_id,username,email,role,action,target,details,"
+        "ip_address,ua_browser,ua_os,ua_device,"
+        "geo_country,geo_country_code,geo_city,geo_isp,geo_is_proxy,"
+        "session_id,http_method,endpoint,status_code,response_ms,"
+        "risk_score,impossible_travel,auth_method,timestamp"
+    ).order("id", desc=True).limit(limit)
+
     if user_id:
         q = q.eq("user_id", user_id)
+    if action_filter:
+        q = q.eq("action", action_filter)
+    if risk_min is not None:
+        q = q.gte("risk_score", risk_min)
+    if start_date:
+        q = q.gte("timestamp", start_date)
+    if end_date:
+        q = q.lte("timestamp", end_date)
+    if ip_filter:
+        q = q.eq("ip_address", ip_filter)
+    if country_filter:
+        q = q.eq("geo_country_code", country_filter)
+
     return q.execute().data or []
+
+
+def get_audit_stats() -> dict:
+    """Aggregate stats for the audit dashboard."""
+    try:
+        rows = _sb().table("audit_log")             .select("action,risk_score,geo_country_code,ua_device,timestamp")             .order("id", desc=True).limit(5000).execute().data or []
+
+        from collections import Counter as _Ctr
+        actions  = _Ctr(r["action"] for r in rows if r.get("action"))
+        countries = _Ctr(r["geo_country_code"] for r in rows if r.get("geo_country_code"))
+        devices  = _Ctr(r["ua_device"] for r in rows if r.get("ua_device"))
+        risky    = sum(1 for r in rows if (r.get("risk_score") or 0) >= 40)
+        logins   = sum(1 for r in rows if r.get("action") == "LOGIN")
+        failures = sum(1 for r in rows if r.get("action") == "LOGIN_FAIL")
+        travel   = sum(1 for r in rows if r.get("impossible_travel"))
+
+        return {
+            "total_events":    len(rows),
+            "high_risk_events": risky,
+            "total_logins":    logins,
+            "failed_logins":   failures,
+            "impossible_travel": travel,
+            "top_actions":     actions.most_common(10),
+            "top_countries":   countries.most_common(10),
+            "device_breakdown": dict(devices),
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
 # ── Auto-init on import ────────────────────────────────────────
 init_db()

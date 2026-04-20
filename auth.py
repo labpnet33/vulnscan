@@ -365,7 +365,24 @@ def register_auth_routes(app):
         session["last_seen_at"] = int(time.time())
 
         update_last_login(user["id"], request.remote_addr)
-        audit(user["id"], username, "LOGIN", ip=request.remote_addr, ua=request.headers.get("User-Agent", ""))
+
+        # Record session for duration tracking
+        sid = session.get("_id", "") or str(user["id"]) + "-" + str(int(time.time()))
+        from database import record_session_start
+        record_session_start(sid, user["id"], username, request.remote_addr or "")
+
+        audit(
+            user["id"], username, "LOGIN",
+            ip=request.remote_addr,
+            ua=request.headers.get("User-Agent", ""),
+            email=user.get("email", ""),
+            role=user.get("role", "user"),
+            auth_method="password",
+            session_id=sid,
+            http_method="POST",
+            endpoint="/api/login",
+            status_code=200,
+        )
 
         return jsonify({
             "success": True,
@@ -379,7 +396,19 @@ def register_auth_routes(app):
     def api_logout():
         username = session.get("username", "")
         uid = session.get("user_id")
-        if uid: audit(uid, username, "LOGOUT", ip=request.remote_addr)
+        if uid:
+            from database import record_session_end
+            sid = session.get("_id", "")
+            duration = record_session_end(sid) if sid else 0
+            audit(uid, username, "LOGOUT",
+                  ip=request.remote_addr,
+                  ua=request.headers.get("User-Agent", ""),
+                  http_method="POST",
+                  endpoint="/api/logout",
+                  status_code=200,
+                  details=f"session_duration={duration}s",
+                  session_id=sid,
+                  skip_geo=True)
         session.clear()
         return jsonify({"success": True})
 
@@ -465,7 +494,15 @@ def register_auth_routes(app):
         ok, msg = validate_password(new_pwd)
         if not ok: return jsonify({"error": msg}), 400
         update_user(user["id"], password_hash=hash_password(new_pwd))
-        audit(user["id"], user["username"], "PASSWORD_CHANGE", ip=request.remote_addr)
+        audit(user["id"], user["username"], "PASSWORD_CHANGE",
+              ip=request.remote_addr,
+              ua=request.headers.get("User-Agent", ""),
+              email=user.get("email", ""),
+              role=user.get("role", ""),
+              http_method="POST",
+              endpoint="/api/change-password",
+              status_code=200,
+              details="Password changed successfully")
         return jsonify({"success": True, "message": "Password changed successfully"})
 
     @app.route("/api/profile", methods=["POST"])
@@ -537,6 +574,14 @@ def register_auth_routes(app):
         if role not in ["user", "admin"]: return jsonify({"error": "Invalid role"}), 400
         from database import set_user_role
         set_user_role(uid, role)
+        current = get_current_user()
+        audit(current["id"], current["username"], "PRIVILEGE_ESCALATION",
+              target=str(uid), ip=request.remote_addr,
+              ua=request.headers.get("User-Agent", ""),
+              details=f"Changed user #{uid} role to {role}",
+              http_method="POST",
+              endpoint=f"/api/admin/users/{uid}/role",
+              status_code=200)
         return jsonify({"success": True})
 
     @app.route("/api/admin/users/<int:uid>", methods=["DELETE"])

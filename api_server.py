@@ -145,6 +145,69 @@ _reap_orphans()
 CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": re.compile(r"https?://(localhost|127\.0\.0\.1)(:\d+)?$")}})
 
 
+# ── Request timing tracker ────────────────────────────────────
+import threading as _req_threading
+_REQ_START_TIMES = {}
+_REQ_LOCK = _req_threading.Lock()
+
+@app.before_request
+def _track_request_start():
+    import time as _rt
+    with _REQ_LOCK:
+        _REQ_START_TIMES[id(request._get_current_object())] = _rt.monotonic()
+
+@app.after_request
+def _log_request(resp):
+    """Log every API request with timing info."""
+    import time as _rt2
+    req_id = id(request._get_current_object())
+    with _REQ_LOCK:
+        start = _REQ_START_TIMES.pop(req_id, None)
+    elapsed_ms = round((_rt2.monotonic() - start) * 1000) if start else None
+
+    # Only log API routes and security-sensitive paths
+    path = request.path
+    sensitive = (
+        path.startswith("/api/") or
+        path in ("/scan", "/lynis", "/nikto", "/wpscan", "/dirbust",
+                 "/subdomains", "/discover", "/brute-http", "/brute-ssh",
+                 "/legion", "/harvester", "/dnsrecon", "/report") or
+        path.startswith("/social-tools/")
+    )
+    if not sensitive:
+        return resp
+
+    try:
+        user = get_current_user()
+        uid  = user["id"]       if user else None
+        uname = user["username"] if user else "anonymous"
+        uemail = user.get("email", "") if user else ""
+        urole  = user.get("role",  "") if user else ""
+
+        # Skip audit-log reads to avoid infinite loops
+        if "/api/admin/audit" in path:
+            return resp
+
+        from database import audit as _db_audit
+        _db_audit(
+            uid, uname, "HTTP_REQUEST",
+            target=path,
+            ip=request.remote_addr or "",
+            ua=request.headers.get("User-Agent", ""),
+            email=uemail,
+            role=urole,
+            http_method=request.method,
+            endpoint=path,
+            status_code=resp.status_code,
+            response_ms=elapsed_ms,
+            details=f"args={dict(request.args)!r:.200}" if request.args else "",
+            skip_geo=True,   # skip geo for every-request events (performance)
+        )
+    except Exception:
+        pass
+    return resp
+
+
 @app.after_request
 def _set_security_headers(resp):
     """Apply baseline HTTP hardening headers for API/UI responses."""
@@ -2770,7 +2833,84 @@ document.addEventListener('DOMContentLoaded',navRestore);
           </div>
         </div>
         <div class="tc" id="at-stats"><div class="card"><div class="card-header"><div class="card-title">Platform Statistics</div></div><div class="card-p" id="admin-stats"></div></div></div>
-        <div class="tc" id="at-audit"><div class="card"><div class="card-header"><div class="card-title">Audit Log</div></div><div class="card-p" id="admin-audit" style="overflow-x:auto"></div></div></div>
+        <div class="tc" id="at-audit">
+          <!-- ── Audit Stats Row ── -->
+          <div id="audit-stats-row" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:14px"></div>
+          <!-- ── Filters ── -->
+          <div class="card card-p" style="margin-bottom:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+              <div class="card-title">Audit Log</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-outline btn-sm" onclick="exportAuditCSV()">&#11123; CSV</button>
+                <button class="btn btn-outline btn-sm" onclick="loadAdminAudit()">&#8635; Refresh</button>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:8px">
+              <div class="fg" style="margin-bottom:0">
+                <label style="font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px">ACTION</label>
+                <select class="inp inp-mono" id="af-action" style="font-size:11px">
+                  <option value="">All actions</option>
+                  <optgroup label="Auth">
+                    <option>LOGIN</option><option>LOGIN_FAIL</option><option>LOGOUT</option>
+                    <option>REGISTER</option><option>PASSWORD_CHANGE</option><option>PASSWORD_RESET</option>
+                    <option>EMAIL_VERIFIED</option><option>ACCOUNT_LOCKED</option>
+                  </optgroup>
+                  <optgroup label="Security">
+                    <option>IMPOSSIBLE_TRAVEL</option><option>PRIVILEGE_ESCALATION</option>
+                    <option>BRUTE_FORCE_DETECTED</option><option>MFA_DISABLED</option>
+                  </optgroup>
+                  <optgroup label="Scans">
+                    <option>SCAN</option><option>LYNIS_SCAN</option><option>NIKTO_SCAN</option>
+                    <option>WPSCAN</option><option>BRUTE_HTTP</option><option>BRUTE_SSH</option>
+                    <option>REMOTE_JOB_CREATED</option>
+                  </optgroup>
+                  <optgroup label="Admin">
+                    <option>CLI_EXEC</option><option>ADMIN_CREATE_USER</option>
+                    <option>AUDIT_LOG_EXPORT</option><option>KILL_ALL_TOOLS</option>
+                  </optgroup>
+                </select>
+              </div>
+              <div class="fg" style="margin-bottom:0">
+                <label style="font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px">MIN RISK</label>
+                <select class="inp inp-mono" id="af-risk" style="font-size:11px">
+                  <option value="">Any risk</option>
+                  <option value="10">Low+ (10)</option>
+                  <option value="25">Medium+ (25)</option>
+                  <option value="40">High+ (40)</option>
+                  <option value="60">Critical+ (60)</option>
+                </select>
+              </div>
+              <div class="fg" style="margin-bottom:0">
+                <label style="font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px">IP ADDRESS</label>
+                <input class="inp inp-mono" id="af-ip" type="text" placeholder="1.2.3.4" style="font-size:11px"/>
+              </div>
+              <div class="fg" style="margin-bottom:0">
+                <label style="font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px">COUNTRY CODE</label>
+                <input class="inp inp-mono" id="af-country" type="text" placeholder="US, GB, IN ..." style="font-size:11px" maxlength="2"/>
+              </div>
+              <div class="fg" style="margin-bottom:0">
+                <label style="font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px">START DATE</label>
+                <input class="inp inp-mono" id="af-start" type="date" style="font-size:11px"/>
+              </div>
+              <div class="fg" style="margin-bottom:0">
+                <label style="font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px">END DATE</label>
+                <input class="inp inp-mono" id="af-end" type="date" style="font-size:11px"/>
+              </div>
+              <div class="fg" style="margin-bottom:0">
+                <label style="font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px">LIMIT</label>
+                <select class="inp inp-mono" id="af-limit" style="font-size:11px">
+                  <option value="100">100</option><option value="200" selected>200</option>
+                  <option value="500">500</option><option value="1000">1000</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="loadAdminAudit()">APPLY FILTERS</button>
+            <button class="btn btn-ghost btn-sm" onclick="clearAuditFilters()">CLEAR</button>
+          </div>
+          <div class="card">
+            <div class="card-p" id="admin-audit" style="overflow-x:auto"></div>
+          </div>
+        </div>
         <div class="tc" id="at-services">
           <div class="card" style="margin-bottom:12px">
             <div class="card-header">
@@ -4137,7 +4277,105 @@ async function toggleUser(id){await fetch('/api/admin/users/'+id+'/toggle',{meth
 async function setRole(id,role){await fetch('/api/admin/users/'+id+'/role',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role:role})});loadAdminUsers();}
 async function deleteUser(id){if(!confirm('Delete this user?'))return;await fetch('/api/admin/users/'+id,{method:'DELETE'});loadAdminUsers();}
 async function loadAdminStats(){try{var r=await fetch('/api/admin/stats');var d=await r.json();document.getElementById('admin-stats').innerHTML='<div class="stats"><div class="stat"><div class="stat-val">'+(d.total_users||0)+'</div><div class="stat-lbl">USERS</div></div><div class="stat"><div class="stat-val">'+(d.verified_users||0)+'</div><div class="stat-lbl">VERIFIED</div></div><div class="stat"><div class="stat-val">'+(d.total_scans||0)+'</div><div class="stat-lbl">SCANS</div></div><div class="stat"><div class="stat-val">'+(d.scans_today||0)+'</div><div class="stat-lbl">TODAY</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">'+(d.critical_cves||0)+'</div><div class="stat-lbl">CRITICAL</div></div><div class="stat"><div class="stat-val">'+(d.total_cves||0)+'</div><div class="stat-lbl">TOTAL CVEs</div></div></div>';}catch(e){}}
-async function loadAdminAudit(){try{var r=await fetch('/api/admin/audit?limit=200');var d=await r.json();document.getElementById('admin-audit').innerHTML='<table class="tbl"><thead><tr><th>TIME</th><th>USER</th><th>ACTION</th><th>TARGET</th><th>IP</th></tr></thead><tbody>'+d.map(function(l){return'<tr><td style="font-size:11px;color:var(--text3)">'+((l.timestamp||'').substring(0,16))+'</td><td style="font-family:var(--mono)">'+(l.username||'--')+'</td><td><span class="tag">'+(l.action||'')+'</span></td><td style="font-size:11px;color:var(--text3)">'+(l.target||'--')+'</td><td style="font-size:11px;color:var(--text3)">'+(l.ip_address||'--')+'</td></tr>';}).join('')+'</tbody></table>';}catch(e){}}
+function _riskPill(score){
+  score=parseInt(score||0);
+  var col=score>=60?'var(--red)':score>=40?'var(--orange)':score>=20?'var(--yellow)':'var(--text3)';
+  var lbl=score>=60?'CRIT':score>=40?'HIGH':score>=20?'MED':'LOW';
+  if(score===0)return'';
+  return'<span style="font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px;border:1px solid '+col+';color:'+col+'">'+lbl+' '+score+'</span>';
+}
+function _actionPill(action){
+  var danger=['LOGIN_FAIL','ACCOUNT_LOCKED','IMPOSSIBLE_TRAVEL','PRIVILEGE_ESCALATION','BRUTE_FORCE_DETECTED','MFA_DISABLED','KILL_ALL_TOOLS'];
+  var warn=['PASSWORD_RESET','PASSWORD_CHANGE','ADMIN_DELETE_USER','CLI_EXEC','BRUTE_HTTP','BRUTE_SSH','SET_SESSION_START'];
+  var col=danger.includes(action)?'var(--red)':warn.includes(action)?'var(--orange)':'var(--text3)';
+  return'<span style="font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid var(--border);color:'+col+'">'+action+'</span>';
+}
+function clearAuditFilters(){
+  ['af-action','af-risk','af-ip','af-country','af-start','af-end'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('af-limit').value='200';
+  loadAdminAudit();
+}
+async function exportAuditCSV(){
+  var limit=document.getElementById('af-limit').value||200;
+  window.open('/api/admin/audit/export?limit='+limit,'_blank');
+}
+async function loadAdminAudit(){
+  var out=document.getElementById('admin-audit');
+  var statsRow=document.getElementById('audit-stats-row');
+  if(out)out.innerHTML='<div style="color:var(--text3);font-size:12px;padding:12px">Loading...</div>';
+  var params=new URLSearchParams();
+  params.set('stats','1');
+  params.set('limit',document.getElementById('af-limit').value||200);
+  var v;
+  if((v=document.getElementById('af-action').value))params.set('action',v);
+  if((v=document.getElementById('af-risk').value))params.set('risk_min',v);
+  if((v=document.getElementById('af-ip').value.trim()))params.set('ip',v);
+  if((v=document.getElementById('af-country').value.trim().toUpperCase()))params.set('country',v);
+  if((v=document.getElementById('af-start').value))params.set('start_date',v+'T00:00:00');
+  if((v=document.getElementById('af-end').value))params.set('end_date',v+'T23:59:59');
+  try{
+    var r=await fetch('/api/admin/audit?'+params.toString());
+    var resp=await r.json();
+    var d=resp.logs||resp;
+    var stats=resp.stats||null;
+
+    // ── Stats cards ──
+    if(stats&&statsRow){
+      var kpis=[
+        [stats.total_events||0,'TOTAL EVENTS','var(--text)'],
+        [stats.high_risk_events||0,'HIGH RISK','var(--red)'],
+        [stats.total_logins||0,'LOGINS','var(--green)'],
+        [stats.failed_logins||0,'FAILED LOGINS','var(--orange)'],
+        [stats.impossible_travel||0,'TRAVEL ALERTS','var(--yellow)'],
+      ];
+      statsRow.innerHTML=kpis.map(function(k){return'<div class="stat"><div class="stat-val" style="font-size:22px;color:'+k[2]+'">'+k[0]+'</div><div class="stat-lbl">'+k[1]+'</div></div>';}).join('');
+    }
+
+    if(!d||!d.length){if(out)out.innerHTML='<div style="color:var(--text3);padding:12px">No log entries match the current filters.</div>';return;}
+    var html='<div style="overflow-x:auto"><table class="tbl" style="min-width:1100px"><thead><tr>'
+      +'<th>TIME</th><th>USER</th><th>ROLE</th><th>ACTION</th><th>RISK</th>'
+      +'<th>IP / GEO</th><th>DEVICE</th><th>HTTP</th><th>SESSION</th><th>TARGET / DETAILS</th>'
+      +'</tr></thead><tbody>';
+    d.forEach(function(l){
+      var geo='';
+      if(l.geo_city||l.geo_country){
+        geo='<div style="font-size:10px;color:var(--text3);margin-top:2px">'
+          +(l.geo_city?l.geo_city+', ':'')+l.geo_country
+          +(l.geo_is_proxy?'<span style="color:var(--red);margin-left:4px">[PROXY]</span>':'')+'</div>';
+      }
+      var device='';
+      if(l.ua_browser||l.ua_os){
+        device='<div style="font-size:10px;font-family:var(--mono);color:var(--text2)">'+(l.ua_browser||'')+'</div>'
+          +'<div style="font-size:10px;color:var(--text3)">'+(l.ua_os||'')+'/'+(l.ua_device||'')+'</div>';
+      }
+      var httpInfo='';
+      if(l.http_method){
+        var mc={'GET':'var(--green)','POST':'var(--cyan, var(--blue))','DELETE':'var(--red)','PUT':'var(--yellow)'};
+        httpInfo='<span style="font-family:var(--mono);font-size:10px;color:'+(mc[l.http_method]||'var(--text3)')+'">'+l.http_method+'</span>'
+          +(l.status_code?'<span style="font-size:10px;color:var(--text3);margin-left:4px">'+l.status_code+'</span>':'')
+          +(l.response_ms?'<div style="font-size:9px;color:var(--text3)">'+l.response_ms+'ms</div>':'');
+      }
+      var sessionInfo=l.session_id?'<span style="font-family:var(--mono);font-size:9px;color:var(--text3)" title="'+l.session_id+'">'+l.session_id.substring(0,8)+'…</span>':'—';
+      var travelBadge=l.impossible_travel?'<span style="font-size:9px;color:var(--red);font-weight:700"> ✈ TRAVEL</span>':'';
+      html+='<tr>'
+        +'<td style="font-size:10px;color:var(--text3);white-space:nowrap">'+((l.timestamp||'').substring(0,19).replace('T',' '))+'</td>'
+        +'<td><div style="font-family:var(--mono);font-size:11px;font-weight:500">'+(l.username||'—')+'</div>'
+          +(l.email?'<div style="font-size:10px;color:var(--text3)">'+l.email+'</div>':'')+'</td>'
+        +'<td><span style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+(l.role||'—')+'</span></td>'
+        +'<td>'+_actionPill(l.action||'')+travelBadge+'</td>'
+        +'<td>'+_riskPill(l.risk_score)+'</td>'
+        +'<td><div style="font-family:var(--mono);font-size:11px">'+(l.ip_address||'—')+'</div>'+geo+'</td>'
+        +'<td>'+device+'</td>'
+        +'<td>'+httpInfo+'</td>'
+        +'<td>'+sessionInfo+'</td>'
+        +'<td style="max-width:220px"><div style="font-size:11px;word-break:break-all">'+(l.target||'')+'</div>'
+          +(l.details?'<div style="font-size:10px;color:var(--text3);margin-top:2px;word-break:break-all">'+String(l.details).substring(0,120)+'</div>':'')+'</td>'
+        +'</tr>';
+    });
+    html+='</tbody></table></div>';
+    if(out)out.innerHTML=html;
+  }catch(e){if(out)out.innerHTML='<div class="err-box visible">'+e.message+'</div>';}
+}
 async function loadAdminScans(){try{var r=await fetch('/api/admin/scans');var d=await r.json();document.getElementById('admin-scans').innerHTML='<table class="tbl"><thead><tr><th>#</th><th>TARGET</th><th>TIME</th><th>PORTS</th><th>CVEs</th><th>CRITICAL</th><th></th></tr></thead><tbody>'+d.map(function(s){return'<tr><td style="color:var(--text3)">#'+s.id+'</td><td style="font-family:var(--mono)">'+s.target+'</td><td style="font-size:11px;color:var(--text3)">'+((s.scan_time||'').replace('T',' ').substring(0,19))+'</td><td>'+s.open_ports+'</td><td>'+s.total_cves+'</td><td style="color:'+(s.critical_cves>0?'var(--red)':'var(--text3)')+'">'+s.critical_cves+'</td><td><button class="btn btn-ghost btn-sm" onclick="loadScan('+s.id+')">View</button></td></tr>';}).join('')+'</tbody></table>';}catch(e){}}
 var _svcInterval=null;
 function svcPill(status){
