@@ -158,35 +158,55 @@ def _track_request_start():
 
 @app.after_request
 def _log_request(resp):
-    """Log every API request with timing info."""
-    import time as _rt2
-    req_id = id(request._get_current_object())
-    with _REQ_LOCK:
-        start = _REQ_START_TIMES.pop(req_id, None)
-    elapsed_ms = round((_rt2.monotonic() - start) * 1000) if start else None
-
-    # Only log API routes and security-sensitive paths
-    path = request.path
-    sensitive = (
-        path.startswith("/api/") or
-        path in ("/scan", "/lynis", "/nikto", "/wpscan", "/dirbust",
-                 "/subdomains", "/discover", "/brute-http", "/brute-ssh",
-                 "/legion", "/harvester", "/dnsrecon", "/report") or
-        path.startswith("/social-tools/")
-    )
-    if not sensitive:
-        return resp
-
+    """Log security-sensitive API requests with timing. Never raises."""
     try:
-        user = get_current_user()
-        uid  = user["id"]       if user else None
-        uname = user["username"] if user else "anonymous"
-        uemail = user.get("email", "") if user else ""
-        urole  = user.get("role",  "") if user else ""
+        import time as _rt2
+        req_id = id(request._get_current_object())
+        with _REQ_LOCK:
+            start = _REQ_START_TIMES.pop(req_id, None)
+        elapsed_ms = round((_rt2.monotonic() - start) * 1000) if start else None
 
-        # Skip audit-log reads to avoid infinite loops
-        if "/api/admin/audit" in path:
+        path = request.path
+
+        # Skip: audit log endpoints (infinite loop), health, static, agent poll
+        SKIP_PREFIXES = (
+            "/api/admin/audit", "/health", "/agent/",
+            "/api/agent/heartbeat", "/api/remote/jobs",
+        )
+        if any(path.startswith(p) for p in SKIP_PREFIXES):
             return resp
+
+        # Only log security-sensitive paths
+        TRACK_PREFIXES = (
+            "/api/login", "/api/logout", "/api/register",
+            "/api/change-password", "/api/forgot", "/api/reset",
+            "/api/admin/", "/api/exec", "/api/kill",
+            "/scan", "/lynis", "/nikto", "/wpscan", "/dirbust",
+            "/subdomains", "/discover", "/brute-http", "/brute-ssh",
+            "/legion", "/harvester", "/dnsrecon", "/report",
+            "/social-tools/", "/api/create-job", "/api/remote/create-job",
+        )
+        if not any(path.startswith(p) for p in TRACK_PREFIXES):
+            return resp
+
+        # Only log non-200 OR explicitly security-relevant actions
+        # (avoids flooding DB with every routine GET)
+        is_mutating   = request.method in ("POST", "PUT", "DELETE", "PATCH")
+        is_error      = resp.status_code >= 400
+        is_auth_route = any(path.startswith(p) for p in
+                            ("/api/login", "/api/logout", "/api/register",
+                             "/api/change-password", "/api/forgot", "/api/reset"))
+        if not (is_mutating or is_error or is_auth_route):
+            return resp
+
+        try:
+            user   = get_current_user()
+            uid    = user["id"]           if user else None
+            uname  = user["username"]     if user else "anonymous"
+            uemail = user.get("email","") if user else ""
+            urole  = user.get("role", "") if user else ""
+        except Exception:
+            uid, uname, uemail, urole = None, "anonymous", "", ""
 
         from database import audit as _db_audit
         _db_audit(
@@ -194,17 +214,15 @@ def _log_request(resp):
             target=path,
             ip=request.remote_addr or "",
             ua=request.headers.get("User-Agent", ""),
-            email=uemail,
-            role=urole,
+            email=uemail, role=urole,
             http_method=request.method,
             endpoint=path,
             status_code=resp.status_code,
             response_ms=elapsed_ms,
-            details=f"args={dict(request.args)!r:.200}" if request.args else "",
-            skip_geo=True,   # skip geo for every-request events (performance)
+            skip_geo=True,
         )
     except Exception:
-        pass
+        pass   # middleware must never break the response
     return resp
 
 
@@ -4302,79 +4320,164 @@ async function exportAuditCSV(){
 async function loadAdminAudit(){
   var out=document.getElementById('admin-audit');
   var statsRow=document.getElementById('audit-stats-row');
-  if(out)out.innerHTML='<div style="color:var(--text3);font-size:12px;padding:12px">Loading...</div>';
+  if(out)out.innerHTML='<div style="color:var(--text3);font-size:12px;padding:12px"><span class="spin"></span> Loading audit log...</div>';
+
+  // Build query params safely
   var params=new URLSearchParams();
   params.set('stats','1');
-  params.set('limit',document.getElementById('af-limit').value||200);
+  function _pval(id){var el=document.getElementById(id);return el?el.value:'';}
+  params.set('limit',_pval('af-limit')||'200');
   var v;
-  if((v=document.getElementById('af-action').value))params.set('action',v);
-  if((v=document.getElementById('af-risk').value))params.set('risk_min',v);
-  if((v=document.getElementById('af-ip').value.trim()))params.set('ip',v);
-  if((v=document.getElementById('af-country').value.trim().toUpperCase()))params.set('country',v);
-  if((v=document.getElementById('af-start').value))params.set('start_date',v+'T00:00:00');
-  if((v=document.getElementById('af-end').value))params.set('end_date',v+'T23:59:59');
+  if((v=_pval('af-action').trim()))params.set('action',v);
+  if((v=_pval('af-risk').trim()))params.set('risk_min',v);
+  if((v=_pval('af-ip').trim()))params.set('ip',v);
+  if((v=_pval('af-country').trim().toUpperCase()))params.set('country',v);
+  if((v=_pval('af-start').trim()))params.set('start_date',v+'T00:00:00');
+  if((v=_pval('af-end').trim()))params.set('end_date',v+'T23:59:59');
+
   try{
     var r=await fetch('/api/admin/audit?'+params.toString());
-    var resp=await r.json();
-    var d=resp.logs||resp;
-    var stats=resp.stats||null;
 
-    // ── Stats cards ──
-    if(stats&&statsRow){
-      var kpis=[
-        [stats.total_events||0,'TOTAL EVENTS','var(--text)'],
-        [stats.high_risk_events||0,'HIGH RISK','var(--red)'],
-        [stats.total_logins||0,'LOGINS','var(--green)'],
-        [stats.failed_logins||0,'FAILED LOGINS','var(--orange)'],
-        [stats.impossible_travel||0,'TRAVEL ALERTS','var(--yellow)'],
-      ];
-      statsRow.innerHTML=kpis.map(function(k){return'<div class="stat"><div class="stat-val" style="font-size:22px;color:'+k[2]+'">'+k[0]+'</div><div class="stat-lbl">'+k[1]+'</div></div>';}).join('');
+    // Guard: check Content-Type before calling .json()
+    var ct=r.headers.get('content-type')||'';
+    if(!ct.includes('json')){
+      var txt=await r.text();
+      if(out)out.innerHTML='<div class="err-box visible">Server returned non-JSON (HTTP '+r.status+'). '
+        +'Check server logs.<br><pre style="font-size:10px;margin-top:6px;white-space:pre-wrap">'+
+        txt.substring(0,400)+'</pre></div>';
+      return;
     }
 
-    if(!d||!d.length){if(out)out.innerHTML='<div style="color:var(--text3);padding:12px">No log entries match the current filters.</div>';return;}
-    var html='<div style="overflow-x:auto"><table class="tbl" style="min-width:1100px"><thead><tr>'
-      +'<th>TIME</th><th>USER</th><th>ROLE</th><th>ACTION</th><th>RISK</th>'
-      +'<th>IP / GEO</th><th>DEVICE</th><th>HTTP</th><th>SESSION</th><th>TARGET / DETAILS</th>'
+    var resp=await r.json();
+
+    // Handle both {logs,stats} and plain array (backward compat)
+    var d, stats=null;
+    if(Array.isArray(resp)){
+      d=resp;
+    } else if(resp && Array.isArray(resp.logs)){
+      d=resp.logs;
+      stats=resp.stats||null;
+    } else if(resp && resp.error){
+      if(out)out.innerHTML='<div class="err-box visible">API error: '+resp.error+'</div>';
+      return;
+    } else {
+      d=[];
+    }
+
+    // ── Stats cards ──────────────────────────────────────────
+    if(statsRow){
+      if(stats&&!stats.error){
+        var kpis=[
+          [stats.total_events||0,'TOTAL EVENTS','var(--text)'],
+          [stats.high_risk_events||0,'HIGH RISK','var(--red)'],
+          [stats.total_logins||0,'LOGINS','var(--green)'],
+          [stats.failed_logins||0,'FAILED LOGINS','var(--orange)'],
+          [stats.impossible_travel||0,'TRAVEL ALERTS','var(--yellow)'],
+        ];
+        statsRow.innerHTML=kpis.map(function(k){
+          return'<div class="stat"><div class="stat-val" style="font-size:22px;color:'+k[2]+'">'+k[0]+'</div>'
+            +'<div class="stat-lbl">'+k[1]+'</div></div>';
+        }).join('');
+      } else {
+        statsRow.innerHTML='';
+      }
+    }
+
+    // ── Empty state ───────────────────────────────────────────
+    if(!d||!d.length){
+      if(out)out.innerHTML='<div style="color:var(--text3);padding:16px;font-size:13px">'
+        +'No log entries found. Try clearing the filters or run some scans first.</div>';
+      return;
+    }
+
+    // ── Detect which columns are present in the first row ─────
+    var sample=d[0]||{};
+    var hasGeo=('geo_country' in sample||'geo_city' in sample);
+    var hasDevice=('ua_browser' in sample||'ua_os' in sample);
+    var hasHttp=('http_method' in sample);
+    var hasSession=('session_id' in sample);
+    var hasRisk=('risk_score' in sample);
+
+    // ── Build table ───────────────────────────────────────────
+    var html='<div style="overflow-x:auto"><table class="tbl" style="min-width:900px"><thead><tr>'
+      +'<th>TIME</th><th>USER</th><th>ACTION</th>'
+      +(hasRisk?'<th>RISK</th>':'')
+      +'<th>IP'+(hasGeo?' / GEO':'')+'</th>'
+      +(hasDevice?'<th>DEVICE</th>':'')
+      +(hasHttp?'<th>HTTP</th>':'')
+      +(hasSession?'<th>SESSION</th>':'')
+      +'<th>TARGET / DETAILS</th>'
       +'</tr></thead><tbody>';
+
     d.forEach(function(l){
-      var geo='';
-      if(l.geo_city||l.geo_country){
-        geo='<div style="font-size:10px;color:var(--text3);margin-top:2px">'
-          +(l.geo_city?l.geo_city+', ':'')+l.geo_country
-          +(l.geo_is_proxy?'<span style="color:var(--red);margin-left:4px">[PROXY]</span>':'')+'</div>';
+      // Geo cell
+      var geoHtml='';
+      if(hasGeo&&(l.geo_city||l.geo_country)){
+        geoHtml='<div style="font-size:10px;color:var(--text3);margin-top:2px">'
+          +(l.geo_city?(String(l.geo_city)+', '):'')+(l.geo_country||'')
+          +(l.geo_is_proxy?'<span style="color:var(--red);margin-left:4px;font-weight:700">[PROXY]</span>':'')
+          +'</div>';
       }
-      var device='';
-      if(l.ua_browser||l.ua_os){
-        device='<div style="font-size:10px;font-family:var(--mono);color:var(--text2)">'+(l.ua_browser||'')+'</div>'
-          +'<div style="font-size:10px;color:var(--text3)">'+(l.ua_os||'')+'/'+(l.ua_device||'')+'</div>';
+      // Device cell
+      var deviceHtml='';
+      if(hasDevice){
+        deviceHtml=(l.ua_browser?'<div style="font-size:10px;font-family:var(--mono);color:var(--text2)">'+l.ua_browser+'</div>':'')
+          +((l.ua_os||l.ua_device)?'<div style="font-size:10px;color:var(--text3)">'+(l.ua_os||'')+(l.ua_device?' / '+l.ua_device:'')+'</div>':'');
+        if(!deviceHtml)deviceHtml='<span style="color:var(--text3)">—</span>';
       }
-      var httpInfo='';
-      if(l.http_method){
-        var mc={'GET':'var(--green)','POST':'var(--cyan, var(--blue))','DELETE':'var(--red)','PUT':'var(--yellow)'};
-        httpInfo='<span style="font-family:var(--mono);font-size:10px;color:'+(mc[l.http_method]||'var(--text3)')+'">'+l.http_method+'</span>'
+      // HTTP cell
+      var httpHtml='';
+      if(hasHttp&&l.http_method){
+        var mc={'GET':'var(--green)','POST':'var(--blue)','DELETE':'var(--red)','PUT':'var(--yellow)'};
+        httpHtml='<span style="font-family:var(--mono);font-size:10px;color:'+(mc[l.http_method]||'var(--text3)')+'">'+l.http_method+'</span>'
           +(l.status_code?'<span style="font-size:10px;color:var(--text3);margin-left:4px">'+l.status_code+'</span>':'')
           +(l.response_ms?'<div style="font-size:9px;color:var(--text3)">'+l.response_ms+'ms</div>':'');
       }
-      var sessionInfo=l.session_id?'<span style="font-family:var(--mono);font-size:9px;color:var(--text3)" title="'+l.session_id+'">'+l.session_id.substring(0,8)+'…</span>':'—';
-      var travelBadge=l.impossible_travel?'<span style="font-size:9px;color:var(--red);font-weight:700"> ✈ TRAVEL</span>':'';
+      // Session cell
+      var sessionHtml='';
+      if(hasSession){
+        sessionHtml=l.session_id
+          ?('<span style="font-family:var(--mono);font-size:9px;color:var(--text3)" title="'+(l.session_id||'')+'">'
+            +(l.session_id||'').substring(0,8)+'…</span>')
+          :'<span style="color:var(--text3)">—</span>';
+      }
+      // Travel badge
+      var travelBadge=l.impossible_travel?'<span style="font-size:9px;color:var(--red);font-weight:700;margin-left:4px">✈ TRAVEL</span>':'';
+
       html+='<tr>'
-        +'<td style="font-size:10px;color:var(--text3);white-space:nowrap">'+((l.timestamp||'').substring(0,19).replace('T',' '))+'</td>'
-        +'<td><div style="font-family:var(--mono);font-size:11px;font-weight:500">'+(l.username||'—')+'</div>'
-          +(l.email?'<div style="font-size:10px;color:var(--text3)">'+l.email+'</div>':'')+'</td>'
-        +'<td><span style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+(l.role||'—')+'</span></td>'
+        +'<td style="font-size:10px;color:var(--text3);white-space:nowrap">'
+          +((l.timestamp||'').substring(0,19).replace('T',' '))+'</td>'
+        +'<td>'
+          +'<div style="font-family:var(--mono);font-size:11px;font-weight:500">'+(l.username||'—')+'</div>'
+          +(l.email?'<div style="font-size:10px;color:var(--text3)">'+l.email+'</div>':'')
+          +(l.role?'<div style="font-size:9px;color:var(--text3)">'+l.role+'</div>':'')
+        +'</td>'
         +'<td>'+_actionPill(l.action||'')+travelBadge+'</td>'
-        +'<td>'+_riskPill(l.risk_score)+'</td>'
-        +'<td><div style="font-family:var(--mono);font-size:11px">'+(l.ip_address||'—')+'</div>'+geo+'</td>'
-        +'<td>'+device+'</td>'
-        +'<td>'+httpInfo+'</td>'
-        +'<td>'+sessionInfo+'</td>'
-        +'<td style="max-width:220px"><div style="font-size:11px;word-break:break-all">'+(l.target||'')+'</div>'
-          +(l.details?'<div style="font-size:10px;color:var(--text3);margin-top:2px;word-break:break-all">'+String(l.details).substring(0,120)+'</div>':'')+'</td>'
+        +(hasRisk?'<td>'+_riskPill(l.risk_score)+'</td>':'')
+        +'<td>'
+          +'<div style="font-family:var(--mono);font-size:11px">'+(l.ip_address||'—')+'</div>'
+          +geoHtml
+        +'</td>'
+        +(hasDevice?'<td>'+deviceHtml+'</td>':'')
+        +(hasHttp?'<td>'+httpHtml+'</td>':'')
+        +(hasSession?'<td>'+sessionHtml+'</td>':'')
+        +'<td style="max-width:240px">'
+          +'<div style="font-size:11px;word-break:break-all;color:var(--text)">'+(l.target||'')+'</div>'
+          +(l.details?'<div style="font-size:10px;color:var(--text3);margin-top:2px;word-break:break-all">'
+            +String(l.details).substring(0,150)+'</div>':'')
+        +'</td>'
         +'</tr>';
     });
-    html+='</tbody></table></div>';
+    html+='</tbody></table></div>'
+      +'<div style="font-family:var(--mono);font-size:10px;color:var(--text3);padding:8px 4px">'
+      +d.length+' entries shown</div>';
     if(out)out.innerHTML=html;
-  }catch(e){if(out)out.innerHTML='<div class="err-box visible">'+e.message+'</div>';}
+
+  }catch(e){
+    if(out)out.innerHTML='<div class="err-box visible">loadAdminAudit error: '+e.message+'<br>'
+      +'<span style="font-size:10px">Open DevTools → Network tab, click the /api/admin/audit request '
+      +'and check the response body for the actual error.</span></div>';
+  }
 }
 async function loadAdminScans(){try{var r=await fetch('/api/admin/scans');var d=await r.json();document.getElementById('admin-scans').innerHTML='<table class="tbl"><thead><tr><th>#</th><th>TARGET</th><th>TIME</th><th>PORTS</th><th>CVEs</th><th>CRITICAL</th><th></th></tr></thead><tbody>'+d.map(function(s){return'<tr><td style="color:var(--text3)">#'+s.id+'</td><td style="font-family:var(--mono)">'+s.target+'</td><td style="font-size:11px;color:var(--text3)">'+((s.scan_time||'').replace('T',' ').substring(0,19))+'</td><td>'+s.open_ports+'</td><td>'+s.total_cves+'</td><td style="color:'+(s.critical_cves>0?'var(--red)':'var(--text3)')+'">'+s.critical_cves+'</td><td><button class="btn btn-ghost btn-sm" onclick="loadScan('+s.id+')">View</button></td></tr>';}).join('')+'</tbody></table>';}catch(e){}}
 var _svcInterval=null;

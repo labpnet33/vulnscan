@@ -256,31 +256,85 @@ def get_scan_stats():
 # AUDIT LOG — signatures identical to original
 # ══════════════════════════════════════════════════════════════
 
-def _geo_lookup(ip: str) -> dict:
-    """Best-effort GeoIP using ip-api.com (free, no key needed). Returns {} on failure."""
-    import urllib.request as _ureq, json as _json2
-    if not ip or ip in ("127.0.0.1", "::1", "unknown", ""):
-        return {}
-    try:
-        with _ureq.urlopen(
-            f"http://ip-api.com/json/{ip}?fields=country,countryCode,regionName,city,isp,org,proxy,hosting",
-            timeout=3
-        ) as r:
-            d = _json2.loads(r.read())
-            if d.get("status") == "success":
-                return {
-                    "country":      d.get("country", ""),
-                    "country_code": d.get("countryCode", ""),
-                    "region":       d.get("regionName", ""),
-                    "city":         d.get("city", ""),
-                    "isp":          d.get("isp", ""),
-                    "org":          d.get("org", ""),
-                    "is_proxy":     d.get("proxy", False),
-                    "is_hosting":   d.get("hosting", False),
+# ── Audit column discovery (run once, cached) ─────────────────────
+_AUDIT_COLS: set | None = None
+_AUDIT_COLS_LOCK = __import__("threading").Lock()
+
+def _get_audit_cols() -> set:
+    """Return the set of column names that actually exist in audit_log."""
+    global _AUDIT_COLS
+    if _AUDIT_COLS is not None:
+        return _AUDIT_COLS
+    with _AUDIT_COLS_LOCK:
+        if _AUDIT_COLS is not None:
+            return _AUDIT_COLS
+        try:
+            # Fetch one row to discover columns; fall back to minimal set on error
+            r = _sb().table("audit_log").select("*").limit(1).execute()
+            if r.data:
+                _AUDIT_COLS = set(r.data[0].keys())
+            else:
+                # Table exists but empty — try inserting a probe then deleting
+                # Instead, use the known minimum set
+                _AUDIT_COLS = {
+                    "user_id", "username", "action", "target",
+                    "ip_address", "user_agent", "details", "timestamp",
                 }
+        except Exception:
+            _AUDIT_COLS = {
+                "user_id", "username", "action", "target",
+                "ip_address", "user_agent", "details", "timestamp",
+            }
+    return _AUDIT_COLS
+
+
+# ── GeoIP cache (non-blocking background lookup) ───────────────────
+_GEO_CACHE: dict = {}   # ip -> (geo_dict, expiry_monotonic)
+_GEO_CACHE_TTL = 3600   # 1 hour per IP
+
+def _geo_lookup(ip: str) -> dict:
+    """
+    Non-blocking GeoIP via ip-api.com with 1-hour in-process cache.
+    Returns {} immediately on any failure — never blocks the request.
+    """
+    import urllib.request as _ureq, json as _json2, time as _gt
+    if not ip or ip in ("127.0.0.1", "::1", "unknown", "", "::ffff:127.0.0.1"):
+        return {}
+    # Cache hit?
+    entry = _GEO_CACHE.get(ip)
+    if entry:
+        geo, expiry = entry
+        if _gt.monotonic() < expiry:
+            return geo
+    try:
+        req = _ureq.Request(
+            f"http://ip-api.com/json/{ip}"
+            f"?fields=status,country,countryCode,regionName,city,isp,org,proxy,hosting",
+            headers={"User-Agent": "VulnScan/1.0"}
+        )
+        with _ureq.urlopen(req, timeout=3) as r:
+            d = _json2.loads(r.read())
+        if d.get("status") == "success":
+            geo = {
+                "country":      d.get("country", ""),
+                "country_code": d.get("countryCode", ""),
+                "region":       d.get("regionName", ""),
+                "city":         d.get("city", ""),
+                "isp":          d.get("isp", ""),
+                "org":          d.get("org", ""),
+                "is_proxy":     bool(d.get("proxy", False)),
+                "is_hosting":   bool(d.get("hosting", False)),
+            }
+        else:
+            geo = {}
+        _GEO_CACHE[ip] = (geo, _gt.monotonic() + _GEO_CACHE_TTL)
+        # Prune cache
+        if len(_GEO_CACHE) > 2000:
+            oldest = min(_GEO_CACHE, key=lambda k: _GEO_CACHE[k][1])
+            del _GEO_CACHE[oldest]
+        return geo
     except Exception:
-        pass
-    return {}
+        return {}
 
 
 def _parse_ua(ua_string: str) -> dict:
