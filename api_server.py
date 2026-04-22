@@ -157,8 +157,18 @@ def _track_request_start():
         _REQ_START_TIMES[id(request._get_current_object())] = _rt.monotonic()
 
 @app.after_request
-def _log_request(resp):
-    """Log security-sensitive API requests with timing. Never raises."""
+def _log_and_secure_response(resp):
+    """Apply security headers AND log sensitive API requests. Never raises."""
+    # ── Security headers (always) ─────────────────────────────
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    resp.headers.setdefault("X-Frame-Options", "DENY")
+    resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    resp.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    resp.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+    if request.is_secure or os.environ.get("VULNSCAN_FORCE_HSTS","0").lower() in {"1","true","yes"}:
+        resp.headers.setdefault("Strict-Transport-Security","max-age=31536000; includeSubDomains")
+
+    # ── Request logging (security-sensitive paths only) ────────
     try:
         import time as _rt2
         req_id = id(request._get_current_object())
@@ -168,75 +178,58 @@ def _log_request(resp):
 
         path = request.path
 
-        # Skip: audit log endpoints (infinite loop), health, static, agent poll
-        SKIP_PREFIXES = (
-            "/api/admin/audit", "/health", "/agent/",
-            "/api/agent/heartbeat", "/api/remote/jobs",
-        )
-        if any(path.startswith(p) for p in SKIP_PREFIXES):
+        # Never log these (avoid recursion / spam)
+        NEVER = ("/api/admin/audit", "/health", "/agent/",
+                 "/api/agent/heartbeat", "/api/remote/jobs", "/api/me")
+        if any(path.startswith(p) for p in NEVER):
             return resp
 
-        # Only log security-sensitive paths
-        TRACK_PREFIXES = (
-            "/api/login", "/api/logout", "/api/register",
-            "/api/change-password", "/api/forgot", "/api/reset",
-            "/api/admin/", "/api/exec", "/api/kill",
-            "/scan", "/lynis", "/nikto", "/wpscan", "/dirbust",
-            "/subdomains", "/discover", "/brute-http", "/brute-ssh",
-            "/legion", "/harvester", "/dnsrecon", "/report",
-            "/social-tools/", "/api/create-job", "/api/remote/create-job",
-        )
-        if not any(path.startswith(p) for p in TRACK_PREFIXES):
+        # Only log auth + scan + admin mutating requests
+        WATCH = ("/api/login", "/api/logout", "/api/register",
+                 "/api/change-password", "/api/forgot-password",
+                 "/api/reset-password", "/api/admin/", "/api/exec",
+                 "/api/kill", "/scan", "/lynis", "/nikto", "/wpscan",
+                 "/dirbust", "/subdomains", "/discover",
+                 "/brute-http", "/brute-ssh", "/legion",
+                 "/harvester", "/dnsrecon", "/social-tools/",
+                 "/api/create-job", "/api/remote/create-job")
+        if not any(path.startswith(p) for p in WATCH):
             return resp
 
-        # Only log non-200 OR explicitly security-relevant actions
-        # (avoids flooding DB with every routine GET)
-        is_mutating   = request.method in ("POST", "PUT", "DELETE", "PATCH")
-        is_error      = resp.status_code >= 400
-        is_auth_route = any(path.startswith(p) for p in
-                            ("/api/login", "/api/logout", "/api/register",
-                             "/api/change-password", "/api/forgot", "/api/reset"))
-        if not (is_mutating or is_error or is_auth_route):
+        is_mutating = request.method in ("POST","PUT","DELETE","PATCH")
+        is_error    = resp.status_code >= 400
+        is_auth     = any(path.startswith(p) for p in
+                          ("/api/login","/api/logout","/api/register",
+                           "/api/change-password","/api/forgot","/api/reset"))
+        if not (is_mutating or is_error or is_auth):
             return resp
 
         try:
-            user   = get_current_user()
-            uid    = user["id"]           if user else None
-            uname  = user["username"]     if user else "anonymous"
-            uemail = user.get("email","") if user else ""
-            urole  = user.get("role", "") if user else ""
+            user  = get_current_user()
+            uid   = user["id"]           if user else None
+            uname = user["username"]     if user else "anonymous"
+            email = user.get("email","") if user else ""
+            role  = user.get("role","")  if user else ""
         except Exception:
-            uid, uname, uemail, urole = None, "anonymous", "", ""
+            uid, uname, email, role = None, "anonymous", "", ""
 
-        from database import audit as _db_audit
-        _db_audit(
-            uid, uname, "HTTP_REQUEST",
-            target=path,
-            ip=request.remote_addr or "",
-            ua=request.headers.get("User-Agent", ""),
-            email=uemail, role=urole,
-            http_method=request.method,
-            endpoint=path,
-            status_code=resp.status_code,
-            response_ms=elapsed_ms,
-            skip_geo=True,
-        )
+        from database import audit as _dba
+        _dba(uid, uname, "HTTP_REQUEST",
+             target=path,
+             ip=request.remote_addr or "",
+             ua=request.headers.get("User-Agent",""),
+             email=email, role=role,
+             http_method=request.method,
+             endpoint=path,
+             status_code=resp.status_code,
+             response_ms=elapsed_ms,
+             skip_geo=True)
     except Exception:
-        pass   # middleware must never break the response
+        pass
     return resp
 
 
-@app.after_request
-def _set_security_headers(resp):
-    """Apply baseline HTTP hardening headers for API/UI responses."""
-    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
-    resp.headers.setdefault("X-Frame-Options", "DENY")
-    resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-    resp.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
-    resp.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
-    if request.is_secure or os.environ.get("VULNSCAN_FORCE_HSTS", "0").lower() in {"1", "true", "yes"}:
-        resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-    return resp
+# _set_security_headers merged into _log_and_secure_response above
 
 
 @app.before_request
